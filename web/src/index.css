@@ -1,12 +1,171 @@
-:root {
+/* Global base styles. Unlayered on purpose: they win over the HDS/USWDS cascade layers. */
+
+html {
+  background: var(--lf-bg);
+  color: var(--lf-text);
   color-scheme: dark;
-  background: #17171b;
-  color: #e8e8ec;
-  font-family: Inter, 'Public Sans', system-ui, sans-serif;
+  font-family: var(--lf-font-ui);
+  -webkit-text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--lf-missionbar-h) + 8px);
 }
-body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
-.placeholder { padding: 2rem; max-width: 40rem; }
-.eyebrow { font-family: 'DM Mono', ui-monospace, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: #9a9aa6; }
-h1 { font-size: clamp(2.5rem, 8vw, 4.5rem); margin: 0.2em 0; letter-spacing: 0.04em; }
-.tagline { font-size: 1.25rem; }
-.status { color: #9a9aa6; }
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: var(--lf-bg);
+  color: var(--lf-text);
+  font-family: var(--lf-font-ui);
+  font-size: var(--lf-text-md);
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--lf-font-heading);
+  color: var(--lf-text);
+  line-height: 1.2;
+  margin: 0 0 0.5em;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+h1 { font-size: clamp(1.6rem, 4vw, var(--lf-text-2xl)); }
+h2 { font-size: var(--lf-text-xl); }
+h3 { font-size: var(--lf-text-lg); }
+h4 { font-size: var(--lf-text-md); }
+
+p { margin: 0 0 0.75em; max-width: 72ch; }
+
+/* Font budget: Inter 400/600, Public Sans 700, DM Mono 400/500 (keeps first load small on mobile).
+   <th> is bold (700) by default, which would pull in an extra ~115 KB Inter face that is not cached offline. */
+strong,
+b,
+th { font-weight: 600; }
+
+a {
+  color: var(--lf-link);
+  text-decoration: underline;
+  text-decoration-color: var(--lf-link-underline);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+a:hover { text-decoration-thickness: 2px; }
+
+/* F.5.1 d: fixed-width font on numerical and tabular data. Prefer <Num>; these are safety nets. */
+code,
+kbd,
+samp,
+data,
+time,
+.lf-mono {
+  font-family: var(--lf-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+/* HDS mutes every <time>; a MET or timestamp is data, so it keeps its context colour. */
+time { color: inherit; }
+table { font-variant-numeric: tabular-nums; border-collapse: collapse; }
+td.num, th.num { font-family: var(--lf-font-mono); text-align: right; }
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* ---- keyboard focus: one strong, consistent ring (Table F.5-2: bright green cursor outline) ---- */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--lf-focus) !important;
+  outline-offset: 2px;
+  background-image: none;
+}
+/* Neutralise the HDS dashed-mask focus pseudo element; LANDFALL uses the outline above. */
+:focus-visible:not(:disabled, [aria-disabled='true'])::before {
+  display: none;
+}
+
+/* ---- utilities ---- */
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.lf-skip {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 10px 16px;
+  background: var(--lf-action);
+  color: var(--lf-action-text);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--lf-radius);
+  transform: translateY(-200%);
+}
+.lf-skip:focus,
+.lf-skip:focus-visible {
+  position: fixed;
+  transform: none;
+}
+
+/* ---- page frame ---- */
+.lf-main {
+  display: block;
+  width: 100%;
+  max-width: var(--lf-max-width);
+  margin: 0 auto;
+  padding: var(--lf-space-3) var(--lf-space-2) var(--lf-space-6);
+  min-height: 60vh;
+}
+.lf-main:focus { outline: none; }
+@media (min-width: 768px) {
+  .lf-main { padding: var(--lf-space-4) var(--lf-space-4) var(--lf-space-6); }
+}
+
+.lf-footer {
+  border-top: 1px solid var(--lf-border-subtle);
+  color: var(--lf-text-muted);
+  font-size: var(--lf-text-xs);
+  padding: var(--lf-space-2);
+}
+.lf-footer-inner {
+  max-width: var(--lf-max-width);
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-1) var(--lf-space-3);
+}
+.lf-footer p { margin: 0; max-width: none; }
+
+/* ---- motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,101 @@
+/*
+ * LANDFALL design tokens (unlayered, so they win over the HDS cascade layers).
+ *
+ * Base: NASA Horizon Design System (@nasa-hds/core) dark palette, data-hds-palette="dark" on
+ * <html>, background carbon-90 #17171b.
+ *
+ * Colour semantics: NASA-STD-3001 Vol 2 Rev F, Appendix F, frozen in
+ * /data/std_vol2_requirements.json -> data.appendix_f_colors:
+ *   Table F.5-1 (must):  Red = emergency / warning / failed . Yellow = caution / off-nominal .
+ *                        Blue = advisory . Gray = unavailable / unselectable . Cyan = missing or stale data
+ *   Table F.5-2 (should): Magenta = electronic procedures . Bright green = navigation and cursor outlines
+ *   F.5.10 a  colour conveys meaning, never decoration     F.5.10 e  always an additional cue (icon + text)
+ *   F.5.10 f  character/background contrast >= 6:1          F.5.1 d   fixed-width font for numbers (DM Mono)
+ * RED IS RESERVED for warning / emergency, and BLUE for advisory (Table F.5-1, "must"), so actions
+ * are neither: commandable elements use a dark green background (Table F.5-2, "should"), with
+ * white text at 6.45:1 (F.5.10 f) and a lighter green edge to separate them from the page.
+ * Nominal is deliberately neutral (Appendix F gives nominal no colour; F.4.3.1 d marks only
+ * out-of-threshold values).
+ * Contrast on --lf-bg (#17171b): text 17.9:1, muted 9.1:1, warning 6.6:1, caution 12.4:1,
+ * advisory 8.2:1, stale 10.2:1, unavailable 7.1:1, procedure 7.6:1, focus 13.7:1.
+ */
+
+:root {
+  /* ---- surfaces (HDS carbon scale) ---- */
+  --lf-bg: var(--hds-color-carbon-90, #17171b);
+  --lf-surface-1: #1e1e23;
+  --lf-surface-2: #26262b;
+  --lf-surface-3: var(--hds-color-carbon-80, #2e2e32);
+  --lf-border: var(--hds-color-carbon-60, #58585b);
+  --lf-border-subtle: var(--hds-color-carbon-70, #444447);
+  --lf-border-strong: var(--hds-color-carbon-30, #b9b9bb);
+
+  /* ---- text ---- */
+  --lf-text: var(--hds-color-spacesuit-white, #ffffff);
+  --lf-text-2: var(--hds-color-carbon-20, #d1d1d1);
+  --lf-text-muted: var(--hds-color-carbon-30, #b9b9bb);
+
+  /* ---- typography: Inter for UI text, Public Sans for headings, DM Mono for every number ---- */
+  --lf-font-ui: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --lf-font-heading: 'Public Sans Web', 'Public Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --lf-font-mono: 'DM Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --lf-text-xs: 0.75rem;
+  --lf-text-sm: 0.875rem;
+  --lf-text-md: 1rem;
+  --lf-text-lg: 1.25rem;
+  --lf-text-xl: 1.75rem;
+  --lf-text-2xl: 2.25rem;
+
+  /* ---- severity (SPEC section 2 + Appendix F) ---- */
+  --lf-sev-nominal: var(--lf-text-2);
+  --lf-sev-advisory: #6cb4ff;
+  --lf-sev-caution: #ffd23f;
+  --lf-sev-warning: #ff7066;
+  --lf-sev-emergency: #ff7066;
+  /* text colour on a filled (lit) severity background */
+  --lf-on-sev-advisory: #0b1a2e;
+  --lf-on-sev-caution: #000000;
+  --lf-on-sev-warning: #17171b;
+  --lf-on-sev-emergency: #17171b;
+
+  /* ---- data quality ([V2 10020]: stale, missing, unavailable, unknown) ---- */
+  --lf-data-stale: #3fd6e6;       /* cyan: missing or stale data (Table F.5-1) */
+  --lf-data-unavailable: #a3a3a8; /* gray: unavailable / not applicable (Table F.5-1) */
+
+  /* ---- other semantic colours ---- */
+  --lf-procedure: #ea7dff;        /* magenta: guided procedure steps (Table F.5-2) */
+  --lf-focus: #5cff7a;            /* bright green: keyboard focus outline (Table F.5-2) */
+  --lf-action: #146c43;           /* dark green: commandable element background (Table F.5-2) */
+  --lf-action-hover: #0f5a37;
+  --lf-action-edge: #3fae6f;      /* button outline so the control reads against --lf-bg */
+  --lf-action-text: #ffffff;      /* 6.45:1 on --lf-action (F.5.10 f requires >= 6:1) */
+  --lf-link: var(--lf-text);
+  --lf-link-underline: #4cc38a;   /* green, not blue: blue means Advisory */
+
+  /* ---- simulated-data marker (F.4.2 j: sim mode must be visually distinct) ---- */
+  --lf-sim-stripe-a: #3a3a40;
+  --lf-sim-stripe-b: #232328;
+  --lf-sim-text: #ffffff;
+
+  /* ---- spacing / shape (HDS spacing scale, 8 px grid) ---- */
+  --lf-space-0-5: var(--hds-spacing-0-5, 4px);
+  --lf-space-1: var(--hds-spacing-1, 8px);
+  --lf-space-1-5: var(--hds-spacing-1-5, 12px);
+  --lf-space-2: var(--hds-spacing-2, 16px);
+  --lf-space-3: var(--hds-spacing-3, 24px);
+  --lf-space-4: var(--hds-spacing-4, 32px);
+  --lf-space-6: var(--hds-spacing-6, 48px);
+  --lf-radius: 2px;
+  --lf-max-width: 1200px;
+  --lf-missionbar-h: 56px;
+}
+
+/* HDS dark palette overrides: HDS primary buttons are red; in LANDFALL red means Warning only. */
+[data-hds-palette='dark'] {
+  --hds-palette-btn-primary-bg: var(--lf-action);
+  --hds-palette-btn-primary-bg-hover: var(--lf-action-hover);
+  --hds-palette-focus: var(--lf-focus);
+  --hds-palette-focus-bold: var(--lf-focus);
+  --hds-palette-marker: var(--lf-text-muted);
+  --hds-palette-link-underline: var(--lf-link-underline);
+}

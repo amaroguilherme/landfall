@@ -1,13 +1,29 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-hds-palette="dark" style="background: #17171b; color-scheme: dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Offline-first guarantee: the browser itself refuses any request to another origin. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'"
+    />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#17171b" />
+    <meta
+      name="description"
+      content="LANDFALL: Earth-independent health navigation for exploration crews. Runs offline. NASA and NOAA data frozen at build; crew data simulated."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>LANDFALL · Earth-independent health navigation</title>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <p style="color: #fff; font-family: sans-serif; padding: 1rem">
+        LANDFALL runs entirely in your browser and needs JavaScript enabled. No data leaves this page.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

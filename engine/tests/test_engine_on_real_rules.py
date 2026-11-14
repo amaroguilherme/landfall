@@ -161,7 +161,9 @@ def test_every_personal_indicator_evaluates(ind):
     worse_sign = -1 if ind["worse"] == "decrease" else 1
     far = evaluate_personal(ind, base, 10 + worse_sign * 100, cfg)
     assert far["status"] == "reliable_change"
-    assert far["severity"] == ("caution" if ind["alerting"] else "advisory")
+    # a non-alerting indicator shows its change and never alerts (SPEC section 2)
+    assert far["severity"] == ("caution" if ind["alerting"] else "nominal")
+    assert far["rci"]["method"] == "crawford_howell_1998" and far["rci"]["df"] == len(base) - 1
     assert evaluate_personal(ind, base, 10, cfg)["status"] == "within"
     assert evaluate_personal(ind, base[: cfg["min_baseline_n"] - 1], 10, cfg)["status"] == "insufficient_data"
     if ind.get("private") is True:
@@ -202,6 +204,41 @@ def test_every_case_runs_through_the_state_machine(case_def):
         assert s["log"][-1]["error"] is None
     s = case_reduce(s, {"type": "OUTCOME", "text": "test outcome", "t": NOW + 100})
     assert s["status"] == "watch"
+
+
+@pytest.mark.parametrize("case_def", _cases() or [None], ids=lambda c: c["id"] if c else "no-cases")
+def test_every_case_watches_a_rule_that_applies_in_every_environment(case_def):
+    """The tripwire must watch a rule that is evaluated where the crew is (SPEC 3.4 by_env).
+
+    Before by_env, spe_shelter watched ops_noaa_s3 everywhere, a rule that is not_applicable at
+    mars_surface, the hero setting."""
+    _need("cases")
+    if case_def is None:
+        pytest.skip("cases.json has no cases")
+    rules = {r["id"]: r for r in _threshold_rules()}
+    inds = {i["id"] for i in _indicators()}
+    for env in _env_ids():
+        s = new_case(case_def, "CM-1", trigger_lookup(RULES), env)
+        ref = s["spec"]["tripwire"]["condition"]["ref_id"]
+        assert s["spec"]["env_id"] == env
+        if ref in inds:
+            continue
+        rule = rules[ref]
+        assert "*" in rule["applies_to"] or env in rule["applies_to"], (case_def["id"], env, ref)
+        assert evaluate_rule(rule, 2000, env, NOW)["status"] != "not_applicable"
+
+
+def test_spe_tripwire_follows_the_environment():
+    _need("cases")
+    spe = next((c for c in _cases() if c["id"] == "spe_shelter"), None)
+    if spe is None:
+        pytest.skip("no spe_shelter case")
+    lk = trigger_lookup(RULES)
+    at = {env: new_case(spe, "CM-1", lk, env)["spec"]["tripwire"]["condition"] for env in _env_ids()}
+    assert at["mars_surface"]["ref_id"] == "ops_onboard_proton_s3"
+    assert {at[e]["ref_id"] for e in ("iss", "cislunar", "lunar_surface")} == {"ops_noaa_s3"}
+    # same physical quantity everywhere: the switch changes the rule, never the unit or the level
+    assert {(c["variable"], c["unit"], c["op"], c["value"]) for c in at.values()} == {("proton_flux_10mev", "pfu", "ge", 1000)}
 
 
 def test_environment_comms_without_tables():

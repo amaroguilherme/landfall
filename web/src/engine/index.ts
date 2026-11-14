@@ -23,7 +23,8 @@ export {
   sLevel,
   severityRank,
 } from './thresholds'
-export { WORSE_VALUES, evaluatePersonal, expectedFalseAlarms, rci } from './rci'
+export { FALSE_ALARM_ASSUMES, RCI_METHOD, WORSE_VALUES, evaluatePersonal, expectedFalseAlarms, rci } from './rci'
+export { DF_MAX as T_DF_MAX, DF_MIN as T_DF_MIN, tCdf, tCritical, tQuantile } from './tdist'
 export { EVENTS, OPENING_SEVERITIES, OPEN_STATES, STATES, TERMINAL_STATES, caseReduce, newCase } from './cases'
 export {
   BOOLEAN_UNITS,

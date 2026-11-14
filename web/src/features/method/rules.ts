@@ -20,6 +20,7 @@ export type RuleSource = {
   table?: string
   rationale?: string
   citation?: string
+  note?: string
   from?: string[]
   arithmetic?: string
   term?: string
@@ -61,20 +62,31 @@ export interface PersonalIndicatorDef {
   worse: string
   alerting: boolean
   private: boolean
-  reliability_r: { value: number; chip: string; source: RuleSource }
+  /** Non-computational context only (value null, used_by_engine false): the engine ignores it. */
+  reliability_r?: { value: number | null; used_by_engine?: boolean; chip: string; source: RuleSource }
   case_id: string | null
 }
 
+/** A sentence with its basis (personal.json rci.lineage, rci.caveat_basis). */
+export interface SourcedText {
+  text: string
+  chip: string
+  source: RuleSource
+}
+
+/** personal.json `rci`: the engine reads alpha_two_tailed and min_baseline_n; the critical value is computed. */
 export interface RciBlock {
-  critical_z: number
   alpha_two_tailed: number
   min_baseline_n: number
   baseline_window_days: number
   chip: string
   source: RuleSource
   method: string
+  lineage?: SourcedText
   provenance: Record<string, Provenanced>
   caveat: string
+  caveat_basis?: SourcedText
+  change_note?: string
 }
 
 export interface PersonalFile {

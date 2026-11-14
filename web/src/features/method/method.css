@@ -308,7 +308,9 @@
 .lf-method .lf-panel-body { overflow-x: auto; }
 @media (max-width: 600px) {
   .lf-m-facts > div { grid-template-columns: 1fr; gap: 0; }
-  .lf-m-eqs { font-size: var(--lf-text-sm); }
+  .lf-m-eqs { font-size: var(--lf-text-sm); gap: 0.45em 0.5em; grid-template-columns: max-content max-content minmax(0, 1fr); }
+  /* the gloss after an expression goes on its own line, so the expression keeps the full width */
+  .lf-m-eq-r > .lf-m-eq-text { display: block; }
   .lf-m-why { min-width: 12rem; }
 }
 .lf-m-loading { display: inline-flex; align-items: center; gap: 0.4em; }
@@ -341,6 +343,8 @@
   .lf-m-stack td { display: block; padding: 0; border: 0; }
   .lf-m-stack .lf-m-stack-wide { grid-column: 1 / -1; grid-row: 2; min-width: 0; }
   .lf-m-stack-rate tr { grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr); }
+  /* critical values by baseline length: the row label, then three labelled numbers */
+  .lf-m-stack-rate.lf-m-stack-crit tr { grid-template-columns: minmax(0, 1fr) repeat(3, auto); }
   /* The header row is hidden here, so each number carries its column name. */
   .lf-m-stack-rate td[data-label]::before {
     content: attr(data-label);

@@ -7,12 +7,17 @@
   },
   "expect": {
    "alpha": 0.001,
+   "assumes": "one test per indicator per day, with normal day-to-day noise that is independent from one day to the next; autocorrelated or skewed data give more, while correlation between indicators leaves the average unchanged and only bunches chance flags together",
+   "caution_every_n_days": 200.0,
+   "caution_text": "one false caution every 200 days on average: only a chance change in the worse direction raises a caution",
+   "cautions_per_day": 0.005,
    "days": 30,
    "every_n_days": 100.0,
    "expected": 0.3,
+   "expected_cautions": 0.15,
    "k_indicators": 10,
    "per_day": 0.01,
-   "text": "one false alarm every 100 days"
+   "text": "one false flag every 100 days on average, counting chance changes in either direction"
   },
   "fn": "expected_false_alarms",
   "name": "k10_30d"
@@ -24,15 +29,43 @@
   },
   "expect": {
    "alpha": 0.001,
+   "assumes": "one test per indicator per day, with normal day-to-day noise that is independent from one day to the next; autocorrelated or skewed data give more, while correlation between indicators leaves the average unchanged and only bunches chance flags together",
+   "caution_every_n_days": 200.0,
+   "caution_text": "one false caution every 200 days on average: only a chance change in the worse direction raises a caution",
+   "cautions_per_day": 0.005,
    "days": 30,
    "every_n_days": 100.0,
    "expected": 0.3,
+   "expected_cautions": 0.15,
    "k_indicators": 10,
    "per_day": 0.01,
-   "text": "one false alarm every 100 days"
+   "text": "one false flag every 100 days on average, counting chance changes in either direction"
   },
   "fn": "expected_false_alarms",
   "name": "k10_30d_default_alpha"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "days": 1,
+   "k_indicators": 8
+  },
+  "expect": {
+   "alpha": 0.001,
+   "assumes": "one test per indicator per day, with normal day-to-day noise that is independent from one day to the next; autocorrelated or skewed data give more, while correlation between indicators leaves the average unchanged and only bunches chance flags together",
+   "caution_every_n_days": 250.0,
+   "caution_text": "one false caution every 250 days on average: only a chance change in the worse direction raises a caution",
+   "cautions_per_day": 0.004,
+   "days": 1,
+   "every_n_days": 125.0,
+   "expected": 0.008,
+   "expected_cautions": 0.004,
+   "k_indicators": 8,
+   "per_day": 0.008,
+   "text": "one false flag every 125 days on average, counting chance changes in either direction"
+  },
+  "fn": "expected_false_alarms",
+  "name": "k8_alerting_indicators_one_day"
  },
  {
   "args": {
@@ -42,12 +75,17 @@
   },
   "expect": {
    "alpha": 0.001,
+   "assumes": "one test per indicator per day, with normal day-to-day noise that is independent from one day to the next; autocorrelated or skewed data give more, while correlation between indicators leaves the average unchanged and only bunches chance flags together",
+   "caution_every_n_days": 666.6666666666666,
+   "caution_text": "one false caution every 666.7 days on average: only a chance change in the worse direction raises a caution",
+   "cautions_per_day": 0.0015,
    "days": 45,
    "every_n_days": 333.3333333333333,
    "expected": 0.135,
+   "expected_cautions": 0.0675,
    "k_indicators": 3,
    "per_day": 0.003,
-   "text": "one false alarm every 333.3 days"
+   "text": "one false flag every 333.3 days on average, counting chance changes in either direction"
   },
   "fn": "expected_false_alarms",
   "name": "k3_45d"
@@ -60,15 +98,43 @@
   },
   "expect": {
    "alpha": 0.001,
+   "assumes": "one test per indicator per day, with normal day-to-day noise that is independent from one day to the next; autocorrelated or skewed data give more, while correlation between indicators leaves the average unchanged and only bunches chance flags together",
+   "caution_every_n_days": null,
+   "caution_text": "no false cautions expected",
+   "cautions_per_day": 0.0,
    "days": 30,
    "every_n_days": null,
    "expected": 0.0,
+   "expected_cautions": 0.0,
    "k_indicators": 0,
    "per_day": 0.0,
-   "text": "no false alarms expected"
+   "text": "no false flags expected"
   },
   "fn": "expected_false_alarms",
   "name": "k0"
+ },
+ {
+  "args": {
+   "alpha": 0,
+   "days": 30,
+   "k_indicators": 8
+  },
+  "expect": {
+   "alpha": 0,
+   "assumes": "one test per indicator per day, with normal day-to-day noise that is independent from one day to the next; autocorrelated or skewed data give more, while correlation between indicators leaves the average unchanged and only bunches chance flags together",
+   "caution_every_n_days": null,
+   "caution_text": "no false cautions expected",
+   "cautions_per_day": 0.0,
+   "days": 30,
+   "every_n_days": null,
+   "expected": 0,
+   "expected_cautions": 0.0,
+   "k_indicators": 8,
+   "per_day": 0,
+   "text": "no false flags expected"
+  },
+  "fn": "expected_false_alarms",
+  "name": "alpha_zero"
  },
  {
   "args": {
@@ -78,6 +144,28 @@
   },
   "fn": "expected_false_alarms",
   "name": "negative_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "alpha": 1.5,
+   "days": 30,
+   "k_indicators": 8
+  },
+  "fn": "expected_false_alarms",
+  "name": "alpha_above_one_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "alpha": {
+    "$float": "NaN"
+   },
+   "days": 30,
+   "k_indicators": 8
+  },
+  "fn": "expected_false_alarms",
+  "name": "alpha_nan_rejected",
   "raises": "invalid_argument"
  }
 ]

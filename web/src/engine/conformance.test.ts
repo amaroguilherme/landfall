@@ -1,6 +1,7 @@
 // Conformance: replay EVERY vector in engine/tests/vectors/*.json (SPEC section 6) through the
 // TypeScript port and require the Python reference engine's answer: deep equality, numbers within
-// 1e-9 (relative above magnitude 1), strings exact, and `raises` matching the error code.
+// 1e-9 (relative above magnitude 1), strings exact, and `raises` matching the error code. A second
+// check requires bit-for-bit equality everywhere except t_cdf (see TOLERANCE_ONLY).
 
 import { readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -18,8 +19,11 @@ import {
   newCase,
   rci,
   sLevel,
+  tCdf,
+  tCritical,
+  tQuantile,
 } from './index'
-import { clone } from './py'
+import { clone, isObj, setOwn } from './py'
 
 type AnyFn = (...args: unknown[]) => unknown
 
@@ -28,11 +32,14 @@ type AnyFn = (...args: unknown[]) => unknown
 // Python default is the same value).
 const API: Record<string, { fn: AnyFn; params: readonly string[] }> = {
   evaluate_rule: { fn: evaluateRule as AnyFn, params: ['rule', 'value', 'env_id', 't', 'ctx'] },
-  rci: { fn: rci as AnyFn, params: ['baseline', 'current', 'r', 'critical_z', 'min_baseline_n'] },
+  rci: { fn: rci as AnyFn, params: ['baseline', 'current', 'alpha', 'min_baseline_n'] },
   evaluate_personal: { fn: evaluatePersonal as AnyFn, params: ['indicator', 'baseline', 'current', 'cfg', 't'] },
   expected_false_alarms: { fn: expectedFalseAlarms as AnyFn, params: ['k_indicators', 'days', 'alpha'] },
+  t_cdf: { fn: tCdf as AnyFn, params: ['t', 'df'] },
+  t_quantile: { fn: tQuantile as AnyFn, params: ['p', 'df'] },
+  t_critical: { fn: tCritical as AnyFn, params: ['alpha', 'df'] },
   s_level: { fn: sLevel as AnyFn, params: ['flux_pfu'] },
-  new_case: { fn: newCase as AnyFn, params: ['case_def', 'crew_id', 'lookup'] },
+  new_case: { fn: newCase as AnyFn, params: ['case_def', 'crew_id', 'lookup', 'env_id'] },
   case_reduce: { fn: caseReduce as AnyFn, params: ['state', 'event'] },
   build_ground_packet: {
     fn: buildGroundPacket as AnyFn,
@@ -130,9 +137,31 @@ function diff(actual: unknown, expected: unknown, path: string, out: string[], e
   return out
 }
 
+// JSON has no NaN or infinity: an argument that must be non-finite is written {"$float": "NaN" |
+// "Infinity" | "-Infinity"} and decoded, at any depth of args, before the call (SPEC section 6).
+const NONFINITE: Record<string, number> = { NaN: NaN, Infinity: Infinity, '-Infinity': -Infinity }
+
+function decodeArgs(x: unknown): unknown {
+  if (Array.isArray(x)) return x.map(decodeArgs)
+  if (isObj(x)) {
+    const keys = Object.keys(x)
+    const tag = x.$float
+    if (keys.length === 1 && typeof tag === 'string' && Object.hasOwn(NONFINITE, tag)) return NONFINITE[tag]
+    const out: Record<string, unknown> = {}
+    for (const k of keys) setOwn(out, k, decodeArgs(x[k]))
+    return out
+  }
+  return x
+}
+
+/** A fresh decoded copy of a vector's args (what the call receives, and what it must leave intact). */
+function decodedArgs(vec: Vector): Record<string, unknown> {
+  return decodeArgs(clone(vec.args)) as Record<string, unknown>
+}
+
 function call(vec: Vector): { result?: unknown; error?: unknown; args: Record<string, unknown> } {
   const api = API[vec.fn]
-  const args = clone(vec.args)
+  const args = decodedArgs(vec)
   const positional = api.params.map((p) => (Object.hasOwn(args, p) ? args[p] : undefined))
   try {
     return { result: api.fn(...positional), args }
@@ -177,18 +206,27 @@ for (const file of ALL_FILES) {
         if (error !== undefined) throw error
         expect(diff(result, vec.expect, '$', [], false)).toEqual([])
       }
-      // pure functions: the arguments are not mutated
-      expect(args).toEqual(vec.args)
+      // pure functions: the (decoded) arguments are not mutated
+      expect(args).toEqual(decodedArgs(vec))
     })
   })
 }
 
+// t_cdf goes through Math.log and Math.exp (also inside lgamma), which can differ from the C
+// library's log and exp in the last bit, so SPEC section 5 holds it to the 1e-9 tolerance only
+// (on this machine about 1 t_cdf vector in 20 differs in its last digits). The bisection behind
+// t_quantile and t_critical takes exactly 32 halvings, each decided far above that noise for the
+// df of these frozen vectors, so they, and every rci / evaluate_personal value built on the
+// critical value, are identical to the Python double here. That is a property of these inputs,
+// not a guarantee at very large df (README "Student's t"; SPEC section 6 allows 1e-8 above df 1e5).
+const TOLERANCE_ONLY: ReadonlySet<string> = new Set(['t_cdf'])
+
 describe('bit-for-bit parity (stronger than the 1e-9 tolerance)', () => {
-  it('every number in every expected result is identical to the Python double', () => {
+  it('every number in every expected result is identical to the Python double (t_cdf: tolerance only)', () => {
     const mismatches: string[] = []
     for (const file of ALL_FILES) {
       for (const vec of VECTORS[file]) {
-        if (vec.raises !== undefined) continue
+        if (vec.raises !== undefined || TOLERANCE_ONLY.has(vec.fn)) continue
         const { result } = call(vec)
         for (const d of diff(result, vec.expect, `${file}:${vec.name}`, [], true)) mismatches.push(d)
       }

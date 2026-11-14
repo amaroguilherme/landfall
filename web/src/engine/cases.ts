@@ -2,20 +2,35 @@
 //   idle -> detected -> acting -> watch -> resolved | escalated, plus dismissed.
 //
 // caseReduce is a pure reducer: it never mutates its inputs and never throws for a bad event. An
-// invalid event returns the same status plus a log entry whose `error` is set. A malformed *state*
-// (not produced by newCase / caseReduce) is a contract violation and throws invalid_argument.
+// invalid event is atomic: it returns the input state unchanged plus exactly one log entry whose
+// `error` is set (a TICK rejected for a unit mismatch keeps none of the observations listed before
+// the bad one). A malformed *state* (not produced by newCase / caseReduce) is a contract violation
+// and throws invalid_argument.
 //
 // Tripwire timing: observations are collected throughout watch, but the tripwire is only judged at
 // t >= reassess_at, matching the case texts ("Reassess at T+72 h; if ... still ..., reclassify").
 // Observations with crew_id null or absent (vehicle / habitat sensors, e.g. the onboard proton
 // monitor) describe the shared environment and count for every crewmember's case.
+//
+// Environment: a tripwire condition may carry "by_env": {env_id: {overrides}}. newCase(..., envId)
+// applies the override for that environment, so a case watches the rule that applies there (the SPE
+// case watches the onboard monitor rule at Mars and the NOAA rule near Earth).
 
 import { EngineError } from './errors'
 import { fmtNum, isNumber } from './fmt'
-import { clone, has, isInt, isNonemptyStr, isObj, pyEq, pyGet, pyIn, pyOr, pyRepr, pyStr, sortedStrings, truthy } from './py'
+import { clone, has, isInt, isNonemptyStr, isObj, pyEq, pyGet, pyIn, pyOr, pyRepr, pyStr, setOwn, sortedStrings, truthy } from './py'
 import type { JsonObject } from './py'
 import { OP_SYMBOL, compare, isOp } from './thresholds'
-import type { CaseDef, CaseEvent, CaseLogEntry, CaseSpec, CaseState, CaseStatus, TriggerLookup, TripwireResult } from './types'
+import type {
+  CaseDef,
+  CaseEvent,
+  CaseLogEntry,
+  CaseSpec,
+  CaseState,
+  CaseStatus,
+  TriggerLookup,
+  TripwireResult,
+} from './types'
 
 export const STATES = ['idle', 'detected', 'acting', 'watch', 'resolved', 'escalated', 'dismissed'] as const
 export const OPEN_STATES = ['detected', 'acting', 'watch'] as const
@@ -30,6 +45,30 @@ function list(x: unknown, what: string): unknown[] {
   return v
 }
 
+const REF_KEYS = ['rule_id', 'indicator_id'] as const
+
+/**
+ * The tripwire condition for envId: the base condition with its by_env[envId] override applied.
+ * An override replaces the keys it names; when it names a rule_id or indicator_id, the base
+ * reference, variable and unit are dropped first, so they are resolved again for the new reference.
+ */
+function effectiveCondition(cid: string, cond: JsonObject, envId: string | null): JsonObject {
+  const byEnv = pyGet(cond, 'by_env')
+  if (byEnv !== null && !isObj(byEnv)) throw new EngineError('invalid_case', `case ${cid}: tripwire condition by_env must be an object`)
+  const base: JsonObject = {}
+  for (const k of Object.keys(cond)) if (k !== 'by_env' && has(cond, k)) setOwn(base, k, cond[k])
+  if (envId === null || !isObj(byEnv) || !has(byEnv, envId)) return base
+  const override = byEnv[envId]
+  if (!isObj(override) || has(override, 'by_env')) {
+    throw new EngineError('invalid_case', `case ${cid}: tripwire by_env[${pyRepr(envId)}] must be an object without by_env`)
+  }
+  if (REF_KEYS.some((k) => has(override, k))) {
+    for (const k of [...REF_KEYS, 'variable', 'unit']) delete base[k]
+  }
+  for (const k of Object.keys(override)) if (has(override, k)) setOwn(base, k, override[k])
+  return base
+}
+
 function idOf(x: unknown, what: string): unknown {
   // Python: x["id"] (KeyError if absent, TypeError if x is not a dict). Any present value is kept.
   if (!isObj(x) || !has(x, 'id')) throw new EngineError('invalid_case', `${what} needs an id`)
@@ -41,12 +80,23 @@ function idOf(x: unknown, what: string): unknown {
  * indicator id to {variable, unit} (triggerLookup(rules)); it resolves the tripwire variable when the
  * condition names a rule_id, and the tripwire unit when the condition has none. An explicit
  * condition variable / unit wins. An unresolvable variable or unit raises invalid_case.
+ * `envId` (a non-empty string or null) selects the condition's by_env override for that environment;
+ * the state records it as spec.env_id and the effective reference as spec.tripwire.condition.ref_id.
  */
-export function newCase(caseDef: CaseDef, crewId: string, lookup: TriggerLookup | null = null): CaseState {
+export function newCase(
+  caseDef: CaseDef,
+  crewId: string,
+  lookup: TriggerLookup | null = null,
+  envId: string | null = null,
+): CaseState {
   if (!isObj(caseDef) || typeof pyGet(caseDef, 'id') !== 'string') {
     throw new EngineError('invalid_case', 'case definition must be an object with a string id')
   }
   if (typeof crewId !== 'string' || crewId === '') throw new EngineError('invalid_argument', 'crew_id must be a non-empty string')
+  const env = envId === undefined ? null : (envId as unknown)
+  if (env !== null && (typeof env !== 'string' || env === '')) {
+    throw new EngineError('invalid_argument', 'env_id must be a non-empty string or null')
+  }
   const def = caseDef as JsonObject
   const cid = def.id as string
   const triggerIds = new Set<string>()
@@ -68,7 +118,7 @@ export function newCase(caseDef: CaseDef, crewId: string, lookup: TriggerLookup 
   if (!isObj(tw) || !isNumber(pyGet(tw, 'reassess_after_s')) || !isObj(pyGet(tw, 'condition'))) {
     throw new EngineError('invalid_case', `case ${cid}: tripwire.reassess_after_s and condition required`)
   }
-  const cond = tw.condition as JsonObject
+  const cond = effectiveCondition(cid, tw.condition as JsonObject, env as string | null)
   const refId = pyOr(pyGet(cond, 'indicator_id'), pyGet(cond, 'rule_id'))
   // Python: `(lookup or {}).get(ref_id) if isinstance(ref_id, str) else None`. The lookup is read
   // only for a string id, and a falsy lookup (null, false, 0, "", [], {}) acts as {}. A truthy
@@ -101,12 +151,21 @@ export function newCase(caseDef: CaseDef, crewId: string, lookup: TriggerLookup 
   const esc = pyGet(def, 'escalation')
   const spec: CaseSpec = {
     case_id: cid,
+    env_id: env as string | null,
     trigger_ids: sortedStrings(triggerIds),
     countermeasure_ids: cmIds as string[],
     step_ids: stepIds as string[],
     tripwire: {
       reassess_after_s: tw.reassess_after_s as number,
-      condition: { variable, op, value, unit, of_last_n: n, at_least: k },
+      condition: {
+        ref_id: typeof refId === 'string' ? refId : null,
+        variable,
+        op,
+        value,
+        unit,
+        of_last_n: n,
+        at_least: k,
+      },
     },
     escalation: isObj(esc) ? clone(esc) : null,
   }
@@ -200,23 +259,25 @@ export function caseReduce(state: CaseState, event: CaseEvent): CaseState {
   const t = pyGet(ev, 't')
   const frm: CaseStatus = s.status
 
-  const log = (to: CaseStatus, detail: string, error: string | null): CaseState => {
-    const entry: CaseLogEntry = {
-      t: t as number | null,
-      event: etype as CaseLogEntry['event'],
-      from: frm,
-      to,
-      detail,
-      error,
-    }
-    s.log.push(entry)
-    return s
+  const entry = (to: CaseStatus, detail: string, error: string | null): CaseLogEntry => ({
+    t: t as number | null,
+    event: etype as CaseLogEntry['event'],
+    from: frm,
+    to,
+    detail,
+    error,
+  })
+  const reject = (error: string, detail: string): CaseState => {
+    // atomic: start again from the untouched input, so nothing this event did survives
+    const out = clone(state)
+    out.log.push(entry(frm, detail, error))
+    return out
   }
-  const reject = (error: string, detail: string): CaseState => log(frm, detail, error)
   const accept = (to: CaseStatus, detail: string): CaseState => {
     s.status = to
     s.updated_at = t as number
-    return log(to, detail, null)
+    s.log.push(entry(to, detail, null))
+    return s
   }
 
   if (!(EVENTS as readonly unknown[]).includes(etype)) return reject('invalid_event', `unknown event type ${pyRepr(etype)}`)
@@ -298,7 +359,7 @@ export function caseReduce(state: CaseState, event: CaseEvent): CaseState {
   const obsList = pyOr(pyGet(ev, 'observations'), [])
   if (!Array.isArray(obsList)) return reject('invalid_event', 'TICK observations must be a list')
   const knownT = new Set<number>(s.tripwire_obs.map((o) => o.t))
-  let added = 0
+  const newObs: Array<{ t: number; value: number }> = []
   for (const o of obsList as unknown[]) {
     if (!isObj(o) || !pyEq(pyGet(o, 'variable'), cond.variable)) continue
     const oc = pyGet(o, 'crew_id')
@@ -313,9 +374,10 @@ export function caseReduce(state: CaseState, event: CaseEvent): CaseState {
     }
     if (knownT.has(ot)) continue
     knownT.add(ot)
-    s.tripwire_obs.push({ t: ot, value: ov })
-    added += 1
+    newObs.push({ t: ot, value: ov })
   }
+  const added = newObs.length // committed only now that every observation of this TICK passed the unit check
+  s.tripwire_obs.push(...newObs)
   s.tripwire_obs.sort((a, b) => a.t - b.t)
   const res = tripwireEval(s)
   const desc =

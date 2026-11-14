@@ -172,6 +172,55 @@ def test_tick_unit_mismatch_rejected():
     assert r["status"] == "watch" and r["log"][-1]["error"] == "unit_mismatch" and r["tripwire_obs"] == []
 
 
+def test_rejected_tick_is_atomic():
+    # a valid observation listed before the bad one must not survive the rejection
+    w = to_watch()
+    u = w["updated_at"]
+    good, bad = obs(5, u + 5), obs(6, u + 6, unit="lapses")
+    r = case_reduce(w, {"type": "TICK", "t": u + 10, "observations": [good, bad]})
+    assert r["log"][-1]["error"] == "unit_mismatch" and len(r["log"]) == len(w["log"]) + 1
+    assert {k: v for k, v in r.items() if k != "log"} == {k: v for k, v in w.items() if k != "log"}
+    assert r["log"][:-1] == w["log"]
+    # every rejection, whatever the event, returns the input state plus exactly one log entry
+    o = case_reduce(new_case(CASE, "CM-1"), {"type": "OPEN", "finding": FINDING, "t": T0})
+    for state, event in [(w, {"type": "TICK", "t": u + 10, "observations": "not a list"}),
+                         (w, {"type": "OUTCOME", "text": "again", "t": u + 10}),
+                         (o, {"type": "SELECT", "countermeasure_id": "cm_x", "t": T0 + 1}),
+                         (o, {"type": "SELECT", "countermeasure_id": "cm_primary", "t": T0 - 1})]:
+        r = case_reduce(state, event)
+        assert r["log"][-1]["error"] is not None and r["log"][:-1] == state["log"]
+        assert {k: v for k, v in r.items() if k != "log"} == {k: v for k, v in state.items() if k != "log"}
+
+
+def test_new_case_by_env_switches_the_watched_reference():
+    tw = copy.deepcopy(CASE["tripwire"])
+    tw["condition"]["by_env"] = {"mars_surface": {"indicator_id": "sleep_duration", "op": "lt", "value": 5}}
+    case = dict(CASE, tripwire=tw)
+    lookup = {"sleep_duration": {"variable": "sleep_duration", "unit": "h"}}
+    base = new_case(case, "CM-1", lookup, env_id="iss")["spec"]
+    mars = new_case(case, "CM-1", lookup, env_id="mars_surface")["spec"]
+    assert base["env_id"] == "iss" and mars["env_id"] == "mars_surface"
+    assert base["tripwire"]["condition"] == {"ref_id": "pvt_lapses", "variable": "pvt_lapses", "op": "ge", "value": 4,
+                                             "unit": "count", "of_last_n": 3, "at_least": 2}
+    # the override names a new reference, so the base's explicit unit "count" is dropped and re-resolved
+    assert mars["tripwire"]["condition"] == {"ref_id": "sleep_duration", "variable": "sleep_duration", "op": "lt",
+                                             "value": 5, "unit": "h", "of_last_n": 3, "at_least": 2}
+    assert new_case(case, "CM-1", lookup)["spec"]["tripwire"]["condition"]["ref_id"] == "pvt_lapses"
+    with pytest.raises(EngineError) as e:
+        new_case(case, "CM-1", None, env_id="mars_surface")   # new reference, unit unresolvable
+    assert e.value.code == "invalid_case"
+    for bad_by_env in (["mars_surface"], {"mars_surface": "x"}, {"mars_surface": {"by_env": {}}}):
+        tw2 = copy.deepcopy(CASE["tripwire"])
+        tw2["condition"]["by_env"] = bad_by_env
+        with pytest.raises(EngineError) as e:
+            new_case(dict(CASE, tripwire=tw2), "CM-1", env_id="mars_surface")
+        assert e.value.code == "invalid_case"
+    for bad_env in ("", 5, True):
+        with pytest.raises(EngineError) as e:
+            new_case(CASE, "CM-1", env_id=bad_env)
+        assert e.value.code == "invalid_argument"
+
+
 def test_reducer_is_pure():
     s = to_watch()
     before = copy.deepcopy(s)

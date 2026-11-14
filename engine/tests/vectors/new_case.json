@@ -94,6 +94,7 @@
      "cm_primary",
      "cm_alt_1"
     ],
+    "env_id": null,
     "escalation": {
      "ground_packet": true,
      "observations": [
@@ -118,6 +119,7 @@
       "at_least": 2,
       "of_last_n": 3,
       "op": "ge",
+      "ref_id": "pvt_lapses",
       "unit": "count",
       "value": 4,
       "variable": "pvt_lapses"
@@ -367,6 +369,7 @@
      "cm_primary",
      "cm_alt_1"
     ],
+    "env_id": null,
     "escalation": {
      "ground_packet": true,
      "observations": [
@@ -391,6 +394,7 @@
       "at_least": 2,
       "of_last_n": 3,
       "op": "gt",
+      "ref_id": "pel_cabin_ppco2_1h",
       "unit": "mmHg",
       "value": 3,
       "variable": "cabin_ppco2_1h_mean"
@@ -588,6 +592,7 @@
      "cm_primary",
      "cm_alt_1"
     ],
+    "env_id": null,
     "escalation": {
      "ground_packet": true,
      "observations": [
@@ -612,6 +617,7 @@
       "at_least": 2,
       "of_last_n": 3,
       "op": "ge",
+      "ref_id": "pvt_lapses",
       "unit": "count",
       "value": 4,
       "variable": "pvt_lapses"
@@ -628,5 +634,1020 @@
   },
   "fn": "new_case",
   "name": "tripwire_unit_from_lookup"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "spe_fixture",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "kind": "ops",
+      "rule_id": "ops_noaa_s3"
+     },
+     {
+      "kind": "ops",
+      "rule_id": "ops_onboard_proton_s3"
+     }
+    ],
+    "tripwire": {
+     "condition": {
+      "at_least": 2,
+      "by_env": {
+       "mars_surface": {
+        "rule_id": "ops_onboard_proton_s3"
+       }
+      },
+      "of_last_n": 3,
+      "op": "ge",
+      "rule_id": "ops_noaa_s3",
+      "value": 1000
+     },
+     "reassess_after_s": 21600
+    }
+   },
+   "crew_id": "CM-1",
+   "env_id": "mars_surface",
+   "lookup": {
+    "ops_noaa_s3": {
+     "unit": "pfu",
+     "variable": "proton_flux_10mev"
+    },
+    "ops_onboard_proton_s3": {
+     "unit": "pfu",
+     "variable": "proton_flux_10mev"
+    }
+   }
+  },
+  "expect": {
+   "case_id": "spe_fixture",
+   "closed_at": null,
+   "countermeasure_id": null,
+   "crew_id": "CM-1",
+   "dismiss_reason": null,
+   "finding": null,
+   "log": [],
+   "opened_at": null,
+   "outcome": null,
+   "reassess_at": null,
+   "schema": "landfall.case_state/1",
+   "spec": {
+    "case_id": "spe_fixture",
+    "countermeasure_ids": [
+     "cm_primary",
+     "cm_alt_1"
+    ],
+    "env_id": "mars_surface",
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "step_ids": [
+     "step_1",
+     "step_2",
+     "step_3"
+    ],
+    "trigger_ids": [
+     "ops_noaa_s3",
+     "ops_onboard_proton_s3"
+    ],
+    "tripwire": {
+     "condition": {
+      "at_least": 2,
+      "of_last_n": 3,
+      "op": "ge",
+      "ref_id": "ops_onboard_proton_s3",
+      "unit": "pfu",
+      "value": 1000,
+      "variable": "proton_flux_10mev"
+     },
+     "reassess_after_s": 21600
+    }
+   },
+   "status": "idle",
+   "steps_done": [],
+   "tripwire_obs": [],
+   "tripwire_result": null,
+   "updated_at": null,
+   "watch_started_at": null
+  },
+  "fn": "new_case",
+  "name": "by_env_mars_watches_onboard_rule"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "spe_fixture",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "kind": "ops",
+      "rule_id": "ops_noaa_s3"
+     },
+     {
+      "kind": "ops",
+      "rule_id": "ops_onboard_proton_s3"
+     }
+    ],
+    "tripwire": {
+     "condition": {
+      "at_least": 2,
+      "by_env": {
+       "mars_surface": {
+        "rule_id": "ops_onboard_proton_s3"
+       }
+      },
+      "of_last_n": 3,
+      "op": "ge",
+      "rule_id": "ops_noaa_s3",
+      "value": 1000
+     },
+     "reassess_after_s": 21600
+    }
+   },
+   "crew_id": "CM-1",
+   "env_id": "iss",
+   "lookup": {
+    "ops_noaa_s3": {
+     "unit": "pfu",
+     "variable": "proton_flux_10mev"
+    },
+    "ops_onboard_proton_s3": {
+     "unit": "pfu",
+     "variable": "proton_flux_10mev"
+    }
+   }
+  },
+  "expect": {
+   "case_id": "spe_fixture",
+   "closed_at": null,
+   "countermeasure_id": null,
+   "crew_id": "CM-1",
+   "dismiss_reason": null,
+   "finding": null,
+   "log": [],
+   "opened_at": null,
+   "outcome": null,
+   "reassess_at": null,
+   "schema": "landfall.case_state/1",
+   "spec": {
+    "case_id": "spe_fixture",
+    "countermeasure_ids": [
+     "cm_primary",
+     "cm_alt_1"
+    ],
+    "env_id": "iss",
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "step_ids": [
+     "step_1",
+     "step_2",
+     "step_3"
+    ],
+    "trigger_ids": [
+     "ops_noaa_s3",
+     "ops_onboard_proton_s3"
+    ],
+    "tripwire": {
+     "condition": {
+      "at_least": 2,
+      "of_last_n": 3,
+      "op": "ge",
+      "ref_id": "ops_noaa_s3",
+      "unit": "pfu",
+      "value": 1000,
+      "variable": "proton_flux_10mev"
+     },
+     "reassess_after_s": 21600
+    }
+   },
+   "status": "idle",
+   "steps_done": [],
+   "tripwire_obs": [],
+   "tripwire_result": null,
+   "updated_at": null,
+   "watch_started_at": null
+  },
+  "fn": "new_case",
+  "name": "by_env_iss_keeps_base_rule"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "spe_fixture",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "kind": "ops",
+      "rule_id": "ops_noaa_s3"
+     },
+     {
+      "kind": "ops",
+      "rule_id": "ops_onboard_proton_s3"
+     }
+    ],
+    "tripwire": {
+     "condition": {
+      "at_least": 2,
+      "by_env": {
+       "mars_surface": {
+        "rule_id": "ops_onboard_proton_s3"
+       }
+      },
+      "of_last_n": 3,
+      "op": "ge",
+      "rule_id": "ops_noaa_s3",
+      "value": 1000
+     },
+     "reassess_after_s": 21600
+    }
+   },
+   "crew_id": "CM-1",
+   "lookup": {
+    "ops_noaa_s3": {
+     "unit": "pfu",
+     "variable": "proton_flux_10mev"
+    },
+    "ops_onboard_proton_s3": {
+     "unit": "pfu",
+     "variable": "proton_flux_10mev"
+    }
+   }
+  },
+  "expect": {
+   "case_id": "spe_fixture",
+   "closed_at": null,
+   "countermeasure_id": null,
+   "crew_id": "CM-1",
+   "dismiss_reason": null,
+   "finding": null,
+   "log": [],
+   "opened_at": null,
+   "outcome": null,
+   "reassess_at": null,
+   "schema": "landfall.case_state/1",
+   "spec": {
+    "case_id": "spe_fixture",
+    "countermeasure_ids": [
+     "cm_primary",
+     "cm_alt_1"
+    ],
+    "env_id": null,
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "step_ids": [
+     "step_1",
+     "step_2",
+     "step_3"
+    ],
+    "trigger_ids": [
+     "ops_noaa_s3",
+     "ops_onboard_proton_s3"
+    ],
+    "tripwire": {
+     "condition": {
+      "at_least": 2,
+      "of_last_n": 3,
+      "op": "ge",
+      "ref_id": "ops_noaa_s3",
+      "unit": "pfu",
+      "value": 1000,
+      "variable": "proton_flux_10mev"
+     },
+     "reassess_after_s": 21600
+    }
+   },
+   "status": "idle",
+   "steps_done": [],
+   "tripwire_obs": [],
+   "tripwire_result": null,
+   "updated_at": null,
+   "watch_started_at": null
+  },
+  "fn": "new_case",
+  "name": "by_env_without_env_id_keeps_base_rule"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "by_env": {
+       "mars_surface": {
+        "indicator_id": "sleep_duration",
+        "op": "lt",
+        "value": 5
+       }
+      },
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-1",
+   "env_id": "mars_surface",
+   "lookup": {
+    "sleep_duration": {
+     "unit": "h",
+     "variable": "sleep_duration"
+    }
+   }
+  },
+  "expect": {
+   "case_id": "sleep_circadian",
+   "closed_at": null,
+   "countermeasure_id": null,
+   "crew_id": "CM-1",
+   "dismiss_reason": null,
+   "finding": null,
+   "log": [],
+   "opened_at": null,
+   "outcome": null,
+   "reassess_at": null,
+   "schema": "landfall.case_state/1",
+   "spec": {
+    "case_id": "sleep_circadian",
+    "countermeasure_ids": [
+     "cm_primary",
+     "cm_alt_1"
+    ],
+    "env_id": "mars_surface",
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "step_ids": [
+     "step_1",
+     "step_2",
+     "step_3"
+    ],
+    "trigger_ids": [
+     "pvt_lapses",
+     "sleep_duration"
+    ],
+    "tripwire": {
+     "condition": {
+      "at_least": 2,
+      "of_last_n": 3,
+      "op": "lt",
+      "ref_id": "sleep_duration",
+      "unit": "h",
+      "value": 5,
+      "variable": "sleep_duration"
+     },
+     "reassess_after_s": 259200
+    }
+   },
+   "status": "idle",
+   "steps_done": [],
+   "tripwire_obs": [],
+   "tripwire_result": null,
+   "updated_at": null,
+   "watch_started_at": null
+  },
+  "fn": "new_case",
+  "name": "by_env_override_replaces_reference_variable_and_unit"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "by_env": {
+       "mars_surface": {
+        "indicator_id": "sleep_duration",
+        "op": "lt",
+        "value": 5
+       }
+      },
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-1",
+   "env_id": "mars_surface"
+  },
+  "fn": "new_case",
+  "name": "by_env_new_reference_unit_unresolved_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "by_env": [
+       "mars_surface"
+      ],
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-1",
+   "env_id": "iss"
+  },
+  "fn": "new_case",
+  "name": "by_env_not_an_object_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "by_env": {
+       "mars_surface": "ops_onboard_proton_s3"
+      },
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-1",
+   "env_id": "mars_surface"
+  },
+  "fn": "new_case",
+  "name": "by_env_override_not_an_object_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-1",
+   "env_id": ""
+  },
+  "fn": "new_case",
+  "name": "env_id_empty_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-1",
+   "env_id": 5
+  },
+  "fn": "new_case",
+  "name": "env_id_number_rejected",
+  "raises": "invalid_argument"
  }
 ]

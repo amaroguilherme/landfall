@@ -24,6 +24,7 @@ import {
   getEnvironment,
   getIndicator,
   newCase,
+  tCritical,
   thresholdRules,
   triggerLookup,
 } from './index'
@@ -73,16 +74,40 @@ describe('real rules (engine/rules/*.json)', () => {
     }
   })
 
+  it('Tier B reads only alpha and the minimum baseline; the critical values quoted in rci.method are the engine\'s', () => {
+    const cfg = RULES.personal!.rci
+    expect(cfg.alpha_two_tailed).toBe(0.001)
+    expect(Object.hasOwn(cfg, 'critical_z')).toBe(false)
+    const window = cfg.baseline_window_days as number
+    const quoted = [tCritical(cfg.alpha_two_tailed, window - 1), tCritical(cfg.alpha_two_tailed, cfg.min_baseline_n - 1)]
+    for (const c of quoted) expect(cfg.method).toContain(String(Math.round(c * 1000) / 1000))
+    // reliability_r is non-computational context: a value there changes nothing
+    const sleep = getIndicator(RULES, 'sleep_duration')
+    const base = [7.1, 6.8, 7.4, 7.0, 6.9, 7.2, 7.3, 7.0]
+    const a = evaluatePersonal(sleep, base, 4.5, cfg, NOW)
+    const b = evaluatePersonal({ ...sleep, reliability_r: { value: 0.99 } }, base, 4.5, cfg, NOW)
+    expect(b).toEqual(a)
+    expect(a.rci).toMatchObject({ method: 'crawford_howell_1998', n: 8, df: 7, reliable: true })
+  })
+
   it('PRIVATE_VARIABLES is exactly the private indicators of personal.json', () => {
     const priv = RULES.personal!.indicators.filter((i) => i.private === true).map((i) => i.variable)
     expect([...PRIVATE_VARIABLES].sort()).toEqual(priv.sort())
   })
 
-  it('a non-alerting indicator (mood) never exceeds advisory', () => {
+  it('a non-alerting indicator (mood) shows a reliable change but stays nominal; missing data stays advisory', () => {
     const mood = getIndicator(RULES, 'mood')
-    const f = evaluatePersonal(mood, [4, 4, 5, 4, 3, 4, 4, 4], 1, RULES.personal!.rci, NOW)
-    expect(f.status).toBe('reliable_change')
-    expect(f.severity).toBe('advisory')
+    const cfg = RULES.personal!.rci
+    const high = [4, 4, 5, 4, 3, 4, 4, 5, 4, 4, 3, 4, 4, 5]
+    const low = [2, 2, 3, 2, 1, 2, 2, 3, 2, 2, 1, 2, 2, 3]
+    for (const [base, current, direction] of [[high, 1, 'decrease'], [low, 5, 'increase']] as const) {
+      const f = evaluatePersonal(mood, base, current, cfg, NOW)
+      expect(f.status, direction).toBe('reliable_change')
+      expect(f.direction, direction).toBe(direction)
+      expect(f.severity, direction).toBe('nominal') // advisory blue would read as an alert
+      expect(f.why).toContain('Non-alerting indicator: never alerts.')
+    }
+    expect(evaluatePersonal(mood, high.slice(0, 4), 1, cfg, NOW)).toMatchObject({ status: 'insufficient_data', severity: 'advisory' })
   })
 
   it('CM-2 VO2max 35.1 flips with the environment ([V1 4001] vs [V1 4002])', () => {
@@ -106,13 +131,33 @@ describe('real rules (engine/rules/*.json)', () => {
     expect(codeOf(() => newCase(getCase(RULES, 'sleep_circadian'), 'CM-1'))).toBe('invalid_case')
   })
 
+  it('every case watches, in every environment, a tripwire rule that applies there (by_env)', () => {
+    const lookup = triggerLookup(RULES)
+    const rules = new Map(thresholdRules(RULES).map((r) => [r.id, r]))
+    for (const def of RULES.cases!.cases) {
+      for (const env of envIds) {
+        const st = newCase(def, 'CM-1', lookup, env)
+        expect(st.spec.env_id, `${def.id} @ ${env}`).toBe(env)
+        const ref = st.spec.tripwire.condition.ref_id
+        expect(typeof ref, `${def.id} @ ${env}`).toBe('string')
+        const rule = rules.get(ref as string)
+        if (rule) expect(rule.applies_to.includes('*') || rule.applies_to.includes(env), `${def.id} @ ${env}: ${ref}`).toBe(true)
+      }
+    }
+    const spe = getCase(RULES, 'spe_shelter')
+    expect(newCase(spe, 'CM-1', lookup, 'mars_surface').spec.tripwire.condition.ref_id).toBe('ops_onboard_proton_s3')
+    expect(newCase(spe, 'CM-1', lookup, 'iss').spec.tripwire.condition.ref_id).toBe('ops_noaa_s3')
+    expect(newCase(spe, 'CM-1', lookup).spec.tripwire.condition.ref_id).toBe('ops_noaa_s3') // no env: the base condition
+  })
+
   it('runs the SPE case at Mars on the onboard monitor and escalates at T+6 h on vehicle data', () => {
     const def = getCase(RULES, 'spe_shelter')
     const lookup = triggerLookup(RULES)
     const onboard = thresholdRules(RULES).find((r) => r.id === 'ops_onboard_proton_s3') as Rule
     const finding = evaluateRule(onboard, { variable: 'proton_flux_10mev', value: 1100, unit: 'pfu', t: NOW }, 'mars_surface', NOW)
     expect(finding.severity).toBe('caution')
-    let s: CaseState = newCase(def, 'CM-1', lookup)
+    let s: CaseState = newCase(def, 'CM-1', lookup, 'mars_surface')
+    expect(s.spec.tripwire.condition).toMatchObject({ ref_id: 'ops_onboard_proton_s3', variable: 'proton_flux_10mev', unit: 'pfu' })
     s = caseReduce(s, { type: 'OPEN', t: NOW, finding })
     s = caseReduce(s, { type: 'SELECT', t: NOW + 60, countermeasure_id: def.countermeasure!.primary.id })
     s = caseReduce(s, { type: 'OUTCOME', t: NOW + 600, text: 'Crew in the storm shelter.' })
@@ -128,6 +173,11 @@ describe('real rules (engine/rules/*.json)', () => {
       provenance: 'simulated',
     })
     const obs = [flux(3600, 1500), flux(7200, 900), flux(10800, 1200)]
+    // atomic rejection: a unit mismatch rejects the whole TICK, keeping none of the valid ones before it
+    const bad = caseReduce(s, { type: 'TICK', t: NOW + 600 + 10800, observations: [obs[0], { ...obs[1], unit: 'cm-2 s-1 sr-1' }] })
+    expect(bad.log).toHaveLength(s.log.length + 1)
+    expect(bad.log[bad.log.length - 1]).toMatchObject({ error: 'unit_mismatch', from: 'watch', to: 'watch' })
+    expect({ ...bad, log: s.log }).toEqual(s)
     s = caseReduce(s, { type: 'TICK', t: NOW + 600 + 10800, observations: obs })
     expect(s.status).toBe('watch') // two of three are >= 1000 pfu, but it is judged only at T+6 h
     s = caseReduce(s, { type: 'TICK', t: reassess, observations: obs })

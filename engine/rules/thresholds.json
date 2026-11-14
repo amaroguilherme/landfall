@@ -1474,9 +1474,10 @@
    },
    "approach_at": {
     "value": 2500,
-    "chip": "literature",
+    "chip": "NASA report",
     "source": {
-     "kind": "literature",
+     "kind": "nasa_brief",
+     "doc": "NASA HRP Evidence Report: Risk of Renal Stone Formation (Stratton, Lumpkins & Antonsen, approved September 23, 2024; NTRS 20240012429)",
      "citation": "Stratton E, Lumpkins S, Antonsen E. Evidence Report: Risk of Renal Stone Formation. NASA Human Research Program, Exploration Medical Capabilities Element, Lyndon B. Johnson Space Center, Houston, TX. Approved for public release September 23, 2024. NTRS 20240012429.",
      "url": "https://ntrs.nasa.gov/citations/20240012429",
      "page": 13,
@@ -1486,9 +1487,10 @@
     "rationale": "Below 2,500 mL/day the hydration countermeasure is short of its 2.5-3 L/day target (same sentence)."
    },
    "max_severity": "caution",
-   "chip": "literature",
+   "chip": "NASA report",
    "source": {
-    "kind": "literature",
+    "kind": "nasa_brief",
+    "doc": "NASA HRP Evidence Report: Risk of Renal Stone Formation (Stratton, Lumpkins & Antonsen, approved September 23, 2024; NTRS 20240012429)",
     "citation": "Stratton E, Lumpkins S, Antonsen E. Evidence Report: Risk of Renal Stone Formation. NASA Human Research Program, Exploration Medical Capabilities Element, Lyndon B. Johnson Space Center, Houston, TX. Approved for public release September 23, 2024. NTRS 20240012429.",
     "url": "https://ntrs.nasa.gov/citations/20240012429",
     "page": 13,

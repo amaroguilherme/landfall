@@ -47,8 +47,8 @@ def _cal(item: str, value: str, chip: str, source: dict) -> dict:
 
 
 SCHEDULE_NOTE = ("Pre-shift schedule: sleep period 22:00-06:00 MET clock (midpoint 02:00). Day-to-day SDs are "
-                 "set deliberately low so the scripted episodes are unambiguous for any r in [0.5, 0.9]; real "
-                 "within-person variability is larger, which is why Tier B prints its false-alarm rate.")
+                 "set deliberately low so the scripted episodes are unambiguous; real within-person variability "
+                 "is larger, which is why Tier B prints its false-alarm rate.")
 
 VARIABLE_META: dict[str, dict] = {
     "sleep_duration": {
@@ -79,7 +79,8 @@ VARIABLE_META: dict[str, dict] = {
                                          "standard adopts 355 ms; it is attributed to the paper only."}),
             _cal("rested baseline", "0-2 lapses per test", "design choice", _dc("Plausible rested values; not fitted.")),
             _cal("CM-1 episode", "3-5 lapses on days 404-406, 7-8 from day 407", "design choice",
-                 _dc("Scripted to reach |RCI| >= 6 by day 407 for any r in [0.5, 0.9]."))]},
+                 _dc("Scripted to sit at least 6 baseline SDs above the baseline mean from day 407 (|t| >= 5.8 "
+                     "on Tier B's single-case test; critical 4.221)."))]},
     "pvt_median_rt": {
         "label": "PVT-B median reaction time", "cadence": "daily, with the PVT-B",
         "definition": "Median reaction time of the 3-min PVT-B, in ms.",
@@ -124,7 +125,8 @@ VARIABLE_META: dict[str, dict] = {
                  _dc("Crew meeting the 2.5-3 L/day hydration countermeasure target, so the rule's approach level never "
                      "fires outside the episode; day-to-day SD deliberately low (about 4%).")),
             _cal("CM-3 episode, days 398-401", "1,340-1,450 mL", "design choice",
-                 _dc("Below the 1,500 mL/day level on every episode day and |RCI| >= 6 for any r in [0.5, 0.9]."))]},
+                 _dc("Below the 1,500 mL/day level on every episode day and at least 6 baseline SDs below the "
+                     "baseline mean (|t| >= 5.8 on Tier B's single-case test; critical 4.221)."))]},
     "fluid_intake_24h": {
         "label": "24-h fluid intake", "cadence": "daily (same window as the urine collection)",
         "definition": "Logged fluid intake for that MET day.",
@@ -259,10 +261,15 @@ def _caveats(spe: dict, cal: dict) -> list[str]:
         "script. Everything else is a design choice, listed per variable in data.variables[*].calibration.",
         "CM-1..CM-4 are fictional: no names, no real PII. Mood is simulated for everyone, private by default and "
         "never alerts.",
-        "Episodes are scripted, not discovered: magnitudes are set so the RCI reaches |rc| >= 6 for any r in "
-        "[0.5, 0.9]; non-episode days are drawn within 1.4 baseline SDs so no unintended reliable change appears "
-        "for r <= 0.9. Real data would contain such changes at the printed false-alarm rate, and real day-to-day "
-        "variability is larger than the deliberately low SDs used here.",
+        "Episodes are scripted, not discovered: on their robust days (data.self_check.episodes) episode values sit "
+        "at least 6 baseline SDs from the crewmember's baseline mean (|t| >= 5.8 on Tier B's single-case test, "
+        "critical 4.221 at df 13). CM-1's two PVT-B indicators ramp up first, 2 to 6 baseline SDs out on days "
+        "404-406 (day 406 already crosses the critical value). Non-episode days are drawn within 1.4 baseline SDs "
+        "(|t| <= 1.35), so no unscripted reliable change appears. Real data "
+        "would also produce chance reliable changes: about alpha = 0.001 per indicator-day only if day-to-day "
+        "noise were normal and independent, and more with the autocorrelated, skewed noise of real days "
+        "(engine/rules/personal.json rci.caveat). Real day-to-day variability is also larger than the "
+        "deliberately low SDs used here.",
         "Daily values are stamped when their measurement window closes, so 'now' (MET 0412/14:20:00) has no 24-h "
         "urine, fluid or daytime-light value for day 412 yet: that day is incomplete.",
         "career_effective_dose is a design-choice prior (mSv), not a calculation. The SPE day's absorbed dose rate "
@@ -390,11 +397,13 @@ def build_snapshot(out_dir: Path, retrieved_at: str) -> dict:
                      "expect": "within the microgravity-EVA floor (32.9, [V1 4001]); outside the surface-EVA floor "
                                "(36.5, [V1 4002])"},
         "self_check": {
-            "method": "SPEC section 5 RCI: rc = (x - mean) / (sqrt(2) * sd * sqrt(1 - r)), sd = sample SD (n-1); "
-                      "at r = 0.5 |rc| = |x - mean| / sd, and |rc| grows with r",
+            "method": "SPEC section 5 single-case t (Crawford & Howell 1998): t = (x - mean) / (sd * sqrt(1 + 1/n)), "
+                      "sd = sample SD (n-1), df = n - 1; reliable when |t| > the two-tailed critical value at "
+                      "alpha 0.001 (4.221 at df 13). z = |x - mean| / sd is the same distance in baseline SDs",
             "episodes": evidence,
             "non_episode_bound_sd": model.QUIET_Q,
-            "non_episode_max_abs_rc_at_r_0_9": round(model.QUIET_Q / (2 * 0.1) ** 0.5, 2)},
+            "non_episode_max_abs_t": round(
+                model.QUIET_Q / (1 + 1 / (model.BASELINE_LAST - model.BASELINE_FIRST + 1)) ** 0.5, 2)},
         "inputs": inputs,
     }
     if cal["mode"] == "horizons":

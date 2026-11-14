@@ -38,7 +38,7 @@ const CHIP_ORDER: readonly string[] = META?.chips.map((c) => c.id) ?? CHIPS
 
 const DETAIL_SUMMARY: Record<string, string> = {
   'NASA-published': 'Verbatim NASA text and checks',
-  'NASA brief': 'Source',
+  'NASA report': 'Source',
   'NOAA-published': 'Verbatim NOAA text and checks',
   literature: 'Citation and quote',
   derived: 'Arithmetic',

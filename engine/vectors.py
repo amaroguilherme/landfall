@@ -1,19 +1,30 @@
 """Conformance vectors shared by the Python engine and the TypeScript port (SPEC section 6).
 
     uv run python -m engine.vectors            # regenerate engine/tests/vectors/*.json
-    uv run python -m engine.vectors --check    # exit 1 if the committed files are out of date
+    uv run python -m engine.vectors --random   # recompute engine/tests/vectors_random/*.json
+    uv run python -m engine.vectors --check    # exit 1 if either set is out of date
 
 Each file is a JSON array of {"name", "fn", "args", "expect"} or, for a call that must fail,
 {"name", "fn", "args", "raises": "<EngineError code>"}. `args` are keyword arguments named
 exactly as in SPEC section 5. Fixtures come from engine/tests/fixtures/engine_fixtures.json.
+JSON has no NaN or infinity: an argument written {"$float": "NaN" | "Infinity" | "-Infinity"} is
+decoded to that float before the call (decode_args), at any depth.
+
+The randomized vectors (engine/tests/vectors_random/random_<fn>.json) keep their seeded inputs
+frozen; --random recomputes their expectations with the current engine, migrates the arguments of
+a function whose signature changed (rci and evaluate_personal lost the reliability r and the fixed
+critical z), and draws seeded inputs for a function that has no random file yet.
 """
 
 from __future__ import annotations
 
 import copy
 import json
+import math
+import random
 import sys
 from pathlib import Path
+from statistics import NormalDist
 
 from .cases import case_reduce, new_case
 from .comms import comms_eta
@@ -21,17 +32,23 @@ from .errors import EngineError
 from .fmt import fmt_num, format_met, met_to_iso
 from .packet import build_ground_packet
 from .rci import evaluate_personal, expected_false_alarms, rci
+from .tdist import t_cdf, t_critical, t_quantile
 from .thresholds import evaluate_rule, s_level
 
 ENGINE_DIR = Path(__file__).resolve().parent
 VECTORS_DIR = ENGINE_DIR / "tests" / "vectors"
+RANDOM_DIR = ENGINE_DIR / "tests" / "vectors_random"
 FIXTURES_PATH = ENGINE_DIR / "tests" / "fixtures" / "engine_fixtures.json"
+RANDOM_SEED = 20261114
 
 FUNCTIONS = {
     "evaluate_rule": evaluate_rule,
     "rci": rci,
     "evaluate_personal": evaluate_personal,
     "expected_false_alarms": expected_false_alarms,
+    "t_cdf": t_cdf,
+    "t_quantile": t_quantile,
+    "t_critical": t_critical,
     "s_level": s_level,
     "new_case": new_case,
     "case_reduce": case_reduce,
@@ -44,18 +61,35 @@ FUNCTIONS = {
 
 DAY = 86400
 NOW = 412 * DAY + 14 * 3600 + 20 * 60  # MET 0412/14:20:00, the demo "now" (SPEC section 7)
+NONFINITE = {"NaN": math.nan, "Infinity": math.inf, "-Infinity": -math.inf}
+NAN = {"$float": "NaN"}
+INF = {"$float": "Infinity"}
+NEG_INF = {"$float": "-Infinity"}
 
 
 def load_fixtures() -> dict:
     return json.loads(FIXTURES_PATH.read_text(encoding="utf-8"))
 
 
+def decode_args(x: object) -> object:
+    """Replace every {"$float": "NaN" | "Infinity" | "-Infinity"} by that float (SPEC section 6)."""
+    if isinstance(x, dict):
+        if len(x) == 1 and isinstance(x.get("$float"), str) and x["$float"] in NONFINITE:
+            return NONFINITE[x["$float"]]
+        return {k: decode_args(v) for k, v in x.items()}
+    if isinstance(x, list):
+        return [decode_args(v) for v in x]
+    return x
+
+
 def run(fn: str, args: dict) -> dict:
     """Execute one call; returns {"expect": result} or {"raises": code}."""
     try:
-        return {"expect": FUNCTIONS[fn](**copy.deepcopy(args))}
+        res = {"expect": FUNCTIONS[fn](**decode_args(copy.deepcopy(args)))}
     except EngineError as exc:
         return {"raises": exc.code}
+    json.dumps(res, allow_nan=False)  # the engine never returns NaN or infinity
+    return res
 
 
 def _rule(fx: dict, rule_id: str) -> dict:
@@ -157,48 +191,155 @@ def build_vectors() -> dict[str, list[dict]]:
     add("evaluate_rule", "invalid_op_raises", rule=bad, value=1, env_id="iss", t=NOW)
     add("evaluate_rule", "boolean_value_raises", rule=dose, value=True, env_id="iss", t=NOW)
 
-    # ---- rci ----
+    # ---- t distribution: CDF, quantile, two-tailed critical value ----
+    for df in (1, 2, 5, 6, 13, 30, 60, 120, 1000, 1000000, 1.5, 2.5):
+        for t in (0, 0.5, -0.5, 1, -1, 2.0, 4.221, -4.221, 10, -10, 1000.0):
+            add("t_cdf", f"df_{df!r}_t_{t!r}", t=t, df=df)
+    add("t_cdf", "t_above_1e150_log_space_df1", t=1e200, df=1)
+    add("t_cdf", "t_above_1e150_log_space_negative_df1", t=-1e200, df=1)
+    add("t_cdf", "t_above_1e150_df13_underflows_to_zero", t=-1e200, df=13)
+    add("t_cdf", "t_largest_double_df1", t=-1.7976931348623157e308, df=1)
+    add("t_cdf", "t_just_below_1e150", t=9.99e149, df=2)
+    add("t_cdf", "t_below_1e_17_is_exactly_one_half", t=9e-18, df=13)
+    add("t_cdf", "t_at_1e_17", t=1e-17, df=13)
+    add("t_cdf", "negative_zero_is_one_half", t=-0.0, df=5)
+    add("t_cdf", "crawford_howell_1998_worked_example_p_one_tailed", t=-17 / (10 * math.sqrt(16 / 15)), df=14)
+    add("t_cdf", "df_zero_rejected", t=1.0, df=0)
+    add("t_cdf", "df_below_one_rejected", t=1.0, df=0.5)
+    add("t_cdf", "df_negative_rejected", t=1.0, df=-3)
+    add("t_cdf", "df_above_1e6_rejected", t=1.0, df=1000001)
+    add("t_cdf", "t_nan_rejected", t=NAN, df=5)
+    add("t_cdf", "t_infinity_rejected", t=INF, df=5)
+    add("t_cdf", "df_nan_rejected", t=1.0, df=NAN)
+    add("t_cdf", "t_string_rejected", t="1", df=5)
+    add("t_cdf", "df_boolean_rejected", t=1.0, df=True)
+    add("t_cdf", "t_null_rejected", t=None, df=5)
+    for df in (1, 6, 10, 13, 20, 30, 60, 120, 1000000):
+        for p in (0.5, 0.75, 0.9, 0.95, 0.975, 0.99, 0.995, 0.999, 0.9995, 0.0005, 0.025, 1e-10):
+            add("t_quantile", f"df_{df!r}_p_{p!r}", p=p, df=df)
+    add("t_quantile", "p_just_above_one_half", p=0.5000001, df=13)
+    add("t_quantile", "non_integer_df", p=0.9995, df=2.5)
+    add("t_quantile", "beyond_2_pow_1000_rejected", p=1e-305, df=1)
+    add("t_quantile", "tiny_p_df1_far_tail", p=1e-290, df=1)
+    for p in (0, 1, -0.1, 1.5):
+        add("t_quantile", f"p_{p!r}_rejected", p=p, df=13)
+    add("t_quantile", "p_nan_rejected", p=NAN, df=13)
+    add("t_quantile", "p_boolean_rejected", p=True, df=13)
+    add("t_quantile", "df_zero_rejected", p=0.9, df=0)
+    for df in list(range(1, 61)) + [100, 120, 1000, 1000000]:
+        add("t_critical", f"alpha_0.001_df_{df}", alpha=0.001, df=df)
+    for a in (0.2, 0.1, 0.05, 0.01, 0.002, 0.0005, 1e-6):
+        add("t_critical", f"alpha_{a!r}_df_13", alpha=a, df=13)
+    for a in (0, 1, -0.001, 1.5):
+        add("t_critical", f"alpha_{a!r}_rejected", alpha=a, df=13)
+    add("t_critical", "alpha_nan_rejected", alpha=NAN, df=13)
+    add("t_critical", "alpha_string_rejected", alpha="0.001", df=13)
+    add("t_critical", "df_nan_rejected", alpha=0.001, df=NAN)
+
+    # ---- rci: the single-case test (Crawford & Howell 1998) ----
     base = [10, 12, 11, 13, 9, 12, 11]
-    add("rci", "known_answer_increase", baseline=base, current=18, r=0.8)
-    add("rci", "known_answer_decrease", baseline=base, current=5, r=0.8)
-    add("rci", "not_reliable", baseline=base, current=13, r=0.8)
-    add("rci", "n_below_min", baseline=base[:6], current=18, r=0.8)
-    add("rci", "zero_sd", baseline=[7, 7, 7, 7, 7, 7, 7], current=9, r=0.8)
-    add("rci", "nulls_skipped_then_too_short", baseline=[10, None, 12, 11, 13, 9, 12], current=18, r=0.8)
-    add("rci", "no_current", baseline=base, current=None, r=0.8)
-    add("rci", "r_zero", baseline=base, current=18, r=0.0)
-    add("rci", "r_one_rejected", baseline=base, current=18, r=1.0)
-    add("rci", "custom_critical_z", baseline=base, current=13, r=0.8, critical_z=1.96)
-    add("rci", "min_baseline_n_override", baseline=base[:3], current=18, r=0.8, min_baseline_n=3)
-    add("rci", "constant_float_baseline_is_zero_sd", baseline=[7.3] * 7, current=7.4, r=0.7)
+    add("rci", "known_answer_increase", baseline=base, current=18)
+    add("rci", "known_answer_decrease", baseline=base, current=5)
+    add("rci", "not_reliable", baseline=base, current=13)
+    add("rci", "n_below_min", baseline=base[:6], current=18)
+    add("rci", "zero_sd", baseline=[7, 7, 7, 7, 7, 7, 7], current=9)
+    add("rci", "nulls_skipped_then_too_short", baseline=[10, None, 12, 11, 13, 9, 12], current=18)
+    add("rci", "no_current_reports_baseline_fields", baseline=base, current=None)
+    add("rci", "one_value_mean_only", baseline=[10], current=12)
+    add("rci", "empty_baseline", baseline=[], current=12)
+    add("rci", "custom_alpha_0_05", baseline=base, current=15, alpha=0.05)
+    add("rci", "min_baseline_n_override", baseline=base[:3], current=18, min_baseline_n=3)
+    add("rci", "constant_float_baseline_is_zero_sd", baseline=[7.3] * 7, current=7.4)
+    add("rci", "current_equals_mean_direction_none", baseline=[1, 3, 1, 3, 1, 3, 1, 3], current=2)
+    ch_base = [60] * 7 + [40] * 7 + [50]  # n = 15, mean 50, SD 10: Crawford & Howell 1998, p. 483-484
+    add("rci", "crawford_howell_1998_example_one_tailed_05_not_significant", baseline=ch_base, current=33, alpha=0.1)
+    add("rci", "crawford_howell_1998_example_one_tailed_10_significant", baseline=ch_base, current=33, alpha=0.2)
+    for df in range(6, 61):  # every df 6..60: a value just past the critical value, or just short of it
+        b = [10 + 0.1 * ((7 * i) % 13) for i in range(df + 1)]
+        probe = rci(b, None)
+        k = probe["critical"] + (0.05 if df % 2 == 0 else -0.05)
+        add("rci", f"df_{df}_{'just_past' if df % 2 == 0 else 'just_short_of'}_critical",
+            baseline=b, current=probe["mean"] + k * probe["s_diff"])
+    add("rci", "nan_current_rejected", baseline=base, current=NAN)
+    add("rci", "nan_in_baseline_rejected", baseline=[10, 12, NAN, 13, 9, 12, 11, 10], current=12)
+    add("rci", "infinite_current_rejected", baseline=base, current=INF)
+    add("rci", "negative_infinite_in_baseline_rejected", baseline=base + [NEG_INF], current=12)
+    add("rci", "sd_overflow_rejected", baseline=[1e308, -1e308] * 4, current=0)
+    add("rci", "mean_overflow_rejected", baseline=[1e308] * 6 + [1.5e308], current=0)
+    add("rci", "statistic_overflow_rejected", baseline=[0, 1e-150] * 4, current=1e300)
+    add("rci", "squares_underflow_is_zero_sd", baseline=[0, 1e-300] * 4, current=1e300)
+    for a in (0, 1, -0.5, 2):
+        add("rci", f"alpha_{a!r}_rejected", baseline=base, current=12, alpha=a)
+    add("rci", "alpha_nan_rejected", baseline=base, current=12, alpha=NAN)
+    add("rci", "alpha_boolean_rejected", baseline=base, current=12, alpha=True)
+    add("rci", "min_baseline_n_one_rejected", baseline=base, current=12, min_baseline_n=1)
+    add("rci", "min_baseline_n_boolean_rejected", baseline=base, current=12, min_baseline_n=True)
+    add("rci", "min_baseline_n_float_rejected", baseline=base, current=12, min_baseline_n=7.5)
+    add("rci", "baseline_not_a_list_rejected", baseline="10,12,11", current=12)
+    add("rci", "baseline_string_entry_rejected", baseline=[10, "12", 11, 13, 9, 12, 11], current=12)
+    add("rci", "current_boolean_rejected", baseline=base, current=True)
 
     # ---- evaluate_personal ----
     cfg = fx["personal"]["rci"]
     pvt, sleep, skin, mood = (_ind(fx, i) for i in ("pvt_lapses", "sleep_duration", "skin_temp", "mood"))
     pvt_base = [1, 2, 1, 3, 2, 1, 2, 2, 1, 2, 3, 1, 2, 2]
+    mood_base = [4, 4, 5, 4, 3, 4, 4, 5, 4, 4, 3, 4, 4, 5]
     add("evaluate_personal", "pvt_reliable_worse_caution", indicator=pvt, baseline=pvt_base, current=8, cfg=cfg, t=NOW)
     add("evaluate_personal", "pvt_reliable_better_nominal", indicator=pvt,
         baseline=[6, 7, 6, 8, 7, 6, 7], current=0, cfg=cfg, t=NOW)
     add("evaluate_personal", "pvt_within", indicator=pvt, baseline=pvt_base, current=3, cfg=cfg, t=NOW)
+    add("evaluate_personal", "pvt_within_where_old_rci_flagged", indicator=pvt, baseline=pvt_base, current=4, cfg=cfg,
+        t=NOW)
     add("evaluate_personal", "pvt_insufficient_advisory", indicator=pvt, baseline=pvt_base[:5], current=8, cfg=cfg, t=NOW)
+    add("evaluate_personal", "pvt_no_current_advisory", indicator=pvt, baseline=pvt_base, current=None, cfg=cfg, t=NOW)
+    add("evaluate_personal", "pvt_zero_sd_advisory", indicator=pvt, baseline=[2] * 14, current=8, cfg=cfg, t=NOW)
     add("evaluate_personal", "sleep_decrease_worse", indicator=sleep,
         baseline=[7.1, 6.8, 7.4, 7.0, 6.9, 7.2, 7.3, 7.0], current=4.5, cfg=cfg, t=NOW)
+    add("evaluate_personal", "sleep_increase_better_nominal", indicator=sleep,
+        baseline=[7.1, 6.8, 7.4, 7.0, 6.9, 7.2, 7.3, 7.0], current=10.0, cfg=cfg, t=NOW)
     add("evaluate_personal", "sleep_observation_unit_mismatch", indicator=sleep,
         baseline=[7.1, 6.8, 7.4, 7.0, 6.9, 7.2, 7.3], current={"value": 270, "unit": "min"}, cfg=cfg, t=NOW)
     add("evaluate_personal", "skin_either_decrease_worse", indicator=skin,
         baseline=[33.1, 33.4, 33.0, 33.2, 33.3, 33.1, 33.2], current=31.0, cfg=cfg, t=NOW)
-    add("evaluate_personal", "mood_non_alerting_capped_advisory", indicator=mood,
-        baseline=[4, 4, 5, 4, 3, 4, 4], current=1, cfg=cfg, t=NOW)
+    add("evaluate_personal", "skin_either_increase_worse", indicator=skin,
+        baseline=[33.1, 33.4, 33.0, 33.2, 33.3, 33.1, 33.2], current=35.5, cfg=cfg, t=NOW)
+    add("evaluate_personal", "mood_non_alerting_worse_stays_nominal", indicator=mood,
+        baseline=mood_base, current=1, cfg=cfg, t=NOW)
+    add("evaluate_personal", "mood_non_alerting_better_nominal", indicator=mood,
+        baseline=[2, 2, 3, 2, 1, 2, 2, 3, 2, 2, 1, 2, 2, 3], current=5, cfg=cfg, t=NOW)
+    add("evaluate_personal", "mood_non_alerting_insufficient_stays_advisory", indicator=mood,
+        baseline=mood_base[:4], current=1, cfg=cfg, t=NOW)
+    add("evaluate_personal", "mood_non_alerting_within", indicator=mood, baseline=mood_base, current=4, cfg=cfg, t=NOW)
     add("evaluate_personal", "observations_as_inputs", indicator=pvt,
         baseline=[{"variable": "pvt_lapses", "value": v, "unit": "count", "t": i * DAY} for i, v in enumerate(pvt_base)],
         current={"variable": "pvt_lapses", "value": 8, "unit": "count", "t": NOW}, cfg=cfg, t=NOW)
+    add("evaluate_personal", "reliability_r_ignored", indicator=dict(sleep, reliability_r={"value": 0.99}),
+        baseline=[7.1, 6.8, 7.4, 7.0, 6.9, 7.2, 7.3, 7.0], current=4.5, cfg=cfg, t=NOW)
+    add("evaluate_personal", "cfg_alpha_0_05", indicator=pvt, baseline=pvt_base, current=4,
+        cfg=dict(cfg, alpha_two_tailed=0.05), t=NOW)
+    add("evaluate_personal", "cfg_without_alpha_rejected", indicator=pvt, baseline=pvt_base, current=8,
+        cfg={k: v for k, v in cfg.items() if k != "alpha_two_tailed"}, t=NOW)
+    add("evaluate_personal", "cfg_alpha_out_of_range_rejected", indicator=pvt, baseline=pvt_base, current=8,
+        cfg=dict(cfg, alpha_two_tailed=1.5), t=NOW)
+    add("evaluate_personal", "nan_current_rejected", indicator=pvt, baseline=pvt_base, current=NAN, cfg=cfg, t=NOW)
+    add("evaluate_personal", "nan_observation_value_rejected", indicator=pvt, baseline=pvt_base,
+        current={"variable": "pvt_lapses", "value": NAN, "unit": "count", "t": NOW}, cfg=cfg, t=NOW)
+    add("evaluate_personal", "baseline_sd_overflow_rejected", indicator=sleep,
+        baseline=[1e307, -1e307, 1e307, -1e307, 1e307, -1e307, 1e307], current=0, cfg=cfg, t=NOW)
+    # finite statistic (t = -0.577) but critical 6.4e279 x s_diff 8.7e99 overflows the band edge
+    add("evaluate_personal", "band_edge_overflow_rejected", indicator=sleep, baseline=[0, 1e100], current=0,
+        cfg=dict(cfg, alpha_two_tailed=1e-280, min_baseline_n=2), t=NOW)
 
     # ---- expected_false_alarms ----
     add("expected_false_alarms", "k10_30d", k_indicators=10, days=30, alpha=0.001)
     add("expected_false_alarms", "k10_30d_default_alpha", k_indicators=10, days=30)
+    add("expected_false_alarms", "k8_alerting_indicators_one_day", k_indicators=8, days=1, alpha=0.001)
     add("expected_false_alarms", "k3_45d", k_indicators=3, days=45, alpha=0.001)
     add("expected_false_alarms", "k0", k_indicators=0, days=30, alpha=0.001)
+    add("expected_false_alarms", "alpha_zero", k_indicators=8, days=30, alpha=0)
     add("expected_false_alarms", "negative_rejected", k_indicators=-1, days=30, alpha=0.001)
+    add("expected_false_alarms", "alpha_above_one_rejected", k_indicators=8, days=30, alpha=1.5)
+    add("expected_false_alarms", "alpha_nan_rejected", k_indicators=8, days=30, alpha=NAN)
 
     # ---- new_case ----
     case_def = fx["case"]
@@ -220,6 +361,34 @@ def build_vectors() -> dict[str, list[dict]]:
     add("new_case", "tripwire_unit_unresolved_rejected", case_def=dict(case_def, tripwire=no_unit_tw), crew_id="CM-1")
     add("new_case", "tripwire_unit_from_lookup", case_def=dict(case_def, tripwire=no_unit_tw), crew_id="CM-1",
         lookup={"pvt_lapses": {"variable": "pvt_lapses", "unit": "count"}})
+    # environment-aware tripwire (SPEC 3.4 by_env): onboard rule at Mars, NOAA rule near Earth
+    spe_like = dict(case_def, id="spe_fixture", triggers=[{"kind": "ops", "rule_id": "ops_noaa_s3"},
+                                                          {"kind": "ops", "rule_id": "ops_onboard_proton_s3"}],
+                    tripwire={"reassess_after_s": 21600,
+                              "condition": {"rule_id": "ops_noaa_s3", "op": "ge", "value": 1000, "of_last_n": 3,
+                                            "at_least": 2,
+                                            "by_env": {"mars_surface": {"rule_id": "ops_onboard_proton_s3"}}}})
+    ops_lookup = {r: {"variable": "proton_flux_10mev", "unit": "pfu"} for r in ("ops_noaa_s3", "ops_onboard_proton_s3")}
+    add("new_case", "by_env_mars_watches_onboard_rule", case_def=spe_like, crew_id="CM-1", lookup=ops_lookup,
+        env_id="mars_surface")
+    add("new_case", "by_env_iss_keeps_base_rule", case_def=spe_like, crew_id="CM-1", lookup=ops_lookup, env_id="iss")
+    add("new_case", "by_env_without_env_id_keeps_base_rule", case_def=spe_like, crew_id="CM-1", lookup=ops_lookup)
+    swap = copy.deepcopy(case_def)
+    swap["tripwire"]["condition"]["by_env"] = {"mars_surface": {"indicator_id": "sleep_duration", "op": "lt",
+                                                                "value": 5}}
+    add("new_case", "by_env_override_replaces_reference_variable_and_unit", case_def=swap, crew_id="CM-1",
+        lookup={"sleep_duration": {"variable": "sleep_duration", "unit": "h"}}, env_id="mars_surface")
+    add("new_case", "by_env_new_reference_unit_unresolved_rejected", case_def=swap, crew_id="CM-1",
+        env_id="mars_surface")
+    bad_by_env = copy.deepcopy(case_def)
+    bad_by_env["tripwire"]["condition"]["by_env"] = ["mars_surface"]
+    add("new_case", "by_env_not_an_object_rejected", case_def=bad_by_env, crew_id="CM-1", env_id="iss")
+    bad_override = copy.deepcopy(case_def)
+    bad_override["tripwire"]["condition"]["by_env"] = {"mars_surface": "ops_onboard_proton_s3"}
+    add("new_case", "by_env_override_not_an_object_rejected", case_def=bad_override, crew_id="CM-1",
+        env_id="mars_surface")
+    add("new_case", "env_id_empty_rejected", case_def=case_def, crew_id="CM-1", env_id="")
+    add("new_case", "env_id_number_rejected", case_def=case_def, crew_id="CM-1", env_id=5)
 
     # ---- case_reduce: happy path detected -> acting -> watch -> resolved ----
     finding = run("evaluate_personal", {"indicator": pvt, "baseline": pvt_base, "current": 8, "cfg": cfg,
@@ -281,6 +450,13 @@ def build_vectors() -> dict[str, list[dict]]:
     step("tick_unit_mismatch_rejected", watch_state,
          {"type": "TICK", "t": t0 + 300 + DAY,
           "observations": [dict(obs_ok[0], unit="lapses")]})
+    # atomic: the valid observation listed before the bad one must not survive the rejection
+    step("tick_unit_mismatch_after_valid_obs_is_atomic", watch_state,
+         {"type": "TICK", "t": t0 + 300 + 2 * DAY,
+          "observations": [obs_ok[0], dict(obs_ok[1], unit="lapses")]})
+    step("tick_valid_obs_then_mismatch_outside_window_accepted", watch_state,
+         {"type": "TICK", "t": t0 + 300 + DAY,
+          "observations": [obs_ok[0], dict(obs_ok[1], unit="lapses")]})
 
     # ---- build_ground_packet ----
     esc_state = s_
@@ -376,17 +552,158 @@ def check_vectors(vectors_dir: Path = VECTORS_DIR) -> list[str]:
     return stale
 
 
+# ---------------------------------------------------------------------------- randomized vectors
+
+
+def _alpha_from_z(z: object) -> object:
+    """An old vector's fixed critical z -> the two-tailed alpha it stood for; invalid values stay invalid."""
+    if isinstance(z, bool) or not isinstance(z, (int, float)) or not math.isfinite(z) or z <= 0:
+        return z
+    return float(f"{2.0 * (1.0 - NormalDist().cdf(z)):.6g}")
+
+
+def _upgrade_state(state: object) -> None:
+    """Give an old case state the spec fields new_case now writes (env_id, condition.ref_id), as null."""
+    spec = state.get("spec") if isinstance(state, dict) else None
+    if not isinstance(spec, dict):
+        return
+    spec.setdefault("env_id", None)
+    tw = spec.get("tripwire")
+    if isinstance(tw, dict) and isinstance(tw.get("condition"), dict):
+        tw["condition"].setdefault("ref_id", None)
+
+
+def migrate_args(fn: str, args: dict) -> dict:
+    """Bring a frozen random input to the current signatures (idempotent)."""
+    a = copy.deepcopy(args)
+    if fn == "rci":
+        a.pop("r", None)
+        if "critical_z" in a:
+            a["alpha"] = _alpha_from_z(a.pop("critical_z"))
+    elif fn == "evaluate_personal":
+        cfg = a.get("cfg")
+        if isinstance(cfg, dict) and "critical_z" in cfg:
+            cfg = dict(cfg)
+            z = cfg.pop("critical_z")
+            cfg.setdefault("alpha_two_tailed", _alpha_from_z(z))
+            a["cfg"] = cfg
+    elif fn == "case_reduce":
+        _upgrade_state(a.get("state"))
+    elif fn == "build_ground_packet":
+        _upgrade_state(a.get("case_state"))
+    return a
+
+
+def _random_df(rng: random.Random) -> object:
+    u = rng.random()
+    if u < 0.45:
+        return rng.randint(1, 120)
+    if u < 0.7:
+        return round(rng.uniform(1.0, 50.0), 3)
+    if u < 0.8:
+        return rng.choice([1, 2, 1000, 1000000, 999999.5])
+    if u < 0.9:
+        return rng.randint(121, 100000)
+    return rng.choice([0, -1, 0.5, 0.999, 1000001, True, None, "13", NAN, INF])
+
+
+def _random_unit_interval(rng: random.Random, invalid: list) -> object:
+    u = rng.random()
+    if u < 0.4:
+        return rng.random() or 0.5
+    if u < 0.6:
+        return 10.0 ** -rng.uniform(1.0, 300.0)
+    if u < 0.8:
+        return 1.0 - 10.0 ** -rng.uniform(1.0, 15.0)
+    if u < 0.9:
+        return rng.choice([0.5, 0.001, 0.0005, 0.05, 0.9995, 0.999999])
+    return rng.choice(invalid)
+
+
+def random_inputs(fn: str, n: int = 160) -> list[dict]:
+    """Seeded inputs for a function that has no random file yet (only the t distribution so far)."""
+    rng = random.Random(f"{RANDOM_SEED}:{fn}")
+    out = []
+    for _ in range(n):
+        df = _random_df(rng)
+        if fn == "t_cdf":
+            u = rng.random()
+            if u < 0.5:
+                t = rng.uniform(-8.0, 8.0)
+            elif u < 0.8:
+                t = rng.choice([-1.0, 1.0]) * 10.0 ** rng.uniform(-20.0, 300.0)
+            elif u < 0.9:
+                t = rng.choice([0, -0.0, 1e-17, 9e-18, 1e150, 1.0000001e150, 1.7976931348623157e308,
+                                -1.7976931348623157e308])
+            else:
+                t = rng.choice([NAN, INF, NEG_INF, "1", True, None])
+            out.append({"t": t, "df": df})
+        elif fn == "t_quantile":
+            out.append({"p": _random_unit_interval(rng, [0, 1, -0.1, 1.5, NAN, True, "0.5"]), "df": df})
+        elif fn == "t_critical":
+            out.append({"alpha": _random_unit_interval(rng, [0, 1, -1, NAN, INF, False, "0.001"]), "df": df})
+        else:  # pragma: no cover - every other function has frozen inputs
+            raise ValueError(f"no random input generator for {fn}")
+    return out
+
+
+def build_random_vectors(random_dir: Path = RANDOM_DIR) -> dict[str, list[dict]]:
+    """Frozen inputs (migrated) with fresh expectations, plus seeded inputs for new functions."""
+    out: dict[str, list[dict]] = {}
+    for fn in FUNCTIONS:
+        p = Path(random_dir) / f"random_{fn}.json"
+        if p.exists():
+            frozen = json.loads(p.read_text(encoding="utf-8"))
+            items = [(v["name"], migrate_args(fn, v["args"])) for v in frozen]
+        else:
+            items = [(f"rand_{i}", a) for i, a in enumerate(random_inputs(fn))]
+        out[fn] = [{"name": name, "fn": fn, "args": args, **run(fn, args)} for name, args in items]
+    return out
+
+
+def _dump_random(vectors: list[dict]) -> str:
+    # one vector per line, as the frozen files were written
+    return "[\n" + ",\n".join(json.dumps(v, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+                               for v in vectors) + "\n]\n"
+
+
+def write_random_vectors(random_dir: Path = RANDOM_DIR) -> list[Path]:
+    random_dir = Path(random_dir)
+    random_dir.mkdir(parents=True, exist_ok=True)
+    paths = []
+    for fn, vecs in build_random_vectors(random_dir).items():
+        p = random_dir / f"random_{fn}.json"
+        p.write_text(_dump_random(vecs), encoding="utf-8")
+        paths.append(p)
+    return paths
+
+
+def check_random_vectors(random_dir: Path = RANDOM_DIR) -> list[str]:
+    """Random files whose expectations (or migrated inputs) differ from the current engine."""
+    if not Path(random_dir).is_dir():
+        return []
+    stale = []
+    for fn, vecs in build_random_vectors(random_dir).items():
+        p = Path(random_dir) / f"random_{fn}.json"
+        if not p.exists() or json.loads(p.read_text(encoding="utf-8")) != json.loads(_dump_random(vecs)):
+            stale.append(p.name)
+    extra = {p.stem for p in Path(random_dir).glob("*.json")} - {f"random_{fn}" for fn in FUNCTIONS}
+    stale.extend(sorted(f"{e}.json (no such function)" for e in extra))
+    return stale
+
+
 def main(argv: list[str]) -> int:
     if "--check" in argv:
-        stale = check_vectors()
+        stale = check_vectors() + check_random_vectors()
         if stale:
             print("out of date: " + ", ".join(stale))
             return 1
         print("vectors up to date")
         return 0
-    paths = write_vectors()
+    paths = write_random_vectors() if "--random" in argv else write_vectors()
     total = sum(len(json.loads(p.read_text(encoding="utf-8"))) for p in paths)
-    print(f"wrote {total} vectors to {len(paths)} files in {VECTORS_DIR}")
+    where = RANDOM_DIR if "--random" in argv else VECTORS_DIR
+    print(f"wrote {total} vectors to {len(paths)} files in {where}")
     return 0
 
 

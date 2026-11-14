@@ -1,0 +1,708 @@
+[
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 1
+  },
+  "expect": 636.6192488074303,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_1"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 2
+  },
+  "expect": 31.599054576829076,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_2"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 3
+  },
+  "expect": 12.923978636972606,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_3"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 4
+  },
+  "expect": 8.610301581211388,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_4"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 5
+  },
+  "expect": 6.868826626334339,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_5"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 6
+  },
+  "expect": 5.958816178608686,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_6"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 7
+  },
+  "expect": 5.407882520463318,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_7"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 8
+  },
+  "expect": 5.041305433493108,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_8"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 9
+  },
+  "expect": 4.780912586022168,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_9"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 10
+  },
+  "expect": 4.586893858853728,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_10"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 11
+  },
+  "expect": 4.4369793380610645,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_11"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 12
+  },
+  "expect": 4.317791283596307,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_12"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 13
+  },
+  "expect": 4.2208317280747,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_13"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 14
+  },
+  "expect": 4.140454113017768,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_14"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 15
+  },
+  "expect": 4.072765196207911,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_15"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 16
+  },
+  "expect": 4.014996326994151,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_16"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 17
+  },
+  "expect": 3.9651262720581144,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_17"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 18
+  },
+  "expect": 3.921645825030282,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_18"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 19
+  },
+  "expect": 3.883405852364376,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_19"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 20
+  },
+  "expect": 3.849516275105998,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_20"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 21
+  },
+  "expect": 3.819277164293453,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_21"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 22
+  },
+  "expect": 3.7921306716743857,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_22"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 23
+  },
+  "expect": 3.767626804532483,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_23"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 24
+  },
+  "expect": 3.745398619445041,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_24"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 25
+  },
+  "expect": 3.725143949734047,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_25"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 26
+  },
+  "expect": 3.7066117434296757,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_26"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 27
+  },
+  "expect": 3.689591713482514,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_27"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 28
+  },
+  "expect": 3.6739064005669206,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_28"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 29
+  },
+  "expect": 3.6594050193671137,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_29"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 30
+  },
+  "expect": 3.645958635257557,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_30"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 31
+  },
+  "expect": 3.6334563496056944,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_31"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 32
+  },
+  "expect": 3.621802259935066,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_32"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 33
+  },
+  "expect": 3.61091300775297,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_33"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 34
+  },
+  "expect": 3.6007157971616834,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_34"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 35
+  },
+  "expect": 3.5911467757541686,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_35"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 36
+  },
+  "expect": 3.5821497014258057,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_36"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 37
+  },
+  "expect": 3.573674844345078,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_37"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 38
+  },
+  "expect": 3.5656780714634806,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_38"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 39
+  },
+  "expect": 3.5581200814340264,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_39"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 40
+  },
+  "expect": 3.5509657610673457,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_40"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 41
+  },
+  "expect": 3.5441836428362876,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_41"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 42
+  },
+  "expect": 3.5377454452682287,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_42"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 43
+  },
+  "expect": 3.5316256775986403,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_43"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 44
+  },
+  "expect": 3.5258013063576072,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_44"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 45
+  },
+  "expect": 3.520251464797184,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_45"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 46
+  },
+  "expect": 3.514957205625251,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_46"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 47
+  },
+  "expect": 3.5099012835416943,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_47"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 48
+  },
+  "expect": 3.505067970370874,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_48"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 49
+  },
+  "expect": 3.5004428911488503,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_49"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 50
+  },
+  "expect": 3.4960128816310316,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_50"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 51
+  },
+  "expect": 3.4917658634949476,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_51"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 52
+  },
+  "expect": 3.487690734444186,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_52"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 53
+  },
+  "expect": 3.483777273213491,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_53"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 54
+  },
+  "expect": 3.4800160510931164,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_54"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 55
+  },
+  "expect": 3.4763983588200063,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_55"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 56
+  },
+  "expect": 3.4729161399882287,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_56"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 57
+  },
+  "expect": 3.4695619277190417,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_57"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 58
+  },
+  "expect": 3.4663287948351353,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_58"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 59
+  },
+  "expect": 3.4632103049661964,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_59"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 60
+  },
+  "expect": 3.460200469242409,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_60"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 100
+  },
+  "expect": 3.390491311205551,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_100"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 120
+  },
+  "expect": 3.3734537686686963,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_120"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 1000
+  },
+  "expect": 3.30028264853172,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_1000"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": 1000000
+  },
+  "expect": 3.290536461165175,
+  "fn": "t_critical",
+  "name": "alpha_0.001_df_1000000"
+ },
+ {
+  "args": {
+   "alpha": 0.2,
+   "df": 13
+  },
+  "expect": 1.3501712888246402,
+  "fn": "t_critical",
+  "name": "alpha_0.2_df_13"
+ },
+ {
+  "args": {
+   "alpha": 0.1,
+   "df": 13
+  },
+  "expect": 1.770933396066539,
+  "fn": "t_critical",
+  "name": "alpha_0.1_df_13"
+ },
+ {
+  "args": {
+   "alpha": 0.05,
+   "df": 13
+  },
+  "expect": 2.160368656506762,
+  "fn": "t_critical",
+  "name": "alpha_0.05_df_13"
+ },
+ {
+  "args": {
+   "alpha": 0.01,
+   "df": 13
+  },
+  "expect": 3.012275838525966,
+  "fn": "t_critical",
+  "name": "alpha_0.01_df_13"
+ },
+ {
+  "args": {
+   "alpha": 0.002,
+   "df": 13
+  },
+  "expect": 3.8519823912065476,
+  "fn": "t_critical",
+  "name": "alpha_0.002_df_13"
+ },
+ {
+  "args": {
+   "alpha": 0.0005,
+   "df": 13
+  },
+  "expect": 4.597461463417858,
+  "fn": "t_critical",
+  "name": "alpha_0.0005_df_13"
+ },
+ {
+  "args": {
+   "alpha": 1e-06,
+   "df": 13
+  },
+  "expect": 8.603319470770657,
+  "fn": "t_critical",
+  "name": "alpha_1e-06_df_13"
+ },
+ {
+  "args": {
+   "alpha": 0,
+   "df": 13
+  },
+  "fn": "t_critical",
+  "name": "alpha_0_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "alpha": 1,
+   "df": 13
+  },
+  "fn": "t_critical",
+  "name": "alpha_1_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "alpha": -0.001,
+   "df": 13
+  },
+  "fn": "t_critical",
+  "name": "alpha_-0.001_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "alpha": 1.5,
+   "df": 13
+  },
+  "fn": "t_critical",
+  "name": "alpha_1.5_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "alpha": {
+    "$float": "NaN"
+   },
+   "df": 13
+  },
+  "fn": "t_critical",
+  "name": "alpha_nan_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "alpha": "0.001",
+   "df": 13
+  },
+  "fn": "t_critical",
+  "name": "alpha_string_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "df": {
+    "$float": "NaN"
+   }
+  },
+  "fn": "t_critical",
+  "name": "df_nan_rejected",
+  "raises": "invalid_argument"
+ }
+]

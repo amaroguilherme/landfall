@@ -8,36 +8,75 @@ languages disagree, the Python engine plus SPEC win, and a vector proves it.
 ```ts
 import { RULES, getCase, getRule, triggerLookup, newCase, caseReduce, evaluateRule } from '../engine'
 const f = evaluateRule(getRule(RULES, 'ffd_vo2max_surface_eva'), 35.1, 'mars_surface', t)
-let s = newCase(getCase(RULES, 'sleep_circadian'), 'CM-1', triggerLookup(RULES))  // the lookup is required
+let s = newCase(getCase(RULES, 'spe_shelter'), 'CM-1', triggerLookup(RULES), 'mars_surface')  // lookup required; env picks the tripwire rule
 s = caseReduce(s, { type: 'OPEN', t, finding })
+const c = tCritical(0.001, 13)  // 4.2208..., the Tier B critical value for a 14-day baseline
 ```
 
 ## Proof
 
 - `conformance.test.ts` loads **every** file in `engine/tests/vectors/*.json` (`node:fs` + `import.meta.url`).
-  Today that is 162 vectors in 12 files. For each vector the test checks four things:
-  - the TS result deep-equals `expect`, or the error `code` equals `raises`;
-  - no input argument is mutated;
-  - every number is **bit-for-bit** the Python double, which is stronger than the SPEC tolerance of 1e-9 (relative above magnitude 1, absolute below);
+  Today that is 619 vectors in 15 files. Arguments written `{"$float": "NaN" | "Infinity" | "-Infinity"}` are
+  decoded, at any depth, before the call (SPEC section 6). For each vector the test checks four things:
+  - the TS result deep-equals `expect` (numbers within 1e-9, relative above magnitude 1, absolute below), or the
+    error `code` equals `raises`;
+  - no (decoded) input argument is mutated;
+  - every number is **bit-for-bit** the Python double, which is stronger than the SPEC tolerance, for every
+    function except `t_cdf` (see "Student's t" below);
   - a second run gives the same answer.
 
   The test also fails when a vector file has no TS mapping or a vector uses an argument name the mapping does not know.
-- The same test also replays `engine/tests/vectors_random/random_<fn>.json`: 4,539 seeded random vectors (all 12
-  functions: valid and invalid inputs, case_reduce event sequences, FHIR packets), produced by the Python reference
-  engine during the adversarial verification of this port. They sit outside `vectors/` because
-  `python -m engine.vectors --check` reports any extra file there. They are frozen, and their generator (seed
-  20261114) is not in the repo: if the Python semantics change on purpose, delete them or regenerate them with a
-  committed copy of that script. The directory is optional.
+- The same test also replays `engine/tests/vectors_random/random_<fn>.json`: 5,019 seeded random vectors (all 15
+  functions: valid and invalid inputs, case_reduce event sequences, FHIR packets). They sit outside `vectors/`
+  because `python -m engine.vectors --check` reports any extra file there. Their inputs are frozen, and their
+  generator is committed: `uv run python -m engine.vectors --random` recomputes the expectations with the current
+  engine (and `--check` covers them). The directory is optional.
+- `tdist.test.ts` checks the t distribution against published tables, fetched on 2026-11-14: every row of the
+  0.0005 upper-tail column of Purdue STAT 503's t table (two-tailed alpha 0.001: 4.221 at df 13, 3.291 at
+  infinity) and every cell of the NIST/SEMATECH e-Handbook table 1.3.6.7.2. It also reproduces Crawford & Howell's
+  (1998) worked example, and tests `fma` and `lgamma` (below).
+- `scenario.test.ts` runs the TS engine on the shipped `web/public/data/sim_crew.json` the way `src/app/evaluate.ts`
+  does (baseline MET days 368-381, n 14, df 13, critical 4.221). CM-1's PVT-B lapses are a reliable change from day
+  406 (by day 407, SPEC section 7) and CM-3's 24-h urine output on days 398-401. Only the scripted episodes change
+  reliably, and mood never alerts.
 - `engine.test.ts` runs the port on the **real** `engine/rules/*.json`:
   - every threshold rule and every indicator validates;
   - `PRIVATE_VARIABLES` equals the `private: true` indicators;
-  - mood stays at most advisory;
+  - mood (non-alerting) shows a reliable change at severity `nominal`, and missing data stays `advisory`;
+  - the critical values quoted in `rci.method` are the engine's, and an indicator's `reliability_r` changes nothing;
   - the CM-2 VO2max 35.1 verdict flips between `[V1 4001]` and `[V1 4002]` when the environment changes;
-  - all three cases open with `triggerLookup`;
-  - the SPE case escalates at T+6 h on vehicle data (`crew_id: null`) and yields a `scope-vehicle` packet.
+  - all three cases open with `triggerLookup`, and in every environment each one watches a tripwire rule that
+    applies there (`spe_shelter`: `ops_onboard_proton_s3` at Mars, `ops_noaa_s3` near Earth);
+  - the SPE case rejects a TICK with a unit mismatch atomically, escalates at T+6 h on vehicle data
+    (`crew_id: null`) and yields a `scope-vehicle` packet.
 
   It also checks the tables the port copies (UCUM, LOINC vital signs, local displays, private/boolean/MET units, error codes and NOAA thresholds) against the Python source text, so a change on one side alone fails.
-- Run: `cd web && npx vitest run src/engine` (or `npm test`), then `npx tsc -b --noEmit`.
+- Run: `cd web && npx vitest run src/engine` (or `npm test`), then `npx tsc -p tsconfig.app.json --noEmit`.
+
+## Student's t (`tdist.ts`)
+
+`tCdf`, `tQuantile` and `tCritical` follow `engine/tdist.py` step for step: the same continued fraction (modified
+Lentz, `CF_EPS` 1e-15, `CF_TINY` 1e-300, at most 10,000 iterations), the same `t < 1e-17` and `t > 1e150` branches,
+the same power-of-two bracket (limits 2^±1000, built from bit patterns) and exactly 32 bisection steps.
+
+JavaScript has no `lgamma`, so `tdist.ts` ports the one Python's `math.lgamma` runs: CPython's `m_lgamma`
+(`Modules/mathmodule.c`, a 13-term Lanczos approximation; coefficients written as their shortest round-trip
+decimals). The reference build that generated the vectors (python-build-standalone 3.12, clang, macOS arm64)
+compiles two multiply-adds in that C code into fused `fma` instructions (the Horner steps for x < 5 and the final
+`r += (x - 0.5) * (...)`). `fma()` performs those two steps exactly, with BigInt arithmetic and one rounding (ties to
+even). Measured during the port on 849 arguments, this lgamma returned Python's bits for 821; an unfused port
+matched 493. The rest differ through `Math.log`, which, like `Math.exp`, is not guaranteed to match the C library in
+the last bit. `tdist.test.ts` pins twelve of the values where only the fused steps tell the two apart.
+
+So `t_cdf` agrees with Python within the 1e-9 tolerance only (on this machine 15 of its 311 vectors differ in the
+last digits; the largest gap, at df 89,998, is 5e-11 absolute). `t_quantile`, `t_critical` and every Tier B value
+built on the critical value are bit-identical in every vector and for every df the engine uses (n − 1 for an
+n-day baseline): each of the 32 halvings is decided far above that noise. That is not a guarantee at very large
+df. There `lgamma(df/2)` is about (df/2)·ln(df/2), so one ulp of it moves the CDF by up to ~1e-9 relative near
+df 1e6, and a late halving can differ. A verifier's 2,500 random inputs per df range found every result identical
+below df 1000, differences up to ~3e-10 relative below df 1e5, and up to ~3e-9 between 1e5 and 1e6 (SPEC section 6
+allows 1e-8 there). The bit-for-bit check in `conformance.test.ts` therefore holds for the frozen vectors, and a
+newly drawn input at df above ~1e3 could legitimately fail it while meeting the tolerance.
 
 ## Name mapping (Python -> TypeScript)
 
@@ -50,10 +89,13 @@ the same snake_case keys, so a value can pass between the two languages unchange
 | `thresholds.s_level(flux_pfu)` | `sLevel(fluxPfu)` |
 | `thresholds.coerce_value`, `basis_text`, `cap_severity`, `severity_rank`, `compare` | `coerceValue`, `basisText`, `capSeverity`, `severityRank`, `compare` |
 | `thresholds.SEVERITIES`, `STATUSES`, `CEILING_OPS`, `FLOOR_OPS`, `OP_SYMBOL`, `NOAA_S_THRESHOLDS_PFU` | same names (`S_THRESHOLDS_PFU` is an alias for the shell facade) |
-| `rci.rci(baseline, current, r, critical_z=3.29, min_baseline_n=7)` | `rci(baseline, current, r, criticalZ = 3.29, minBaselineN = 7)` |
+| `rci.rci(baseline, current, alpha=0.001, min_baseline_n=7)` | `rci(baseline, current, alpha = 0.001, minBaselineN = 7)` |
 | `rci.evaluate_personal(indicator, baseline, current, cfg, t=None)` | `evaluatePersonal(indicator, baseline, current, cfg, t = null)` |
 | `rci.expected_false_alarms(k_indicators, days, alpha=0.001)` | `expectedFalseAlarms(kIndicators, days, alpha = 0.001)` |
-| `cases.new_case(case_def, crew_id, lookup=None)` | `newCase(caseDef, crewId, lookup = null)` |
+| `rci.METHOD`, `FALSE_ALARM_ASSUMES` | `RCI_METHOD`, `FALSE_ALARM_ASSUMES` |
+| `tdist.t_cdf(t, df)`, `t_quantile(p, df)`, `t_critical(alpha, df)` | `tCdf(t, df)`, `tQuantile(p, df)`, `tCritical(alpha, df)` |
+| `math.lgamma` (C library) | `lgamma` in `tdist.ts` (CPython's `m_lgamma`, with `fma`) |
+| `cases.new_case(case_def, crew_id, lookup=None, env_id=None)` | `newCase(caseDef, crewId, lookup = null, envId = null)` |
 | `cases.case_reduce(state, event)` | `caseReduce(state, event)` |
 | `cases.STATES`, `OPEN_STATES`, `TERMINAL_STATES`, `EVENTS`, `OPENING_SEVERITIES` | same names |
 | `packet.build_ground_packet(case_state, observations, consent, env_id, t, mission_epoch)` | `buildGroundPacket(caseState, observations, consent, envId, t, missionEpoch)` |
@@ -113,7 +155,15 @@ shapes differ from the shim in six ways, and the compiler flags each one:
 - `commsEta` **throws** `missing_comms_table` for Mars without a table. The shim returned nulls instead.
 - `buildGroundPacket` takes a 6th argument, `mission_epoch`. The demo uses `sim_crew.json`
   `data.calendar.met_epoch_utc = "2027-01-31T02:40:00Z"`. The vectors use the fixture epoch 2035-01-01.
-- `expectedFalseAlarms` returns `{expected, per_day, every_n_days, text, k_indicators, days, alpha}`.
+- `expectedFalseAlarms` returns `{expected, per_day, every_n_days, text, expected_cautions, cautions_per_day,
+  caution_every_n_days, caution_text, assumes, k_indicators, days, alpha}`: chance flags in either direction, and
+  the half of them that are cautions (only a change in the worse direction raises one).
+- Tier B findings carry `rci: {method: "crawford_howell_1998", rc, df, critical, alpha, s_diff, mean, sd, n,
+  reliable, reason}`. `rc` is the t statistic of the single-case test. There is no `critical_z`, `r` or `sem`
+  any more, and an indicator's `reliability_r` is optional, non-computational context.
+- `newCase` takes a 4th argument, `envId`: pass the current environment so the SPE case watches the onboard
+  monitor rule at Mars (`spec.tripwire.condition.ref_id`). Without it the base condition (NOAA) is used; both
+  rules watch the same variable and unit.
 
 `node-fs.d.ts` declares only the two `node:fs` functions that the tests use. It exists because the app
 tsconfig loads only `vite/client` types, and adding `@types/node` to the browser program would retype globals

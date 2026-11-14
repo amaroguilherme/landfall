@@ -1,7 +1,9 @@
 """Known-answer tests for the simulated scenario (engine/SPEC.md section 7).
 
-The RCI is recomputed here from the SPEC section 5 formula, independently of the generator:
-sd = sample SD (n-1), sem = sd*sqrt(1-r), s_diff = sqrt(2)*sem, rc = (x - mean) / s_diff.
+Tier B's single-case t (Crawford & Howell 1998) is recomputed here from the SPEC section 5 formula,
+independently of the generator and of the engine: sd = sample SD (n-1),
+t = (x - mean) / (sd * sqrt(1 + 1/n)), df = n - 1, reliable when |t| > 4.221, the two-tailed
+alpha 0.001 critical value at df 13 in published t tables (e.g. Purdue STAT 503, MedCalc).
 """
 
 from __future__ import annotations
@@ -16,7 +18,8 @@ import pytest
 from ingest import sim_crew
 from ingest.common import DEFAULT_OUT_DIR, REPO_ROOT, validate_snapshot
 
-R_GRID = (0.5, 0.6, 0.7, 0.8, 0.9)
+T_CRIT_DF13 = 4.221                          # published t tables, two-tailed alpha 0.001, df 13
+T_ROBUST = 6.0 / math.sqrt(1 + 1 / 14)       # 6 baseline SDs on a 14-day baseline: |t| >= 5.797
 NOW = 412 * 86400 + 14 * 3600 + 20 * 60
 DAY = 86400
 SPEC_UNITS = {  # SPEC 3.3 plus the four extra variables named in the brief
@@ -28,9 +31,9 @@ SPEC_UNITS = {  # SPEC 3.3 plus the four extra variables named in the brief
 ALERTING = [v for v in SPEC_UNITS if v not in ("mood", "vo2max", "career_effective_dose")]
 
 
-def spec_rci(baseline: list[float], x: float, r: float) -> float:
+def spec_t(baseline: list[float], x: float) -> float:
     m, sd = statistics.fmean(baseline), statistics.stdev(baseline)
-    return (x - m) / (math.sqrt(2) * sd * math.sqrt(1 - r))
+    return (x - m) / (sd * math.sqrt(1 + 1 / len(baseline)))
 
 
 @pytest.fixture(scope="module")
@@ -105,9 +108,9 @@ def test_renal_episode_cm3(snap):
         ser = crew(snap, "CM-3")["series"][var]
         d = by_day(ser, collection_day)
         base = baseline_values(ser, collection_day)
+        assert len(base) == 14
         for day in range(398, 402):
-            for r in R_GRID:
-                assert spec_rci(base, d[day], r) <= -6.0, (var, day, r)
+            assert spec_t(base, d[day]) <= -T_ROBUST, (var, day)
     urine = {cid: by_day(crew(snap, cid)["series"]["urine_volume_24h"], collection_day)
              for cid in ("CM-1", "CM-2", "CM-3", "CM-4")}
     assert all(urine["CM-3"][d] < 1500 for d in range(398, 402))               # below the 1,500 mL/day level
@@ -120,14 +123,14 @@ def test_sleep_episode_cm1(snap):
     s = crew(snap, "CM-1")["series"]
     lapses, base = by_day(s["pvt_lapses"]), baseline_values(s["pvt_lapses"])
     for day in range(407, 413):
-        assert all(spec_rci(base, lapses[day], r) >= 6.0 for r in R_GRID), day
-    first = {r: next(d for d in range(382, 413) if spec_rci(base, lapses[d], r) >= 3.29) for r in R_GRID}
-    assert all(404 <= d <= 407 for d in first.values()), first   # reliable change BY day 407, not before 404
+        assert spec_t(base, lapses[day]) >= T_ROBUST, day
+    first = next(d for d in range(382, 413) if spec_t(base, lapses[d]) > T_CRIT_DF13)
+    assert 404 <= first <= 407, first                            # reliable change BY day 407, not before 404
     for var, sign in (("sleep_duration", -1), ("sleep_midpoint_shift", 1), ("pvt_median_rt", 1)):
         d, b = by_day(s[var]), baseline_values(s[var])
         days = range(404, 413) if var != "pvt_median_rt" else range(407, 413)
         for day in days:
-            assert all(sign * spec_rci(b, d[day], r) >= 6.0 for r in R_GRID), (var, day)
+            assert sign * spec_t(b, d[day]) >= T_ROBUST, (var, day)
     assert all(by_day(s["sleep_duration"])[d] < 5.0 for d in range(404, 413))
 
 
@@ -151,8 +154,20 @@ def test_no_unintended_reliable_change(snap):
             for day, v in d.items():
                 if day in skip:
                     continue
-                for r in R_GRID:
-                    assert abs(spec_rci(base, v, r)) < 3.29, (c["crew_id"], var, day, r)
+                t = spec_t(base, v)
+                assert abs(t) < T_CRIT_DF13 and abs(t) <= 1.36, (c["crew_id"], var, day, t)
+
+
+def test_self_check_reports_the_single_case_t(snap):
+    sc = snap["data"]["self_check"]
+    assert sc["method"].startswith("SPEC section 5 single-case t (Crawford & Howell 1998)")
+    assert sc["non_episode_max_abs_t"] == 1.35 and sc["non_episode_bound_sd"] == 1.4
+    for ev in sc["episodes"]:
+        assert ev["df"] == 13 and ev["critical_t"] == T_CRIT_DF13 and ev["min_abs_t"] > T_CRIT_DF13
+        assert abs(ev["min_abs_t"] - ev["min_abs_z"] / math.sqrt(1 + 1 / 14)) < 0.01   # both rounded to 2 dp
+    text = " ".join(snap["caveats"])
+    assert "at the printed false-alarm rate" not in text and "for any r in" not in text
+    assert "only if day-to-day noise were normal and independent" in text
 
 
 def test_ffd_demo_cm2(snap):

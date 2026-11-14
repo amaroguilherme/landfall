@@ -27,7 +27,7 @@ SCHEMAS = {
 }
 CHIP_TO_KIND = {
     "NASA-published": "nasa_standard",
-    "NASA brief": "nasa_brief",
+    "NASA report": "nasa_brief",   # OCHMO technical briefs and HRP evidence reports; the kind keeps its old name
     "NOAA-published": "noaa",
     "literature": "literature",
     "derived": "derived",
@@ -124,9 +124,31 @@ def requirement(snap: dict, rid: str) -> dict | None:
 
 
 def req_text(r: dict) -> str:
+    """The requirement's own words: text, note, rationale and items (never LANDFALL's landfall_note)."""
     parts = [r.get("text") or r.get("statement") or "", r.get("note") or "", r.get("rationale") or ""]
     parts += [str(v) for v in (r.get("items") or {}).values()] if isinstance(r.get("items"), dict) else []
     return " ".join(p for p in parts if isinstance(p, str))
+
+
+def table_cells(snap: dict, table: str) -> list[str]:
+    """Every printed cell of a table ("Table 6.3-1") in a std_* snapshot: caption, header, rows, notes.
+
+    Vol 1 keeps tables as a list with "id"; Vol 2 as a dict whose caption starts with the table name.
+    LANDFALL's own fields (landfall_note, verified, checks) are not cells.
+    """
+    tables = snap["data"].get("tables") or []
+    items = tables.values() if isinstance(tables, dict) else tables
+    for t in items:
+        if t.get("id") == table or str(t.get("caption", "")).startswith(table + "\u2014") or t.get("caption") == table:
+            cells = [t.get("caption") or "", t.get("footnote") or ""]
+            cells += [str(c) for c in t.get("columns") or []]
+            cells += [str(n) for n in t.get("notes_verbatim") or []]
+            for row in t.get("rows") or []:
+                values = row.values() if isinstance(row, dict) else row
+                for v in values:
+                    cells += [str(v.get("text")) if isinstance(v, dict) else str(v)]
+            return cells
+    raise AssertionError(f"{table} not in snapshot {snap.get('id')}")
 
 
 # ------------------------------------------------------------------ schema
@@ -287,17 +309,40 @@ def test_environments_shape_and_moon_arithmetic(R):
 
 def test_personal_indicators(R):
     p = R["personal"]
-    alpha = p["rci"]["alpha_two_tailed"]
-    assert math.isclose(p["rci"]["critical_z"], NormalDist().inv_cdf(1 - alpha / 2), abs_tol=1e-3)
+    rci = p["rci"]
+    # the engine computes the critical value from alpha and the baseline length; none is stored
+    assert "critical_z" not in rci and 0 < rci["alpha_two_tailed"] < 1
+    assert rci["source"]["citation"].startswith("Crawford JR, Howell DC.") and "10.1076/clin.12.4.482.7241" in \
+        rci["source"]["citation"]
+    assert rci["lineage"]["source"]["citation"].startswith("Jacobson NS, Truax P.")
     inds = {i["id"]: i for i in p["indicators"]}
     assert set(REQUIRED_INDICATORS) <= set(inds)
     for iid, unit in REQUIRED_INDICATORS.items():
         i = inds[iid]
         assert i["unit"] == unit and i["variable"] == iid, iid
         assert i["worse"] in {"increase", "decrease"}, iid
-        r = i["reliability_r"]
-        assert 0 < r["value"] < 1 and r["chip"] in CHIP_TO_KIND and r["source"]["kind"] == CHIP_TO_KIND[r["chip"]]
+        # reliability_r is not used by the computation: if present it holds no value and says so
+        r = i.get("reliability_r")
+        if r is not None:
+            assert r["value"] is None and r["used_by_engine"] is False, iid
+            assert r["source"]["rationale"].startswith("Not used by any computation."), iid
     assert inds["mood"]["private"] is True and inds["mood"]["alerting"] is False
+
+
+def test_personal_method_text_quotes_the_engine_critical_values(R):
+    """rci.method prints the critical values for the full window and the minimum baseline: they must be the
+    engine's (t_critical(alpha, n - 1)), so the text cannot drift from the arithmetic."""
+    from engine import fmt_num, t_critical
+
+    rci = R["personal"]["rci"]
+    alpha = rci["alpha_two_tailed"]
+    full = fmt_num(t_critical(alpha, rci["baseline_window_days"] - 1), 3)
+    minimum = fmt_num(t_critical(alpha, rci["min_baseline_n"] - 1), 3)
+    assert f"{full} for a full {rci['baseline_window_days']}-day baseline" in rci["method"], full
+    assert f"{minimum} at the {rci['min_baseline_n']}-day minimum" in rci["method"], minimum
+    assert fmt_num(alpha, 6) in rci["method"]
+    meta_b = next(t for t in R["meta"]["tiers"] if t["id"] == "B")["definition"]
+    assert f"({full} for a {rci['baseline_window_days']}-day baseline)" in meta_b
 
 
 # ------------------------------------------------------------------ cases
@@ -329,6 +374,10 @@ def test_cases_referential_integrity(R):
         cond = c["tripwire"]["condition"]
         assert cond.get("rule_id") in rules or cond.get("indicator_id") in inds, c["id"]
         assert cond["op"] in OPS and cond["at_least"] <= cond["of_last_n"]
+        envs = {e["id"] for e in R["environments"]["environments"]}
+        for env, override in (cond.get("by_env") or {}).items():
+            assert env in envs, (c["id"], env)
+            assert override.get("rule_id") in rules or override.get("indicator_id") in inds, (c["id"], env)
         step_vars = {s["input"]["variable"] for s in c["procedure"] if "input" in s}
         for s in c["procedure"]:
             if "input" in s:
@@ -352,11 +401,12 @@ def test_derived_inputs_resolve(R):
 
 
 def test_hrp_risk_titles_match_snapshot(R):
+    """Matched against the snapshot's own risk entries (name and url), not the snapshot as a whole."""
     snap = need_snapshot("hrp_risks")
-    blob = json.dumps(snap, ensure_ascii=False).lower()
+    risks = {r["name"]: r["url"].rstrip("/") for r in snap["data"]["risks"]}
     for c in R["cases"]["cases"]:
-        assert c["hrp_risk"]["title"].lower() in blob, c["hrp_risk"]["title"]
-        assert c["hrp_risk"]["url"].rstrip("/").lower() in blob, c["hrp_risk"]["url"]
+        assert c["hrp_risk"]["title"] in risks, c["hrp_risk"]["title"]
+        assert risks[c["hrp_risk"]["title"]] == c["hrp_risk"]["url"].rstrip("/"), c["hrp_risk"]["url"]
 
 
 # ------------------------------------------------------------------ meta
@@ -365,7 +415,8 @@ def test_hrp_risk_titles_match_snapshot(R):
 def test_meta_vocabularies(R):
     m = R["meta"]
     assert {c["id"] for c in m["chips"]} == set(CHIP_TO_KIND)
-    assert {c["id"] for c in m["categories"]} >= {"FFD", "PEL", "POL", "OPS", "PERSONAL"}
+    assert {c["id"]: c["source_kind"] for c in m["chips"]} == CHIP_TO_KIND
+    assert {c["id"] for c in m["categories"]} >= {"FFD", "PEL", "POL", "OPS", "PERSONAL", "TARGET"}
     assert m["refusals"] and all(r["id"] and r["text"] for r in m["refusals"])
     rows = m["severity_mapping"]["rows"]
     sev = {s["id"] for s in m["severities"]}
@@ -425,11 +476,10 @@ def test_other_nasa_citations_appear_verbatim(R, snap_id):
                 # test_nasa_limits_appear_verbatim_in_snapshot), so report the gap instead of failing.
                 missing.append(f"{src['requirement_id']} ({name}:{'/'.join(map(str, path))})")
                 continue
-            if src.get("table"):
-                blob = json.dumps(data, ensure_ascii=False)
-                assert src["verbatim"] in blob or src["verbatim"] in req_text(req), (name, path)
-            else:
-                assert src["verbatim"] in req_text(req), (name, path, src["verbatim"])
+            # the requirement's own words, or the cells of the table it cites; never the snapshot as a whole,
+            # which also holds LANDFALL's commentary (landfall_note, lookups)
+            own = [req_text(req)] + (table_cells(snap, src["table"]) if src.get("table") else [])
+            assert any(src["verbatim"] in text for text in own), (name, path, src["verbatim"])
         elif src.get("context_quote"):
             quotes = " ".join(q["text"] for q in data.get("context_quotes", []))
             assert src["verbatim"] in quotes, (name, path)
@@ -442,8 +492,7 @@ def test_other_nasa_citations_appear_verbatim(R, snap_id):
             if cat["source"]:
                 g = next(x for x in data["glossary"] if x["term"] == cat["source"]["term"])
                 assert g["definition"] == cat["glossary"], cat["id"]
-    if missing:
-        pytest.skip(f"all other citations verified; not in {snap_id} yet: " + "; ".join(missing))
+    assert not missing, f"requirement IDs cited but not in {snap_id}: " + "; ".join(missing)
 
 
 def test_noaa_rules_match_s_scale_snapshot(R):
@@ -544,9 +593,10 @@ def test_plano_never_print_list(R):
         if any("355" in s for s in own):  # 355 ms belongs to Basner 2011, never to a [V1 ...] ID
             assert d.get("kind") != "nasa_standard" and (d.get("source") or {}).get("kind") != "nasa_standard", path
             assert not any(re.search(r"\bV1 \d{4}", s) for s in own), (name, path)
-    for c in R["cases"]["cases"]:  # see personal.json rci.caveat: the realized rate is not p < .001
+    for c in R["cases"]["cases"]:  # case texts are for a non-physician: no p-values (rci.caveat has the fine print)
         for s in snapshot_strings(c):
             assert not re.search(r"p\s*<\s*0?\.001", s), (c["id"], s)
+            assert not re.search(r"\bRCI\b|3\.29", s), (c["id"], s)  # the old Jacobson & Truax criterion
 
 
 def test_hrp_and_noaa_quotes_appear_in_snapshots(R):
@@ -563,11 +613,18 @@ def test_hrp_and_noaa_quotes_appear_in_snapshots(R):
 
 def test_renal_target_is_the_evidence_report_sentence(R):
     """1,500 and 2,500 mL come from one HRP evidence-report sentence (identical in the 2017 and 2024
-    editions); the Vol 2 adapter froze the 2017 text, so the rule's quote must be inside it."""
+    editions); the Vol 2 adapter froze the 2017 text, so the rule's quote must be inside it. An HRP
+    evidence report is a NASA report without a requirement ID: chip "NASA report"."""
     snap = need_snapshot("std_vol2_requirements")
     rule = next(r for r in R["thresholds"]["rules"] if r["id"] == "target_urine_output_24h")
     src = rule["source"]
-    assert rule["category"] == "TARGET" and rule["chip"] == "literature" and "requirement_id" not in src
+    assert rule["category"] == "TARGET" and rule["chip"] == "NASA report" and "requirement_id" not in src
+    assert src["kind"] == "nasa_brief" and "Evidence Report: Risk of Renal Stone Formation" in src["doc"]
+    assert rule["approach_at"]["chip"] == "NASA report" and rule["approach_at"]["source"]["kind"] == "nasa_brief"
+    renal = next(c for c in R["cases"]["cases"] if c["id"] == "renal_stone")
+    for cm in [renal["countermeasure"]["primary"]] + renal["countermeasure"]["alternatives"]:
+        if "Evidence Report" in json.dumps(cm["source"]):
+            assert cm["chip"] == "NASA report", cm["id"]   # the same document family, the same chip
     quotes = [q["quote"] for q in snap["data"].get("lookups", []) if "quote" in q]
     assert any(src["verbatim"] in q for q in quotes), "renal quote not in the frozen evidence-report text"
     assert rule["op"] == "ge" and rule["limit"] == 1500 and "drops below 1.5 liters/day" in src["verbatim"]
@@ -575,23 +632,53 @@ def test_renal_target_is_the_evidence_report_sentence(R):
     assert rule.get("max_severity") == "caution"
 
 
-# Requirement IDs verified by hand in the source PDF but not (yet) in a snapshot. Each entry is the
-# evidence; the test still skips so the snapshot gap stays visible.
-VERIFIED_OUTSIDE_SNAPSHOT = {
-    "V2 6165": "NASA-STD-3001 Vol 2 Rev F PDF (sha256 2bf853a8...7155, same file as std_vol2_requirements), "
-               "p. 112, sec. 6.8.1.7: 'The program shall monitor the in-situ extravehicular space weather "
-               "environment including the external exposure rates, electron flux spectra, and proton flux spectra.'",
-}
-
-
 def test_every_requirement_id_mentioned_exists(R):
-    """No fabricated IDs: every 'V1 nnnn' / 'V2 nnnn' anywhere in the rules is in a std snapshot."""
+    """No fabricated IDs: every 'V1 nnnn' / 'V2 nnnn' anywhere in the rules is in a std snapshot.
+
+    [V2 6165] used to be hand-verified outside the snapshot; both it and [V2 6109] are in
+    std_vol2_requirements now, so nothing is exempt and nothing is skipped."""
     v1, v2 = need_snapshot("std_vol1_requirements"), need_snapshot("std_vol2_requirements")
     mentioned = {f"{m.group(1)} {m.group(2)}" for _, s in rules_texts(R)
                  for m in re.finditer(r"\b(V[12]) (\d{4,5})\b", s)}
     absent = sorted(i for i in mentioned if requirement(v1 if i.startswith("V1") else v2, i) is None)
-    unknown = [i for i in absent if i not in VERIFIED_OUTSIDE_SNAPSHOT]
-    assert not unknown, f"requirement IDs in no snapshot and not hand-verified: {unknown}"
-    if absent:
-        pytest.skip("hand-verified, not yet in a snapshot: " + "; ".join(f"{i} ({VERIFIED_OUTSIDE_SNAPSHOT[i]})"
-                                                                         for i in absent))
+    assert not absent, f"requirement IDs in no snapshot: {absent}"
+    assert {"V2 6109", "V2 6165"} <= mentioned
+
+
+def test_v2_6109_and_v2_6165_against_their_own_text(R):
+    v2 = need_snapshot("std_vol2_requirements")
+    # [V2 6109]: the constant's quote is the hydration row of Table 6.3-1, and the requirement cites that table
+    req = requirement(v2, "V2 6109")
+    const = next(c for c in R["thresholds"]["constants"] if c["id"] == "v2_6109_potable_water_hydration")
+    assert "Table 6.3-1" in req["text"] and const["source"]["table"] == "Table 6.3-1"
+    hydration = [c for c in table_cells(v2, "Table 6.3-1") if c.startswith("Minimum 2.5 L (84.5 fl oz)")]
+    assert len(hydration) == 1 and const["source"]["verbatim"] in hydration[0]
+    assert number_in(hydration[0], const["value"]) and const["unit"] == "L per crewmember per day"
+    assert "urinary calculi" in req["rationale"]          # why the renal case cites it as context
+    # [V2 6165]: the hand-off "proton energy spectrum outside the vehicle" is what the requirement monitors
+    req = requirement(v2, "V2 6165")
+    assert req["text"] == ("The program shall monitor the in-situ extravehicular space weather environment including "
+                           "the external exposure rates, electron flux spectra, and proton flux spectra.")
+    spe = next(c for c in R["cases"]["cases"] if c["id"] == "spe_shelter")
+    hand_off = next(h for h in spe["not_measurable_here"] if h.get("requirement_id") == "V2 6165")
+    assert "Proton energy spectrum" in hand_off["what"] and "proton flux spectra" in req["text"]
+    onboard = next(r for r in R["thresholds"]["rules"] if r["id"] == "ops_onboard_proton_s3")
+    assert "[V2 6165]" in onboard["source"]["rationale"]
+
+
+def test_hand_off_requirement_ids_are_quoted_from_the_requirement(R):
+    """not_measurable_here: every requirement ID carries a quote found verbatim in that requirement's own
+    words, so an ID is never cited for something it does not say ([V1 3004] names no kidney imaging)."""
+    v1, v2 = need_snapshot("std_vol1_requirements"), need_snapshot("std_vol2_requirements")
+    for c in R["cases"]["cases"]:
+        for h in c["not_measurable_here"]:
+            rid = h.get("requirement_id")
+            if rid is None:
+                continue
+            req = requirement(v1 if rid.startswith("V1") else v2, rid)
+            assert req is not None, (c["id"], rid)
+            assert h.get("requirement_quote") and h["requirement_quote"] in req_text(req), (c["id"], rid)
+    renal = next(c for c in R["cases"]["cases"] if c["id"] == "renal_stone")
+    imaging = next(h for h in renal["not_measurable_here"] if h.get("requirement_id") == "V1 3004")
+    assert "(e.g., cardiac, vascular, ocular)" in imaging["requirement_quote"]
+    assert "medical kit ultrasound" not in imaging["via"] and "names neither the kidney nor ultrasound" in imaging["note"]

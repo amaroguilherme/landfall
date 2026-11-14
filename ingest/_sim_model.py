@@ -8,11 +8,12 @@ have been stable across CPython releases.
 
 Design (all of it a scenario design choice, stated in the snapshot):
 - Baseline days 368-381 are drawn until every value sits within QUIET_Q baseline SDs of
-  the baseline mean; non-episode days after the baseline obey the same bound. With the
-  SPEC RCI (sem = sd*sqrt(1-r), s_diff = sqrt(2)*sem) that keeps |rc| < 3.29 for any
-  r <= 0.9, so no case opens by accident.
+  the baseline mean; non-episode days after the baseline obey the same bound. With Tier B's
+  single-case test (SPEC section 5: t = (x - mean) / (sd * sqrt(1 + 1/n)), df = n - 1) that keeps
+  |t| <= 1.4 / sqrt(1 + 1/14) = 1.35, far below the critical 4.221 (df 13, two-tailed alpha
+  0.001), so no case opens by accident.
 - Episode days carry scripted physical values; `check_robust` proves |x - mean| >= 6 SD,
-  which is |rc| >= 6 at r = 0.5 and therefore at every r in [0.5, 0.9] (rc grows with r).
+  which is |t| >= 6 / sqrt(1 + 1/14) = 5.80 > 4.221: a reliable change on every robust day.
 """
 
 from __future__ import annotations
@@ -26,9 +27,11 @@ DAY_S = 86400
 FIRST_DAY, LAST_DAY = 368, 412
 BASELINE_FIRST, BASELINE_LAST = 368, 381
 NOW_MET_S = 412 * DAY_S + 14 * 3600 + 20 * 60  # MET 0412/14:20:00
-CRITICAL_Z = 3.29
-QUIET_Q = 1.4          # non-episode bound, in baseline SDs: 1.4 / sqrt(2*(1-0.9)) = 3.13 < 3.29
-ROBUST_Z = 6.0         # episode floor, in baseline SDs (= |rc| at r = 0.5)
+# Tier B's critical value for the 14-day baseline: Student t, df 13, two-tailed alpha 0.001 (published
+# t tables give 4.221; the engine computes 4.2208 itself). Used only by check_robust, never to draw data.
+CRITICAL_T = 4.221
+QUIET_Q = 1.4          # non-episode bound, in baseline SDs: |t| <= 1.4 / sqrt(1 + 1/14) = 1.35 < 4.221
+ROBUST_Z = 6.0         # episode floor, in baseline SDs: |t| >= 6 / sqrt(1 + 1/14) = 5.80 > 4.221
 SCHEDULE_REF_MIDPOINT_H = 2.0   # 02:00 MET: midpoint of the pre-shift sleep period 22:00-06:00
 FITNESS_TEST_DAYS = (369, 383, 397, 411)
 NOON_SIGHT_H = 12.0    # daily check-in (mood) at 12:00 MET
@@ -102,8 +105,9 @@ EPISODES: list[dict] = [
     {"id": "sleep_shift", "case_id": "sleep_circadian", "crew_id": "CM-1",
      "summary": "On MET day 403 CM-1's work schedule shifts 3 h later and the sleep opportunity is "
                 "shortened (vehicle-operations support). From the night ending on day 404 sleep shortens "
-                "and its midpoint moves later; PVT-B lapses and median RT climb and reach |RCI| >= 6 by "
-                "day 407 for any r in [0.5, 0.9]. The episode is still running at 'now' (no countermeasure "
+                "and its midpoint moves later; PVT-B lapses and median RT climb to at least 6 baseline SDs "
+                "above the baseline mean by day 407 (|t| >= 5.8 on Tier B's single-case test, critical "
+                "4.221). The episode is still running at 'now' (no countermeasure "
                 "is applied in the data, so the case can be acted on in the demo).",
      "values": {
          "sleep_duration": dict(zip(range(404, 413), (4.55, 4.40, 4.35, 4.50, 4.30, 4.45, 4.40, 4.50, 4.35))),
@@ -165,10 +169,10 @@ def baseline_stats(values: list[float]) -> tuple[float, float]:
     return statistics.fmean(values), statistics.stdev(values)
 
 
-def rci(baseline: list[float], current: float, r: float) -> float:
-    """SPEC section 5: sd = sample SD (n-1), sem = sd*sqrt(1-r), s_diff = sqrt(2)*sem."""
+def single_case_t(baseline: list[float], current: float) -> float:
+    """SPEC section 5 (Crawford & Howell 1998): t = (x - mean) / (sd * sqrt(1 + 1/n)), sd = sample SD (n-1)."""
     m, sd = baseline_stats(baseline)
-    return (current - m) / (math.sqrt(2.0) * sd * math.sqrt(1.0 - r))
+    return (current - m) / (sd * math.sqrt(1.0 + 1.0 / len(baseline)))
 
 
 def _quiet_baseline(rng: random.Random, var: str, spec: tuple, n: int) -> list:
@@ -229,10 +233,13 @@ def check_robust(crew_id: str, daily: dict[str, dict[int, float | int]]) -> list
             zmin = min(abs(z) for z in zs)
             if zmin < ROBUST_Z:
                 raise AssertionError(f"{crew_id} {var}: episode |z| {zmin:.2f} < {ROBUST_Z}")
+            tmin = min(abs(single_case_t(base, daily[var][d])) for d in days)
+            if tmin <= CRITICAL_T:
+                raise AssertionError(f"{crew_id} {var}: episode |t| {tmin:.2f} <= {CRITICAL_T}")
             evidence.append({"episode_id": ep["id"], "crew_id": crew_id, "variable": var,
                              "days": [days[0], days[-1]], "baseline_mean": round(m, 4), "baseline_sd": round(s, 4),
-                             "min_abs_rc_at_r_0_5": round(zmin, 2),
-                             "min_abs_rc_at_r_0_9": round(zmin / math.sqrt(2 * 0.1), 2)})
+                             "min_abs_z": round(zmin, 2), "min_abs_t": round(tmin, 2), "df": len(base) - 1,
+                             "critical_t": CRITICAL_T})
     for var in PERSONAL_VARIABLES:
         if var in NON_ALERTING:
             continue

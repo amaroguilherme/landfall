@@ -1,52 +1,74 @@
-"""Tier B: Reliable Change Index against the crewmember's own baseline. SPEC sections 1.3, 3.3, 5.
+"""Tier B: reliable change against the crewmember's own baseline. SPEC sections 1.3, 3.3 and 5.
 
-Jacobson NS, Truax P. Clinical significance: a statistical approach to defining meaningful
-change in psychotherapy research. J Consult Clin Psychol 1991;59(1):12-19.
+The question is Jacobson & Truax's (1991): is today's value further from this person's usual
+value than day-to-day noise explains? The arithmetic is the single-case test for "one new
+observation against the mean of n baseline observations from the same person": the modified
+t-test of Crawford & Howell (1998), after Sokal & Rohlf.
 
-    sem    = sd * sqrt(1 - r)        sd: sample SD (n - 1) of the baseline
-    s_diff = sqrt(2) * sem
-    rc     = (current - mean) / s_diff
-    reliable when |rc| >= critical_z (3.29, two-tailed p < .001)
+    s_diff   = sd * sqrt(1 + 1/n)       sd: sample SD (n - 1) of the n baseline values
+    rc       = (current - mean) / s_diff  (the t statistic of the single-case test)
+    df       = n - 1
+    critical = t_critical(alpha, df)      two-tailed, alpha from personal.json (0.001)
+    reliable when |rc| > critical
 
-Adaptation (design choice, stated): Jacobson & Truax use the SD of a pre-treatment population
-and a single pre-test score; LANDFALL uses the mean and SD of the crewmember's own baseline
-window. See plan notes: with a within-person SD the realised false-alarm rate is only alpha
-when r = 0.5.
+s_diff is the standard deviation of the difference between one new value and the mean of n
+values from the same distribution (variance sigma^2 + sigma^2/n). Under normal, independent day-to-day
+noise the probability of a reliable change is exactly alpha per indicator-day, and of one in a
+given direction alpha/2. Positive autocorrelation between days, or skewed or coarse count data,
+make the realized rate higher (personal.json rci.caveat).
+
+Why not Jacobson & Truax's arithmetic: their S_diff = sd * sqrt(2) * sqrt(1 - r) takes sd from a
+reference population and r from a reliability study. With the crewmember's own baseline SD,
+which already contains the day-to-day error, multiplying by sqrt(1 - r) shrinks the denominator:
+at r = 0.8 the realized two-sided rate was about 6.6% per indicator-day instead of the 0.1% printed
+(engine/tests/test_rci.py, test_old_jacobson_truax_arithmetic_overstated_reliability). The engine
+no longer uses any test-retest reliability.
+
+Crawford JR, Howell DC. Comparing an individual's test score against norms derived from small
+samples. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241
 """
 
 from __future__ import annotations
 
+import functools
 import math
 
 from .errors import EngineError
-from .fmt import fmt_num, is_number, require_number, sum_lr
-from .thresholds import basis_text, cap_severity, coerce_value
+from .fmt import fmt_num, require_number, sum_lr
+from .tdist import t_critical
+from .thresholds import basis_text, coerce_value
 
 WORSE_VALUES = ("increase", "decrease", "either")
+METHOD = "crawford_howell_1998"
 
 
-def _validate_r(r: object) -> float:
-    require_number(r, "reliability r")
-    if not (0.0 <= r < 1.0):  # type: ignore[operator]
-        raise EngineError("invalid_argument", f"reliability r must be in [0, 1), got {r!r}")
-    return r  # type: ignore[return-value]
+@functools.lru_cache(maxsize=4096)
+def _critical(alpha: float, df: int) -> float:
+    # t_critical is pure; memoized because every Tier B evaluation asks for the same few values
+    return t_critical(alpha, df)
 
 
-def rci(baseline: list, current: float | None, r: float, critical_z: float = 3.29,
-        min_baseline_n: int = 7) -> dict:
-    """Reliable Change Index of `current` against `baseline` (numbers; None entries are skipped).
+def _validate_alpha(alpha: object) -> float:
+    require_number(alpha, "alpha")
+    if not (0.0 < alpha < 1.0):  # type: ignore[operator]
+        raise EngineError("invalid_argument", f"alpha must be in (0, 1), got {alpha!r}")
+    return alpha  # type: ignore[return-value]
 
-    Returns {status, reason, n, mean, sd, sem, s_diff, rc, reliable, direction, critical_z, r}.
-    status is "ok" or "insufficient_data" (reason "baseline_too_short", "no_current" or "zero_sd",
-    checked in that order). mean needs n >= 1, sd needs n >= 2; they are reported when computable.
+
+def rci(baseline: list, current: float | None, alpha: float = 0.001, min_baseline_n: int = 7) -> dict:
+    """Single-case test of `current` against `baseline` (numbers; None entries are skipped).
+
+    Returns {method, status, reason, n, df, mean, sd, s_diff, rc, critical, alpha, reliable,
+    direction}. status is "ok" or "insufficient_data" (reason "baseline_too_short", "no_current"
+    or "zero_sd", checked in that order). Fields are reported when computable: mean needs n >= 1;
+    sd, df and s_diff need n >= 2; critical needs n >= min_baseline_n; rc needs status "ok".
     direction is "increase" | "decrease" | "none" (sign of current - mean) or None.
+    Raises invalid_argument when a baseline statistic or the statistic itself is not finite
+    (inputs near the float range): the engine never returns NaN or infinity.
     """
     if not isinstance(baseline, list):
         raise EngineError("invalid_argument", "baseline must be a list")
-    _validate_r(r)
-    require_number(critical_z, "critical_z")
-    if critical_z <= 0:
-        raise EngineError("invalid_argument", "critical_z must be > 0")
+    _validate_alpha(alpha)
     if isinstance(min_baseline_n, bool) or not isinstance(min_baseline_n, int) or min_baseline_n < 2:
         raise EngineError("invalid_argument", "min_baseline_n must be an integer >= 2")
     xs = []
@@ -74,12 +96,17 @@ def rci(baseline: list, current: float | None, r: float, critical_z: float = 3.2
                 d = x - mean
                 ss = ss + d * d
             sd = math.sqrt(ss / (n - 1))
+    if (mean is not None and not math.isfinite(mean)) or (sd is not None and not math.isfinite(sd)):
+        raise EngineError("invalid_argument", "baseline mean or SD is not finite (values too large)")
+    df = n - 1 if n >= 2 else None
+    s_diff = sd * math.sqrt(1.0 + 1.0 / n) if sd is not None else None
+    critical = _critical(alpha, df) if n >= min_baseline_n else None
     direction = None
     if mean is not None and current is not None:
         direction = "increase" if current > mean else ("decrease" if current < mean else "none")
-    out = {"status": "insufficient_data", "reason": None, "n": n, "mean": mean, "sd": sd,
-           "sem": None, "s_diff": None, "rc": None, "reliable": False, "direction": direction,
-           "critical_z": critical_z, "r": r}
+    out = {"method": METHOD, "status": "insufficient_data", "reason": None, "n": n, "df": df,
+           "mean": mean, "sd": sd, "s_diff": s_diff, "rc": None, "critical": critical, "alpha": alpha,
+           "reliable": False, "direction": direction}
     if n < min_baseline_n:
         out["reason"] = "baseline_too_short"
         return out
@@ -89,33 +116,29 @@ def rci(baseline: list, current: float | None, r: float, critical_z: float = 3.2
     if sd == 0:
         out["reason"] = "zero_sd"
         return out
-    sem = sd * math.sqrt(1.0 - r)
-    s_diff = math.sqrt(2.0) * sem
     rc = (current - mean) / s_diff
-    out.update({"status": "ok", "sem": sem, "s_diff": s_diff, "rc": rc,
-                "reliable": abs(rc) >= critical_z})
+    if not math.isfinite(rc):
+        raise EngineError("invalid_argument", "the t statistic is not finite (values too large)")
+    out.update({"status": "ok", "rc": rc, "reliable": abs(rc) > critical})
     return out
 
 
 def _validate_indicator(ind: dict) -> None:
     if not isinstance(ind, dict):
         raise EngineError("invalid_rule", "indicator must be an object")
-    for key in ("id", "variable", "unit", "worse", "alerting", "reliability_r"):
+    for key in ("id", "variable", "unit", "worse", "alerting"):
         if key not in ind:
             raise EngineError("invalid_rule", f"indicator {ind.get('id')!r} lacks {key!r}")
     if ind["worse"] not in WORSE_VALUES:
         raise EngineError("invalid_rule", f"indicator {ind['id']!r}: worse must be one of {WORSE_VALUES}")
     if not isinstance(ind["alerting"], bool):
         raise EngineError("invalid_rule", f"indicator {ind['id']!r}: alerting must be true or false")
-    rr = ind["reliability_r"]
-    if not (isinstance(rr, dict) and is_number(rr.get("value"))):
-        raise EngineError("invalid_rule", f"indicator {ind['id']!r}: reliability_r.value must be a number")
 
 
 def _validate_cfg(cfg: dict) -> None:
     if not isinstance(cfg, dict):
         raise EngineError("invalid_rule", "rci config must be an object")
-    for key in ("critical_z", "min_baseline_n", "chip", "source"):
+    for key in ("alpha_two_tailed", "min_baseline_n", "chip", "source"):
         if key not in cfg:
             raise EngineError("invalid_rule", f"rci config lacks {key!r}")
 
@@ -126,9 +149,9 @@ def evaluate_personal(indicator: dict, baseline: list, current: object, cfg: dic
 
     baseline: list of numbers / None / observations (same unit as the indicator).
     current: number, None or an observation. cfg: the `rci` block of personal.json.
-    Severity: reliable change in the worse direction -> caution (never warning);
-    insufficient data -> advisory; anything else -> nominal; non-alerting indicators are capped
-    at advisory.
+    Severity: reliable change in the worse direction -> caution (never warning), but nominal for a
+    non-alerting indicator, which never alerts; reliable change in the better direction -> nominal;
+    insufficient data -> advisory; within -> nominal.
     """
     _validate_indicator(indicator)
     _validate_cfg(cfg)
@@ -143,11 +166,10 @@ def evaluate_personal(indicator: dict, baseline: list, current: object, cfg: dic
     for b in baseline:
         bv, _ = coerce_value(b, unit, indicator["variable"], what + " baseline")
         base.append(bv)
-    rr = indicator["reliability_r"]
-    res = rci(base, cur, rr["value"], critical_z=cfg["critical_z"], min_baseline_n=cfg["min_baseline_n"])
+    alpha = cfg["alpha_two_tailed"]
+    res = rci(base, cur, alpha=alpha, min_baseline_n=cfg["min_baseline_n"])
     worse = indicator["worse"]
     label = indicator.get("label") or indicator["id"]
-    z = cfg["critical_z"]
 
     limit = None
     margin = None
@@ -159,17 +181,19 @@ def evaluate_personal(indicator: dict, baseline: list, current: object, cfg: dic
         elif res["reason"] == "no_current":
             why = f"{label}: no current value."
         else:
-            why = f"{label}: baseline SD is 0, so reliable change is undefined."
+            why = f"{label}: baseline SD is 0, so the single-case test is undefined."
     else:
-        mean, s_diff, direction = res["mean"], res["s_diff"], res["direction"]
-        high = mean + z * s_diff
-        low = mean - z * s_diff
+        mean, s_diff, direction, critical = res["mean"], res["s_diff"], res["direction"], res["critical"]
+        high = mean + critical * s_diff
+        low = mean - critical * s_diff
         if worse == "increase" or (worse == "either" and direction != "decrease"):
             limit = high
             margin = high - cur
         else:
             limit = low
             margin = cur - low
+        if not (math.isfinite(limit) and math.isfinite(margin)):
+            raise EngineError("invalid_argument", f"{what}: personal band edge is not finite (values too large)")
         if res["reliable"]:
             status = "reliable_change"
             is_worse = worse == "either" or direction == worse
@@ -181,10 +205,12 @@ def evaluate_personal(indicator: dict, baseline: list, current: object, cfg: dic
             severity = "nominal"
             txt = "no reliable change"
         why = (f"{label}: {fmt_num(cur)} {unit} vs own baseline mean {fmt_num(mean)} {unit} "
-               f"(n={res['n']}); RC {fmt_num(res['rc'])}, critical {fmt_num(z)}; {txt}.")
+               f"(n={res['n']}); t = {fmt_num(res['rc'])}, critical {fmt_num(critical)} "
+               f"(df {res['df']}, two-tailed alpha {fmt_num(alpha, 6)}); {txt}.")
     if not indicator["alerting"]:
-        severity = cap_severity(severity, "advisory")
-        why += " Non-alerting indicator."
+        if status == "reliable_change":
+            severity = "nominal"  # shown, never alerts: advisory blue would read as an alert
+        why += " Non-alerting indicator: never alerts."
     return {
         "rule_id": indicator["id"],
         "tier": "B",
@@ -209,19 +235,25 @@ def evaluate_personal(indicator: dict, baseline: list, current: object, cfg: dic
         "worse": worse,
         "private": indicator.get("private") is True,
         "rci": {
-            "rc": res["rc"], "s_diff": res["s_diff"], "sem": res["sem"], "mean": res["mean"],
-            "sd": res["sd"], "n": res["n"], "reliable": res["reliable"], "reason": res["reason"],
-            "critical_z": z, "r": rr["value"], "r_chip": rr.get("chip"), "r_source": rr.get("source"),
+            "method": res["method"], "rc": res["rc"], "df": res["df"], "critical": res["critical"],
+            "alpha": res["alpha"], "s_diff": res["s_diff"], "mean": res["mean"], "sd": res["sd"],
+            "n": res["n"], "reliable": res["reliable"], "reason": res["reason"],
         },
     }
 
 
-def expected_false_alarms(k_indicators: float, days: float, alpha: float = 0.001) -> dict:
-    """Expected false alarms = (k * days) * alpha, plus 'one false alarm every N days'.
+FALSE_ALARM_ASSUMES = ("one test per indicator per day, with normal day-to-day noise that is independent "
+                       "from one day to the next; autocorrelated or skewed data give more, while correlation "
+                       "between indicators leaves the average unchanged and only bunches chance flags together")
 
-    Assumes one test per indicator per day and independent tests. alpha is the two-tailed
-    level, so for one-directional indicators this overstates the count by up to 2x (conservative).
-    N = 1 / (k * alpha), formatted with fmt_num(dp=1).
+
+def expected_false_alarms(k_indicators: float, days: float, alpha: float = 0.001) -> dict:
+    """Chance flags and chance cautions for k indicators tested once a day for `days` days.
+
+    Flags (a reliable change in either direction): (k * days) * alpha, i.e. per_day = k * alpha.
+    Cautions (only a change in the worse direction raises one): half of that, because the test is
+    two-tailed and each indicator has one worse direction. N = 1 / per_day and M = 1 / (per_day / 2),
+    formatted with fmt_num(dp=1).
     """
     for name, x in (("k_indicators", k_indicators), ("days", days), ("alpha", alpha)):
         require_number(x, name)
@@ -232,7 +264,16 @@ def expected_false_alarms(k_indicators: float, days: float, alpha: float = 0.001
     per_day = k_indicators * alpha
     expected = (k_indicators * days) * alpha
     every = (1.0 / per_day) if per_day > 0 else None
-    text = "no false alarms expected" if every is None else \
-        f"one false alarm every {fmt_num(every, 1)} days"
-    return {"expected": expected, "per_day": per_day, "every_n_days": every,
-            "k_indicators": k_indicators, "days": days, "alpha": alpha, "text": text}
+    cautions_per_day = per_day / 2.0
+    expected_cautions = expected / 2.0
+    caution_every = (1.0 / cautions_per_day) if cautions_per_day > 0 else None
+    text = "no false flags expected" if every is None else \
+        f"one false flag every {fmt_num(every, 1)} days on average, counting chance changes in either direction"
+    caution_text = "no false cautions expected" if caution_every is None else \
+        (f"one false caution every {fmt_num(caution_every, 1)} days on average: "
+         "only a chance change in the worse direction raises a caution")
+    return {"expected": expected, "per_day": per_day, "every_n_days": every, "text": text,
+            "expected_cautions": expected_cautions, "cautions_per_day": cautions_per_day,
+            "caution_every_n_days": caution_every, "caution_text": caution_text,
+            "assumes": FALSE_ALARM_ASSUMES,
+            "k_indicators": k_indicators, "days": days, "alpha": alpha}

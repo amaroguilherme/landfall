@@ -7,9 +7,9 @@
    "definition": "A number printed in a NASA technical standard, cited with its requirement ID (or table)."
   },
   {
-   "id": "NASA brief",
+   "id": "NASA report",
    "source_kind": "nasa_brief",
-   "definition": "A number from an OCHMO technical brief; NASA-authored, but no requirement ID."
+   "definition": "A number from a NASA technical report that is not a standard and has no requirement ID: an OCHMO technical brief or an HRP evidence report. NASA-authored, cited in full. (The source kind keeps its original name, nasa_brief.)"
   },
   {
    "id": "NOAA-published",
@@ -19,7 +19,7 @@
   {
    "id": "literature",
    "source_kind": "literature",
-   "definition": "A number from a peer-reviewed paper or a NASA report (e.g. an HRP evidence report), cited in full."
+   "definition": "A number from a peer-reviewed paper or another public document (for example a NASA fact sheet or presentation), cited in full."
   },
   {
    "id": "derived",
@@ -88,14 +88,14 @@
   {
    "id": "PERSONAL",
    "name": "Personal reliable change (Tier B)",
-   "shape": "reliable change against the crewmember's own recent baseline",
+   "shape": "reliable change against the crewmember's own recent baseline (single-case t-test, Crawford & Howell 1998)",
    "glossary": null,
    "source": null
   },
   {
    "id": "TARGET",
-   "name": "Case target from literature",
-   "shape": "a published countermeasure target that is not a NASA limit (e.g. urine output)",
+   "name": "Countermeasure target",
+   "shape": "a published countermeasure target that is not a NASA limit (the renal case's 24-h urine output, from the HRP renal stone evidence report); capped at caution",
    "glossary": null,
    "source": null
   }
@@ -103,11 +103,11 @@
  "tiers": [
   {
    "id": "A",
-   "definition": "A fixed number someone publishes: NASA (with requirement ID, or Table 4.8-1 row and column), NOAA, or, for TARGET rules, the literature. The chip says which. One Tier A rule, ops_onboard_proton_s3, reuses NOAA's S3 number at Mars, where NOAA does not define its scale, so its chip is design choice."
+   "definition": "A fixed number NASA or NOAA publishes: a NASA standard (with its requirement ID, or a Table 4.8-1 row and column), a NASA report without a requirement ID (the renal TARGET rule, from the HRP evidence report), or the NOAA S-scale. The chip says which. One Tier A rule, ops_onboard_proton_s3, reuses NOAA's S3 number at Mars, where NOAA does not define its scale, so its chip is design choice."
   },
   {
    "id": "B",
-   "definition": "Reliable Change Index against the crewmember's own baseline (Jacobson & Truax 1991), critical value 3.29."
+   "definition": "Reliable change against the crewmember's own baseline: the single-case t-test of Crawford & Howell (1998), t = (value - baseline mean) / (baseline SD x sqrt(1 + 1/n)), df = n - 1, flagged when |t| exceeds the two-tailed critical value at alpha 0.001 (4.221 for a 14-day baseline). The idea of reliable change comes from Jacobson & Truax (1991); their arithmetic is not used."
   }
  ],
  "statuses": [
@@ -192,7 +192,7 @@
      "status": "outside"
     },
     "severity": "caution",
-    "note": "Literature targets are not NASA limits, so never warning (rule field max_severity)."
+    "note": "Countermeasure targets (NASA report) are not NASA limits, so never warning (rule field max_severity)."
    },
    {
     "id": "target_approaching",
@@ -226,9 +226,11 @@
     "id": "personal_non_alerting",
     "when": {
      "tier": "B",
-     "alerting": false
+     "alerting": false,
+     "status": "reliable_change"
     },
-    "severity_max": "advisory"
+    "severity": "nominal",
+    "note": "A non-alerting indicator (mood, daytime light, skin temperature) shows its reliable change but never alerts: advisory blue would read as an alert. Missing data still shows as advisory (row no_data)."
    },
    {
     "id": "ops_s1_s2",

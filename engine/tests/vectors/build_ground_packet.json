@@ -15,32 +15,28 @@
      "chip": "literature",
      "direction": "increase",
      "env_id": null,
-     "limit": 3.240788695654045,
-     "margin": -4.759211304345955,
+     "limit": 4.840909460734407,
+     "margin": -3.159090539265593,
      "op": null,
      "private": false,
      "rci": {
-      "critical_z": 3.29,
+      "alpha": 0.001,
+      "critical": 4.2208317280747,
+      "df": 13,
       "mean": 1.7857142857142858,
+      "method": "crawford_howell_1998",
       "n": 14,
-      "r": 0.8,
-      "r_chip": "design choice",
-      "r_source": {
-       "kind": "design_choice",
-       "rationale": "fixture"
-      },
-      "rc": 14.050827820445576,
+      "rc": 8.585197608531098,
       "reason": null,
       "reliable": true,
-      "s_diff": 0.44227185712454686,
-      "sd": 0.6992932067530679,
-      "sem": 0.31273342930073494
+      "s_diff": 0.7238372367935466,
+      "sd": 0.6992932067530679
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
      "severity": "caution",
      "source": {
-      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
       "kind": "literature"
      },
      "status": "reliable_change",
@@ -48,7 +44,7 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
     "log": [
@@ -138,6 +134,7 @@
       "cm_primary",
       "cm_alt_1"
      ],
+     "env_id": null,
      "escalation": {
       "ground_packet": true,
       "observations": [
@@ -162,6 +159,7 @@
        "at_least": 2,
        "of_last_n": 3,
        "op": "ge",
+       "ref_id": "pvt_lapses",
        "unit": "count",
        "value": 4,
        "variable": "pvt_lapses"
@@ -468,32 +466,28 @@
      "chip": "literature",
      "direction": "increase",
      "env_id": null,
-     "limit": 3.240788695654045,
-     "margin": -4.759211304345955,
+     "limit": 4.840909460734407,
+     "margin": -3.159090539265593,
      "op": null,
      "private": false,
      "rci": {
-      "critical_z": 3.29,
+      "alpha": 0.001,
+      "critical": 4.2208317280747,
+      "df": 13,
       "mean": 1.7857142857142858,
+      "method": "crawford_howell_1998",
       "n": 14,
-      "r": 0.8,
-      "r_chip": "design choice",
-      "r_source": {
-       "kind": "design_choice",
-       "rationale": "fixture"
-      },
-      "rc": 14.050827820445576,
+      "rc": 8.585197608531098,
       "reason": null,
       "reliable": true,
-      "s_diff": 0.44227185712454686,
-      "sd": 0.6992932067530679,
-      "sem": 0.31273342930073494
+      "s_diff": 0.7238372367935466,
+      "sd": 0.6992932067530679
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
      "severity": "caution",
      "source": {
-      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
       "kind": "literature"
      },
      "status": "reliable_change",
@@ -501,7 +495,7 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
     "log": [
@@ -591,6 +585,7 @@
       "cm_primary",
       "cm_alt_1"
      ],
+     "env_id": null,
      "escalation": {
       "ground_packet": true,
       "observations": [
@@ -615,6 +610,7 @@
        "at_least": 2,
        "of_last_n": 3,
        "op": "ge",
+       "ref_id": "pvt_lapses",
        "unit": "count",
        "value": 4,
        "variable": "pvt_lapses"
@@ -923,32 +919,28 @@
      "chip": "literature",
      "direction": "increase",
      "env_id": null,
-     "limit": 3.240788695654045,
-     "margin": -4.759211304345955,
+     "limit": 4.840909460734407,
+     "margin": -3.159090539265593,
      "op": null,
      "private": false,
      "rci": {
-      "critical_z": 3.29,
+      "alpha": 0.001,
+      "critical": 4.2208317280747,
+      "df": 13,
       "mean": 1.7857142857142858,
+      "method": "crawford_howell_1998",
       "n": 14,
-      "r": 0.8,
-      "r_chip": "design choice",
-      "r_source": {
-       "kind": "design_choice",
-       "rationale": "fixture"
-      },
-      "rc": 14.050827820445576,
+      "rc": 8.585197608531098,
       "reason": null,
       "reliable": true,
-      "s_diff": 0.44227185712454686,
-      "sd": 0.6992932067530679,
-      "sem": 0.31273342930073494
+      "s_diff": 0.7238372367935466,
+      "sd": 0.6992932067530679
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
      "severity": "caution",
      "source": {
-      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
       "kind": "literature"
      },
      "status": "reliable_change",
@@ -956,7 +948,7 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
     "log": [
@@ -1046,6 +1038,7 @@
       "cm_primary",
       "cm_alt_1"
      ],
+     "env_id": null,
      "escalation": {
       "ground_packet": true,
       "observations": [
@@ -1070,6 +1063,7 @@
        "at_least": 2,
        "of_last_n": 3,
        "op": "ge",
+       "ref_id": "pvt_lapses",
        "unit": "count",
        "value": 4,
        "variable": "pvt_lapses"
@@ -1422,32 +1416,28 @@
      "chip": "literature",
      "direction": "increase",
      "env_id": null,
-     "limit": 3.240788695654045,
-     "margin": -4.759211304345955,
+     "limit": 4.840909460734407,
+     "margin": -3.159090539265593,
      "op": null,
      "private": false,
      "rci": {
-      "critical_z": 3.29,
+      "alpha": 0.001,
+      "critical": 4.2208317280747,
+      "df": 13,
       "mean": 1.7857142857142858,
+      "method": "crawford_howell_1998",
       "n": 14,
-      "r": 0.8,
-      "r_chip": "design choice",
-      "r_source": {
-       "kind": "design_choice",
-       "rationale": "fixture"
-      },
-      "rc": 14.050827820445576,
+      "rc": 8.585197608531098,
       "reason": null,
       "reliable": true,
-      "s_diff": 0.44227185712454686,
-      "sd": 0.6992932067530679,
-      "sem": 0.31273342930073494
+      "s_diff": 0.7238372367935466,
+      "sd": 0.6992932067530679
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
      "severity": "caution",
      "source": {
-      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
       "kind": "literature"
      },
      "status": "reliable_change",
@@ -1455,7 +1445,7 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
     "log": [
@@ -1545,6 +1535,7 @@
       "cm_primary",
       "cm_alt_1"
      ],
+     "env_id": null,
      "escalation": {
       "ground_packet": true,
       "observations": [
@@ -1569,6 +1560,7 @@
        "at_least": 2,
        "of_last_n": 3,
        "op": "ge",
+       "ref_id": "pvt_lapses",
        "unit": "count",
        "value": 4,
        "variable": "pvt_lapses"
@@ -1818,32 +1810,28 @@
      "chip": "literature",
      "direction": "increase",
      "env_id": null,
-     "limit": 3.240788695654045,
-     "margin": -4.759211304345955,
+     "limit": 4.840909460734407,
+     "margin": -3.159090539265593,
      "op": null,
      "private": false,
      "rci": {
-      "critical_z": 3.29,
+      "alpha": 0.001,
+      "critical": 4.2208317280747,
+      "df": 13,
       "mean": 1.7857142857142858,
+      "method": "crawford_howell_1998",
       "n": 14,
-      "r": 0.8,
-      "r_chip": "design choice",
-      "r_source": {
-       "kind": "design_choice",
-       "rationale": "fixture"
-      },
-      "rc": 14.050827820445576,
+      "rc": 8.585197608531098,
       "reason": null,
       "reliable": true,
-      "s_diff": 0.44227185712454686,
-      "sd": 0.6992932067530679,
-      "sem": 0.31273342930073494
+      "s_diff": 0.7238372367935466,
+      "sd": 0.6992932067530679
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
      "severity": "caution",
      "source": {
-      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
       "kind": "literature"
      },
      "status": "reliable_change",
@@ -1851,7 +1839,7 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
     "log": [
@@ -1941,6 +1929,7 @@
       "cm_primary",
       "cm_alt_1"
      ],
+     "env_id": null,
      "escalation": {
       "ground_packet": true,
       "observations": [
@@ -1965,6 +1954,7 @@
        "at_least": 2,
        "of_last_n": 3,
        "op": "ge",
+       "ref_id": "pvt_lapses",
        "unit": "count",
        "value": 4,
        "variable": "pvt_lapses"
@@ -2273,32 +2263,28 @@
      "chip": "literature",
      "direction": "increase",
      "env_id": null,
-     "limit": 3.240788695654045,
-     "margin": -4.759211304345955,
+     "limit": 4.840909460734407,
+     "margin": -3.159090539265593,
      "op": null,
      "private": false,
      "rci": {
-      "critical_z": 3.29,
+      "alpha": 0.001,
+      "critical": 4.2208317280747,
+      "df": 13,
       "mean": 1.7857142857142858,
+      "method": "crawford_howell_1998",
       "n": 14,
-      "r": 0.8,
-      "r_chip": "design choice",
-      "r_source": {
-       "kind": "design_choice",
-       "rationale": "fixture"
-      },
-      "rc": 14.050827820445576,
+      "rc": 8.585197608531098,
       "reason": null,
       "reliable": true,
-      "s_diff": 0.44227185712454686,
-      "sd": 0.6992932067530679,
-      "sem": 0.31273342930073494
+      "s_diff": 0.7238372367935466,
+      "sd": 0.6992932067530679
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
      "severity": "caution",
      "source": {
-      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
       "kind": "literature"
      },
      "status": "reliable_change",
@@ -2306,7 +2292,7 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
     "log": [
@@ -2396,6 +2382,7 @@
       "cm_primary",
       "cm_alt_1"
      ],
+     "env_id": null,
      "escalation": {
       "ground_packet": true,
       "observations": [
@@ -2420,6 +2407,7 @@
        "at_least": 2,
        "of_last_n": 3,
        "op": "ge",
+       "ref_id": "pvt_lapses",
        "unit": "count",
        "value": 4,
        "variable": "pvt_lapses"
@@ -2504,32 +2492,28 @@
      "chip": "literature",
      "direction": "increase",
      "env_id": null,
-     "limit": 3.240788695654045,
-     "margin": -4.759211304345955,
+     "limit": 4.840909460734407,
+     "margin": -3.159090539265593,
      "op": null,
      "private": false,
      "rci": {
-      "critical_z": 3.29,
+      "alpha": 0.001,
+      "critical": 4.2208317280747,
+      "df": 13,
       "mean": 1.7857142857142858,
+      "method": "crawford_howell_1998",
       "n": 14,
-      "r": 0.8,
-      "r_chip": "design choice",
-      "r_source": {
-       "kind": "design_choice",
-       "rationale": "fixture"
-      },
-      "rc": 14.050827820445576,
+      "rc": 8.585197608531098,
       "reason": null,
       "reliable": true,
-      "s_diff": 0.44227185712454686,
-      "sd": 0.6992932067530679,
-      "sem": 0.31273342930073494
+      "s_diff": 0.7238372367935466,
+      "sd": 0.6992932067530679
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
      "severity": "caution",
      "source": {
-      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
       "kind": "literature"
      },
      "status": "reliable_change",
@@ -2537,7 +2521,7 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
     "log": [
@@ -2627,6 +2611,7 @@
       "cm_primary",
       "cm_alt_1"
      ],
+     "env_id": null,
      "escalation": {
       "ground_packet": true,
       "observations": [
@@ -2651,6 +2636,7 @@
        "at_least": 2,
        "of_last_n": 3,
        "op": "ge",
+       "ref_id": "pvt_lapses",
        "unit": "count",
        "value": 4,
        "variable": "pvt_lapses"
@@ -2735,32 +2721,28 @@
      "chip": "literature",
      "direction": "increase",
      "env_id": null,
-     "limit": 3.240788695654045,
-     "margin": -4.759211304345955,
+     "limit": 4.840909460734407,
+     "margin": -3.159090539265593,
      "op": null,
      "private": false,
      "rci": {
-      "critical_z": 3.29,
+      "alpha": 0.001,
+      "critical": 4.2208317280747,
+      "df": 13,
       "mean": 1.7857142857142858,
+      "method": "crawford_howell_1998",
       "n": 14,
-      "r": 0.8,
-      "r_chip": "design choice",
-      "r_source": {
-       "kind": "design_choice",
-       "rationale": "fixture"
-      },
-      "rc": 14.050827820445576,
+      "rc": 8.585197608531098,
       "reason": null,
       "reliable": true,
-      "s_diff": 0.44227185712454686,
-      "sd": 0.6992932067530679,
-      "sem": 0.31273342930073494
+      "s_diff": 0.7238372367935466,
+      "sd": 0.6992932067530679
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
      "severity": "caution",
      "source": {
-      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
       "kind": "literature"
      },
      "status": "reliable_change",
@@ -2768,7 +2750,7 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
     "log": [
@@ -2858,6 +2840,7 @@
       "cm_primary",
       "cm_alt_1"
      ],
+     "env_id": null,
      "escalation": {
       "ground_packet": true,
       "observations": [
@@ -2882,6 +2865,7 @@
        "at_least": 2,
        "of_last_n": 3,
        "op": "ge",
+       "ref_id": "pvt_lapses",
        "unit": "count",
        "value": 4,
        "variable": "pvt_lapses"
@@ -3014,32 +2998,28 @@
      "chip": "literature",
      "direction": "increase",
      "env_id": null,
-     "limit": 3.240788695654045,
-     "margin": -4.759211304345955,
+     "limit": 4.840909460734407,
+     "margin": -3.159090539265593,
      "op": null,
      "private": false,
      "rci": {
-      "critical_z": 3.29,
+      "alpha": 0.001,
+      "critical": 4.2208317280747,
+      "df": 13,
       "mean": 1.7857142857142858,
+      "method": "crawford_howell_1998",
       "n": 14,
-      "r": 0.8,
-      "r_chip": "design choice",
-      "r_source": {
-       "kind": "design_choice",
-       "rationale": "fixture"
-      },
-      "rc": 14.050827820445576,
+      "rc": 8.585197608531098,
       "reason": null,
       "reliable": true,
-      "s_diff": 0.44227185712454686,
-      "sd": 0.6992932067530679,
-      "sem": 0.31273342930073494
+      "s_diff": 0.7238372367935466,
+      "sd": 0.6992932067530679
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
      "severity": "caution",
      "source": {
-      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
       "kind": "literature"
      },
      "status": "reliable_change",
@@ -3047,7 +3027,7 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
     "log": [
@@ -3137,6 +3117,7 @@
       "cm_primary",
       "cm_alt_1"
      ],
+     "env_id": null,
      "escalation": {
       "ground_packet": true,
       "observations": [
@@ -3159,6 +3140,7 @@
        "at_least": 2,
        "of_last_n": 3,
        "op": "ge",
+       "ref_id": "pvt_lapses",
        "unit": "count",
        "value": 4,
        "variable": "pvt_lapses"
@@ -3402,32 +3384,28 @@
      "chip": "literature",
      "direction": "increase",
      "env_id": null,
-     "limit": 3.240788695654045,
-     "margin": -4.759211304345955,
+     "limit": 4.840909460734407,
+     "margin": -3.159090539265593,
      "op": null,
      "private": false,
      "rci": {
-      "critical_z": 3.29,
+      "alpha": 0.001,
+      "critical": 4.2208317280747,
+      "df": 13,
       "mean": 1.7857142857142858,
+      "method": "crawford_howell_1998",
       "n": 14,
-      "r": 0.8,
-      "r_chip": "design choice",
-      "r_source": {
-       "kind": "design_choice",
-       "rationale": "fixture"
-      },
-      "rc": 14.050827820445576,
+      "rc": 8.585197608531098,
       "reason": null,
       "reliable": true,
-      "s_diff": 0.44227185712454686,
-      "sd": 0.6992932067530679,
-      "sem": 0.31273342930073494
+      "s_diff": 0.7238372367935466,
+      "sd": 0.6992932067530679
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
      "severity": "caution",
      "source": {
-      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
       "kind": "literature"
      },
      "status": "reliable_change",
@@ -3435,7 +3413,7 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
     "log": [
@@ -3525,6 +3503,7 @@
       "cm_primary",
       "cm_alt_1"
      ],
+     "env_id": null,
      "escalation": {
       "ground_packet": true,
       "observations": [
@@ -3547,6 +3526,7 @@
        "at_least": 2,
        "of_last_n": 3,
        "op": "ge",
+       "ref_id": "pvt_lapses",
        "unit": "count",
        "value": 4,
        "variable": "pvt_lapses"
@@ -3629,32 +3609,28 @@
      "chip": "literature",
      "direction": "increase",
      "env_id": null,
-     "limit": 3.240788695654045,
-     "margin": -4.759211304345955,
+     "limit": 4.840909460734407,
+     "margin": -3.159090539265593,
      "op": null,
      "private": false,
      "rci": {
-      "critical_z": 3.29,
+      "alpha": 0.001,
+      "critical": 4.2208317280747,
+      "df": 13,
       "mean": 1.7857142857142858,
+      "method": "crawford_howell_1998",
       "n": 14,
-      "r": 0.8,
-      "r_chip": "design choice",
-      "r_source": {
-       "kind": "design_choice",
-       "rationale": "fixture"
-      },
-      "rc": 14.050827820445576,
+      "rc": 8.585197608531098,
       "reason": null,
       "reliable": true,
-      "s_diff": 0.44227185712454686,
-      "sd": 0.6992932067530679,
-      "sem": 0.31273342930073494
+      "s_diff": 0.7238372367935466,
+      "sd": 0.6992932067530679
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
      "severity": "caution",
      "source": {
-      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
       "kind": "literature"
      },
      "status": "reliable_change",
@@ -3662,7 +3638,7 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
     "log": [
@@ -3752,6 +3728,7 @@
       "cm_primary",
       "cm_alt_1"
      ],
+     "env_id": null,
      "escalation": {
       "ground_packet": true,
       "observations": [
@@ -3773,6 +3750,7 @@
        "at_least": 2,
        "of_last_n": 3,
        "op": "ge",
+       "ref_id": "pvt_lapses",
        "unit": "count",
        "value": 4,
        "variable": "pvt_lapses"

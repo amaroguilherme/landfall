@@ -20,13 +20,22 @@ it is changed on purpose.
    | `POL` Permissible Outcome Limit | a **maximum change** against the crewmember's own baseline | "Acceptable maximum decrement or change in a physiological or behavioral parameter … as the result of exposure to the space environment." |
 
    The other categories: `OPS` covers an operational scale published by another agency (the NOAA
-   S-scale). `PERSONAL` covers Tier B reliable change against one's own baseline.
-3. **Tier A** rules carry a number NASA (or NOAA) actually publishes, with its requirement ID.
-   **Tier B** uses the Reliable Change Index (Jacobson & Truax 1991) against the crewmember's own
-   baseline, with critical value 3.29 (two-tailed p < .001). The expected false-alarm rate is
-   printed next to it.
+   S-scale). `TARGET` covers a countermeasure target that a NASA report publishes but that is not a
+   limit (the renal case's 24-h urine output, from the HRP renal stone evidence report); it is
+   capped at `caution`. `PERSONAL` covers Tier B reliable change against one's own baseline.
+3. **Tier A** rules carry a number NASA or NOAA publishes, with its requirement ID when the number
+   comes from a standard (a NASA report such as an HRP evidence report has none, and says so).
+   **Tier B** asks Jacobson & Truax's (1991) "reliable change" question (is today's value further
+   from this person's usual value than day-to-day noise explains?) and answers it with the
+   single-case test for one new value against the mean of n baseline values from the same person,
+   the modified t-test of Crawford & Howell (1998): `t = (x − mean) / (SD·√(1 + 1/n))`, `df = n − 1`,
+   reliable when `|t|` exceeds the two-tailed Student t critical value at `alpha = 0.001`. Under
+   normal, independent day-to-day noise its chance rate is exactly `alpha` per indicator-day
+   (`alpha/2` for a change in the worse direction). That expected false-alarm rate is printed next
+   to it, with the caveat that autocorrelated or skewed data raise it.
 4. Every constant carries a **chip** naming its basis:
-   `NASA-published` · `NASA brief` (OCHMO technical brief, no requirement ID) · `NOAA-published` ·
+   `NASA-published` · `NASA report` (a NASA technical report that is not a standard and has no
+   requirement ID: an OCHMO technical brief or an HRP evidence report) · `NOAA-published` ·
    `literature` · `derived` (arithmetic on published values, shown) · `design choice` (no published
    basis: ours, and labeled as such).
 5. **Refusals are features.** There is no diagnosis, no medication dosing, no psychiatric alert, no
@@ -45,8 +54,10 @@ it is changed on purpose.
   type but the engine never emits it. Default mapping (a `design choice`, stored in
   `rules/meta.json`):
   - Tier A alert rule `outside` → `warning`; `approaching` → `caution`; `within` → `nominal`
+  - `TARGET` `outside` → `caution`; `approaching` → `advisory` (a countermeasure target is not a limit)
   - Tier B `reliable_change` in the worse direction → `caution` (personal change is not a limit, so
-    never `warning`)
+    never `warning`). For a non-alerting indicator (`alerting: false`, e.g. mood) it stays `nominal`:
+    shown, never an alert, because advisory blue would read as one.
   - `OPS` NOAA S1–S2 → `advisory`; S3 or above → `warning` when an EVA is planned or in progress,
     else `caution`
   - `role: "context"` rules → `advisory` at most; `insufficient_data` / `stale` → `advisory`
@@ -64,15 +75,21 @@ All files are JSON with a `"schema"` key. Every object with a number in it carri
 ```json
 {"kind": "nasa_standard", "doc": "NASA-STD-3001 Vol. 1 Rev. C", "requirement_id": "V1 4030",
  "section": "4.8.2", "url": "https://…", "snapshot": "std_vol1_requirements"}
-{"kind": "nasa_brief", "doc": "OCHMO-MTB-013 Rev D", "url": "https://…"}
+{"kind": "nasa_brief", "doc": "NASA HRP Evidence Report: Risk of Renal Stone Formation (…; NTRS 20240012429)", "url": "https://…"}
 {"kind": "noaa", "doc": "NOAA Space Weather Scales", "url": "https://…", "snapshot": "swpc_s_scale"}
 {"kind": "literature", "citation": "Basner M, Mollicone D, Dinges DF. Acta Astronaut 2011;69(11-12):949-959. PMID 22025811", "url": "https://…"}
 {"kind": "derived", "from": ["<rule or constant ids>"], "arithmetic": "human-readable formula"}
 {"kind": "design_choice", "rationale": "why we picked this"}
 ```
 
+The `nasa_brief` kind goes with the chip `NASA report` and covers every NASA technical report
+without a requirement ID (OCHMO technical briefs and HRP evidence reports); the kind keeps its
+original name. `doc` is the display name; a full `citation` may sit beside it.
+
 `snapshot` names a frozen file in `web/public/data/` whose verbatim text backs the value. A test
-asserts that every Tier A limit appears verbatim in that snapshot's requirement text.
+asserts that every Tier A limit appears verbatim in that snapshot's requirement text. Quotes are
+matched against the cited requirement's own text, rationale and items, or the cited table's own
+cells, never against the snapshot as a whole (which also holds LANDFALL's commentary).
 
 ### 3.1 `environments.json`
 
@@ -147,13 +164,18 @@ radiation monitor (`[V2 6164]`).
 
 ```json
 {"schema": "landfall.personal/1",
- "rci": {"critical_z": 3.29, "alpha_two_tailed": 0.001, "min_baseline_n": 7,
-         "baseline_window_days": 14,
-         "chip": "literature", "source": {"kind": "literature", "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19."}},
+ "rci": {"alpha_two_tailed": 0.001, "min_baseline_n": 7, "baseline_window_days": 14,
+         "chip": "literature",
+         "source": {"kind": "literature", "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241"},
+         "method": "t = (today − baseline mean) / (baseline SD × √(1 + 1/n)), df = n − 1 …",
+         "lineage": {"text": "… Jacobson & Truax's 'reliable change' …", "chip": "literature", "source": {}},
+         "provenance": {"alpha_two_tailed": {"chip": "design choice", "source": {}}, "…": "…"},
+         "caveat": "exactly alpha only under normal, independent noise …",
+         "caveat_basis": {"text": "…", "chip": "literature", "source": {}},
+         "change_note": "what changed from the earlier arithmetic, and why"},
  "indicators": [
   {"id": "pvt_lapses", "label": "PVT-B lapses", "variable": "pvt_lapses", "unit": "count",
    "worse": "increase", "alerting": true, "private": false,
-   "reliability_r": {"value": 0.0, "chip": "literature|design choice", "source": {}},
    "definition": {"text": "lapse = reaction time ≥ 355 ms on the 3-min PVT-B", "chip": "literature",
                   "source": {"kind": "literature", "citation": "Basner M, Mollicone D, Dinges DF. … 2011 …"}},
    "case_id": "sleep_circadian"},
@@ -161,6 +183,16 @@ radiation monitor (`[V2 6164]`).
    "alerting": false, "private": true, "case_id": null}
  ]}
 ```
+
+The engine reads `alpha_two_tailed` and `min_baseline_n` from the `rci` block. The critical value
+is not stored: it depends on the baseline length and the engine computes it
+(`t_critical(alpha, n − 1)`: 4.221 for a 14-day baseline, 5.959 at the 7-day minimum). A test
+checks that the critical values quoted in `rci.method` equal the engine's.
+
+There is **no test-retest reliability** in the computation. The single-case test needs only the
+crewmember's own baseline mean and SD, whose day-to-day noise is exactly what it measures. An
+indicator may still carry `reliability_r: {"value": null, "used_by_engine": false, chip, source}`
+as non-computational context (the reason no value is claimed); the engine ignores it.
 
 The required indicators are:
 
@@ -174,9 +206,6 @@ The required indicators are:
 - `urine_volume_24h` (mL)
 - `fluid_intake_24h` (mL)
 - `mood` (1–5, **private, non-alerting**)
-
-`reliability_r` is the test–retest reliability. Cite a published value where one exists. Otherwise
-use chip `design choice` with a rationale.
 
 ### 3.4 `cases.json`
 
@@ -198,10 +227,20 @@ following fields:
 - `countermeasure`: `{"primary": {id, title, rationale, chip, source}, "alternatives": […]}`. There
   is exactly one primary, and the alternatives render collapsed.
 - `procedure[]`: guided steps `{id, text, input?: {variable, unit, source: "manual"|"band"|"vehicle"|"app"}}`
-- `tripwire`: `{"reassess_after_s": 259200, "condition": {"indicator_id"|"rule_id": …, "op": …, "value": …, "of_last_n": 3, "at_least": 2}, "text": "Reassess at T+72 h; if …, reclassify and queue for flight-surgeon review.", "chip": …, "source": …}`
+- `tripwire`: `{"reassess_after_s": 259200, "condition": {"indicator_id"|"rule_id": …, "op": …, "value": …, "of_last_n": 3, "at_least": 2, "by_env"?: {env_id: {…}}}, "text": "Reassess at T+72 h; if …, reclassify and queue for flight-surgeon review.", "chip": …, "source": …}`.
+  `by_env` makes the condition environment-aware: `new_case(…, env_id)` applies `by_env[env_id]`
+  to the base condition (an override that names a `rule_id` or `indicator_id` replaces the base
+  reference, variable and unit). `spe_shelter` watches `ops_noaa_s3` near Earth and, through
+  `by_env.mars_surface`, `ops_onboard_proton_s3` at Mars, where the NOAA rule is
+  `not_applicable`. A test requires every case's effective tripwire rule to apply in every
+  environment.
 - `escalation`: `{"ground_packet": true, "observations": [variables to include]}`
-- `not_measurable_here[]`: `{what, via, requirement_id?}`. This is the hand-off boundary, e.g.
-  "urinary supersaturation, via ground lab" or "kidney ultrasound, via vehicle medical kit".
+- `not_measurable_here[]`: `{what, via, requirement_id?, requirement_quote?, note?}`. This is the
+  hand-off boundary, e.g. "urinary supersaturation, via ground lab" or "kidney stone imaging, via
+  the vehicle's in-mission imaging". A `requirement_id` comes with a `requirement_quote` that a
+  test finds verbatim in that requirement's text, so the ID is cited for what it says
+  (`[V1 3004](i)` asks for in-mission imaging in general, with cardiac, vascular and ocular
+  examples; the `note` says it names neither the kidney nor ultrasound).
 - `refusals[]`
 
 ## 4. Observations
@@ -225,12 +264,15 @@ numbers.
 | Function | Returns |
 |---|---|
 | `evaluate_rule(rule, value, env_id, t, ctx?)` | `Finding {rule_id, tier, category, status, severity, value, unit, limit, margin, chip, source, why}` plus `role, op, approach_at, env_id, t, case_id, action_id`. `value` is a number, `null` (→ `insufficient_data`) or an observation `{value, unit, t?, variable?}`. An observation whose `unit` differs from `rule.unit`, or has no unit, raises `unit_mismatch`; a different `variable` raises `variable_mismatch`. Both raise even where the rule is `not_applicable`. `ctx = {eva: true}` means an EVA is planned or in progress (OPS severity). `margin` is `limit − value` for ceilings and `value − limit` for floors, so a positive margin is on the compliant side; it is `null` when nothing was compared (`not_applicable`, `insufficient_data`, `stale`). There are two optional rule fields. `stale_after: {seconds, chip, source}` makes an observation `stale` when `t − obs.t > seconds`. `max_severity` caps the severity. |
-| `rci(baseline: number[], current, r, critical_z=3.29, min_baseline_n=7)` | `{status, reason, rc, s_diff, sem, mean, sd, n, reliable, direction, critical_z, r}`. Here `sd` is the sample SD (n−1), `sem = sd·√(1−r)` and `s_diff = √2·sem`. `null` baseline entries are skipped. `status` is `"ok"` or `"insufficient_data"`, with `reason` checked in this order: `baseline_too_short` (n < `min_baseline_n`), then `no_current`, then `zero_sd` (no division by zero). `zero_sd` is an exact test: when every baseline value equals the first one, `sd` is reported as `0` without computing it, because float noise would otherwise give `[7.3]*7` an SD of ~1e-15 and any change an rc of ~1e14. `reliable` means \|rc\| ≥ `critical_z`. `direction` is `increase`, `decrease` or `none`, from the sign of `current − mean`. `r` must be in [0, 1). |
-| `evaluate_personal(indicator, baseline, current, cfg, t?)` | `Finding` with `tier: "B"`, `category: "PERSONAL"`, plus `direction, worse, private, rci{…, r, r_chip, r_source}`. `cfg` is the `rci` block of `personal.json`. `worse` is `increase`, `decrease` or `either`. `limit` is the personal band edge on the worse side, `mean ± critical_z·s_diff`; for `either` it is the edge on the side the value moved. A reliable change in the worse direction → `caution`. A reliable change in the better direction → `status: reliable_change` with `severity: nominal`. Non-alerting indicators never exceed `advisory`, because the `caution` is capped. |
-| `expected_false_alarms(k_indicators, days, alpha=0.001)` | `{expected: (k·days)·alpha, per_day: k·alpha, every_n_days: 1/per_day or null, text, k_indicators, days, alpha}`. `text` is `"one false alarm every N days"`, with N from `fmt_num(·, 1)`. |
+| `rci(baseline: number[], current, alpha=0.001, min_baseline_n=7)` | The single-case test of Crawford & Howell (1998). Returns `{method, status, reason, n, df, mean, sd, s_diff, rc, critical, alpha, reliable, direction}` with `method: "crawford_howell_1998"`. `sd` is the sample SD (n−1), `s_diff = sd·√(1 + 1/n)` (the SD of the difference between one new value and the mean of n values), **`rc` is the t statistic of the single-case test**, `(current − mean) / s_diff`, `df = n − 1`, and `critical = t_critical(alpha, df)`. `reliable` means \|rc\| > `critical`. `null` baseline entries are skipped. `status` is `"ok"` or `"insufficient_data"`, with `reason` checked in this order: `baseline_too_short` (n < `min_baseline_n`), then `no_current`, then `zero_sd` (no division by zero). `zero_sd` is an exact test: when every baseline value equals the first one, `sd` is reported as `0` without computing it, because float noise would otherwise give `[7.3]*7` an SD of ~1e-15 and any change an rc of ~1e14. Fields are reported when computable: `mean` needs n ≥ 1; `sd`, `df` and `s_diff` need n ≥ 2; `critical` needs n ≥ `min_baseline_n`; `rc` needs `status: "ok"`; otherwise they are `null`. `direction` is `increase`, `decrease` or `none`, from the sign of `current − mean`. `alpha` must be in (0, 1) and `min_baseline_n` an integer ≥ 2. A baseline mean or SD, or an `rc`, that is not finite (inputs near the float range) raises `invalid_argument`: the engine never returns NaN or infinity. No test-retest reliability is involved. |
+| `evaluate_personal(indicator, baseline, current, cfg, t?)` | `Finding` with `tier: "B"`, `category: "PERSONAL"`, plus `direction, worse, private, rci{method, rc, df, critical, alpha, s_diff, mean, sd, n, reliable, reason}`. `cfg` is the `rci` block of `personal.json` (it needs `alpha_two_tailed`, `min_baseline_n`, `chip`, `source`). An indicator needs `id, variable, unit, worse, alerting`; any `reliability_r` is ignored. `worse` is `increase`, `decrease` or `either`. `limit` is the personal band edge on the worse side, `mean ± critical·s_diff`; for `either` it is the edge on the side the value moved. A non-finite `limit` or `margin` raises `invalid_argument`. A reliable change in the worse direction → `caution`. A reliable change in the better direction → `status: reliable_change` with `severity: nominal`. A non-alerting indicator keeps `status: reliable_change` but `severity: nominal` in either direction: it is shown and never alerts. `insufficient_data` → `advisory` (missing data) for every indicator. `why` reads `"<label>: <value> <unit> vs own baseline mean <mean> <unit> (n=<n>); t = <rc>, critical <critical> (df <df>, two-tailed alpha <alpha>); <verdict>."`, numbers by `fmt_num` (alpha with dp 6), then `" Non-alerting indicator: never alerts."` when it applies, then `" Basis: <basis>."`. |
+| `expected_false_alarms(k_indicators, days, alpha=0.001)` | Chance findings for `k` indicators tested once a day. `{expected: (k·days)·alpha, per_day: k·alpha, every_n_days: 1/per_day or null, text, expected_cautions: expected/2, cautions_per_day: per_day/2, caution_every_n_days: 1/cautions_per_day or null, caution_text, assumes, k_indicators, days, alpha}`. Flags count a chance reliable change in either direction; cautions only the worse direction, half as many because the test is two-tailed and each indicator has one worse direction. `text` is `"one false flag every N days on average, counting chance changes in either direction"` and `caution_text` is `"one false caution every M days on average: only a chance change in the worse direction raises a caution"`, with N and M from `fmt_num(·, 1)`; with no expected findings they are `"no false flags expected"` and `"no false cautions expected"`. `assumes` is the fixed sentence `"one test per indicator per day, with normal day-to-day noise that is independent from one day to the next; autocorrelated or skewed data give more, while correlation between indicators leaves the average unchanged and only bunches chance flags together"` (expected counts add up whatever the dependence between indicators; only autocorrelation, skew or discreteness change the per-indicator rate). |
+| `t_cdf(t, df)` | `P(T ≤ t)` for Student's t, `1 ≤ df ≤ 1e6` (df need not be an integer; outside that range `invalid_argument`). For `t ≥ 0` it is `1 − Q(t)`, else `Q(−t)`, with the upper tail `Q(t) = 0.5·I_x(df/2, 1/2)`: `Q(t) = 0.5` exactly for `t < 1e-17` (it rounds there for every df); for `t > 1e150`, `ln x = log(df) − 2·log(t)`, `x = exp(ln x)` (it may underflow to 0), `y = 1`, `ln y = 0`; otherwise `s = df + t·t`, `x = df/s`, `y = (t·t)/s`, `ln x = log(x)`, `ln y = log(y)` (y stands for `1 − x` and is never formed as `1 − x`). `I_x(a, b)`: `front = exp(lgamma(a+b) − lgamma(a) − lgamma(b) + a·ln x + b·ln y)` (left to right), then `front·cf(a, b, x)/a` when `x < (a+1)/(a+b+2)`, else `1 − front·cf(b, a, y)/b`. `cf` is the continued fraction of Numerical Recipes (3rd ed., §6.4) by the modified Lentz method, written out in `engine/tdist.py`: tiny = 1e-300, stop when \|delta − 1\| < 1e-15, at most 10000 iterations. Python uses `math.lgamma`; the TS port needs its own lgamma (a Lanczos approximation is enough), so its last bits can differ: the tolerance applies, not bit equality. |
+| `t_quantile(p, df)` | The `t` with `t_cdf(t, df) = p`, for `0 < p < 1`: `0.0` at `p = 0.5`, `+U(1 − p)` above, `−U(p)` below, where `U(q)` (for `0 < q < 0.5`) solves `Q(t) = q`. `U` brackets the root between consecutive powers of two (if `Q(1) > q`: `lo, hi = 1, 2`, doubling both while `Q(hi) > q`, raising `invalid_argument` once `hi > 2^1000`; else `lo, hi = 0.5, 1`, halving both while `Q(lo) ≤ q`), then runs **exactly 32** bisection steps (`mid = 0.5·(lo + hi)`; `lo = mid` if `Q(mid) > q`, else `hi = mid`) and returns `0.5·(lo + hi)`: relative error < 2^-33. For moderate df every halving is then decided far above the last-bit noise of lgamma, so both languages land on the same double (`engine/tests/test_tdist.py` swaps in an independent lgamma and finds identical critical values); a run to full precision would not. That holds for every df the engine uses (n − 1 for an n-day baseline) and in every vector, and a verifier's 10,000 random inputs below df 1000 were all identical. At large df the terms `lgamma(df/2) ≈ (df/2)·ln(df/2)` are large, so one ulp of them is no longer negligible: the CDFs of the two languages can differ by about 1e-9 relative near df 1e6, and a late halving can then go the other way. Measured differences reach about 3e-10 relative below df 1e5 and about 3e-9 between 1e5 and 1e6 (each language is itself about that far from the true quantile there), so the conformance tolerance for `t_quantile` and `t_critical` at df above 1e5 is 1e-8 (section 6). |
+| `t_critical(alpha, df)` | The two-tailed critical value, `P(\|T\| > c) = alpha` for `0 < alpha < 1`: `U(alpha/2)`, equal to `−t_quantile(alpha/2, df)`. `t_critical(0.001, 13) = 4.2208…`. Implementations may memoize it by `(alpha, df)`. |
 | `s_level(flux_pfu)` | `0..5` from NOAA thresholds (≥10, ≥100, ≥1e3, ≥1e4, ≥1e5 pfu at ≥10 MeV). An OPS rule's level is its integer `s_level` field, else `s_level(limit)`. |
-| `new_case(case_def, crew_id, lookup?)` | The pre-OPEN state, `status: "idle"`. `lookup` maps a rule or indicator id to `{variable, unit}` (`loader.trigger_lookup`). It resolves a tripwire condition that names a `rule_id`, and it fills in the tripwire unit. If the variable or the unit cannot be resolved it raises `invalid_case`: units are never assumed, so the real cases need the lookup. |
-| `case_reduce(state, event)` | The new state. An event is `{type, t, …}`: `OPEN{finding}`, `SELECT{countermeasure_id}`, `STEP{step_id, input?}`, `OUTCOME{text}`, `TICK{observations}`, `DISMISS{reason}`. The states are `idle → detected → acting → watch → resolved \| escalated`, plus `dismissed` (reachable from detected, acting or watch). OPEN needs severity ≥ `caution` and a finding whose `rule_id` is one of the case's triggers. An invalid event returns the same state plus a `log` entry with `error` set: `invalid_transition`, `invalid_event`, `below_threshold`, `not_a_trigger`, `unknown_countermeasure`, `unknown_step`, `duplicate_step`, `time_reversed` or `unit_mismatch`. Every accepted transition appends `{t, event, from, to, detail, error: null}` to `log`. A TICK outside `watch`, or a TICK that adds no tripwire observation, returns the state unchanged with no log entry. A malformed `state` (not built by `new_case`/`case_reduce`) is a contract violation and raises `invalid_argument`. Tripwire: the reducer keeps the condition variable's observations with `watch_started_at < obs.t ≤ t`, deduplicated by `t` and sorted by `t`. These are observations of this crew, plus observations whose `crew_id` is null or absent, which are vehicle or habitat sensors such as the onboard proton monitor and are shared by every crewmember. The tripwire is judged only at `t ≥ reassess_at` (OUTCOME `t` + `reassess_after_s`), matching the case texts "Reassess at T+72 h; if … still …". At or after that time the case is `escalated` if at least `at_least` of the last `of_last_n` meet the condition. It is `resolved` once even all-missing slots counted as hits could not reach `at_least`. Otherwise it stays in `watch` and is judged again at each later TICK. |
+| `new_case(case_def, crew_id, lookup?, env_id?)` | The pre-OPEN state, `status: "idle"`. `lookup` maps a rule or indicator id to `{variable, unit}` (`loader.trigger_lookup`). It resolves a tripwire condition that names a `rule_id`, and it fills in the tripwire unit. If the variable or the unit cannot be resolved it raises `invalid_case`: units are never assumed, so the real cases need the lookup. `env_id` (a non-empty string or null) selects the tripwire condition's `by_env[env_id]` override (section 3.4); a `by_env` that is not an object, or an override that is not an object or nests `by_env`, raises `invalid_case`. The state's `spec` records `env_id` and the effective reference as `spec.tripwire.condition.ref_id` (the rule or indicator id, or null), next to `variable, op, value, unit, of_last_n, at_least`. |
+| `case_reduce(state, event)` | The new state. An event is `{type, t, …}`: `OPEN{finding}`, `SELECT{countermeasure_id}`, `STEP{step_id, input?}`, `OUTCOME{text}`, `TICK{observations}`, `DISMISS{reason}`. The states are `idle → detected → acting → watch → resolved \| escalated`, plus `dismissed` (reachable from detected, acting or watch). OPEN needs severity ≥ `caution` and a finding whose `rule_id` is one of the case's triggers. An invalid event is **atomic**: it returns the input state unchanged plus exactly one `log` entry with `error` set: `invalid_transition`, `invalid_event`, `below_threshold`, `not_a_trigger`, `unknown_countermeasure`, `unknown_step`, `duplicate_step`, `time_reversed` or `unit_mismatch`. A TICK rejected for `unit_mismatch` therefore keeps none of the observations listed before the bad one. Every accepted transition appends `{t, event, from, to, detail, error: null}` to `log`. A TICK outside `watch`, or a TICK that adds no tripwire observation, returns the state unchanged with no log entry. A malformed `state` (not built by `new_case`/`case_reduce`) is a contract violation and raises `invalid_argument`. Tripwire: the reducer keeps the condition variable's observations with `watch_started_at < obs.t ≤ t`, deduplicated by `t` and sorted by `t`. These are observations of this crew, plus observations whose `crew_id` is null or absent, which are vehicle or habitat sensors such as the onboard proton monitor and are shared by every crewmember. The tripwire is judged only at `t ≥ reassess_at` (OUTCOME `t` + `reassess_after_s`), matching the case texts "Reassess at T+72 h; if … still …". At or after that time the case is `escalated` if at least `at_least` of the last `of_last_n` meet the condition. It is `resolved` once even all-missing slots counted as hits could not reach `at_least`. Otherwise it stays in `watch` and is judged again at each later TICK. |
 | `build_ground_packet(case_state, observations, consent, env_id, t, mission_epoch)` | A FHIR R4 `Bundle` (type `collection`) of `Observation`s. It holds this crew's observations, plus vehicle observations (`crew_id` null or absent, tagged `scope-vehicle` and placed in this crewmember's packet as exposure context), with `obs.t ≤ t` whose variable is in `case_state.spec.escalation.observations` (when that list exists), and only if consent allows it. `mood` (and any variable in `PRIVATE_VARIABLES`) needs `consent[var] === true`. Any other variable is shared unless `consent[var] === false`. Vital signs use the LOINC codes of the FHIR R4 vital-signs profile, with the vitalsigns profile and the `vital-signs` category. Anything else uses a local `CodeSystem` `https://landfall.dev/fhir/CodeSystem/landfall`. No invented LOINC codes. `mission_epoch` is the UTC `YYYY-MM-DDTHH:MM:SSZ` of MET 0, and turns MET into `effectiveDateTime`. Units go to UCUM codes, and an unmapped unit raises `unknown_unit`. Unit `yes/no` becomes `valueBoolean`, and unit `MET` becomes `valueDateTime`. Entries are sorted by `(t, variable)`. `subject` is a logical reference `{type: "Patient", identifier, display}`, with no Patient resource, because the vital-signs profile requires `Reference(Patient)`. Resource ids are `{crew}-{variable}-{floor(t)}` with `_` turned into `-`. On a collision the id gets the suffix `-2`, `-3`, …, and the base is truncated so the id stays at most 64 characters. |
 | `comms_eta(env, t, comms_table?)` | `{one_way_s, round_trip_s, blocked, reason, resumes_at, earliest_reply_s, light_time_source}`. `env` is an environment object. `round_trip_s = 2·one_way_s`. Without a table, `one_way_s` is the environment's `max`. With `from_snapshot`, the light time comes from `comms_table = {samples: [{t, one_way_s}], conjunction_windows: [{start, end, reason}]}` in MET seconds, linearly interpolated and clamped at the ends. `blocked` is true when `conjunction` is true and `start ≤ t < end`. Touching or overlapping windows chain, and `resumes_at` is the end of the chain. `earliest_reply_s = (resumes_at − t) + round trip at resumes_at`, assuming zero ground time. |
 | `format_met(seconds)` | `"dddd/hh:mm:ss"`. Day 0 starts at MET 0. Input is floored. Days are never truncated (`10000/…`). Negative input prints as `-dddd/…`. |
@@ -240,6 +282,12 @@ numbers.
 
 - Sum left to right in a plain loop. Python 3.12's `sum()` is compensated, so the engine does not use it.
 - Square as `d*d`, never `pow`.
+- The only transcendental functions are `sqrt` (exact in both languages) and, in the t distribution
+  only, `lgamma`, `log` and `exp`. Those three can differ in the last bit between Python's libm and
+  a JS engine, so `t_cdf` results agree within the tolerance rather than bit for bit. Bisection
+  results (`t_quantile`, `t_critical`) and everything built on them are identical for every df
+  the engine uses and in every vector; at very large df they agree within the tolerance only
+  (see `t_quantile`).
 - Evaluate expressions in the order written in `engine/*.py`.
 - Sort strings by code point. All ids are ASCII.
 - `fmt_num` rounds half away from zero with integer arithmetic. Compute `k = floor(|x|·10^dp + 0.5)`, then print `k div 10^dp`, and `k mod 10^dp` with its trailing zeros stripped. Do not use `toFixed` or `String(x)`. It rejects |x| ≥ 1e15 and `|x|·10^dp + 0.5 ≥ 2^53`, so `k` stays an exact integer in a double. Without that guard, JS `(k − k mod 10^dp) / 10^dp` can lose digits that Python's integer arithmetic keeps.
@@ -247,16 +295,26 @@ numbers.
 
 ## 6. Conformance vectors
 
-`engine/tests/vectors/<fn>.json` (one file per function above, including `new_case`, `fmt_num`
-and `met_to_iso`) hold arrays of `{"name", "fn", "args", "expect"}`. A call that must fail is
-written `{"name", "fn", "args", "raises": "<error code>"}` instead. `args` uses the argument names
-of section 5. A function that returns a scalar has that scalar as `expect`. Fixtures come from
+`engine/tests/vectors/<fn>.json` (one file per function above, including `new_case`, `fmt_num`,
+`met_to_iso`, `t_cdf`, `t_quantile` and `t_critical`) hold arrays of `{"name", "fn", "args",
+"expect"}`. A call that must fail is written `{"name", "fn", "args", "raises": "<error code>"}`
+instead. `args` uses the argument names of section 5. A function that returns a scalar has that
+scalar as `expect`. JSON has no NaN or infinity, so an argument that must be non-finite is written
+`{"$float": "NaN"}`, `{"$float": "Infinity"}` or `{"$float": "-Infinity"}`; both harnesses decode
+these objects (at any depth of `args`) before the call. Results never contain them, because the
+engine never returns a non-finite number. Fixtures come from
 `engine/tests/fixtures/engine_fixtures.json` and are labeled as fixtures. The Python suite
 generates the vectors, replays every one, and asserts that the committed files equal a fresh
 regeneration. The TypeScript suite (`web/src/engine/*.test.ts`) loads the same files and must
-agree. Numbers match with float tolerance `1e-9`, strings match exactly, and `raises` matches the
-error code. Regenerate the vectors with `uv run python -m engine.vectors`, and verify them with
+agree. Numbers match with float tolerance `1e-9` (`1e-8` for `t_quantile` and `t_critical` at df
+above 1e5, section 5; every current vector meets `1e-9`), strings match exactly, and `raises`
+matches the error code. Regenerate the vectors with `uv run python -m engine.vectors`, and verify them with
 `uv run python -m engine.vectors --check`.
+
+`engine/tests/vectors_random/random_<fn>.json` hold seeded randomized vectors (valid and invalid
+inputs) for every function. Their inputs are frozen; `uv run python -m engine.vectors --random`
+recomputes their expectations with the current engine (and draws the seeded inputs of a function
+that has no file yet), and `--check` covers them too.
 
 ## 7. Demo scenario (simulated, seeded, labeled)
 
@@ -266,6 +324,12 @@ error code. Regenerate the vectors with `uv run python -m engine.vectors`, and v
   intake falls as well.
 - **Sleep** (CM-1): after a schedule shift on MET day 403, sleep shortens, the sleep midpoint
   shifts, and PVT-B lapses rise to a reliable change by MET day 407.
+- Under Tier B's single-case test (baseline MET days 368–381, n = 14, df = 13, critical 4.221),
+  CM-1's PVT-B lapses are a reliable change from day 406 (t = 4.75; 7.08 on day 407) and CM-3's
+  24-h urine output on each of days 398–401 (t ≈ −12.3 to −13.3). Their scripted companions do the
+  same (CM-1's sleep duration and sleep midpoint from day 404 and PVT-B median RT from day 406;
+  CM-3's fluid intake on days 398–401). Nothing else changes reliably, for any crewmember on any
+  day; `engine/tests/test_scenario_tier_b.py` checks all of this on the shipped `sim_crew.json`.
 - **FFD demo** (CM-2): VO₂max 35.1 ml/min/kg. This is *within* the microgravity EVA floor (32.9)
   and *outside* the surface EVA floor (36.5). The environment selector flips the verdict.
 - **SPE (the hero)**: MET day 412, during a real Mars solar conjunction window taken from

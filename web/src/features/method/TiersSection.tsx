@@ -1,20 +1,23 @@
-// Section 3: Tier A (a number someone publishes) vs Tier B (Reliable Change Index against the
-// crewmember's own baseline). All parameters come from engine/rules/personal.json; the nominal
-// false-alarm rate comes from the engine's expectedFalseAlarms (via the facade).
+// Section 3: Tier A (a number someone publishes) vs Tier B (reliable change against the
+// crewmember's own baseline: the single-case t-test of Crawford & Howell 1998). Every parameter
+// comes from engine/rules/personal.json, and every critical value and chance rate shown is computed
+// by the engine (tCritical, expectedFalseAlarms, through the facade).
 import { useId, useState } from 'react'
 import { BASELINE_FIRST_DAY, BASELINE_LAST_DAY, SIM_LAST_DAY } from '../../app/scenario'
 import { CREW } from '../../app/vocab'
 import { Chip, Citation, Expander, Num, Panel, SeverityBadge } from '../../ui'
 import type { MetaFile, PersonalFile, ThresholdsFile } from './rules'
-import { SD_INTERVAL_LEVEL, falseAlarms, flagAtSd, round1, sdInterval95, twoTailP } from './stats'
+import type { CriticalRow } from './stats'
+import { SD_INTERVAL_LEVEL, chanceRates, criticalRow, round1, sdInterval95, unlimitedRow } from './stats'
 import { RichText, SectionTitle, Verbatim } from './shared'
 
 const PARAM_LABEL: Record<string, string> = {
-  critical_z: 'Critical value for |RC|',
   alpha_two_tailed: 'α, two-tailed',
   min_baseline_n: 'Fewest baseline days accepted',
   baseline_window_days: 'Baseline window, days',
 }
+
+const WORSE_LABEL: Record<string, string> = { increase: 'a rise', decrease: 'a fall', either: 'a change either way' }
 
 function clampInt(raw: string, lo: number, hi: number): number | null {
   const v = Math.floor(Number(raw))
@@ -22,10 +25,112 @@ function clampInt(raw: string, lo: number, hi: number): number | null {
   return Math.min(hi, Math.max(lo, v))
 }
 
-function FalseAlarmCalc({ personal }: { personal: PersonalFile }) {
+function Formula({ personal, full }: { personal: PersonalFile; full: CriticalRow }) {
+  const { rci } = personal
+  return (
+    <figure className="lf-m-formula" aria-labelledby="m-rci-cap">
+      <div className="lf-m-eqs" role="list">
+        <div role="listitem">
+          <span className="lf-m-eq-l">mean</span>
+          <span className="lf-m-eq-o">=</span>
+          <span className="lf-m-eq-r lf-m-eq-text">average of the crewmember’s own n baseline days</span>
+        </div>
+        <div role="listitem">
+          <span className="lf-m-eq-l">SD</span>
+          <span className="lf-m-eq-o">=</span>
+          <span className="lf-m-eq-r lf-m-eq-text">their sample standard deviation {'(n\u00a0−\u00a01)'}</span>
+        </div>
+        <div role="listitem">
+          <span className="lf-m-eq-l">
+            S<sub>diff</sub>
+          </span>
+          <span className="lf-m-eq-o">=</span>
+          <span className="lf-m-eq-r">
+            SD × √(1 + 1/n)
+            <span className="lf-m-eq-text"> (the spread of one new day minus the mean of n days)</span>
+          </span>
+        </div>
+        <div role="listitem">
+          <span className="lf-m-eq-l">t</span>
+          <span className="lf-m-eq-o">=</span>
+          <span className="lf-m-eq-r">
+            (x − mean) / S<sub>diff</sub>
+            <span className="lf-m-eq-text"> (the engine reports it as rc)</span>
+          </span>
+        </div>
+        <div role="listitem">
+          <span className="lf-m-eq-l">df</span>
+          <span className="lf-m-eq-o">=</span>
+          <span className="lf-m-eq-r">n − 1</span>
+        </div>
+        <div role="listitem">
+          <span className="lf-m-eq-l">flag</span>
+          <span className="lf-m-eq-o">if</span>
+          <span className="lf-m-eq-r">
+            |t| &gt; t<sub>crit</sub>(α, df) = <Num value={full.critical} digits={3} />
+            <span className="lf-m-eq-text">
+              {' '}
+              for n = <Num value={full.n} />, df = <Num value={full.df} />, two-tailed α = <Num value={rci.alpha_two_tailed} />
+            </span>
+          </span>
+        </div>
+      </div>
+      <figcaption id="m-rci-cap">
+        The modified t-test of Crawford &amp; Howell for one person’s new value against the mean of n values, here the
+        crewmember’s own <Num value={rci.baseline_window_days} /> baseline days (at least <Num value={rci.min_baseline_n} />;
+        in the scenario a fixed window, MET days <Num value={BASELINE_FIRST_DAY} />–<Num value={BASELINE_LAST_DAY} />,
+        against which every later day is tested). x is today’s value. t<sub>crit</sub> is Student’s t, two-tailed, computed
+        by the engine; it is not stored.{' '}
+        <Citation source={rci.source} /> No test–retest reliability enters the arithmetic: the crewmember’s own baseline SD
+        already holds the day-to-day noise the test needs. Engine text: <span className="lf-mono">{rci.method}</span>
+      </figcaption>
+    </figure>
+  )
+}
+
+function CriticalTable({ rows }: { rows: CriticalRow[] }) {
+  return (
+    <table className="lf-m-table lf-m-stack lf-m-stack-rate lf-m-stack-crit">
+      <caption className="lf-m-caption">Where the line sits, by baseline length (computed by the engine)</caption>
+      <thead>
+        <tr>
+          <th scope="col">Baseline</th>
+          <th scope="col" className="num">
+            df
+          </th>
+          <th scope="col" className="num">
+            Critical |t|
+          </th>
+          <th scope="col" className="num">
+            Flag beyond (baseline SDs)
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.n ?? 'unlimited'}>
+            <th scope="row">{r.n === null ? 'Unlimited (the normal value)' : <Num value={r.n} unit="days" />}</th>
+            <td className="num" data-label="df">
+              {r.n === null ? <span className="lf-mono">∞</span> : <Num value={r.df} />}
+            </td>
+            <td className="num" data-label="Critical |t|">
+              <Num value={r.critical} digits={3} />
+            </td>
+            <td className="num" data-label="Flag beyond (SDs)">
+              <Num value={r.bandSd} digits={3} />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+function ChanceCalc({ personal }: { personal: PersonalFile }) {
   const { rci, indicators } = personal
   const alerting = indicators.filter((i) => i.alerting)
   const quiet = indicators.filter((i) => !i.alerting)
+  const either = alerting.filter((i) => i.worse === 'either')
   const k = alerting.length
   const alpha = rci.alpha_two_tailed
   const defaultDays = SIM_LAST_DAY - BASELINE_LAST_DAY
@@ -33,17 +138,19 @@ function FalseAlarmCalc({ personal }: { personal: PersonalFile }) {
   const [crewRaw, setCrewRaw] = useState(String(CREW.length))
   const days = clampInt(daysRaw, 1, 100_000)
   const crew = clampInt(crewRaw, 1, 50)
-  const per = days !== null ? falseAlarms(k, days, alpha) : null
-  const all = days !== null && crew !== null ? falseAlarms(k * crew, days, alpha) : null
+  const one = days !== null ? chanceRates(k, days, alpha) : null
+  const all = days !== null && crew !== null ? chanceRates(k * crew, days, alpha) : null
   const idDays = useId()
   const idCrew = useId()
   return (
     <div className="lf-m-calc">
-      <h3 className="lf-m-h4">Expected false alarms (nominal)</h3>
+      <h3 className="lf-m-h4">Expected chance findings</h3>
       <p>
-        If nothing about a crewmember changes, each alerting indicator still crosses the line on a fraction α of days by
-        chance. <Num value={k} /> of the <Num value={indicators.length} /> indicators can alert;{' '}
-        {quiet.map((i) => i.label).join(', ')} never do.
+        If nothing about a crewmember changes and the day-to-day noise is normal and independent, the test still flags
+        each alerting indicator on a fraction α of days by chance, and half of those flags are in the worse direction, the
+        only ones that raise a{' '}
+        <SeverityBadge severity="caution" size="sm" />. <Num value={k} /> of the <Num value={indicators.length} /> indicators
+        can alert; {quiet.map((i) => i.label).join(', ')} never do.
       </p>
       <div className="lf-m-calc-inputs">
         <label htmlFor={idDays}>
@@ -78,92 +185,37 @@ function FalseAlarmCalc({ personal }: { personal: PersonalFile }) {
       </div>
       <div className="lf-m-calc-out" aria-live="polite">
         <p className="lf-mono lf-m-eqline">
-          k × days × α = <Num value={k} /> × <Num value={days} /> × <Num value={alpha} /> ={' '}
-          <Num value={per?.expected ?? null} digits={3} />
-          <span className="lf-m-eqnote"> per crewmember</span>
+          flags: k × days × α = <Num value={k} /> × <Num value={days} /> × <Num value={alpha} /> ={' '}
+          <Num value={one?.expected ?? null} digits={3} />
+          <span className="lf-m-eqnote"> per crewmember, either direction</span>
         </p>
+        <p className="lf-mono lf-m-eqline">
+          cautions: k × days × α / 2 = <Num value={one?.expected_cautions ?? null} digits={3} />
+          <span className="lf-m-eqnote"> per crewmember, worse direction only</span>
+        </p>
+        {one ? (
+          <ul className="lf-m-notes">
+            <li>Per crewmember: {one.text}.</li>
+            <li>Per crewmember: {one.caution_text}.</li>
+          </ul>
+        ) : null}
         <p>
-          About one false alarm every <Num value={per?.everyNDays != null ? round1(per.everyNDays) : null} unit="days" /> per
-          crewmember; for <Num value={crew} /> crewmembers, <Num value={all?.expected ?? null} digits={3} /> expected, about
-          one every <Num value={all?.everyNDays != null ? round1(all.everyNDays) : null} unit="days" />.
+          For <Num value={crew} /> crewmembers: <Num value={all?.expected ?? null} digits={3} /> chance flags and{' '}
+          <Num value={all?.expected_cautions ?? null} digits={3} /> chance cautions expected, about one flag every{' '}
+          <Num value={all?.every_n_days != null ? round1(all.every_n_days) : null} unit="days" /> and one caution every{' '}
+          <Num value={all?.caution_every_n_days != null ? round1(all.caution_every_n_days) : null} unit="days" />.
         </p>
+        <p className="lf-m-small">
+          Computed by the engine (expected_false_alarms), which assumes {one?.assumes ?? 'independent, normal noise'}.
+        </p>
+        {either.length > 0 ? (
+          <p className="lf-m-small">
+            {either.map((i) => i.label).join(', ')} can raise a caution in either direction, so for{' '}
+            {either.length === 1 ? 'it' : 'them'} every chance flag is a caution and the caution figures above are too low.
+          </p>
+        ) : null}
       </div>
     </div>
-  )
-}
-
-function RealisticRate({ personal }: { personal: PersonalFile }) {
-  const { rci, indicators } = personal
-  const alerting = indicators.filter((i) => i.alerting)
-  const groups = [...new Set(alerting.map((i) => i.reliability_r.value))]
-    .sort((a, b) => b - a)
-    .map((r) => {
-      const members = alerting.filter((i) => i.reliability_r.value === r)
-      const at = flagAtSd(rci.critical_z, r)
-      return { r, members, at, p: twoTailP(at) }
-    })
-  const perDay = groups.reduce((s, g) => s + g.members.length * g.p, 0)
-  const nominalPerDay = alerting.length * rci.alpha_two_tailed
-  // Like for like: a Caution needs a reliable change in the worse direction, i.e. half of the
-  // two-tailed tail for a one-direction indicator and all of it for worse = "either". The same
-  // share applies to the nominal alpha, so both Caution rates below count the same thing.
-  const cautionShare = (worse: string) => (worse === 'either' ? 1 : 0.5)
-  const cautionPerDay = groups.reduce((s, g) => s + g.members.reduce((t, m) => t + cautionShare(m.worse) * g.p, 0), 0)
-  const nominalCautionPerDay = alerting.reduce((s, m) => s + cautionShare(m.worse) * rci.alpha_two_tailed, 0)
-  return (
-    <Expander summary="How much higher could the real rate be? A rough, derived estimate">
-      <p>
-        Suppose a crewmember does not change at all and daily values scatter normally with the baseline SD. The flag fires
-        when a day lands more than <span className="lf-mono">{rci.critical_z} × √(2(1 − r))</span> baseline SDs from the
-        mean, which equals <Num value={rci.critical_z} /> only when r = <Num value={0.5} />:
-      </p>
-      <table className="lf-m-table lf-m-stack lf-m-stack-rate">
-        <caption className="sr-only">Flag position and chance of a flag on an unchanged day, by reliability r</caption>
-        <thead>
-          <tr>
-            <th scope="col">r</th>
-            <th scope="col">Alerting indicators</th>
-            <th scope="col" className="num">
-              Flag at (baseline SDs)
-            </th>
-            <th scope="col" className="num">
-              Chance per unchanged day
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {groups.map((g) => (
-            <tr key={g.r}>
-              {/* data-label: the stacked phone layout hides the header row, so each number names itself there */}
-              <td data-label="r">
-                <Num value={g.r} />
-              </td>
-              <td className="lf-m-stack-wide">{g.members.map((m) => m.label).join(', ')}</td>
-              <td className="num" data-label="Flag at (baseline SDs)">
-                <Num value={g.at} digits={2} />
-              </td>
-              <td className="num" data-label="Chance per unchanged day">
-                <Num value={g.p * 100} digits={1} unit="%" />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p>
-        Summed over the <Num value={alerting.length} /> alerting indicators: about <Num value={perDay} digits={2} /> flags
-        per crewmember-day in either direction, one every <Num value={round1(1 / perDay)} unit="days" />, against the
-        nominal one every <Num value={round1(1 / nominalPerDay)} unit="days" /> printed above (which also counts both
-        directions). Only a change for the worse raises a Caution, so about one Caution every{' '}
-        <Num value={round1(1 / cautionPerDay)} unit="days" /> per crewmember, against a nominal one every{' '}
-        <Num value={round1(1 / nominalCautionPerDay)} unit="days" />.
-      </p>
-      <p className="lf-m-small">
-        Assumptions: normal, symmetric day-to-day scatter, no true change, baseline mean and SD taken as exact. Estimating
-        them from a few days, and count data such as PVT-B lapses, push the real rate higher still. The engine source says
-        the same (<code>engine/rci.py</code>): with a within-person SD the realised rate equals α only at r ={' '}
-        <Num value={0.5} />. Derived on this page from personal.json; not a NASA number. <Chip kind="derived" />
-      </p>
-    </Expander>
   )
 }
 
@@ -175,10 +227,13 @@ export function TiersSection({ meta, personal, thresholds }: { meta: MetaFile; p
   const aContext = thresholds.rules.filter((r) => r.tier === 'A' && r.role === 'context').length
   const alerting = indicators.filter((i) => i.alerting).length
   const worse = meta.severity_mapping.rows.find((r) => r.id === 'personal_worse')
-  const year = /\b\d{4}\b/.exec(rci.source.citation ?? '')?.[0]
+  const quietRow = meta.severity_mapping.rows.find((r) => r.id === 'personal_non_alerting')
+  const alpha = rci.alpha_two_tailed
+  const full = criticalRow(alpha, rci.baseline_window_days)
+  const fewest = criticalRow(alpha, rci.min_baseline_n)
+  const unlimited = unlimitedRow(alpha)
   const nLo = sdInterval95(rci.min_baseline_n)
   const nHi = sdInterval95(rci.baseline_window_days)
-  const ownR = indicators.filter((i) => i.reliability_r.chip === 'design choice').length
 
   return (
     <Panel
@@ -221,64 +276,41 @@ export function TiersSection({ meta, personal, thresholds }: { meta: MetaFile; p
                 {worse.note ? <> ({worse.note.replace(/\.$/, '')})</> : null}.
               </>
             ) : null}
+            {quietRow ? (
+              <>
+                {' '}
+                On an indicator that never alerts it stays <SeverityBadge severity="nominal" size="sm" />.
+                {quietRow.note ? <> {quietRow.note}</> : null}
+              </>
+            ) : null}
           </p>
         </div>
       </div>
 
       <p>
-        In words: is today’s value further from this crewmember’s own recent normal than day-to-day noise can explain? RC
-        measures that distance in units of the noise.
+        In words: is today’s value further from this crewmember’s own recent normal than day-to-day noise can explain? That
+        is Jacobson &amp; Truax’s “reliable change” question. LANDFALL answers it with the test built for one new value
+        against a handful of values from the same person: Crawford &amp; Howell’s single-case t-test. t measures the
+        distance in units of the noise, and Student’s t with n − 1 degrees of freedom allows for an SD estimated from only
+        n days.
       </p>
-      <figure className="lf-m-formula" aria-labelledby="m-rci-cap">
-        <div className="lf-m-eqs" role="list">
-          <div role="listitem">
-            <span className="lf-m-eq-l">SD</span>
-            <span className="lf-m-eq-o">=</span>
-            <span className="lf-m-eq-r lf-m-eq-text">sample SD (n − 1) of the crewmember’s own baseline days</span>
-          </div>
-          <div role="listitem">
-            <span className="lf-m-eq-l">SEM</span>
-            <span className="lf-m-eq-o">=</span>
-            <span className="lf-m-eq-r">SD × √(1 − r)</span>
-          </div>
-          <div role="listitem">
-            <span className="lf-m-eq-l">
-              S<sub>diff</sub>
-            </span>
-            <span className="lf-m-eq-o">=</span>
-            <span className="lf-m-eq-r">√2 × SEM</span>
-          </div>
-          <div role="listitem">
-            <span className="lf-m-eq-l" />
-            <span className="lf-m-eq-o">=</span>
-            <span className="lf-m-eq-r">SD × √2 × √(1 − r)</span>
-          </div>
-          <div role="listitem">
-            <span className="lf-m-eq-l">RC</span>
-            <span className="lf-m-eq-o">=</span>
-            <span className="lf-m-eq-r">
-              (x − mean) / S<sub>diff</sub>
-            </span>
-          </div>
-          <div role="listitem">
-            <span className="lf-m-eq-l">flag</span>
-            <span className="lf-m-eq-o">if</span>
-            <span className="lf-m-eq-r">
-              |RC| ≥ <Num value={rci.critical_z} />
-              <span className="lf-m-eq-text">
-                {' '}
-                (two-tailed α = <Num value={rci.alpha_two_tailed} />)
-              </span>
-            </span>
-          </div>
+      <Formula personal={personal} full={full} />
+
+      <CriticalTable rows={[fewest, full, unlimited]} />
+      <p className="lf-m-small">
+        The engine computes the critical value from α and the baseline length with Student’s t distribution (the
+        regularized incomplete beta function, inverted by bisection, identically in the Python reference and in this
+        browser). Its tests check it against published t tables: the NIST/SEMATECH e-Handbook of Statistical Methods
+        (section 1.3.6.7.2) and Purdue STAT 503’s table, whose 0.0005 upper-tail column is this two-tailed α. A shorter
+        baseline puts the line further out, because its SD is less certain. <Chip kind="derived" />
+      </p>
+
+      {rci.lineage ? (
+        <div className="lf-m-aside">
+          <h3 className="lf-m-h4">Where the idea comes from</h3>
+          <Verbatim lead="From personal.json:" text={rci.lineage.text} cite={<Citation source={rci.lineage.source} />} />
         </div>
-        <figcaption id="m-rci-cap">
-          Reliable Change Index, Jacobson &amp; Truax{year ? <> {year}</> : null}. x is today’s value; mean and SD come from
-          the crewmember’s last <Num value={rci.baseline_window_days} /> baseline days (at least{' '}
-          <Num value={rci.min_baseline_n} />
-          ); r is the measurement’s test–retest reliability. Engine text: <span className="lf-mono">{rci.method}</span>
-        </figcaption>
-      </figure>
+      ) : null}
 
       <table className="lf-m-table lf-m-stack">
         <caption className="lf-m-caption">Tier B settings, and where each comes from</caption>
@@ -316,20 +348,16 @@ export function TiersSection({ meta, personal, thresholds }: { meta: MetaFile; p
       <Expander
         summary={
           <>
-            Test–retest reliability r for each indicator (<Num value={ownR} /> of <Num value={indicators.length} /> are our
-            choice)
+            The <Num value={indicators.length} /> indicators: which direction is worse, and which can alert
           </>
         }
       >
         <table className="lf-m-table">
-          <caption className="sr-only">Reliability r per indicator</caption>
+          <caption className="sr-only">Tier B indicators, their worse direction and whether they alert</caption>
           <thead>
             <tr>
               <th scope="col">Indicator</th>
-              <th scope="col" className="num">
-                r
-              </th>
-              <th scope="col">Basis</th>
+              <th scope="col">Worse is</th>
               <th scope="col">Alerts</th>
             </tr>
           </thead>
@@ -340,12 +368,7 @@ export function TiersSection({ meta, personal, thresholds }: { meta: MetaFile; p
                   {i.label}
                   {i.private ? <span className="lf-m-small"> · private</span> : null}
                 </td>
-                <td className="num">
-                  <Num value={i.reliability_r.value} />
-                </td>
-                <td>
-                  <Chip kind={i.reliability_r.chip} />
-                </td>
+                <td>{WORSE_LABEL[i.worse] ?? i.worse}</td>
                 <td>{i.alerting ? 'yes' : 'never'}</td>
               </tr>
             ))}
@@ -353,22 +376,41 @@ export function TiersSection({ meta, personal, thresholds }: { meta: MetaFile; p
         </table>
       </Expander>
 
-      <FalseAlarmCalc personal={personal} />
+      <ChanceCalc personal={personal} />
 
       <div className="lf-m-aside">
         <h3 className="lf-m-h4">The honest limitation</h3>
         <Verbatim lead="From personal.json:" text={rci.caveat} />
+        {rci.caveat_basis ? (
+          <p className="lf-m-small">
+            <RichText text={rci.caveat_basis.text} /> <Citation source={rci.caveat_basis.source} />{' '}
+            <Chip kind={rci.caveat_basis.chip} />
+          </p>
+        ) : null}
         <p>
-          Small baselines make the SD itself uncertain. From <Num value={rci.min_baseline_n} /> days (the fewest accepted) the
-          true SD could be anywhere from about <Num value={nLo.lo} digits={2} unit="×" /> to{' '}
+          Small baselines also make the SD itself uncertain. From <Num value={rci.min_baseline_n} /> days (the fewest
+          accepted) the true SD could be anywhere from about <Num value={nLo.lo} digits={2} unit="×" /> to{' '}
           <Num value={nLo.hi} digits={1} unit="×" /> the estimate; from <Num value={rci.baseline_window_days} /> days, about{' '}
           <Num value={nHi.lo} digits={2} unit="×" /> to <Num value={nHi.hi} digits={1} unit="×" /> (
           <Num value={SD_INTERVAL_LEVEL * 100} unit="%" /> confidence interval, chi-square with Wilson–Hilferty
-          approximation). A baseline SD that is low by chance turns ordinary days
-          into “reliable” change; one that is high by chance hides a real one.
+          approximation). The single-case test already pays for that uncertainty: it is why the line sits at{' '}
+          <Num value={fewest.critical} digits={3} /> after <Num value={rci.min_baseline_n} /> days and{' '}
+          <Num value={full.critical} digits={3} /> after <Num value={rci.baseline_window_days} />, not at the normal{' '}
+          <Num value={unlimited.critical} digits={3} />.
         </p>
-        <RealisticRate personal={personal} />
       </div>
+
+      {rci.change_note ? (
+        <div className="lf-m-aside">
+          <h3 className="lf-m-h4">What changed, and why</h3>
+          <Verbatim lead="From personal.json:" text={rci.change_note} />
+          <p className="lf-m-small">
+            So the rate printed above is now the rate the arithmetic implies under its stated assumptions, and this page no
+            longer needs a separate, higher “derived estimate” beside a nominal one. The engine’s tests replay the earlier
+            arithmetic and reproduce the audit’s figure (<code>engine/tests/test_rci.py</code>).
+          </p>
+        </div>
+      ) : null}
     </Panel>
   )
 }

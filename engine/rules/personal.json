@@ -1,33 +1,32 @@
 {
  "schema": "landfall.personal/1",
  "rci": {
-  "critical_z": 3.29,
   "alpha_two_tailed": 0.001,
   "min_baseline_n": 7,
   "baseline_window_days": 14,
   "chip": "literature",
   "source": {
    "kind": "literature",
-   "citation": "Jacobson NS, Truax P. Clinical significance: a statistical approach to defining meaningful change in psychotherapy research. J Consult Clin Psychol 1991;59(1):12-19. doi:10.1037//0022-006x.59.1.12. PMID 2002127",
-   "url": "https://pubmed.ncbi.nlm.nih.gov/2002127/"
+   "citation": "Crawford JR, Howell DC. Comparing an individual's test score against norms derived from small samples. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
+   "url": "https://doi.org/10.1076/clin.12.4.482.7241",
+   "note": "The paper's modified t-test, after Sokal & Rohlf (1995): t = (X1 - mean2) / (s2 x sqrt((N2 + 1) / N2)) with df = N2 - 1, where s2 is the sample SD (N - 1) of the comparison sample (p. 483). This article is not in PubMed; the citation was checked against Crossref and the authors' PDF."
   },
-  "method": "RC = (current - baseline mean) / S_diff, S_diff = sqrt(2) x SEM, SEM = SD x sqrt(1 - r), SD = sample SD (n - 1) of the crewmember's own baseline.",
+  "method": "t = (today's value - baseline mean) / (baseline SD x sqrt(1 + 1/n)), with n baseline days, the sample SD (n - 1) and df = n - 1. A reliable change is |t| above the two-tailed critical value of Student's t at alpha 0.001 with n - 1 degrees of freedom: 4.221 for a full 14-day baseline, 5.959 at the 7-day minimum. No test-retest reliability is used.",
+  "lineage": {
+   "text": "The question, whether a change is bigger than day-to-day noise, is Jacobson & Truax's 'reliable change'. Their arithmetic divides by a reference-group SD and a published test-retest reliability. LANDFALL compares each crewmember with their own baseline, whose SD already contains the day-to-day noise, so it uses Crawford & Howell's single-case test instead.",
+   "chip": "literature",
+   "source": {
+    "kind": "literature",
+    "citation": "Jacobson NS, Truax P. Clinical significance: a statistical approach to defining meaningful change in psychotherapy research. J Consult Clin Psychol 1991;59(1):12-19. doi:10.1037//0022-006x.59.1.12. PMID 2002127",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/2002127/"
+   }
+  },
   "provenance": {
-   "critical_z": {
-    "chip": "derived",
-    "source": {
-     "kind": "derived",
-     "from": [
-      "rci.alpha_two_tailed"
-     ],
-     "arithmetic": "z with 2 x (1 - Phi(z)) = 0.001 gives z = 3.2905, printed as 3.29"
-    }
-   },
    "alpha_two_tailed": {
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "Stricter than the conventional 0.05 (z = 1.96) that Jacobson & Truax used, because LANDFALL tests many indicators every day; the expected false-alarm rate is printed next to every personal finding."
+     "rationale": "Stricter than the conventional 0.05 because LANDFALL tests many indicators every day. With the single-case t-test this is the actual chance rate per indicator-day under normal, independent day-to-day noise (half of it for a change in the worse direction), and the expected rate is printed next to every personal finding."
     }
    },
    "min_baseline_n": {
@@ -45,7 +44,17 @@
     }
    }
   },
-  "caveat": "The 3.29 criterion is nominally two-tailed p < .001. Jacobson & Truax built S_diff from a reference-group SD and a published test-retest r. LANDFALL uses the crewmember's own baseline SD, which already contains the day-to-day error, so the realized false-alarm rate is higher than the nominal one. Treat the printed rate as a lower bound."
+  "caveat": "The chance rate is exactly alpha (0.001 two-tailed, 0.0005 for a change in the worse direction) per indicator-day only if day-to-day noise is normal and independent, and real data are neither. In seeded simulations with no real change (engine/tests/test_rci.py), laid out like the scenario (a fixed 14-day baseline, then each of the 31 days after it tested against it), lag-1 autocorrelation of 0.5 between days gave about 1.4 times alpha on the first day after the baseline, about 4 times from a week on, and about 3.7 times averaged over the 31 days. At 0.9 it gave about 2.5 times on the first day and about 67 times on average, because 14 strongly autocorrelated days under-sample the crewmember's usual range. Skewed counts (Poisson with mean 1, like PVT-B lapses) gave about 5 times alpha, and every one of those chance flags was a rise, so for lapses the chance-caution rate is about 10 times the printed one. Crawford et al. 2006 likewise saw this test's rate reach 9.96% against a nominal 5% with skewed, heavy-tailed samples. Read the printed rate as a lower bound.",
+  "caveat_basis": {
+   "text": "Monte Carlo study of Crawford & Howell's test with non-normal control samples: leptokurtosis alone inflated the Type I error only modestly; leptokurtosis with skew gave actual rates as high as 9.96% against a specified 5% at small sample sizes (abstract).",
+   "chip": "literature",
+   "source": {
+    "kind": "literature",
+    "citation": "Crawford JR, Garthwaite PH, Azzalini A, Howell DC, Laws KR. Testing for a deficit in single-case studies: effects of departures from normality. Neuropsychologia 2006;44(4):666-677. doi:10.1016/j.neuropsychologia.2005.06.001. PMID 16046228",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/16046228/"
+   }
+  },
+  "change_note": "An earlier version applied Jacobson & Truax's arithmetic (S_diff = SD x sqrt(2) x sqrt(1 - r), critical 3.29) to the crewmember's own baseline SD. An audit showed that this shrinks the denominator: with a 14-day baseline and r = 0.8 the chance-flag rate was about 6.6% per indicator-day, not the 0.1% printed. Tier B now uses Crawford & Howell's test, whose chance rate is alpha."
  },
  "indicators": [
   {
@@ -58,11 +67,12 @@
    "private": false,
    "device": "app",
    "reliability_r": {
-    "value": 0.8,
+    "value": null,
+    "used_by_engine": false,
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "Borrowed from the 10-min PVT. Basner, Mollicone & Dinges 2011 write 'The test has high reliability, with intra-class correlations measuring test-retest reliability above 0.8' about the standard 10-min PVT (citing Dorrian, Rogers & Dinges 2005). We found no published test-retest value for the 3-min PVT-B, so applying 0.8, the lower bound, to it is our assumption.",
+     "rationale": "Not used by any computation. LANDFALL's single-case test (Crawford & Howell 1998) compares today's value with this crewmember's own baseline mean and SD, so it needs no test-retest reliability. For context only: Basner, Mollicone & Dinges 2011 report test-retest reliability above 0.8 for the standard 10-min PVT; we found no published value for the 3-min PVT-B.",
      "basis_citation": "Basner M, Mollicone D, Dinges DF. Validity and sensitivity of a brief psychomotor vigilance test (PVT-B) to total and partial sleep deprivation. Acta Astronaut 2011;69(11-12):949-959. doi:10.1016/j.actaastro.2011.07.015. PMID 22025811",
      "url": "https://pubmed.ncbi.nlm.nih.gov/22025811/"
     }
@@ -89,11 +99,12 @@
    "private": false,
    "device": "app",
    "reliability_r": {
-    "value": 0.8,
+    "value": null,
+    "used_by_engine": false,
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "Borrowed from the 10-min PVT. Basner, Mollicone & Dinges 2011 write 'The test has high reliability, with intra-class correlations measuring test-retest reliability above 0.8' about the standard 10-min PVT (citing Dorrian, Rogers & Dinges 2005). We found no published test-retest value for the 3-min PVT-B, so applying 0.8, the lower bound, to it is our assumption.",
+     "rationale": "Not used by any computation. LANDFALL's single-case test (Crawford & Howell 1998) compares today's value with this crewmember's own baseline mean and SD, so it needs no test-retest reliability. For context only: Basner, Mollicone & Dinges 2011 report test-retest reliability above 0.8 for the standard 10-min PVT; we found no published value for the 3-min PVT-B.",
      "basis_citation": "Basner M, Mollicone D, Dinges DF. Validity and sensitivity of a brief psychomotor vigilance test (PVT-B) to total and partial sleep deprivation. Acta Astronaut 2011;69(11-12):949-959. doi:10.1016/j.actaastro.2011.07.015. PMID 22025811",
      "url": "https://pubmed.ncbi.nlm.nih.gov/22025811/"
     }
@@ -118,11 +129,12 @@
    "private": false,
    "device": "band",
    "reliability_r": {
-    "value": 0.7,
+    "value": null,
+    "used_by_engine": false,
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+     "rationale": "Not used by any computation. LANDFALL's single-case test (Crawford & Howell 1998) compares today's value with this crewmember's own baseline mean and SD, so it needs no test-retest reliability, and none is claimed for this measure."
     }
    },
    "definition": {
@@ -154,11 +166,12 @@
    "private": false,
    "device": "band",
    "reliability_r": {
-    "value": 0.7,
+    "value": null,
+    "used_by_engine": false,
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+     "rationale": "Not used by any computation. LANDFALL's single-case test (Crawford & Howell 1998) compares today's value with this crewmember's own baseline mean and SD, so it needs no test-retest reliability, and none is claimed for this measure."
     }
    },
    "definition": {
@@ -181,11 +194,12 @@
    "private": false,
    "device": "band",
    "reliability_r": {
-    "value": 0.7,
+    "value": null,
+    "used_by_engine": false,
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+     "rationale": "Not used by any computation. LANDFALL's single-case test (Crawford & Howell 1998) compares today's value with this crewmember's own baseline mean and SD, so it needs no test-retest reliability, and none is claimed for this measure."
     }
    },
    "definition": {
@@ -208,11 +222,12 @@
    "private": false,
    "device": "band",
    "reliability_r": {
-    "value": 0.7,
+    "value": null,
+    "used_by_engine": false,
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+     "rationale": "Not used by any computation. LANDFALL's single-case test (Crawford & Howell 1998) compares today's value with this crewmember's own baseline mean and SD, so it needs no test-retest reliability, and none is claimed for this measure."
     }
    },
    "definition": {
@@ -235,11 +250,12 @@
    "private": false,
    "device": "band",
    "reliability_r": {
-    "value": 0.7,
+    "value": null,
+    "used_by_engine": false,
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+     "rationale": "Not used by any computation. LANDFALL's single-case test (Crawford & Howell 1998) compares today's value with this crewmember's own baseline mean and SD, so it needs no test-retest reliability, and none is claimed for this measure."
     }
    },
    "definition": {
@@ -262,11 +278,12 @@
    "private": false,
    "device": "band",
    "reliability_r": {
-    "value": 0.7,
+    "value": null,
+    "used_by_engine": false,
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+     "rationale": "Not used by any computation. LANDFALL's single-case test (Crawford & Howell 1998) compares today's value with this crewmember's own baseline mean and SD, so it needs no test-retest reliability, and none is claimed for this measure."
     }
    },
    "definition": {
@@ -289,11 +306,12 @@
    "private": false,
    "device": "manual",
    "reliability_r": {
-    "value": 0.7,
+    "value": null,
+    "used_by_engine": false,
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+     "rationale": "Not used by any computation. LANDFALL's single-case test (Crawford & Howell 1998) compares today's value with this crewmember's own baseline mean and SD, so it needs no test-retest reliability, and none is claimed for this measure."
     }
    },
    "definition": {
@@ -316,11 +334,12 @@
    "private": false,
    "device": "manual",
    "reliability_r": {
-    "value": 0.7,
+    "value": null,
+    "used_by_engine": false,
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+     "rationale": "Not used by any computation. LANDFALL's single-case test (Crawford & Howell 1998) compares today's value with this crewmember's own baseline mean and SD, so it needs no test-retest reliability, and none is claimed for this measure."
     }
    },
    "definition": {
@@ -343,11 +362,12 @@
    "private": true,
    "device": "app",
    "reliability_r": {
-    "value": 0.7,
+    "value": null,
+    "used_by_engine": false,
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+     "rationale": "Not used by any computation. LANDFALL's single-case test (Crawford & Howell 1998) compares today's value with this crewmember's own baseline mean and SD, so it needs no test-retest reliability, and none is claimed for this measure."
     }
    },
    "definition": {

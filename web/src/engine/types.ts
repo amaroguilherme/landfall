@@ -12,11 +12,11 @@ export type Status =
   | 'insufficient_data'
   | 'stale'
   | 'not_applicable'
-/** FFD floor, PEL ceiling, POL change, OPS scale, PERSONAL baseline, TARGET (literature target). */
+/** FFD floor, PEL ceiling, POL change, OPS scale, TARGET countermeasure target, PERSONAL baseline. */
 export type Category = 'FFD' | 'PEL' | 'POL' | 'OPS' | 'PERSONAL' | 'TARGET' | (string & {})
 export type Chip =
   | 'NASA-published'
-  | 'NASA brief'
+  | 'NASA report'
   | 'NOAA-published'
   | 'literature'
   | 'derived'
@@ -116,54 +116,73 @@ export interface Indicator {
   worse: Worse
   alerting: boolean
   private?: boolean
-  reliability_r: Basis & { value: number }
+  /** Non-computational context only (SPEC 3.3): the engine ignores it, and value is null in the real rules. */
+  reliability_r?: Basis & { value: number | null; used_by_engine?: boolean }
   definition?: Basis & { text?: string }
   case_id?: string | null
   action_id?: string | null
   [key: string]: unknown
 }
 
-/** The `rci` block of personal.json. */
+/**
+ * The `rci` block of personal.json (SPEC 3.3). The engine reads alpha_two_tailed and min_baseline_n;
+ * the critical value is not stored (it depends on the baseline length: tCritical(alpha, n - 1)).
+ */
 export interface RciConfig {
-  critical_z: number
+  alpha_two_tailed: number
   min_baseline_n: number
-  alpha_two_tailed?: number
   baseline_window_days?: number
   chip: Chip
   source: Source
+  /** Plain-English statement of the test (its quoted critical values are checked against the engine). */
+  method?: string
+  /** Jacobson & Truax's "reliable change": the conceptual lineage, not the arithmetic. */
+  lineage?: Basis & { text?: string }
+  provenance?: Record<string, Basis>
+  /** Why the printed chance rate is a lower bound (autocorrelation, skew). */
+  caveat?: string
+  caveat_basis?: Basis & { text?: string }
+  /** What changed from the earlier arithmetic, and why. */
+  change_note?: string
   [key: string]: unknown
 }
 
 export type RciReason = 'baseline_too_short' | 'no_current' | 'zero_sd'
 
+/** The single-case test of Crawford & Howell (1998). rc is its t statistic. */
 export interface RciResult {
+  method: 'crawford_howell_1998'
   status: 'ok' | 'insufficient_data'
   reason: RciReason | null
   n: number
+  /** n - 1 (null below 2 values). */
+  df: number | null
   mean: number | null
   sd: number | null
-  sem: number | null
+  /** sd * sqrt(1 + 1/n): the SD of the difference between one new value and the mean of n values. */
   s_diff: number | null
+  /** The t statistic of the single-case test, (current - mean) / s_diff. */
   rc: number | null
+  /** tCritical(alpha, df), two-tailed (null below min_baseline_n). */
+  critical: number | null
+  alpha: number
   reliable: boolean
   direction: Direction | null
-  critical_z: number
-  r: number
 }
 
 export interface PersonalRci {
+  method: 'crawford_howell_1998'
+  /** The t statistic of the single-case test. */
   rc: number | null
+  df: number | null
+  critical: number | null
+  alpha: number
   s_diff: number | null
-  sem: number | null
   mean: number | null
   sd: number | null
   n: number
   reliable: boolean
   reason: RciReason | null
-  critical_z: number
-  r: number
-  r_chip: Chip | null
-  r_source: Source | null
 }
 
 export interface PersonalFinding extends Finding {
@@ -175,12 +194,22 @@ export interface PersonalFinding extends Finding {
   rci: PersonalRci
 }
 
+/** expectedFalseAlarms: chance flags (either direction) and chance cautions (worse direction only). */
 export interface FalseAlarms {
+  /** (k * days) * alpha chance flags. */
   expected: number
   per_day: number
   every_n_days: number | null
-  /** "one false alarm every N days" or "no false alarms expected". */
+  /** "one false flag every N days on average, counting chance changes in either direction". */
   text: string
+  /** expected / 2: only a chance change in the worse direction raises a caution. */
+  expected_cautions: number
+  cautions_per_day: number
+  caution_every_n_days: number | null
+  /** "one false caution every M days on average: only a chance change in the worse direction raises a caution". */
+  caution_text: string
+  /** The independence / normality assumption, as one sentence. */
+  assumes: string
   k_indicators: number
   days: number
   alpha: number
@@ -204,6 +233,8 @@ export interface TripwireCondition {
   value: number
   of_last_n: number
   at_least: number
+  /** env_id -> overrides; one that names a rule_id / indicator_id replaces the reference, variable and unit. */
+  by_env?: Record<string, Partial<Omit<TripwireCondition, 'by_env'>>>
   [key: string]: unknown
 }
 
@@ -231,12 +262,23 @@ export type CaseEventType = 'OPEN' | 'SELECT' | 'STEP' | 'OUTCOME' | 'TICK' | 'D
 
 export interface CaseSpec {
   case_id: string
+  /** The environment newCase resolved the tripwire for (null: the base condition). */
+  env_id?: string | null
   trigger_ids: string[]
   countermeasure_ids: string[]
   step_ids: string[]
   tripwire: {
     reassess_after_s: number
-    condition: { variable: string; op: Op; value: number; unit: string; of_last_n: number; at_least: number }
+    condition: {
+      /** The rule or indicator the effective condition watches (after by_env), or null. */
+      ref_id?: string | null
+      variable: string
+      op: Op
+      value: number
+      unit: string
+      of_last_n: number
+      at_least: number
+    }
   }
   escalation: { ground_packet?: boolean; observations?: string[]; [key: string]: unknown } | null
 }

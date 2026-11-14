@@ -2,6 +2,7 @@
 // Generated at build time from the SAME files the engine reads (single source of truth).
 // Nothing here types a NASA number: every value below is read from the JSON.
 import { ENVIRONMENTS } from '../../app/scenario'
+import { tCritical } from '../../app/engine'
 
 // ---------------------------------------------------------------------------------------------
 // Raw rules files (shapes from engine/SPEC.md section 3; loose on purpose, fields are optional)
@@ -84,14 +85,14 @@ export interface Indicator {
   alerting: boolean
   private: boolean
   device?: string
-  reliability_r: Sourced & { value: number }
+  /** Kept for context only: the single-case test does not use a reliability (used_by_engine: false). */
+  reliability_r?: Sourced & { value: number | null; used_by_engine?: boolean }
   definition?: Sourced & { text: string }
   context?: Sourced & { text: string }
   case_id: string | null
 }
 
 export interface RciBlock extends Sourced {
-  critical_z: number
   alpha_two_tailed: number
   min_baseline_n: number
   baseline_window_days: number
@@ -324,8 +325,7 @@ function valueOf(v: number | { min: number; max: number; mean?: number }, unit: 
   return typeof v === 'number' ? { kind: 'number', value: v, unit } : { kind: 'range', min: v.min, max: v.max, mean: v.mean, unit }
 }
 
-const RCI_FIELDS: { key: 'critical_z' | 'alpha_two_tailed' | 'min_baseline_n' | 'baseline_window_days'; label: string; unit: string | null }[] = [
-  { key: 'critical_z', label: 'Reliable-change critical value', unit: 'z' },
+const RCI_FIELDS: { key: 'alpha_two_tailed' | 'min_baseline_n' | 'baseline_window_days'; label: string; unit: string | null }[] = [
   { key: 'alpha_two_tailed', label: 'Reliable-change significance level (two-tailed α)', unit: null },
   { key: 'min_baseline_n', label: 'Minimum baseline observations', unit: 'days of data' },
   { key: 'baseline_window_days', label: 'Baseline window', unit: 'days' },
@@ -462,11 +462,9 @@ function buildRows(): ProvRow[] {
         label: f.label,
         value: { kind: 'number', value: rci[f.key], unit: f.unit },
         condition:
-          f.key === 'critical_z'
-            ? { kind: 'compare', lead: 'reliable change when |RC|', op: 'ge', value: rci.critical_z, unit: null }
-            : f.key === 'min_baseline_n'
-              ? { kind: 'compare', lead: 'evaluated only when baseline n', op: 'ge', value: rci.min_baseline_n, unit: null }
-              : null,
+          f.key === 'min_baseline_n'
+            ? { kind: 'compare', lead: 'evaluated only when baseline n', op: 'ge', value: rci.min_baseline_n, unit: null }
+            : null,
         categories: ['PERSONAL'],
         chip: prov?.chip ?? rci.chip,
         source: prov?.source ?? rci.source,
@@ -478,6 +476,33 @@ function buildRows(): ProvRow[] {
         facts,
       })
     }
+    // The critical value is not a stored constant: the engine derives it from alpha and the
+    // baseline length (Crawford & Howell 1998 single-case test, df = n - 1).
+    const df = rci.baseline_window_days - 1
+    const crit = Math.round(tCritical(rci.alpha_two_tailed, df) * 1000) / 1000
+    push({
+      id: 'rci.critical',
+      aliases: ['rci.critical_z'],
+      kind: 'rci',
+      file: 'personal',
+      path: 'derived by the engine: tCritical(rci.alpha_two_tailed, rci.baseline_window_days - 1)',
+      label: `Single-case test critical value (|t|, df ${df})`,
+      value: { kind: 'number', value: crit, unit: 't' },
+      condition: { kind: 'compare', lead: 'reliable change when |t|', op: 'gt', value: crit, unit: null },
+      categories: ['PERSONAL'],
+      chip: 'derived',
+      source: {
+        kind: 'derived',
+        from: ['rci.alpha_two_tailed', 'rci.baseline_window_days'],
+        arithmetic: `Student t quantile at two-tailed alpha ${rci.alpha_two_tailed} with df = ${rci.baseline_window_days} - 1 = ${df}; t = (x - mean) / (SD * sqrt(1 + 1/n)) (Crawford & Howell 1998)`,
+      },
+      appliesTo: ['*'],
+      appliesNote: null,
+      parentId: null,
+      usedBy: [{ id: 'personal', label: `all ${indicators.length} personal indicators`, role: 'Tier B', href: null }],
+      notes: [],
+      facts: rci.method ? [{ label: 'Method', text: rci.method, chip: rci.chip, source: rci.source }] : [],
+    })
   }
   for (const [i, ind] of indicators.entries()) {
     const facts: ProvRow['facts'] = []
@@ -487,24 +512,30 @@ function buildRows(): ProvRow[] {
     })
     if (ind.definition) facts.push({ label: 'Definition', text: ind.definition.text, chip: ind.definition.chip, source: ind.definition.source })
     if (ind.context) facts.push({ label: 'Context', text: ind.context.text, chip: ind.context.chip, source: ind.context.source })
-    if (ind.reliability_r.source.basis_citation) facts.push({ label: 'Basis cited', text: ind.reliability_r.source.basis_citation })
+    // reliability_r is context only now (used_by_engine: false): never render it as a constant the
+    // engine uses. The row stays so #/provenance?id=<indicator> deep links keep resolving.
+    const rel = ind.reliability_r
+    const relUsed = !!rel && rel.used_by_engine !== false && typeof rel.value === 'number'
+    if (rel?.source?.basis_citation) facts.push({ label: relUsed ? 'Basis cited' : 'Reliability (context only, not used by the test)', text: rel.source.basis_citation })
     push({
       id: `${ind.id}.reliability_r`,
       aliases: [ind.id],
       kind: 'reliability',
       file: 'personal',
-      path: `personal.json indicators[${i}].reliability_r.value`,
-      label: `${ind.label}: test-retest reliability`,
+      path: relUsed ? `personal.json indicators[${i}].reliability_r.value` : `personal.json indicators[${i}]`,
+      label: relUsed ? `${ind.label}: test-retest reliability` : `${ind.label}: Tier B indicator`,
       shortLabel: ind.label,
-      value: { kind: 'number', value: ind.reliability_r.value, unit: 'r' },
+      value: relUsed
+        ? { kind: 'number', value: rel!.value as number, unit: 'r' }
+        : { kind: 'snapshot', snapshot: 'sim_crew', unit: ind.unit },
       condition: null,
       categories: ['PERSONAL'],
-      chip: ind.reliability_r.chip,
-      source: ind.reliability_r.source,
+      chip: relUsed ? rel!.chip : (ind.definition?.chip ?? 'design choice'),
+      source: relUsed ? rel!.source : (ind.definition?.source ?? { kind: 'design_choice', rationale: 'Indicator chosen by LANDFALL for the Tier B single-case test.' }),
       appliesTo: ['*'],
       appliesNote: ind.alerting ? null : 'context only, never alerts',
       parentId: null,
-      usedBy: [{ id: ind.id, label: ind.label, role: 'RCI of indicator', href: null }],
+      usedBy: [{ id: ind.id, label: ind.label, role: 'Tier B indicator', href: null }],
       notes: [],
       facts,
     })

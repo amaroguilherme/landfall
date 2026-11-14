@@ -1,14 +1,19 @@
 """Case state machine (SPEC section 5): detect -> act -> watch -> resolved | escalated (+ dismissed).
 
 case_reduce is a pure reducer: it never mutates its inputs and never raises for a bad event.
-An invalid event returns the same status plus a log entry whose `error` is set. A malformed
-*state* (not produced by new_case / case_reduce) is a contract violation and raises
-invalid_argument.
+An invalid event is atomic: it returns the input state unchanged plus exactly one log entry whose
+`error` is set (a TICK rejected for a unit mismatch keeps none of the observations that came
+before the bad one). A malformed *state* (not produced by new_case / case_reduce) is a contract
+violation and raises invalid_argument.
 
 Tripwire timing: observations are collected throughout watch, but the tripwire is only judged at
 t >= reassess_at, matching the case texts ("Reassess at T+72 h; if ... still ..., reclassify").
 Observations with crew_id null (vehicle / habitat sensors, e.g. the onboard proton monitor)
 describe the shared environment and count for every crewmember's case.
+
+Environment: a tripwire condition may carry "by_env": {env_id: {overrides}}. new_case(..., env_id)
+applies the override for that environment, so a case watches the rule that applies there (the
+SPE case watches the onboard monitor rule at Mars and the NOAA rule near Earth).
 
 State (JSON):
     {"schema": "landfall.case_state/1", "case_id", "crew_id", "status", "spec": {...},
@@ -33,17 +38,47 @@ EVENTS = ("OPEN", "SELECT", "STEP", "OUTCOME", "TICK", "DISMISS")
 OPENING_SEVERITIES = ("caution", "warning", "emergency")
 
 
-def new_case(case_def: dict, crew_id: str, lookup: dict | None = None) -> dict:
+REF_KEYS = ("rule_id", "indicator_id")
+
+
+def _effective_condition(cid: str, cond: dict, env_id: str | None) -> dict:
+    """The tripwire condition for env_id: the base condition with its by_env[env_id] override applied.
+
+    An override replaces the keys it names. When it names a rule_id or indicator_id, the base
+    reference, variable and unit are dropped first, so they are resolved again for the new reference.
+    """
+    by_env = cond.get("by_env")
+    if by_env is not None and not isinstance(by_env, dict):
+        raise EngineError("invalid_case", f"case {cid}: tripwire condition by_env must be an object")
+    base = {k: v for k, v in cond.items() if k != "by_env"}
+    if env_id is None or not isinstance(by_env, dict) or env_id not in by_env:
+        return base
+    override = by_env[env_id]
+    if not isinstance(override, dict) or "by_env" in override:
+        raise EngineError("invalid_case", f"case {cid}: tripwire by_env[{env_id!r}] must be an object without by_env")
+    if any(k in override for k in REF_KEYS):
+        for k in REF_KEYS + ("variable", "unit"):
+            base.pop(k, None)
+    base.update(override)
+    return base
+
+
+def new_case(case_def: dict, crew_id: str, lookup: dict | None = None, env_id: str | None = None) -> dict:
     """Build the pre-OPEN ("idle") state for one case and one crewmember.
 
     lookup maps a rule or indicator id -> {"variable", "unit"} (see loader.trigger_lookup). It
     resolves the tripwire variable when the condition names a rule_id, and the tripwire unit
     when the condition has none. An explicit condition "variable" / "unit" wins.
+    env_id (optional) selects the tripwire condition's by_env override for that environment; the
+    effective reference is recorded as spec.tripwire.condition.ref_id and the environment as
+    spec.env_id.
     """
     if not isinstance(case_def, dict) or not isinstance(case_def.get("id"), str):
         raise EngineError("invalid_case", "case definition must be an object with a string id")
     if not isinstance(crew_id, str) or not crew_id:
         raise EngineError("invalid_argument", "crew_id must be a non-empty string")
+    if env_id is not None and (not isinstance(env_id, str) or not env_id):
+        raise EngineError("invalid_argument", "env_id must be a non-empty string or null")
     cid = case_def["id"]
     trigger_ids = set()
     for trg in case_def.get("triggers") or []:
@@ -61,7 +96,7 @@ def new_case(case_def: dict, crew_id: str, lookup: dict | None = None) -> dict:
     if not isinstance(tw, dict) or not is_number(tw.get("reassess_after_s")) or \
             not isinstance(tw.get("condition"), dict):
         raise EngineError("invalid_case", f"case {cid}: tripwire.reassess_after_s and condition required")
-    cond = tw["condition"]
+    cond = _effective_condition(cid, tw["condition"], env_id)
     ref_id = cond.get("indicator_id") or cond.get("rule_id")
     ref = (lookup or {}).get(ref_id) if isinstance(ref_id, str) else None
     ref = ref if isinstance(ref, dict) else {}
@@ -82,11 +117,13 @@ def new_case(case_def: dict, crew_id: str, lookup: dict | None = None) -> dict:
     esc = case_def.get("escalation")
     spec = {
         "case_id": cid,
+        "env_id": env_id,
         "trigger_ids": sorted(trigger_ids),
         "countermeasure_ids": cm_ids,
         "step_ids": step_ids,
         "tripwire": {"reassess_after_s": tw["reassess_after_s"],
-                     "condition": {"variable": var, "op": cond["op"], "value": cond["value"],
+                     "condition": {"ref_id": ref_id if isinstance(ref_id, str) else None,
+                                   "variable": var, "op": cond["op"], "value": cond["value"],
                                    "unit": unit, "of_last_n": n, "at_least": k}},
         "escalation": copy.deepcopy(esc) if isinstance(esc, dict) else None,
     }
@@ -129,17 +166,20 @@ def case_reduce(state: dict, event: dict) -> dict:
     t = ev.get("t")
     frm = s.get("status")
 
-    def log(to: str, detail: str, error: str | None) -> dict:
-        s["log"].append({"t": t, "event": etype, "from": frm, "to": to, "detail": detail, "error": error})
-        return s
+    def entry(to: str, detail: str, error: str | None) -> dict:
+        return {"t": t, "event": etype, "from": frm, "to": to, "detail": detail, "error": error}
 
     def reject(error: str, detail: str) -> dict:
-        return log(frm, detail, error)
+        # atomic: start again from the untouched input, so nothing this event did survives
+        out = copy.deepcopy(state)
+        out["log"].append(entry(frm, detail, error))
+        return out
 
     def accept(to: str, detail: str) -> dict:
         s["status"] = to
         s["updated_at"] = t
-        return log(to, detail, None)
+        s["log"].append(entry(to, detail, None))
+        return s
 
     if etype not in EVENTS:
         return reject("invalid_event", f"unknown event type {etype!r}")
@@ -213,7 +253,7 @@ def case_reduce(state: dict, event: dict) -> dict:
     if not isinstance(obs_list, list):
         return reject("invalid_event", "TICK observations must be a list")
     known_t = {o["t"] for o in s["tripwire_obs"]}
-    added = 0
+    new_obs = []
     for o in obs_list:
         if not isinstance(o, dict) or o.get("variable") != cond["variable"]:
             continue
@@ -230,8 +270,9 @@ def case_reduce(state: dict, event: dict) -> dict:
         if ot in known_t:
             continue
         known_t.add(ot)
-        s["tripwire_obs"].append({"t": ot, "value": ov})
-        added += 1
+        new_obs.append({"t": ot, "value": ov})
+    added = len(new_obs)  # committed only now that every observation of this TICK passed the unit check
+    s["tripwire_obs"].extend(new_obs)
     s["tripwire_obs"].sort(key=lambda o: o["t"])
     ev_res = _tripwire_eval(s)
     desc = (f"{ev_res['hits']} of last {ev_res['considered']} {cond['variable']} "

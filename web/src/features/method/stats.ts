@@ -1,28 +1,40 @@
 // Statistics used to explain Tier B honestly. Pure functions, no NASA numbers: every input is
-// passed in from engine/rules/personal.json. The constants below are mathematical (coefficients
-// of a published erfc approximation and the two-sided 95% normal quantile).
-import { expectedFalseAlarms } from '../../app/engine'
+// passed in from engine/rules/personal.json, and the t distribution and the chance rates are the
+// engine's own (tCritical and expectedFalseAlarms, through the facade), so the page prints exactly
+// what the engine computes. The constants below are mathematical (the two-sided 95% normal quantile
+// for the SD interval).
+import { T_DF_MAX, expectedFalseAlarms, tCritical } from '../../app/engine'
+import type { FalseAlarms } from '../../app/engine'
 
-/** Complementary error function, Abramowitz & Stegun 7.1.26 (absolute error below 1.5e-7). */
-export function erfc(x: number): number {
-  const z = Math.abs(x)
-  const t = 1 / (1 + 0.3275911 * z)
-  const poly = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))))
-  const r = poly * Math.exp(-z * z)
-  return x >= 0 ? r : 2 - r
+/** One row of the critical-value table: the engine's two-tailed critical t for a baseline of n days. */
+export interface CriticalRow {
+  /** Baseline days (null: an unlimited baseline, where t becomes the normal distribution). */
+  n: number | null
+  df: number
+  critical: number
+  /** The flag line in baseline SDs from the mean: critical x sqrt(1 + 1/n) (critical itself when n is unlimited). */
+  bandSd: number
 }
 
-/** P(|Z| >= z) for a standard normal Z. */
-export function twoTailP(z: number): number {
-  return erfc(Math.abs(z) / Math.SQRT2)
+/** Critical value and band width for an n-day baseline (Crawford & Howell 1998: df = n - 1). */
+export function criticalRow(alpha: number, n: number): CriticalRow {
+  const df = n - 1
+  const critical = tCritical(alpha, df)
+  return { n, df, critical, bandSd: critical * Math.sqrt(1 + 1 / n) }
+}
+
+/** The limit of a very long baseline: the engine's t at its largest df, i.e. the normal value. */
+export function unlimitedRow(alpha: number): CriticalRow {
+  const critical = tCritical(alpha, T_DF_MAX)
+  return { n: null, df: T_DF_MAX, critical, bandSd: critical }
 }
 
 /**
- * Where the Tier B flag sits in units of the crewmember's own baseline SD:
- * |RC| >= z_c with RC = (x - mean) / (SD x sqrt(2) x sqrt(1 - r)) means |x - mean| >= z_c x sqrt(2(1 - r)) SD.
+ * Chance findings for k alerting indicators over `days` days, straight from the engine
+ * (SPEC 5 expected_false_alarms): flags in either direction, and cautions (worse direction only).
  */
-export function flagAtSd(criticalZ: number, r: number): number {
-  return criticalZ * Math.SQRT2 * Math.sqrt(1 - r)
+export function chanceRates(k: number, days: number, alpha: number): FalseAlarms {
+  return expectedFalseAlarms(k, days, alpha)
 }
 
 /** Confidence level of sdInterval95, and its two-sided standard-normal quantile (they go together). */
@@ -40,18 +52,6 @@ export function chiSquareQuantile(zp: number, k: number): number {
 export function sdInterval95(n: number): { lo: number; hi: number } {
   const k = n - 1
   return { lo: Math.sqrt(k / chiSquareQuantile(Z_975, k)), hi: Math.sqrt(k / chiSquareQuantile(-Z_975, k)) }
-}
-
-/**
- * The engine's expected_false_alarms (SPEC 5), read defensively: the shell shim returns
- * {expected, one_every_days}; the SPEC port returns {expected, per_day, every_n_days, ...}.
- */
-export function falseAlarms(k: number, days: number, alpha: number): { expected: number; everyNDays: number | null } {
-  const res = expectedFalseAlarms(k, days, alpha) as unknown as Record<string, unknown>
-  const expected = typeof res.expected === 'number' ? res.expected : k * days * alpha
-  const every =
-    typeof res.every_n_days === 'number' ? res.every_n_days : typeof res.one_every_days === 'number' ? res.one_every_days : null
-  return { expected, everyNDays: every !== null && Number.isFinite(every) ? every : null }
 }
 
 /** Round for display ("about one every N days"), keeping one decimal. */

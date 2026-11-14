@@ -132,14 +132,16 @@ runs in the product's decision path.
 - BIPM. The International System of Units (SI Brochure), 9th edition, 2019: c = 299 792 458 m/s (exact, by definition).
 - Barger LK, Flynn-Evans EE, Kubey A, Walsh L, Ronda JM, Wang W, Wright KP Jr, Czeisler CA. Prevalence of sleep deficiency and use of hypnotic drugs in astronauts before, during, and after spaceflight: an observational study. Lancet Neurol 2014;13(9):904-912. doi:10.1016/S1474-4422(14)70122-X. PMID 25127232
 - Basner M, Mollicone D, Dinges DF. Validity and sensitivity of a brief psychomotor vigilance test (PVT-B) to total and partial sleep deprivation. Acta Astronaut 2011;69(11-12):949-959. doi:10.1016/j.actaastro.2011.07.015. PMID 22025811
+- Crawford JR, Garthwaite PH, Azzalini A, Howell DC, Laws KR. Testing for a deficit in single-case studies: effects of departures from normality. Neuropsychologia 2006;44(4):666-677. doi:10.1016/j.neuropsychologia.2005.06.001. PMID 16046228
+- Crawford JR, Howell DC. Comparing an individual's test score against norms derived from small samples. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241
 - Jacobson NS, Truax P. Clinical significance: a statistical approach to defining meaningful change in psychotherapy research. J Consult Clin Psychol 1991;59(1):12-19. doi:10.1037//0022-006x.59.1.12. PMID 2002127
 - Lang T, LeBlanc A, Evans H, Lu Y, Genant H, Yu A. Cortical and trabecular bone mineral loss from the spine and hip in long-duration spaceflight. J Bone Miner Res 2004;19(6):1006-1012. doi:10.1359/JBMR.040307. PMID 15125798
 - Maida JC. Introduction to the Solid State Based Interior Lighting System for ISS. NASA Johnson Space Center presentation, 2014-04-07. NTRS 20160005080
+- NASA HRP Evidence Report: Risk of Renal Stone Formation (Sibonga & Pietrzyk, approved May 15, 2017; NTRS 20170004709) https://ntrs.nasa.gov/citations/20170004709
+- NASA HRP Evidence Report: Risk of Renal Stone Formation (Stratton, Lumpkins & Antonsen, approved September 23, 2024; NTRS 20240012429) https://ntrs.nasa.gov/citations/20240012429
 - NASA-STD-3001 Vol. 1 Rev. C https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf
 - NASA-STD-3001 Vol. 2 Rev. F https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf
 - NOAA Space Weather Scales (Solar Radiation Storms) https://www.swpc.noaa.gov/noaa-scales-explanation
-- Sibonga JD, Pietrzyk R. Evidence Report: Risk of Renal Stone Formation. NASA Human Research Program, approved for public release May 15, 2017. NTRS 20170004709.
-- Stratton E, Lumpkins S, Antonsen E. Evidence Report: Risk of Renal Stone Formation. NASA Human Research Program, Exploration Medical Capabilities Element, Lyndon B. Johnson Space Center, Houston, TX. Approved for public release September 23, 2024. NTRS 20240012429.
 - Whitson PA, Pietrzyk RA, Jones JA, Nelman-Gonzalez M, Hudson EK, Sams CF. Effect of potassium citrate therapy on the risk of renal stone formation during spaceflight. J Urol 2009;182(5):2490-2496. doi:10.1016/j.juro.2009.07.010. PMID 19765769
 - Williams DR. Moon Fact Sheet. NASA NSSDCA (last updated 11 January 2024): apogee 0.4055 x 10^6 km (mean apogee).
 - Williams DR. Moon Fact Sheet. NASA NSSDCA (last updated 11 January 2024): perigee 0.3633 x 10^6 km (mean perigee).

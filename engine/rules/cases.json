@@ -70,9 +70,10 @@
      "id": "cm_hydration",
      "title": "Drink more, spread through the waking day",
      "rationale": "The evidence report's target for an effective hydration countermeasure is 2.5-3 L of urine per day. The vehicle is required to provide at least 2.5 L of potable water for hydration per crewmember per day ([V2 6109], Table 6.3-1).",
-     "chip": "literature",
+     "chip": "NASA report",
      "source": {
-      "kind": "literature",
+      "kind": "nasa_brief",
+      "doc": "NASA HRP Evidence Report: Risk of Renal Stone Formation (Stratton, Lumpkins & Antonsen, approved September 23, 2024; NTRS 20240012429)",
       "citation": "Stratton E, Lumpkins S, Antonsen E. Evidence Report: Risk of Renal Stone Formation. NASA Human Research Program, Exploration Medical Capabilities Element, Lyndon B. Johnson Space Center, Houston, TX. Approved for public release September 23, 2024. NTRS 20240012429.",
       "url": "https://ntrs.nasa.gov/citations/20240012429",
       "page": 13,
@@ -85,9 +86,10 @@
       "id": "cm_limit_sodium",
       "title": "Limit sodium intake",
       "rationale": "'In addition to hydration, sodium consumption should be limited during flight.' (HRP renal stone evidence report, 2017 edition, In-flight Prevention.)",
-      "chip": "literature",
+      "chip": "NASA report",
       "source": {
-       "kind": "literature",
+       "kind": "nasa_brief",
+       "doc": "NASA HRP Evidence Report: Risk of Renal Stone Formation (Sibonga & Pietrzyk, approved May 15, 2017; NTRS 20170004709)",
        "citation": "Sibonga JD, Pietrzyk R. Evidence Report: Risk of Renal Stone Formation. NASA Human Research Program, approved for public release May 15, 2017. NTRS 20170004709.",
        "url": "https://ntrs.nasa.gov/citations/20170004709"
       }
@@ -254,13 +256,16 @@
     },
     {
      "what": "Kidney stone imaging",
-     "via": "vehicle medical kit ultrasound, with ground guidance",
-     "requirement_id": "V1 3004"
+     "via": "the vehicle's in-mission imaging (ultrasound, if one is carried), with ground guidance",
+     "requirement_id": "V1 3004",
+     "note": "[V1 3004](i) requires in-mission imaging in general. Its examples are cardiac, vascular and ocular imaging; it names neither the kidney nor ultrasound.",
+     "requirement_quote": "Conducting ancillary tests as needed, including imaging (e.g., cardiac, vascular, ocular), laboratory analyses, and electrocardiography."
     },
     {
      "what": "Bone mineral density (DXA)",
      "via": "pre- and post-flight DXA on the ground",
-     "requirement_id": "V1 4026"
+     "requirement_id": "V1 4026",
+     "requirement_quote": "as measured by mass dual energy X-ray absorptiometry (DXA)"
     }
    ],
    "refusals": [
@@ -306,7 +311,7 @@
     }
    ],
    "interpretation": {
-    "text": "This case opened because at least one of your PVT-B lapses, PVT-B median reaction time, sleep duration or sleep midpoint has moved in the worse direction by more than LANDFALL's reliable-change criterion (RCI beyond 3.29) against your own two-week baseline. NASA's Human Research Program describes this risk as performance decrements and adverse health outcomes resulting from sleep loss, circadian desynchronization and work overload, and names work overload, irregular light-dark cycles and sleep-pattern disruptions among the stressors of spaceflight. Short sleep is common in flight: ISS crewmembers averaged 6.09 h a night by actigraphy (Barger et al. 2014). This is not a diagnosis of a sleep disorder.",
+    "text": "This case opened because at least one of your PVT-B lapses, PVT-B median reaction time, sleep duration or sleep midpoint has moved in the worse direction by more than your own day-to-day variation explains: a reliable change on a single-case t-test against your two-week baseline (Crawford & Howell 1998). The test is set so that chance alone would do this about once in 2,000 days for each indicator, if days were independent. NASA's Human Research Program describes this risk as performance decrements and adverse health outcomes resulting from sleep loss, circadian desynchronization and work overload, and names work overload, irregular light-dark cycles and sleep-pattern disruptions among the stressors of spaceflight. Short sleep is common in flight: ISS crewmembers averaged 6.09 h a night by actigraphy (Barger et al. 2014). This is not a diagnosis of a sleep disorder.",
     "citations": [
      {
       "kind": "literature",
@@ -324,6 +329,11 @@
       "kind": "literature",
       "citation": "Barger LK, Flynn-Evans EE, Kubey A, Walsh L, Ronda JM, Wang W, Wright KP Jr, Czeisler CA. Prevalence of sleep deficiency and use of hypnotic drugs in astronauts before, during, and after spaceflight: an observational study. Lancet Neurol 2014;13(9):904-912. doi:10.1016/S1474-4422(14)70122-X. PMID 25127232",
       "url": "https://pubmed.ncbi.nlm.nih.gov/25127232/"
+     },
+     {
+      "kind": "literature",
+      "citation": "Crawford JR, Howell DC. Comparing an individual's test score against norms derived from small samples. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
+      "url": "https://doi.org/10.1076/clin.12.4.482.7241"
      },
      {
       "kind": "literature",
@@ -452,7 +462,8 @@
     {
      "what": "Melanopic light at the eye",
      "via": "vehicle lighting system or a calibrated light meter at the cornea",
-     "requirement_id": "V2 8055"
+     "requirement_id": "V2 8055",
+     "requirement_quote": "The system shall provide the levels of light to support the physiological effects of light"
     }
    ],
    "refusals": [
@@ -616,13 +627,18 @@
      "op": "ge",
      "value": 1000,
      "of_last_n": 3,
-     "at_least": 2
+     "at_least": 2,
+     "by_env": {
+      "mars_surface": {
+       "rule_id": "ops_onboard_proton_s3"
+      }
+     }
     },
     "text": "Reassess at T+6 h; if the >=10 MeV flux is still at or above S3 on 2 of the last 3 readings, stay sheltered, keep logging, and keep the ground packet queued.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "6 h and 2-of-3 are ours (NOAA notes these events can last more than one day). The 1,000 pfu value is NOAA's S3 threshold; at Mars the same value applies through rule ops_onboard_proton_s3."
+     "rationale": "6 h and 2-of-3 are ours (NOAA notes these events can last more than one day). The 1,000 pfu value is NOAA's S3 threshold. Near Earth the tripwire watches rule ops_noaa_s3; at Mars, where NOAA's scale does not apply, by_env switches it to rule ops_onboard_proton_s3 (the same 1,000 pfu on the onboard monitor)."
     }
    },
    "escalation": {
@@ -640,17 +656,20 @@
     {
      "what": "Organ doses in mGy-Eq (blood-forming organs, lens, skin)",
      "via": "vehicle radiation monitoring system and ground radiation analysts",
-     "requirement_id": "V2 6164"
+     "requirement_id": "V2 6164",
+     "requirement_quote": "The radiation monitoring system shall alert the crew and operations teams when radiation exposure rates exceed predefined thresholds."
     },
     {
      "what": "Proton energy spectrum outside the vehicle",
      "via": "in-situ external space weather monitor",
-     "requirement_id": "V2 6165"
+     "requirement_id": "V2 6165",
+     "requirement_quote": "The program shall monitor the in-situ extravehicular space weather environment including the external exposure rates, electron flux spectra, and proton flux spectra."
     },
     {
      "what": "Personal cancer risk (REID)",
      "via": "NASA radiation health officers on the ground",
-     "requirement_id": "V1 4030"
+     "requirement_id": "V1 4030",
+     "requirement_quote": "Individual crewmember REID calculations are calculated using the appropriate NASA Q (based on the NASA cancer model of 2012) sex and age model parameters."
     }
    ],
    "refusals": [

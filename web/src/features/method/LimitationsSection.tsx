@@ -10,7 +10,7 @@ export function LimitationsSection({ personal, thresholds }: { personal: Persona
   const v1 = useSnapshot<Vol1Data>('std_vol1_requirements')
   const v2 = useSnapshot<Vol2Data>('std_vol2_requirements')
   const osdr = useSnapshot<OsdrCmpData>('osdr_cmp')
-  const ourR = personal.indicators.filter((i) => i.reliability_r.chip === 'design choice').length
+  const alerting = personal.indicators.filter((i) => i.alerting).length
   const noInflightDxa = thresholds.rules.some((r) => r.category === 'POL' && (r.notes ?? []).some((n) => /no in-flight DXA/i.test(n)))
   const tailoring = v1.snapshot?.caveats.find((c) => /tailor/i.test(c))
   return (
@@ -21,9 +21,11 @@ export function LimitationsSection({ personal, thresholds }: { personal: Persona
           demo shows clean episodes that real data would blur (sim_crew caveats, section <Num value={5} />).
         </li>
         <li>
-          <strong>Tier B’s printed false-alarm rate is a lower bound,</strong> and <Num value={ourR} /> of{' '}
-          <Num value={personal.indicators.length} /> reliability values r are our own choice, not published for this
-          measurement (section <Num value={3} />).
+          <strong>Tier B’s printed chance rate is a lower bound.</strong> The single-case test gives exactly α per
+          indicator-day only if day-to-day noise is normal and independent; real days are correlated, and counts such as
+          PVT-B lapses are skewed, which push the rate up. <Num value={alerting} /> of{' '}
+          <Num value={personal.indicators.length} /> indicators can alert, and α itself is our design choice (section{' '}
+          <Num value={3} />).
         </li>
         <li>
           <strong>The only real crew chemistry is small and short:</strong> Inspiration4,{' '}

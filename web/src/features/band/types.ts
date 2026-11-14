@@ -36,6 +36,8 @@ export interface ReqRef {
   note?: string
   /** Frozen snapshot in web/public/data whose text contains `quote`; absent = not frozen in this build. */
   snapshot?: string | null
+  /** ISO date the public document behind an unfrozen quote was read (with `url`). */
+  checked?: string
   limits?: Limit[]
 }
 
@@ -56,6 +58,23 @@ export interface Produced {
   how: string
   /** True when the variable is not one of the SPEC 3.3 personal indicators. */
   not_in_spec?: boolean
+  /** Short text for the diagram's "a→" line instead of the variable id. */
+  diagram?: string
+}
+
+/**
+ * A published source outside NASA-STD-3001 that supports a design decision (a review, a regulatory
+ * summary, a NASA concept of operations). Not frozen in this build: `checked` says when it was read.
+ */
+export interface Evidence {
+  /** What the source supports, in one plain sentence. */
+  claim: string
+  /** Verbatim text from the source. */
+  quote: string
+  chip: ChipName
+  source: { kind: 'literature'; citation: string; url: string } | { kind: 'nasa_brief'; doc: string; url: string }
+  /** ISO date the source was read. */
+  checked: string
 }
 
 export interface FeedRef {
@@ -96,9 +115,12 @@ export interface Block {
   rates: Rate[]
   produces: Produced[]
   produces_note?: string
+  /** "Case served" text when the block feeds no case (BOM and detail panel). */
+  serves_note?: string
   feeds: FeedRef[]
   justified_by: ReqRef[]
   design: string[]
+  evidence?: Evidence[]
 }
 
 export interface Bus {
@@ -134,6 +156,7 @@ export interface HandOff {
   /** Further requirements beside the primary one (e.g. [V2 6165] next to [V2 6164]). */
   also?: ReqRef[]
   examples?: { name: string; snapshot: string; text: string }[]
+  evidence?: Evidence[]
   feeds: FeedRef[]
 }
 
@@ -162,6 +185,8 @@ export interface SafetyItem {
   text: string
   chip: ChipName
   snapshot: string | null
+  /** Public copies of the documents in `refs` that are not frozen in this build. */
+  links?: { label: string; url: string }[]
 }
 
 export interface FlownChannel {
@@ -184,7 +209,9 @@ export interface SensorMap {
   mfr_basis: string
   relations: Record<Relation, string>
   gap: { claim: string; detail: string; quote: string; doc: string; ntrs: string; url: string; verified_in: string }
-  flown_reference: { name: string; facts: string[]; basis: string; channels: FlownChannel[] }
+  /** Where the heart signals come from: the continuous optical pulse and the on-demand ECG. */
+  heart: { title: string; points: { block: string; head: string; text: string }[] }
+  flown_reference: { name: string; facts: string[]; basis: string; sources: { label: string; url: string }[]; channels: FlownChannel[] }
   anchors: ReqRef[]
   buses: Bus[]
   blocks: Block[]
@@ -205,4 +232,6 @@ export interface SensorMap {
   safety: SafetyItem[]
   safety_basis: string
   open_items: string[]
+  /** How the build checked its sources: process notes, shown collapsed. */
+  build_notes: string[]
 }

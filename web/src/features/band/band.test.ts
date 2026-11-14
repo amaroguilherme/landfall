@@ -9,10 +9,11 @@ import type { ReqRef, SensorMap, Step } from './types'
 
 const map = rawMap as unknown as SensorMap
 
-const files = import.meta.glob<string>('../../../../hardware/{BOM.csv,sensor-map.md}', { query: '?raw', import: 'default', eager: true })
+const files = import.meta.glob<string>('../../../../hardware/{BOM.csv,sensor-map.md,README.md}', { query: '?raw', import: 'default', eager: true })
+const views = import.meta.glob<string>('./{index,Diagram}.tsx', { query: '?raw', import: 'default', eager: true })
 const rules = import.meta.glob<Record<string, unknown>>('../../../../engine/rules/{personal,thresholds,cases,meta}.json', { eager: true, import: 'default' })
 const snaps = import.meta.glob<Record<string, unknown>>(
-  '../../../public/data/{std_vol1_requirements,std_vol2_requirements,hrp_research,hrp_csa_radiation,hapi_iss_tepc,osdr_cmp,manifest}.json',
+  '../../../public/data/{std_vol1_requirements,std_vol2_requirements,hrp_research,hrp_csa_radiation,hapi_iss_tepc,osdr_cmp,swpc_spe_replay,sim_crew,manifest}.json',
   { eager: true, import: 'default' },
 )
 
@@ -192,21 +193,31 @@ describe('LANDFALL BAND sensor map', () => {
     expect(step(s, 'flash')).toBe((128 * 1024 * 1024) / 8)
     const space = step(s, 'flash') - step(s, 'ecg_ring') - step(s, 'meta')
     expect(step(s, 'space')).toBe(space)
-    expect(step(s, 'rr')).toBe(100 * 1440 * 2)
+    expect(step(s, 'ibi')).toBe(100 * 1440 * 2)
     expect(step(s, 'epochs')).toBe(1440 * 32)
-    expect(step(s, 'daily')).toBe(step(s, 'rr') + step(s, 'epochs'))
+    expect(step(s, 'daily')).toBe(step(s, 'ibi') + step(s, 'epochs'))
     expect(step(s, 'depth')).toBeCloseTo(Math.round((space / step(s, 'daily')) * 10) / 10, 9)
-    expect(step(s, 'raw_rate')).toBe(256 * 3)
-    expect(step(s, 'raw_ring')).toBe(Math.round(step(s, 'ecg_ring') / step(s, 'raw_rate') / 60))
-    expect(step(s, 'raw_all')).toBeCloseTo(Math.round((step(s, 'flash') / step(s, 'raw_rate') / 3600) * 10) / 10, 9)
-    // The log target is one whole RCI baseline window (personal.json).
+    // The log target is one whole Tier B baseline window (personal.json).
     expect(step(s, 'target')).toBe(personal.rci.baseline_window_days)
     expect(step(s, 'depth')).toBeGreaterThanOrEqual(step(s, 'target'))
+    // Raw ECG is kept only for spot checks, at the block's own rate and length.
+    const ecg = map.blocks.find((b) => b.id === 'ecg')
+    const sps = ecg?.rates.find((r) => r.unit === 'sps')?.value ?? NaN
+    const spot = ecg?.rates.find((r) => /spot-check length/i.test(r.what))?.value ?? NaN
+    expect(step(s, 'ecg_rate')).toBe(sps * 3)
+    const ringS = step(s, 'ecg_ring') / step(s, 'ecg_rate')
+    expect(step(s, 'ecg_ring_min')).toBe(Math.round(ringS / 60))
+    expect(step(s, 'spot_checks')).toBe(Math.floor(ringS / spot))
+    // The continuous record is pulse intervals, because the raw optical waveform would fill the flash in a day.
+    const hz = map.blocks.find((b) => b.id === 'ppg')?.rates[0]?.value ?? NaN
+    expect(step(s, 'ppg_rate')).toBe(hz * 3)
+    expect(step(s, 'ppg_all')).toBeCloseTo(Math.round((step(s, 'flash') / step(s, 'ppg_rate') / 3600) * 10) / 10, 9)
+    expect(step(s, 'ppg_all')).toBeLessThan(step(s, 'target') * 24)
   })
 
   it('re-computes the export-cap pitfall arithmetic', () => {
     const cap = map.pitfalls.find((p) => p.id === 'export_cap')?.arithmetic ?? []
-    expect(cap.find((a) => a.label.startsWith('R-R'))?.value).toBeCloseTo(Math.round((65536 / 6000) * 10) / 10, 9)
+    expect(cap.find((a) => a.label.startsWith('Pulse intervals'))?.value).toBeCloseTo(Math.round((65536 / 6000) * 10) / 10, 9)
     expect(cap.find((a) => a.label.startsWith('1-min'))?.value).toBeCloseTo(Math.round((65536 / 1440) * 10) / 10, 9)
   })
 
@@ -311,5 +322,109 @@ describe('LANDFALL BAND sensor map', () => {
     }
     const produced = new Set(map.blocks.flatMap((b) => b.produces.map((p) => p.variable)))
     for (const v of ['urine_volume_24h', 'fluid_intake_24h', 'vo2max', 'career_effective_dose', 'cabin_ppco2']) expect(produced.has(v), v).toBe(false)
+  })
+
+  it('takes heart rate and HRV from the optical pulse, never from a wrist-only ECG', () => {
+    const ppg = map.blocks.find((b) => b.id === 'ppg')
+    const ecg = map.blocks.find((b) => b.id === 'ecg')
+    // Two electrodes on one wrist form no lead across the heart: the ECG produces no indicator and feeds no rule.
+    expect(ecg?.produces.every((p) => p.not_in_spec), 'the ECG produces no Tier B indicator').toBe(true)
+    expect(ecg?.feeds.every((f) => f.kind === 'none'), 'no LANDFALL rule reads the ECG').toBe(true)
+    expect(ecg?.function).toMatch(/other hand/)
+    expect(ecg?.function).toMatch(/spot check/)
+    expect(ecg?.justified_by.some((r) => r.id === 'V1 3004' && r.item === 'i' && /electrocardiography/.test(r.quote))).toBe(true)
+    // The PPG is the heart-rate source, and says that its variability is pulse-rate variability.
+    const ppgVars = ppg?.produces.map((p) => p.variable) ?? []
+    for (const v of ['resting_hr', 'hrv_sdnn', 'heart_rate']) expect(ppgVars, v).toContain(v)
+    const hrv = ppg?.produces.find((p) => p.variable === 'hrv_sdnn')
+    expect(`${hrv?.label} ${hrv?.how}`).toMatch(/PRV/)
+    expect(hrv?.how).toMatch(/approximation of HRV/)
+    expect(ppg?.rates[0]?.what).toMatch(/continuous/)
+    // Each heart indicator has exactly one source block.
+    for (const v of ['resting_hr', 'hrv_sdnn', 'heart_rate']) expect(map.blocks.filter((b) => b.produces.some((p) => p.variable === v)).map((b) => b.id), v).toEqual(['ppg'])
+    expect(map.heart.points.map((h) => h.block)).toEqual(['ppg', 'ecg'])
+  })
+
+  it('produces every scenario variable the simulation attributes to the band', () => {
+    const sim = pick(snaps, 'sim_crew.json') as { data: { variables: Record<string, { source: string; unit: string }> } }
+    const produced = new Map(map.blocks.flatMap((b) => b.produces.map((p) => [p.variable, p] as const)))
+    const bandVars = Object.entries(sim.data.variables).filter(([, v]) => v.source === 'band')
+    expect(bandVars.length).toBeGreaterThan(0)
+    for (const [id, v] of bandVars) {
+      expect(produced.has(id), `${id} (source band) is produced by a band block`).toBe(true)
+      expect(produced.get(id)?.unit, `${id} unit`).toBe(v.unit)
+    }
+  })
+
+  it('cites every published basis outside the standard in full, with a chip and the date it was read', () => {
+    const all = [...map.blocks.flatMap((b) => b.evidence ?? []), ...map.not_measurable_here.flatMap((h) => h.evidence ?? [])]
+    expect(all.length).toBeGreaterThanOrEqual(3)
+    for (const e of all) {
+      expect(CHIPS, e.claim).toContain(e.chip)
+      expect(e.source.url, e.claim).toMatch(/^https:\/\//)
+      expect(e.checked, e.claim).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+      expect(e.quote.length, e.claim).toBeGreaterThan(20)
+      expect(e.source.kind === 'literature' ? e.source.citation : e.source.doc, e.claim).toMatch(/\d{4}/)
+    }
+    // Every quoted document that is not frozen here names its public copy and the date it was read.
+    for (const r of allReqRefs().filter((x) => !x.snapshot)) {
+      expect(r.url, r.id).toMatch(/^https:\/\//)
+      expect(r.checked, r.id).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    }
+    for (const s of map.safety.filter((x) => !x.snapshot)) expect(s.links?.length, s.id).toBeGreaterThan(0)
+    for (const s of map.flown_reference.sources) expect(s.url, s.label).toMatch(/^https:\/\//)
+  })
+
+  it('scopes its negative claims and keeps process notes out of the judge-facing text', () => {
+    // "NASA publishes no ..." is never said unscoped: each negative names the document that was searched.
+    for (const text of [map.gap.claim, ...map.negatives.map((n) => n.claim)]) expect(text, text).not.toMatch(/NASA publishes no/i)
+    expect(map.gap.claim).toMatch(/assumes the crew wears biosensors and specifies none/)
+    for (const n of map.negatives) expect(n.claim, n.id).toMatch(/Vol 2 Rev F/)
+    // The private plan, the build machine and memory are never cited; process notes live in build_notes.
+    const banned = /PLANO|build machine|from memory|project preparation/i
+    const { build_notes: notes, ...facing } = map
+    expect(JSON.stringify(facing)).not.toMatch(banned)
+    expect(notes.join(' ')).not.toMatch(banned)
+    expect(pick(files, 'README.md')).not.toMatch(banned)
+    expect(pick(files, 'sensor-map.md')).not.toMatch(banned)
+    for (const [name, src] of Object.entries(views)) expect(src, name).not.toMatch(banned)
+    // Headings name the document they searched, too.
+    const unscoped = /What NASA does not publish|NASA publishes no/
+    expect(pick(files, 'sensor-map.md')).not.toMatch(unscoped)
+    for (const [name, src] of Object.entries(views)) expect(src, name).not.toMatch(unscoped)
+  })
+
+  it('hands the radiation alarm to the vehicle and the proton flux to an external monitor (the band measures neither)', () => {
+    const rad = map.not_measurable_here.find((h) => h.id === 'radiation')
+    expect(rad?.via).toMatch(/alarm/)
+    expect(rad?.via).toMatch(/external space-weather monitor/)
+    expect(rad?.why).toMatch(/LANDFALL is not the radiation alarm/)
+    expect(rad?.why).toMatch(/no distance or atmospheric correction/)
+    const conops = rad?.evidence?.find((e) => e.source.url.includes('20200001715'))
+    expect(conops?.quote).toMatch(/annunciates alarms to warn the crew and the medical system/)
+    const goes = rad?.examples?.find((e) => e.snapshot === 'swpc_spe_replay')
+    expect(goes?.name).toMatch(/GOES-7/)
+  })
+
+  it('hands blood pressure and glucose to the medical kit, entered by hand', () => {
+    const bp = map.not_measurable_here.find((h) => h.id === 'bp')
+    expect(bp?.source).toBe('manual')
+    expect(bp?.what).toMatch(/Blood pressure/)
+    expect(bp?.what).toMatch(/glucose/)
+    expect(bp?.via).toMatch(/cuff/)
+    expect(bp?.via).toMatch(/glucometer/)
+    expect(bp?.why).toMatch(/NASA-STD-3001 sets no numeric limit for either/)
+    for (const id of ['bp_systolic', 'bp_diastolic', 'glucose']) expect(bp?.feeds.some((f) => f.kind === 'personal' && f.id === id), id).toBe(true)
+  })
+
+  it("agrees with personal.json on which device measures each indicator", () => {
+    const produced = new Set(map.blocks.flatMap((b) => b.produces.map((p) => p.variable)))
+    const manual = new Set(map.not_measurable_here.filter((h) => h.source === 'manual').flatMap((h) => h.feeds.filter((f) => f.kind === 'personal').map((f) => f.id)))
+    const inds = personal.indicators as { id: string; variable: string; device?: string }[]
+    for (const i of inds) {
+      if (i.device === 'band') expect(produced.has(i.variable), `${i.id}: device band, produced by a band block`).toBe(true)
+      else expect(produced.has(i.variable), `${i.id}: device ${i.device}, not produced by the band`).toBe(false)
+      if (i.device === 'manual') expect(manual.has(i.id), `${i.id}: device manual, fed by a manual hand-off`).toBe(true)
+    }
   })
 })

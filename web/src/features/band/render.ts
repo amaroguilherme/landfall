@@ -2,7 +2,7 @@
 // generated from hardware/sensor-map.json with these functions (hardware/generate.mjs), and
 // band.test.ts asserts the committed files equal a fresh render. No imports with runtime
 // effects: Node runs this file directly with type stripping.
-import type { Block, FeedRef, ReqRef, SensorMap, Step } from './types.ts'
+import type { Block, Evidence, FeedRef, ReqRef, SensorMap, Step } from './types.ts'
 
 /** "[V1 3004](h)", "[V2 9023]", "JSC-20793 Rev D", "Standard Measures". */
 export function reqLabel(ref: Pick<ReqRef, 'id' | 'item'>): string {
@@ -35,8 +35,15 @@ export function interfaceLabel(map: SensorMap, block: Block): string {
 export function casesServed(block: Block): string {
   const cases = [...new Set(block.feeds.filter((f) => f.kind === 'case').map((f) => f.id))]
   if (cases.length) return cases.join('; ')
+  if (block.serves_note) return block.serves_note
   if (block.group === 'sensor') return 'none directly (context and backup)'
   return 'all (infrastructure)'
+}
+
+/** "literature: Schäfer A, ... (read 2026-11-14)": one published source outside the standard. */
+export function evidenceCitation(e: Evidence): string {
+  const who = e.source.kind === 'literature' ? e.source.citation : e.source.doc
+  return `${who}, ${e.source.url} (read ${e.checked}; not frozen in this build)`
 }
 
 export function feedLabel(f: FeedRef): string {
@@ -85,9 +92,15 @@ function stepLine(s: Step): string {
 }
 
 function reqLine(r: ReqRef): string {
-  const where = r.snapshot ? `frozen in ${code(r.snapshot)}` : 'not frozen in this build'
+  const where = r.snapshot
+    ? `frozen in ${code(r.snapshot)}`
+    : `not frozen in this build${r.url ? `; public copy ${r.url}` : ''}${r.checked ? `, read ${r.checked}` : ''}`
   const extra = [r.why, r.note].filter(Boolean).join(' ')
   return `- ${code(reqLabel(r))} (${RELATION_SHORT[r.relation] ?? r.relation}; ${where}): "${r.quote}"${extra ? ` ${extra}` : ''}`
+}
+
+function evidenceLines(list: Evidence[] | undefined): string[] {
+  return (list ?? []).map((e) => `- ${e.claim} "${e.quote}" (chip: ${e.chip}) ${evidenceCitation(e)}.`)
 }
 
 export function renderMarkdown(map: SensorMap): string {
@@ -105,7 +118,11 @@ export function renderMarkdown(map: SensorMap): string {
     '',
     map.principle,
     '',
-    `**The gap.** ${map.gap.claim} ${map.gap.detail} Quote: "${map.gap.quote}" (${map.gap.doc}, NTRS ${map.gap.ntrs}, ${map.gap.url}).`,
+    `**The gap.** ${map.gap.claim} ${map.gap.detail} Quote: "${map.gap.quote}" (${map.gap.doc}, NTRS ${map.gap.ntrs}, ${map.gap.url}; ${map.gap.verified_in}).`,
+    '',
+    `## ${map.heart.title}`,
+    '',
+    ...map.heart.points.map((h) => `- **${h.head}** (${code(h.block)}). ${h.text}`),
     '',
     '## Blocks and their three labels',
     '',
@@ -152,6 +169,7 @@ export function renderMarkdown(map: SensorMap): string {
       p('', 'Design notes:')
       for (const d of b.design) p(`- ${d}`)
     }
+    if (b.evidence?.length) p('', 'Published basis (not a NASA requirement):', ...evidenceLines(b.evidence))
     p('')
   }
 
@@ -166,9 +184,10 @@ export function renderMarkdown(map: SensorMap): string {
   p('')
   for (const h of map.not_measurable_here) {
     const reqs = [h.requirement, ...(h.also ?? [])].filter((r): r is ReqRef => Boolean(r))
-    if (!reqs.length) continue
+    if (!reqs.length && !h.evidence?.length) continue
     p(`${h.what}:`)
     for (const r of reqs) p(reqLine(r))
+    p(...evidenceLines(h.evidence))
     p('')
   }
 
@@ -184,14 +203,16 @@ export function renderMarkdown(map: SensorMap): string {
   p('| Step | Value | Chip | Arithmetic or rationale |', '|---|---|---|---|')
   for (const s of map.log.steps) p(stepLine(s))
 
-  p('', '## What NASA does not publish (declared on the drawing)', '')
+  p('', '## What NASA-STD-3001 Vol 2 Rev F does not require (declared on the drawing)', '')
   for (const n of map.negatives) {
     p(`- **${n.claim}** ${n.detail} Evidence: ${code(n.pattern)} gives ${n.hits} hit${n.hits === 1 ? '' : 's'} across Vol 2 Rev F (${code(n.snapshot)}).`)
   }
 
   p('', `## Flown reference: ${map.flown_reference.name}`, '')
   for (const f of map.flown_reference.facts) p(`- ${f}`)
-  p('', `Basis: ${map.flown_reference.basis}`, '', '| Channel | Rate | Resolution |', '|---|---|---|')
+  p('', `Basis: ${map.flown_reference.basis}`, '')
+  for (const s of map.flown_reference.sources) p(`- ${s.label}: ${s.url}`)
+  p('', '| Channel | Rate | Resolution |', '|---|---|---|')
   for (const c of map.flown_reference.channels) p(`| ${md(c.channel)} | ${code(c.rate_text ?? `${c.rate_hz} Hz`)} | ${md(c.resolution || '-')} |`)
 
   p('', '## Bio-Monitor pitfalls (credibility notes)', '', `Basis: ${map.pitfalls_basis}`, '')
@@ -202,9 +223,14 @@ export function renderMarkdown(map: SensorMap): string {
 
   p('', '## Safety constraints', '', `Basis: ${map.safety_basis}`, '', '| Topic | Reference | Constraint | Chip |', '|---|---|---|---|')
   for (const s of map.safety) p(`| ${md(s.topic)} | ${s.refs.map(code).join(', ')} | ${md(s.text)} | ${s.chip} |`)
+  const links = map.safety.flatMap((s) => s.links ?? [])
+  if (links.length) p('', 'Public copies of the documents not frozen in this build:', ...links.map((l) => `- ${l.label}: ${l.url}`))
 
   p('', '## Open items', '')
   for (const o of map.open_items) p(`- ${o}`)
+
+  p('', '## Build notes', '', 'How this build checked its sources (process notes, collapsed on the page).', '')
+  for (const n of map.build_notes) p(`- ${n}`)
   p('')
   return out.join('\n')
 }

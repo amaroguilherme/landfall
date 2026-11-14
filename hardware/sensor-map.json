@@ -6,11 +6,11 @@
   "status": {
     "level": "concept",
     "text": "Block-level concept. No schematic capture, no PCB, never built, never bench-tested. Every current, rate and size here is a design estimate unless its chip says otherwise.",
-    "why_no_schematic": "KiCad was not available during the hackathon, so the plan's pre-agreed fallback (annotated block diagram plus BOM) is the deliverable."
+    "why_no_schematic": "KiCad was not available during the hackathon, so the deliverable is an annotated block diagram and a reference bill of materials."
   },
   "principle": "The band measures what a wearable can measure. Everything else reaches LANDFALL through a documented interface, drawn as NOT MEASURABLE HERE. It is the same discipline as the software: no number without a source, no measurement without a sensor.",
   "label_rule": "Every block carries three labels: (a) the indicator it produces, (b) the LANDFALL rule, baseline or case it feeds, and (c) the NASA requirement that justifies or constrains it.",
-  "mfr_basis": "Manufacturer specs are quoted only where the manufacturer's own page or datasheet was read for this build (2026-11-14); each block names its source and says whether it was read. analog.com and st.com did not answer automated requests from the build machine, so the MAX30003, MAX86141, MAX30208, MAX17048 and LSM6DSOX claims written in preparation were removed, not kept from memory. Their datasheet URLs are listed so a reviewer can check them.",
+  "mfr_basis": "Manufacturer specs are quoted only where the manufacturer's own page or datasheet was read for this build (2026-11-14); each block names its source and says whether it was read. The datasheets of five parts (MAX30003, MAX86141, MAX30208, MAX17048, LSM6DSOX) could not be retrieved, so no manufacturer claim is quoted for them: what the design assumes of each part is an open item, and their datasheet URLs are listed for a reviewer.",
   "relations": {
     "direct": "requires this function",
     "constraint": "limits how this block may be built",
@@ -19,23 +19,45 @@
     "reference": "NASA page that names the measurement (not a requirement)"
   },
   "gap": {
-    "claim": "NASA publishes no minimum sensor set for exploration missions.",
-    "detail": "The ExMC medical system concept of operations for Mars assumes the crew wears biosensors and defines a Crew Health and Performance Data System, but gives no sensor list, no sampling rates and no specifications. Seven distinct NTRS API queries found nothing that does. The band is one concrete, citable answer to a question NASA has left open.",
+    "claim": "No operational wearable sensor specification: the ExMC Mars medical concept of operations assumes the crew wears biosensors and specifies none.",
+    "detail": "Its emergency-care scenario assumes \"All crewmembers are wearing biosensors\", and its narratives warn that \"Specific technologies are only representative and are not intended to indicate requirements\": no sensor, sampling rate or performance is given. NASA-STD-3001 Vol 2 Rev F has no wearable or biosensor requirement (declared below). NASA's Spaceflight Standard Measures is a research study that collects \"a standardized set of measurements\", including activity and light from a wrist sensor; it is not an operational sensor specification. The band is one concrete, cited proposal for that gap.",
     "quote": "All crewmembers are wearing biosensors",
-    "doc": "NASA Exploration Medical Capability. Medical System Concept of Operations for Mars Exploration Mission-11",
+    "doc": "Urbina M, McGuire K, Lehnhardt K, Fleming N. Medical System Concept of Operations for Mars Exploration Mission-11. NASA HRP Exploration Medical Capability (ExMC) Element, HRP-48021, Baseline April 2019",
     "ntrs": "20200001715",
     "url": "https://ntrs.nasa.gov/citations/20200001715",
-    "verified_in": "project preparation (PLANO section 1.5); the PDF is not frozen in this build"
+    "verified_in": "the NTRS full text, read 2026-11-14; not frozen in this build"
+  },
+  "heart": {
+    "title": "Heart signals: one continuous, one on demand",
+    "points": [
+      {
+        "block": "ppg", "head": "Continuous: optical pulse (PPG)",
+        "text": "The optical sensor under the band reads the pulse around the clock. Its pulse inter-beat intervals give heart rate and, in sleep, the resting heart rate and the variability indicator. Variability computed from pulse intervals is pulse-rate variability (PRV), an approximation of heart-rate variability (HRV): close at rest, poor in motion, so the band computes it only in low-motion sleep."
+      },
+      {
+        "block": "ecg", "head": "On demand: single-lead ECG",
+        "text": "An ECG needs a lead across the heart, and two electrodes on one wrist cannot form one. The band's ECG records only while a finger of the other hand touches its outer electrode, which closes an arm-to-arm lead like limb lead I, for a 30-s strip. It cannot run while the band is simply worn, so no indicator comes from it."
+      }
+    ]
   },
   "flown_reference": {
     "name": "CSA Bio-Monitor (Hexoskin Astroskin)",
     "facts": [
-      "On the ISS since December 2018; first 48-h session by CSA astronaut David Saint-Jacques (ISS Daily Summary, 2019-02-28).",
-      "Validated in HERA Campaign 3, TRL 5 to 6 (NTRS 20190001996).",
-      "48 h autonomy on 2 rechargeable AA cells, 400+ h of raw local storage, Bluetooth 2.1, 62 × 78 × 23 mm, 75 g.",
-      "Exports EDF, CSV, JSON and binary RIFF/WAV; time base 1/256 s."
+      "A garment, not a wristband: NASA's ISS report calls the Bio-Monitor \"a wearable garment capable of monitoring relevant physiological parameters for up to 48 hours\"; CSA astronaut David Saint-Jacques' 48-hour recording session was debriefed on 2019-02-28.",
+      "Astroskin \"consists of a shirt-based garment and headband with embedded sensors\", among them a 3-lead ECG in the shirt.",
+      "Tested in NASA's HERA Campaign 3 (four 30-day missions, 16 crewmembers), a test that \"will elevate the TRL from 5 to 6\".",
+      "Recorder: two replaceable AA batteries for 48 hours of autonomy, 400+ hours of local raw data storage, Bluetooth 2.1, 62 × 78 × 23 mm, 75 g without batteries.",
+      "Exports JSON, CSV, EDF and binary (synchronous channels as RIFF/WAV); timestamps count 256ths of a second."
     ],
-    "basis": "Transcribed in the project plan (PLANO section 1.5) from the product's datatype registry. Not re-verified in this build.",
+    "basis": "Read on 2026-11-14 in the public sources listed with it; not frozen in this build.",
+    "sources": [
+      { "label": "NASA, ISS Daily Summary Report, 2019-02-28 (Bio-Monitor)", "url": "https://blogs.nasa.gov/stationreport/2019/02/28/iss-daily-summary-report-2-28-2019/" },
+      { "label": "Toscano W, Cowings P, Sullivan P, et al. Wearable Biosensor Monitor to Support Autonomous Crew Health and Readiness to Perform. NASA HRP Investigators' Workshop, 2017. NTRS 20190001996", "url": "https://ntrs.nasa.gov/citations/20190001996" },
+      { "label": "Hexoskin, Astroskin Device (product page)", "url": "https://hexoskin.com/products/astroskin-device" },
+      { "label": "Hexoskin API documentation, datatype registry (channel rates, PTT, Nonin delay)", "url": "https://api.hexoskin.com/docs/resource/datatype/" },
+      { "label": "Hexoskin API documentation, data resource (export formats, 65,536-value cap)", "url": "https://api.hexoskin.com/docs/resource/data/" },
+      { "label": "Hexoskin API documentation (timestamps in 256ths of a second)", "url": "https://api.hexoskin.com/docs/" }
+    ],
     "channels": [
       { "id": "ecg", "channel": "ECG, 1 to 3 leads", "rate_hz": 256, "resolution": "12 bit, LSB 6.4 µV, 26 mV range, band-pass 1.6-33.9 Hz" },
       { "id": "rip", "channel": "Respiration (RIP, thoracic + abdominal bands)", "rate_hz": 128, "resolution": "16 bit, about 8 mL volumetric" },
@@ -43,7 +65,7 @@
       { "id": "ppg", "channel": "PPG (Nonin)", "rate_hz": 64, "resolution": "" },
       { "id": "spo2", "channel": "SpO2", "rate_hz": 1, "resolution": "1 %" },
       { "id": "skin_temp", "channel": "Skin temperature, 2 channels", "rate_hz": 1, "resolution": "" },
-      { "id": "hrv", "channel": "HRV (LF, HF, SDNN)", "rate_hz": 0.0033333333333333335, "rate_text": "1/300 Hz", "resolution": "Lomb periodogram over 300 s" },
+      { "id": "hrv", "channel": "HRV (LF, HF, SDNN)", "rate_hz": 0.0033333333333333335, "rate_text": "1/300 Hz", "resolution": "over the last 300 s (LF and HF by Lomb periodogram)" },
       { "id": "bp", "channel": "Systolic blood pressure (PTT-derived)", "rate_hz": 1, "resolution": "1 mmHg, 60-260 mmHg" }
     ]
   },
@@ -63,7 +85,7 @@
     {
       "id": "V2 7045", "doc": "NASA-STD-3001 Vol. 2 Rev. F", "section": "7.5.2", "relation": "direct",
       "quote": "Medical equipment shall be usable by non-physician crewmembers in the event that a physician crewmember is not present or is the one who requires medical treatment.",
-      "why": "No settings to tune: the band has no screen and no calibration step; the crew wears it, docks it to charge, and LANDFALL does the rest.",
+      "why": "No settings to tune: the band has no screen and no calibration step. The crew wears it and docks it to charge; the only action it asks for is an ECG spot check, one finger on the outer electrode for 30 s.",
       "snapshot": "std_vol2_requirements"
     },
     {
@@ -81,7 +103,7 @@
     }
   ],
   "buses": [
-    { "id": "spi", "label": "SPI", "detail": "SPI, one chip select per AFE", "members": ["ecg", "ppg"] },
+    { "id": "spi", "label": "SPI", "detail": "SPI, one chip select per AFE", "members": ["ppg", "ecg"] },
     { "id": "i2c_a", "label": "I2C-A", "detail": "I2C bus A, 400 kHz", "members": ["light", "temp", "imu", "gauge"] },
     { "id": "i2c_b", "label": "I2C-B", "detail": "I2C bus B: second skin sensor on its own bus, so the two identical parts never contend for one address", "members": ["temp"] },
     { "id": "qspi", "label": "QSPI", "detail": "Quad SPI to the log flash", "members": ["flash"] },
@@ -89,72 +111,35 @@
   ],
   "blocks": [
     {
-      "id": "ecg", "group": "sensor", "part": "MAX30003", "qty": 1, "manufacturer": "Analog Devices (Maxim Integrated)",
-      "name": "ECG AFE",
-      "function": "Single-lead ECG front end, read over two dry electrodes on the inner face of the band. The band keeps R-R intervals, not waveforms.",
-      "interface": "spi",
-      "mfr_spec": [],
-      "datasheet": { "url": "https://www.analog.com/media/en/technical-documentation/data-sheets/max30003.pdf", "product_page": "https://www.analog.com/en/products/max30003.html", "status": "not_retrieved", "checked": "2026-11-14",
-        "note": "analog.com did not answer automated requests from the build machine. Sample width, on-chip R-R detection and the 256 sps setting are unverified, so none is claimed here." },
-      "rates": [
-        { "what": "ECG", "value": 256, "unit": "sps", "chip": "derived", "basis": "flown hardware",
-          "source": { "kind": "derived", "from": ["flown_reference.ecg"], "arithmetic": "Bio-Monitor ECG 256 Hz, kept at 256 sps" } },
-        { "what": "HRV window", "value": 300, "unit": "s", "chip": "derived", "basis": "flown hardware",
-          "source": { "kind": "derived", "from": ["flown_reference.hrv"], "arithmetic": "Bio-Monitor HRV over 300 s, kept at 300 s (5-min windows)" } }
-      ],
-      "produces": [
-        { "variable": "resting_hr", "label": "Resting heart rate", "unit": "bpm", "how": "lowest stable 5-min heart rate in the main sleep period, from R-R intervals" },
-        { "variable": "hrv_sdnn", "label": "Heart rate variability (SDNN)", "unit": "ms", "how": "SDNN of normal-to-normal intervals over 5-min windows in sleep" }
-      ],
-      "feeds": [
-        { "kind": "personal", "id": "resting_hr", "as": "reliable change vs own baseline" },
-        { "kind": "personal", "id": "hrv_sdnn", "as": "reliable change vs own baseline" },
-        { "kind": "case", "id": "sleep_circadian", "as": "ground packet" },
-        { "kind": "case", "id": "renal_stone", "as": "ground packet (resting HR)" }
-      ],
-      "justified_by": [
-        { "id": "V1 3004", "item": "h", "relation": "direct", "snapshot": "std_vol1_requirements",
-          "quote": "Assessing, recording, monitoring, and trending vital signs and additional physiological and behavioral health signs." },
-        { "id": "V2 11023", "relation": "analogy", "snapshot": "std_vol2_requirements",
-          "quote": "Derived body core temperature and heart rhythm (real-time) are desired for microgravity operations",
-          "note": "From the rationale; written for suits." },
-        { "id": "V2 9023", "relation": "constraint", "snapshot": "std_vol2_requirements",
-          "quote": "For equipment such as bioinstrumentation and medical devices, that are specifically designed to contact the human body, electrical leakage currents caused by contact with exposed surfaces (including in worst-case fault scenarios) shall be kept below the levels specified in Table 9.3-11",
-          "note": "Table 9.3-11 splits body contact into External and Internal. The electrodes touch intact skin only, so LANDFALL reads the External rows (our reading: the table does not name wrist devices). Isolated and non-isolated equipment share the External values, and the rationale says the sum of all leakage currents is what counts. General body-current limits for any equipment are [V2 9019] to [V2 9021] (see Safety constraints).",
-          "limits": [
-            { "what": "Leakage, External body contact, DC to 1 kHz, normal condition", "value": 0.1, "unit": "mA", "chip": "NASA-published", "table": "Table 9.3-11" },
-            { "what": "Leakage, External body contact, DC to 1 kHz, single fault", "value": 0.5, "unit": "mA", "chip": "NASA-published", "table": "Table 9.3-11" }
-          ] }
-      ],
-      "design": [
-        "R-R intervals, not waveforms, are logged: the whole flash would hold only about 6 h of raw ECG (see the log arithmetic).",
-        "Worn around the clock, so the Table 9.3-11 footnote applies: \"*For DC, there is a small risk of heating and tissue necrosis for prolonged duration of contact.\" Any DC lead-bias or lead-off current must be checked against it (open item).",
-        "The band does not estimate blood pressure from ECG-to-PPG transit time (see the Bio-Monitor pitfalls)."
-      ]
-    },
-    {
       "id": "ppg", "group": "sensor", "part": "MAX86141", "qty": 1, "manufacturer": "Analog Devices (Maxim Integrated)",
-      "name": "PPG / SpO2 AFE",
-      "function": "Optical front end for pulse and SpO2 spot windows: red and infrared LEDs and a photodiode under a window on the inner face.",
+      "name": "Optical pulse (PPG): HR, PRV, SpO2",
+      "function": "Optical front end and the band's heart-rate source: red and infrared LEDs and a photodiode under a window on the inner face. The infrared pulse channel runs around the clock, and its pulse inter-beat intervals give heart rate and, in sleep, pulse-rate variability. Red and infrared together give SpO2 in spot windows.",
       "interface": "spi",
       "mfr_spec": [],
       "datasheet": { "url": "https://www.analog.com/media/en/technical-documentation/data-sheets/max86140-max86141.pdf", "product_page": "https://www.analog.com/en/products/max86141.html", "status": "not_retrieved", "checked": "2026-11-14",
-        "note": "analog.com did not answer automated requests from the build machine. The number of optical channels and LED drivers is unverified, so none is claimed here." },
+        "note": "Not retrieved for this build. The number of optical channels and LED drivers is unverified, so none is claimed here." },
       "rates": [
-        { "what": "PPG while active", "value": 64, "unit": "Hz", "chip": "derived", "basis": "flown hardware",
+        { "what": "Pulse channel (infrared), continuous", "value": 64, "unit": "Hz", "chip": "derived", "basis": "flown hardware",
           "source": { "kind": "derived", "from": ["flown_reference.ppg"], "arithmetic": "Bio-Monitor PPG 64 Hz, kept at 64 Hz" } },
+        { "what": "PRV window, in sleep", "value": 300, "unit": "s", "chip": "derived", "basis": "flown hardware",
+          "source": { "kind": "derived", "from": ["flown_reference.hrv"], "arithmetic": "Bio-Monitor HRV over 300 s, kept at 300 s (5-min windows)" } },
         { "what": "SpO2 output", "value": 1, "unit": "Hz", "chip": "derived", "basis": "flown hardware",
           "source": { "kind": "derived", "from": ["flown_reference.spo2"], "arithmetic": "Bio-Monitor SpO2 1 Hz, kept at 1 Hz" } },
-        { "what": "Spot window", "value": 60, "unit": "s every 10 min", "chip": "design choice",
-          "source": { "kind": "design_choice", "rationale": "LED current dominates the power budget; ECG already gives heart rate, so the optical channel runs in windows (10 % duty)." } }
+        { "what": "SpO2 window", "value": 60, "unit": "s every 10 min", "chip": "design choice",
+          "source": { "kind": "design_choice", "rationale": "LED current dominates the power budget, so only the infrared pulse channel runs continuously; the red LED joins it for SpO2 in windows (10 % duty)." } }
       ],
       "produces": [
-        { "variable": "spo2", "label": "SpO2 (spot windows)", "unit": "%", "how": "recorded and shown as context; no LANDFALL rule uses it", "not_in_spec": true },
-        { "variable": "resting_hr", "label": "Pulse rate (backup)", "unit": "bpm", "how": "backup source for resting heart rate when ECG electrode contact is lost" }
+        { "variable": "resting_hr", "label": "Resting heart rate", "unit": "bpm", "how": "lowest stable 5-min heart rate in the main sleep period, from pulse inter-beat intervals" },
+        { "variable": "hrv_sdnn", "label": "Heart rate variability (SDNN), measured as PRV", "unit": "ms", "how": "SDNN of pulse inter-beat intervals in 5-min windows of low-motion sleep, averaged over the night: pulse-rate variability (PRV), an approximation of HRV, not ECG-derived HRV" },
+        { "variable": "heart_rate", "label": "Heart rate, 1-min means", "unit": "bpm", "how": "mean pulse rate in each 1-min epoch, around the clock; shown on Trends as context, and no rule reads it", "not_in_spec": true },
+        { "variable": "spo2", "label": "SpO2 (spot windows)", "unit": "%", "how": "recorded and shown as context; no LANDFALL rule uses it", "not_in_spec": true }
       ],
       "feeds": [
-        { "kind": "personal", "id": "resting_hr", "as": "backup source only" },
-        { "kind": "none", "id": "spo2", "as": "NASA publishes no in-flight SpO2 limit, and LANDFALL does not invent one" }
+        { "kind": "personal", "id": "resting_hr", "as": "reliable change vs own baseline" },
+        { "kind": "personal", "id": "hrv_sdnn", "as": "reliable change vs own baseline: PRV against a PRV baseline" },
+        { "kind": "case", "id": "sleep_circadian", "as": "ground packet (resting HR, PRV)" },
+        { "kind": "case", "id": "renal_stone", "as": "ground packet (resting HR)" },
+        { "kind": "none", "id": "spo2", "as": "NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew health; its alert requirements leave the number to the program. LANDFALL invents none for SpO2" }
       ],
       "justified_by": [
         { "id": "V1 3004", "item": "h", "relation": "direct", "snapshot": "std_vol1_requirements",
@@ -164,13 +149,74 @@
           "note": "The optical window is not an electrode, but the band as a whole is bioinstrumentation on intact skin, so its total leakage is held to the External rows of Table 9.3-11 (see the ECG block)." },
         { "id": "V2 9103", "relation": "constraint", "snapshot": "std_vol2_requirements",
           "quote": "Any surface to which the bare skin of the crew is exposed shall not cause skin temperature to enter the range for pain/injury in Table 9.3-5",
+          "note": "The pulse LED runs around the clock against the skin, so this limit applies all day, not only in spot windows.",
           "limits": [
             { "what": "Pain range starts at", "value": 43, "unit": "°C", "chip": "NASA-published", "table": "Table 9.3-5" },
             { "what": "LED cut-off at skin-side sensor", "value": 41, "unit": "°C", "chip": "design choice", "rationale": "2 °C below the start of the Table 9.3-5 pain range; read from the skin temperature sensors." }
           ] }
       ],
       "design": [
+        "Pulse-rate variability is not heart-rate variability: pulse intervals also carry the beat-to-beat variation of the pulse's travel time from heart to wrist. So the band computes hrv_sdnn only in low-motion sleep, labels it PRV, and Tier B compares it only with the crewmember's own PRV baseline, never with ECG-derived norms (see the published basis).",
+        "Pulse intervals are kept only from epochs the accelerometer scores as low-motion. Daytime heart rate in motion is a trend for Trends, not an indicator.",
+        "Timing resolution: at 64 Hz one sample is 15.6 ms, so peak-time quantization adds an interval error of 15.625 / √6 = 6.4 ms (SD). On an illustrative SDNN of 50 ms that gives √(50² + 6.4²) = 50.4 ms, a 0.4 ms bias that is the same in the crewmember's own baseline; peak interpolation shrinks it further.",
         "Each sample is timestamped at acquisition on the MCU clock and the AFE's fixed pipeline delay is written in the log header, never assumed to be zero (see the Nonin 172 ms pitfall)."
+      ],
+      "evidence": [
+        { "claim": "PRV is an acceptable estimate of HRV at rest, but not in motion.",
+          "quote": "Results speak in favor of sufficient accuracy when subjects are at rest, although many studies suggest that short-term variability is somewhat overestimated by PRV, which reflects coupling effects between respiration and the cardiovascular system. Physical activity and some mental stressors seem to impair the agreement of PRV and HRV, often to an inacceptable extent.",
+          "chip": "literature",
+          "source": { "kind": "literature", "citation": "Schäfer A, Vagedes J. How accurate is pulse rate variability as an estimate of heart rate variability? A review on studies comparing photoplethysmographic technology with an electrocardiogram. Int J Cardiol 2013;166(1):15-29. doi:10.1016/j.ijcard.2012.03.119. PMID 22809539", "url": "https://pubmed.ncbi.nlm.nih.gov/22809539/" },
+          "checked": "2026-11-14" }
+      ]
+    },
+    {
+      "id": "ecg", "group": "sensor", "part": "MAX30003", "qty": 1, "manufacturer": "Analog Devices (Maxim Integrated)",
+      "name": "Spot ECG: finger of other hand",
+      "function": "Single-lead ECG front end for an on-demand spot check. One dry electrode on the inner face rests on the wrist; a second on the outer face is touched by a finger of the other hand, which closes a lead from one arm to the other, across the chest, like limb lead I. Two electrodes on one wrist have no lead across the heart, so the ECG records only during a spot check, never while the band is simply worn.",
+      "interface": "spi",
+      "mfr_spec": [],
+      "datasheet": { "url": "https://www.analog.com/media/en/technical-documentation/data-sheets/max30003.pdf", "product_page": "https://www.analog.com/en/products/max30003.html", "status": "not_retrieved", "checked": "2026-11-14",
+        "note": "Not retrieved for this build. Sample width, on-chip R-R detection and the 256 sps setting are unverified, so none is claimed here." },
+      "rates": [
+        { "what": "ECG, during a spot check", "value": 256, "unit": "sps", "chip": "derived", "basis": "flown hardware",
+          "source": { "kind": "derived", "from": ["flown_reference.ecg"], "arithmetic": "Bio-Monitor ECG 256 Hz, kept at 256 sps" } },
+        { "what": "Spot-check length", "value": 30, "unit": "s", "chip": "design choice",
+          "source": { "kind": "design_choice", "rationale": "Long enough for a rhythm strip the crewmember can hold still for. It is also the session length of the FDA-authorized watch ECG in the published basis (DEN180044)." } }
+      ],
+      "produces": [
+        { "variable": "ecg_spot_check", "label": "ECG spot check: 30-s single-lead strip", "unit": "waveform", "diagram": "ecg_spot_check (30 s, lead I-like)",
+          "how": "recorded only on demand, while the other hand touches the outer electrode; stored raw on the band for the Crew Medical Officer and the flight surgeon (no viewer yet: open item)", "not_in_spec": true }
+      ],
+      "serves_note": "none directly (on-demand rhythm strip)",
+      "feeds": [
+        { "kind": "none", "id": "ecg_spot_check", "as": "LANDFALL reads no ECG: no rule uses the strip and nothing classifies its rhythm" }
+      ],
+      "justified_by": [
+        { "id": "V1 3004", "item": "i", "relation": "direct", "snapshot": "std_vol1_requirements",
+          "quote": "Conducting ancillary tests as needed, including imaging (e.g., cardiac, vascular, ocular), laboratory analyses, and electrocardiography." },
+        { "id": "V2 9023", "relation": "constraint", "snapshot": "std_vol2_requirements",
+          "quote": "For equipment such as bioinstrumentation and medical devices, that are specifically designed to contact the human body, electrical leakage currents caused by contact with exposed surfaces (including in worst-case fault scenarios) shall be kept below the levels specified in Table 9.3-11",
+          "note": "Table 9.3-11 splits body contact into External and Internal. The electrodes touch intact skin only, so LANDFALL reads the External rows (our reading: the table does not name wrist devices). During a spot check the current path runs from one arm to the other, across the chest. The rationale names electrocardiogram (ECG) monitors as isolated equipment; isolated and non-isolated equipment share the External values, and the rationale says the sum of all leakage currents is what counts. General body-current limits for any equipment are [V2 9019] to [V2 9021] (see Safety constraints).",
+          "limits": [
+            { "what": "Leakage, External body contact, DC to 1 kHz, normal condition", "value": 0.1, "unit": "mA", "chip": "NASA-published", "table": "Table 9.3-11" },
+            { "what": "Leakage, External body contact, DC to 1 kHz, single fault", "value": 0.5, "unit": "mA", "chip": "NASA-published", "table": "Table 9.3-11" }
+          ] },
+        { "id": "V2 11023", "relation": "analogy", "snapshot": "std_vol2_requirements",
+          "quote": "Derived body core temperature and heart rhythm (real-time) are desired for microgravity operations",
+          "note": "From the rationale; written for suits. A 30-s spot check is not real-time rhythm monitoring: that needs electrodes across the chest, as in the flown Bio-Monitor's shirt." }
+      ],
+      "design": [
+        "The inner electrode touches the wrist around the clock, so the Table 9.3-11 footnote applies: \"*For DC, there is a small risk of heating and tissue necrosis for prolonged duration of contact.\" A current path through the body exists only while the other hand closes the circuit; the front end is powered down between spot checks, and every DC lead-bias and lead-off current must still be checked against the footnote (open item).",
+        "Each spot check also logs the PPG pulse intervals of the same beats, so pulse timing can be compared with R-R intervals for this crewmember at rest: about 30 beats, a sanity check, not a validation of nightly PRV.",
+        "Raw waveforms are kept only for spot checks: the 4 MiB ring holds 182 of them (see the log arithmetic).",
+        "The band does not estimate blood pressure from ECG-to-PPG transit time (see the Bio-Monitor pitfalls)."
+      ],
+      "evidence": [
+        { "claim": "The same electrode arrangement in an FDA-authorized wrist ECG: electrodes on the back touch the wrist, a finger touches the crown, 30 s, a single lead similar to lead I.",
+          "quote": "The watch also contains electrodes on the back of the device which are in continuous contact with the user’s wrist. The watch acquires the electrical potential between the electrodes and digital crown.",
+          "chip": "literature",
+          "source": { "kind": "literature", "citation": "US Food and Drug Administration. De Novo classification request for ECG App (DEN180044), Apple Inc., De Novo date August 14, 2018: decision summary", "url": "https://www.accessdata.fda.gov/cdrh_docs/reviews/DEN180044.pdf" },
+          "checked": "2026-11-14" }
       ]
     },
     {
@@ -219,12 +265,12 @@
     {
       "id": "temp", "group": "sensor", "part": "MAX30208", "qty": 2, "manufacturer": "Analog Devices (Maxim Integrated)",
       "name": "Skin temperature, 2 sites",
-      "function": "Two digital skin-temperature sensors on the inner face. They also act as the skin-side safety monitor for the LEDs and the cell.",
+      "function": "Two digital skin-temperature sensors on the inner face, behind non-conductive windows. They also act as the skin-side safety monitor for the LEDs and the cell.",
       "interface": "i2c_a",
       "interface_extra": "i2c_b",
       "mfr_spec": [],
       "datasheet": { "url": "https://www.analog.com/media/en/technical-documentation/data-sheets/max30208.pdf", "product_page": "https://www.analog.com/en/products/max30208.html", "status": "not_retrieved", "checked": "2026-11-14",
-        "note": "analog.com did not answer automated requests from the build machine. Accuracy, range and I2C addressing are unverified, so none is claimed here." },
+        "note": "Not retrieved for this build. Accuracy, range and I2C addressing are unverified, so none is claimed here." },
       "rates": [
         { "what": "Each sensor", "value": 1, "unit": "Hz", "chip": "derived", "basis": "flown hardware",
           "source": { "kind": "derived", "from": ["flown_reference.skin_temp"], "arithmetic": "Bio-Monitor skin temperature, 2 channels at 1 Hz, kept at 2 × 1 Hz" } }
@@ -254,11 +300,11 @@
     {
       "id": "imu", "group": "sensor", "part": "LSM6DSOX", "qty": 1, "manufacturer": "STMicroelectronics",
       "name": "IMU (actigraphy)",
-      "function": "IMU. Only its accelerometer is used, for actigraphy (sleep and wake scoring) and off-wrist detection.",
+      "function": "IMU. Only its accelerometer is used, for actigraphy (sleep and wake scoring), the motion flag that gates the pulse intervals, and off-wrist detection.",
       "interface": "i2c_a",
       "mfr_spec": [],
       "datasheet": { "url": "https://www.st.com/resource/en/datasheet/lsm6dsox.pdf", "product_page": "https://www.st.com/en/mems-and-sensors/lsm6dsox.html", "status": "not_retrieved", "checked": "2026-11-14",
-        "note": "st.com did not answer automated requests from the build machine. Axis count, FIFO and output data rates are unverified, so none is claimed here." },
+        "note": "Not retrieved for this build. Axis count, FIFO and output data rates are unverified, so none is claimed here." },
       "rates": [
         { "what": "Accelerometer", "value": 52, "unit": "Hz", "chip": "design choice",
           "source": { "kind": "design_choice", "rationale": "Near the 64 Hz of the flown Bio-Monitor accelerometer. That the part offers exactly 52 Hz is not verified in this build (open item)." } },
@@ -267,7 +313,7 @@
       ],
       "produces": [
         { "variable": "sleep_duration", "label": "Sleep duration (actigraphy)", "unit": "h", "how": "total sleep time in the main sleep period, scored from 1-min activity epochs" },
-        { "variable": "sleep_midpoint_shift", "label": "Sleep midpoint shift", "unit": "h", "how": "shift of the night's sleep midpoint from the baseline median" }
+        { "variable": "sleep_midpoint_shift", "label": "Sleep midpoint shift", "unit": "h", "how": "absolute shift, in hours, of the night's sleep midpoint from the median midpoint of the fixed baseline window (earlier or later both count as a larger shift)" }
       ],
       "feeds": [
         { "kind": "personal", "id": "sleep_duration", "as": "reliable change vs own baseline" },
@@ -293,7 +339,7 @@
     {
       "id": "mcu", "group": "core", "part": "nRF52840", "qty": 1, "manufacturer": "Nordic Semiconductor",
       "name": "MCU + BLE radio",
-      "function": "Reads every sensor, timestamps every sample on one clock, writes the local log and syncs it to the LANDFALL app over an encrypted BLE link when the tablet is in range.",
+      "function": "Reads every sensor, timestamps every sample on one clock, detects pulse peaks, writes the local log and syncs it to the LANDFALL app over an encrypted BLE link when the tablet is in range.",
       "interface": "ble",
       "mfr_spec": ["64 MHz Cortex-M4 with FPU", "Bluetooth Low Energy radio", "UART, SPI, TWI, PDM, I2S, QSPI"],
       "datasheet": { "url": "https://docs.nordicsemi.com/bundle/ps_nrf52840/page/keyfeatures_html5.html", "product_page": "https://www.nordicsemi.com/Products/nRF52840", "status": "read", "checked": "2026-11-14",
@@ -301,7 +347,7 @@
         "note": "Read on the Nordic product page. The product specification needs a browser with JavaScript and was not read, so the number of TWI (I2C) instances is unverified." },
       "rates": [],
       "produces": [],
-      "produces_note": "No indicator of its own. It turns raw samples into timestamped epoch records; the LANDFALL app computes the nightly indicators, so one engine evaluates every source the same way.",
+      "produces_note": "No indicator of its own. It turns raw samples into pulse intervals and timestamped epoch records; the LANDFALL app computes the nightly indicators, so one engine evaluates every source the same way.",
       "feeds": [
         { "kind": "app", "id": "landfall_app", "as": "every band observation (source: band)" }
       ],
@@ -330,7 +376,7 @@
       "produces": [],
       "produces_note": "Stores, does not measure. Depth arithmetic below.",
       "feeds": [
-        { "kind": "personal", "id": "*", "as": "keeps one whole 14-day RCI baseline window on the band" }
+        { "kind": "personal", "id": "*", "as": "keeps one whole 14-day Tier B baseline window on the band" }
       ],
       "justified_by": [
         { "id": "V2 10129", "relation": "direct", "snapshot": "std_vol2_requirements",
@@ -340,7 +386,7 @@
           "note": "Written for environmental and suit data. The band's records are timestamped and trend-ready, and export as FHIR R4 Observations through LANDFALL." }
       ],
       "design": [
-        "NASA publishes no requirement for wearable storage or log duration, so the 14-day target is a design choice."
+        "NASA-STD-3001 Vol 2 Rev F sets no requirement for wearable storage or log duration, so the 14-day target is a design choice."
       ]
     },
     {
@@ -354,9 +400,9 @@
       "produces": [],
       "feeds": [],
       "justified_by": [
-        { "id": "JSC-20793 Rev D", "relation": "constraint", "doc": "JSC-20793 Rev D, Crewed Space Vehicle Battery Safety Requirements",
-          "quote": "Non-Critical: less than 4 Wh per isolated pack; Li-ion COTS cells up to 1000 mAh.",
-          "note": "Class boundaries as read in project preparation (PLANO Appendix B); the document is not frozen in this build.",
+        { "id": "JSC-20793 Rev D", "relation": "constraint", "doc": "JSC-20793 Rev D, Crewed Space Vehicle Battery Safety Requirements (NASA JSC, 2017), NTRS 20170009182", "url": "https://ntrs.nasa.gov/citations/20170009182", "checked": "2026-11-14",
+          "quote": "Low energy < 4 Wh per battery pack where each battery is thermally and electrically isolated",
+          "note": "Section 4.1.3, Risk Classification: one condition of the Non-Critical class. For lithium-ion the same class admits \"COTS (rechargeable) lithium-ion button, cylindrical, or pouch batteries of up to 1000 mAh capacity.\"",
           "limits": [
             { "what": "Non-Critical class, energy per isolated pack", "value": 4, "unit": "Wh (below)", "chip": "NASA-published", "table": "JSC-20793 Rev D" },
             { "what": "Non-Critical class, Li-ion COTS cell", "value": 1000, "unit": "mAh (max)", "chip": "NASA-published", "table": "JSC-20793 Rev D" }
@@ -377,9 +423,9 @@
       "produces": [],
       "feeds": [],
       "justified_by": [
-        { "id": "JSC-20793 Rev D", "relation": "constraint", "doc": "JSC-20793 Rev D, Crewed Space Vehicle Battery Safety Requirements",
-          "quote": "Section 4.4.3 asks for monitoring of battery voltage, current and temperature.",
-          "note": "Verified on the datasheet: the part has no thermistor input, and its thermal regulation follows the die, not the cell. Charging is not cell-temperature-qualified: an open item." }
+        { "id": "JSC-20793 Rev D", "relation": "constraint", "doc": "JSC-20793 Rev D, Crewed Space Vehicle Battery Safety Requirements (NASA JSC, 2017), NTRS 20170009182", "url": "https://ntrs.nasa.gov/citations/20170009182", "checked": "2026-11-14",
+          "quote": "For lithium-ion batteries, monitoring of key parameters such as cell/battery voltages, cell temperature, and battery/string current is necessary to ascertain health and maintain safe operation of the battery.",
+          "note": "Section 4.4.3, Lithium-ion Battery and Cell Monitoring. Its shall-statements are written for batteries with catastrophic failure modes; the band applies the section anyway. Verified on the datasheet: the part has no thermistor input, and its thermal regulation follows the die, not the cell. Charging is not cell-temperature-qualified: an open item." }
       ],
       "design": []
     },
@@ -390,85 +436,89 @@
       "interface": "i2c_a",
       "mfr_spec": [],
       "datasheet": { "url": "https://www.analog.com/media/en/technical-documentation/data-sheets/max17048-max17049.pdf", "product_page": "https://www.analog.com/en/products/max17048.html", "status": "not_retrieved", "checked": "2026-11-14",
-        "note": "analog.com did not answer automated requests from the build machine. What the gauge measures (voltage, current, temperature) is unverified, so none is claimed here." },
+        "note": "Not retrieved for this build. What the gauge measures (voltage, current, temperature) is unverified, so none is claimed here." },
       "rates": [],
       "produces": [
         { "variable": "band_battery_soc", "label": "Band state of charge", "unit": "%", "how": "device health, not crew health", "not_in_spec": true }
       ],
       "feeds": [],
       "justified_by": [
-        { "id": "JSC-20793 Rev D", "relation": "constraint", "doc": "JSC-20793 Rev D, Crewed Space Vehicle Battery Safety Requirements",
-          "quote": "Section 4.4.3 asks for monitoring of battery voltage, current and temperature.",
-          "note": "Whether this gauge measures current or cell temperature is not verified in this build, so section 4.4.3 is treated as not met. Closing it needs a gauge whose datasheet shows current and temperature measurement: an open item." }
+        { "id": "JSC-20793 Rev D", "relation": "constraint", "doc": "JSC-20793 Rev D, Crewed Space Vehicle Battery Safety Requirements (NASA JSC, 2017), NTRS 20170009182", "url": "https://ntrs.nasa.gov/citations/20170009182", "checked": "2026-11-14",
+          "quote": "For lithium-ion batteries, monitoring of key parameters such as cell/battery voltages, cell temperature, and battery/string current is necessary to ascertain health and maintain safe operation of the battery.",
+          "note": "Section 4.4.3. Whether this gauge measures current or cell temperature is not verified in this build, so the section is treated as not met. Closing it needs a gauge whose datasheet shows current and temperature measurement: an open item." }
       ],
       "design": []
     }
   ],
   "power": {
-    "summary": "Average-current budget and autonomy. Every current is the author's estimate of typical datasheet figures, not re-checked against the datasheets in this build and never measured on a bench, so the budget carries a 2× margin.",
+    "summary": "Average-current budget and autonomy. Every current is the author's estimate for these duty cycles, not checked against the datasheets in this build and never measured on a bench, so the budget carries a 2× margin.",
     "budget": [
-      { "block": "mcu", "label": "nRF52840: CPU duty, BLE sync, clock", "ua": 250 },
-      { "block": "ecg", "label": "MAX30003: ECG front end", "ua": 100 },
-      { "block": "ppg", "label": "MAX86141 and LEDs at 10 % duty", "ua": 60 },
+      { "block": "ppg", "label": "MAX86141 and LEDs: infrared pulse channel continuous, red LED in SpO2 windows (10 %)", "ua": 330 },
+      { "block": "mcu", "label": "nRF52840: CPU duty, pulse detection, BLE sync, clock", "ua": 250 },
       { "block": "imu", "label": "LSM6DSOX: accelerometer only", "ua": 25 },
       { "block": "gauge", "label": "MAX17048: active", "ua": 25 },
       { "block": "temp", "label": "MAX30208 ×2 at 1 Hz", "ua": 20 },
       { "block": "flash", "label": "W25Q128JV: page writes, standby", "ua": 10 },
       { "block": "light", "label": "AS7341: one reading per minute", "ua": 5 },
+      { "block": "ecg", "label": "MAX30003: powered down between 30-s spot checks", "ua": 2 },
       { "block": "rails", "label": "Regulators and leakage", "ua": 20 }
     ],
     "budget_chip": "design choice",
-    "budget_source": { "kind": "design_choice", "rationale": "Estimates for these duty cycles, not re-checked against the datasheets in this build; to be replaced by bench measurement." },
+    "budget_source": { "kind": "design_choice", "rationale": "Estimates for these duty cycles, not checked against the datasheets in this build; to be replaced by bench measurement. The optical estimate is about 300 µA per LED running continuously: 300 µA for the infrared pulse channel plus 30 µA for the red LED at 10 % duty." },
     "steps": [
-      { "id": "i_sum", "label": "Sum of block currents", "value": 515, "unit": "µA", "chip": "derived",
-        "arithmetic": "250 + 100 + 60 + 25 + 25 + 20 + 10 + 5 + 20 = 515 µA" },
+      { "id": "i_sum", "label": "Sum of block currents", "value": 687, "unit": "µA", "chip": "derived",
+        "arithmetic": "330 + 250 + 25 + 25 + 20 + 10 + 5 + 2 + 20 = 687 µA" },
       { "id": "margin", "label": "Margin for unmeasured currents", "value": 2, "unit": "×", "chip": "design choice",
         "rationale": "Nothing here has been measured; doubling is our hedge." },
-      { "id": "i_plan", "label": "Planning current", "value": 1.03, "unit": "mA", "chip": "derived",
-        "arithmetic": "515 µA × 2 = 1030 µA = 1.03 mA" },
+      { "id": "i_plan", "label": "Planning current", "value": 1.374, "unit": "mA", "chip": "derived",
+        "arithmetic": "687 µA × 2 = 1374 µA = 1.374 mA" },
       { "id": "capacity", "label": "Cell capacity", "value": 200, "unit": "mAh", "chip": "design choice",
         "rationale": "Small enough for a band, five times under the 1000 mAh Non-Critical cell limit." },
       { "id": "energy", "label": "Cell energy", "value": 0.74, "unit": "Wh", "chip": "derived",
         "arithmetic": "3.7 V × 0.200 Ah = 0.74 Wh, 5.4 times below the 4 Wh Non-Critical limit" },
       { "id": "usable", "label": "Usable fraction", "value": 80, "unit": "%", "chip": "design choice",
         "rationale": "Low-voltage cut-off and cell ageing." },
-      { "id": "autonomy", "label": "Estimated autonomy", "value": 155, "unit": "h", "chip": "derived",
-        "arithmetic": "200 mAh × 0.80 / 1.03 mA = 155 h, about 6.5 days" },
+      { "id": "autonomy", "label": "Estimated autonomy", "value": 116, "unit": "h", "chip": "derived",
+        "arithmetic": "200 mAh × 0.80 / 1.374 mA = 116 h, about 4.8 days" },
       { "id": "target", "label": "Autonomy target", "value": 72, "unit": "h (min)", "chip": "design choice",
         "rationale": "One whole case tripwire window on one charge: cases.json reassess_after_s = 259,200 s (72 h) for renal_stone and sleep_circadian." },
-      { "id": "headroom", "label": "Headroom over target", "value": 2.2, "unit": "×", "chip": "derived",
-        "arithmetic": "155 h / 72 h = 2.2" }
+      { "id": "headroom", "label": "Headroom over target", "value": 1.6, "unit": "×", "chip": "derived",
+        "arithmetic": "116 h / 72 h = 1.6" }
     ],
-    "comparison": "The flown Bio-Monitor runs 48 h on 2 AA cells, but it records 3-lead ECG at 256 Hz, respiration at 128 Hz and continuous PPG. The band records fewer, slower channels on purpose.",
-    "no_requirement": "NASA publishes no battery-endurance requirement for wearables: all three mentions of battery in Vol 2 Rev F are about other things. The 72 h target is ours."
+    "comparison": "The flown Bio-Monitor runs 48 h on two AA batteries while it records 3-lead ECG at 256 Hz, respiration at 128 Hz and continuous PPG from a shirt and headband. The band records fewer channels on purpose, and its ECG only on demand.",
+    "no_requirement": "NASA-STD-3001 Vol 2 Rev F sets no battery-endurance requirement for wearables: its three mentions of batteries are about other things. The 72 h target is ours."
   },
   "log": {
-    "summary": "What 16 MiB holds. NASA publishes no storage or log-duration requirement for wearables, so every target here is a design choice.",
+    "summary": "What 16 MiB holds. NASA-STD-3001 Vol 2 Rev F sets no storage or log-duration requirement for wearables, so every target here is a design choice.",
     "steps": [
       { "id": "flash", "label": "Flash size", "value": 16777216, "unit": "B", "chip": "derived",
         "arithmetic": "128 Mbit / 8 = 16 MiB = 16,777,216 B" },
-      { "id": "ecg_ring", "label": "Reserved: raw ECG event ring", "value": 4194304, "unit": "B", "chip": "design choice",
-        "rationale": "4 MiB of raw ECG around flagged events, for the flight surgeon." },
+      { "id": "ecg_ring", "label": "Reserved: ECG spot-check recordings", "value": 4194304, "unit": "B", "chip": "design choice",
+        "rationale": "4 MiB keeps the raw waveform of every spot check until it is synced, for the Crew Medical Officer and the flight surgeon." },
       { "id": "meta", "label": "Reserved: metadata and wear levelling", "value": 1048576, "unit": "B", "chip": "design choice",
         "rationale": "1 MiB." },
       { "id": "space", "label": "Indicator log space", "value": 11534336, "unit": "B", "chip": "derived",
         "arithmetic": "16,777,216 - 4,194,304 - 1,048,576 = 11,534,336 B" },
-      { "id": "rr", "label": "R-R intervals at 100 bpm, 2 B each", "value": 288000, "unit": "B/day", "chip": "derived",
-        "arithmetic": "100 beats/min × 1,440 min × 2 B = 288,000 B/day (100 bpm is a deliberately high planning rate: design choice)" },
+      { "id": "ibi", "label": "Pulse inter-beat intervals at 100 bpm, 2 B each", "value": 288000, "unit": "B/day", "chip": "derived",
+        "arithmetic": "100 beats/min × 1,440 min × 2 B = 288,000 B/day (the pulse channel runs around the clock; 100 bpm is a deliberately high planning rate: design choice)" },
       { "id": "epochs", "label": "1-min epoch records, 32 B each", "value": 46080, "unit": "B/day", "chip": "derived",
-        "arithmetic": "1,440 epochs × 32 B = 46,080 B/day (activity, light bands, 2 skin temperatures, SpO2 window, flags, MET: design choice)" },
+        "arithmetic": "1,440 epochs × 32 B = 46,080 B/day (activity, motion flag, 1-min heart rate, light bands, 2 skin temperatures, SpO2 window, flags, MET: design choice)" },
       { "id": "daily", "label": "Indicator log per day", "value": 334080, "unit": "B/day", "chip": "derived",
         "arithmetic": "288,000 + 46,080 = 334,080 B/day" },
       { "id": "depth", "label": "Log depth without a sync", "value": 34.5, "unit": "days", "chip": "derived",
         "arithmetic": "11,534,336 / 334,080 = 34.5 days" },
       { "id": "target", "label": "Log depth target", "value": 14, "unit": "days (min)", "chip": "design choice",
-        "rationale": "One whole RCI baseline window: personal.json rci.baseline_window_days = 14. A lost tablet does not cost anyone their baseline." },
-      { "id": "raw_rate", "label": "Raw ECG rate", "value": 768, "unit": "B/s", "chip": "derived",
+        "rationale": "One whole Tier B baseline window: personal.json rci.baseline_window_days = 14. A lost tablet does not cost anyone their baseline." },
+      { "id": "ecg_rate", "label": "Raw ECG rate during a spot check", "value": 768, "unit": "B/s", "chip": "derived",
         "arithmetic": "256 samples/s × 3 B per stored sample = 768 B/s (3 B per sample is a design choice; the front end's sample width is not verified in this build)" },
-      { "id": "raw_ring", "label": "Raw ECG in the event ring", "value": 91, "unit": "min", "chip": "derived",
+      { "id": "ecg_ring_min", "label": "Raw ECG the ring holds", "value": 91, "unit": "min", "chip": "derived",
         "arithmetic": "4,194,304 B / 768 B/s = 5,461 s = 91 min" },
-      { "id": "raw_all", "label": "Raw ECG if the whole flash held it", "value": 6.1, "unit": "h", "chip": "derived",
-        "arithmetic": "16,777,216 B / 768 B/s = 21,845 s = 6.1 h. This is why the band logs R-R intervals, not waveforms." }
+      { "id": "spot_checks", "label": "Spot checks the ring holds", "value": 182, "unit": "spot checks", "chip": "derived",
+        "arithmetic": "5,461 s / 30 s = 182 spot checks of 30 s" },
+      { "id": "ppg_rate", "label": "Raw PPG rate, pulse channel", "value": 192, "unit": "B/s", "chip": "derived",
+        "arithmetic": "64 samples/s × 3 B per stored sample = 192 B/s (3 B per sample is a design choice; the front end's sample width is not verified in this build)" },
+      { "id": "ppg_all", "label": "Raw PPG if the whole flash held it", "value": 24.3, "unit": "h", "chip": "derived",
+        "arithmetic": "16,777,216 B / 192 B/s = 87,381 s = 24.3 h. This is why the band logs pulse inter-beat intervals, not the optical waveform." }
     ]
   },
   "not_measurable_here": [
@@ -484,25 +534,35 @@
       ]
     },
     {
-      "id": "radiation", "what": "Radiation dose and dose rate",
-      "why": "Alerting on exposure rates is assigned to the vehicle's radiation monitoring system, and monitoring of the external space weather to the program. Organ dose in mGy-Eq needs those detectors and models. LANDFALL does not duplicate them with a wrist sensor.",
-      "via": "Vehicle radiation monitoring system and external space weather monitors", "source": "vehicle",
+      "id": "radiation", "what": "Radiation: flux and dose",
+      "why": "Two systems outside the band do this. The vehicle's radiation monitoring system raises the radiation alarm and reports dose rate ([V2 6164]); an external space-weather monitor, outside the shielding, supplies the proton flux spectra ([V2 6165]). Organ dose in mGy-Eq needs those detectors and the ground's models. The band measures none of these, and LANDFALL is not the radiation alarm: it opens the health case that follows and guides the crew. In the Mars scenario the flux comes from an external monitor in Mars orbit, relayed locally with no Earth link; its values replay the real GOES-7 record of October 1989 with no distance or atmospheric correction (a scenario assumption).",
+      "via": "Vehicle radiation monitor (alarm, dose); external space-weather monitor (proton flux)", "source": "vehicle",
       "requirement": { "id": "V2 6164", "relation": "delegates", "snapshot": "std_vol2_requirements",
-        "quote": "The radiation monitoring system shall alert the crew and operations teams when radiation exposure rates exceed predefined thresholds." },
+        "quote": "The radiation monitoring system shall alert the crew and operations teams when radiation exposure rates exceed predefined thresholds.",
+        "note": "Its rationale: \"The crew must be alerted even if ground communication is disrupted or is unviable.\"" },
       "also": [
         { "id": "V2 6165", "relation": "delegates", "snapshot": "std_vol2_requirements",
           "quote": "The program shall monitor the in-situ extravehicular space weather environment including the external exposure rates, electron flux spectra, and proton flux spectra.",
           "note": "Its rationale names the storms LANDFALL's scenario draws on: \"Historically significant space weather storming includes the August 1972 and October 1989 events.\" The SPE case replays the real GOES-7 record of October 1989." }
       ],
       "examples": [
+        { "name": "GOES-7 Energetic Particle Sensor (NOAA)", "snapshot": "swpc_spe_replay", "text": "\"GOES Energetic Particle Sensor\": an external proton monitor in geostationary orbit. Its real October 1989 ≥10 MeV record is the flux the SPE case replays." },
         { "name": "ISS TEPC (NASA SRAG, JSC)", "snapshot": "hapi_iss_tepc", "text": "tissue-equivalent proportional counter; measured ISS dose rate, frozen in this build" },
         { "name": "CSA CANS", "snapshot": "hrp_csa_radiation", "text": "\"a compact and autonomous instrument designed to measure neutron radiation exposure in space\"; neutrons are about 30 % of ISS radiation (CSA)" }
       ],
+      "evidence": [
+        { "claim": "In NASA's own Mars medical concept of operations, the vehicle's sensors raise the radiation alarm and the medical system follows.",
+          "quote": "Radiation environment sensors embedded within the vehicle system detect a solar particle event and annunciates alarms to warn the crew and the medical system.",
+          "chip": "NASA report",
+          "source": { "kind": "nasa_brief", "doc": "ExMC, Medical System Concept of Operations for Mars Exploration Mission-11 (HRP-48021, Baseline April 2019), NTRS 20200001715", "url": "https://ntrs.nasa.gov/citations/20200001715" },
+          "checked": "2026-11-14" }
+      ],
       "feeds": [
         { "kind": "rule", "id": "ops_onboard_proton_s3" },
+        { "kind": "rule", "id": "ops_noaa_s3" },
         { "kind": "rule", "id": "pel_t481_bfo_30d" },
         { "kind": "rule", "id": "pel_career_effective_dose" },
-        { "kind": "case", "id": "spe_shelter", "as": "trigger" }
+        { "kind": "case", "id": "spe_shelter", "as": "trigger: the health case that follows the alarm" }
       ]
     },
     {
@@ -517,14 +577,17 @@
       ]
     },
     {
-      "id": "bp", "what": "Blood pressure (cuff)",
-      "why": "Wrist transit-time methods give systolic only and need per-subject calibration (see the Bio-Monitor pitfalls).",
-      "via": "Vehicle medical kit", "source": "vehicle",
+      "id": "bp", "what": "Blood pressure and blood glucose",
+      "why": "Neither is a wrist measurement here. Wrist transit-time methods give systolic only and need per-user adjustment (see the Bio-Monitor pitfalls), and glucose needs a drop of blood. Both are measured with the vehicle medical kit, a cuff and a fingerstick glucometer, and entered by hand. NASA-STD-3001 sets no numeric limit for either (Vol 1 Rev C and Vol 2 Rev F print no blood-pressure or glucose number), so LANDFALL compares each reading only with the crewmember's own baseline (Tier B, caution at most).",
+      "via": "Vehicle medical kit: cuff and fingerstick glucometer, entered by hand", "source": "manual",
       "examples": [
-        { "name": "Tempus Pro (NASA HRP)", "snapshot": "hrp_research", "text": "NASA tested this telemedicine device; it collects \"blood pressure, heart rate, respiration rate, and temperature\". NASA's article does not say how its blood pressure is measured." }
+        { "name": "Tempus Pro (NASA HRP)", "snapshot": "hrp_research", "text": "NASA tested this telemedicine device; it collects \"blood pressure, heart rate, respiration rate, and temperature\". NASA's article does not say how its blood pressure is measured." },
+        { "name": "OSDR Inspiration4 metabolic panel", "snapshot": "osdr_cmp", "text": "glucose in mg/dL with the lab's reference range, before and after flight only: context for a fingerstick value, never a limit" }
       ],
       "feeds": [
-        { "kind": "none", "id": "bp", "as": "NASA publishes no in-flight blood pressure limit" }
+        { "kind": "personal", "id": "bp_systolic", "as": "reliable change vs own baseline, caution at most" },
+        { "kind": "personal", "id": "bp_diastolic", "as": "reliable change vs own baseline, caution at most" },
+        { "kind": "personal", "id": "glucose", "as": "reliable change in either direction vs own baseline, caution at most" }
       ]
     },
     {
@@ -578,22 +641,22 @@
       "nearest": ["V2 6102"], "snapshot": "std_vol2_requirements", "pattern": "\\bEMI\\b|\\bEMC\\b|electromagnetic (interference|compatibility)", "hits": 0
     },
     {
-      "id": "biocompat", "claim": "No skin-contact biocompatibility requirement exists.",
+      "id": "biocompat", "claim": "No skin-contact biocompatibility requirement exists in Vol 2 Rev F.",
       "detail": "Nearest: [V2 7076] clothing comfort and composition, and [V2 7081] microbiologically safe surfaces; material assessment is deferred to NASA-STD-6016.",
       "nearest": ["V2 7076", "V2 7081"], "snapshot": "std_vol2_requirements", "pattern": "biocompat|cytotox|ISO 10993", "hits": 0
     },
     {
-      "id": "sensor_set", "claim": "NASA publishes no minimum sensor set for exploration missions.",
-      "detail": "No wearable, biosensor or body-worn device requirement in Vol 2 Rev F; the ExMC Mars medical ConOps (NTRS 20200001715) assumes \"All crewmembers are wearing biosensors\" with no sensor list, rates or specifications.",
+      "id": "sensor_set", "claim": "No wearable or biosensor requirement in Vol 2 Rev F.",
+      "detail": "The search finds no wearable, biosensor or body-worn device anywhere in the volume. The ExMC Mars medical concept of operations (NTRS 20200001715) assumes \"All crewmembers are wearing biosensors\" and specifies none: no sensor list, rate or performance.",
       "nearest": [], "snapshot": "std_vol2_requirements", "pattern": "wearable|biosensor|bio-sensor|body[- ]worn", "hits": 0
     },
     {
-      "id": "battery", "claim": "No battery-endurance requirement for wearables.",
+      "id": "battery", "claim": "No battery-endurance requirement for wearables in Vol 2 Rev F.",
       "detail": "Vol 2 Rev F mentions batteries 3 times, about traverse power projection and maintenance, never endurance. The autonomy target is a design choice.",
       "nearest": [], "snapshot": "std_vol2_requirements", "pattern": "batter(y|ies)", "hits": 3
     },
     {
-      "id": "storage", "claim": "No data storage or log-duration requirement.",
+      "id": "storage", "claim": "No data storage or log-duration requirement in Vol 2 Rev F.",
       "detail": "Zero hits for storage capacity, retention or log duration. The log-depth target is a design choice.",
       "nearest": [], "snapshot": "std_vol2_requirements", "pattern": "data storage|storage capacity|data retention|retention period|log duration|logging duration", "hits": 0
     }
@@ -601,29 +664,29 @@
   "pitfalls": [
     {
       "id": "bp_ptt", "title": "Its blood pressure is systolic-only and PTT-derived",
-      "text": "The Bio-Monitor's blood pressure is not a cuff reading and not continuous: it is systolic only, derived from pulse transit time between the ECG QRS and the PPG, and the useful form is adjusted to the user, so it needs per-subject calibration.",
-      "consequence": "The band does not estimate blood pressure. Blood pressure is a hand-off to the cuff in the medical kit."
+      "text": "The Bio-Monitor's blood pressure is not a cuff reading. Its registry lists systolic pressure only, \"derived from the PTT value\" (the pulse transit time between the ECG QRS and the PPG), in a raw form and in a form \"Adjusted for user specs\".",
+      "consequence": "The band does not estimate blood pressure. Blood pressure is measured with the cuff in the vehicle medical kit and entered by hand: a hand-off."
     },
     {
       "id": "nonin_delay", "title": "The Nonin sensor adds a 172 ms delay",
-      "text": "The digital output of the Bio-Monitor's Nonin sensor lags by 172 ms, which must be subtracted when computing pulse transit time.",
+      "text": "The registry warns that \"The Nonin PPG digital output is delayed by 172 ms\", which must be subtracted when computing pulse transit time, and that the PPG channel \"is not exactly aligned with the other channels (~0.05 s delay)\".",
       "consequence": "Every band channel is timestamped at acquisition on one clock, and each front end's fixed delay is written in the log header."
     },
     {
       "id": "export_cap", "title": "CSV and JSON exports cap at 65,536 values per datatype",
-      "text": "About 18 h at 1 Hz, so high-rate channels require the binary path.",
-      "consequence": "R-R intervals at 100 bpm reach 65,536 values in 10.9 h, so they leave the band in binary records; 1-min epochs would take 45.5 days to reach the cap.",
+      "text": "\"For JSON and CSV formats, the result size is constrained to 65536 values per datatype\": about 18 h at 1 Hz, so high-rate channels need the binary path.",
+      "consequence": "Pulse inter-beat intervals at 100 bpm reach 65,536 values in 10.9 h, so they leave the band in binary records; 1-min epochs would take 45.5 days to reach the cap.",
       "arithmetic": [
-        { "label": "R-R at 100 bpm", "value": 10.9, "unit": "h", "chip": "derived", "arithmetic": "65,536 / 6,000 beats per hour = 10.9 h" },
+        { "label": "Pulse intervals at 100 bpm", "value": 10.9, "unit": "h", "chip": "derived", "arithmetic": "65,536 / 6,000 beats per hour = 10.9 h" },
         { "label": "1-min epochs", "value": 45.5, "unit": "days", "chip": "derived", "arithmetic": "65,536 / 1,440 epochs per day = 45.5 days" }
       ]
     }
   ],
-  "pitfalls_basis": "Verified in project preparation against the product documentation (PLANO section 1.5). Not frozen in this build.",
+  "pitfalls_basis": "Hexoskin's public API documentation (datatype registry and data resource), read 2026-11-14; not frozen in this build.",
   "safety": [
     {
       "id": "leakage", "topic": "Leakage current, medical and bioinstrumentation equipment", "refs": ["V2 9023", "Table 9.3-11"],
-      "text": "The band touches intact skin, read as External body contact: DC to 1 kHz, 0.1 mA normal and 0.5 mA single fault, the sum of all leakage currents. Footnote: prolonged DC contact carries a small risk of heating and tissue necrosis. The electrodes are the band's only conductive skin contact.",
+      "text": "The band touches intact skin, read as External body contact: DC to 1 kHz, 0.1 mA normal and 0.5 mA single fault, the sum of all leakage currents. Footnote: prolonged DC contact carries a small risk of heating and tissue necrosis. The two ECG electrodes are the band's only conductive contacts: the inner one rests on the wrist, and a path across the chest exists only while the other hand touches the outer one during a spot check.",
       "chip": "NASA-published", "snapshot": "std_vol2_requirements"
     },
     {
@@ -638,7 +701,7 @@
     },
     {
       "id": "touch_temp", "topic": "Touch temperature", "refs": ["V2 9102", "V2 9103"],
-      "text": "Tissue damage at 49 °C or above (Table 9.3-4); pain range 43 to 49 °C (Table 9.3-5). The LEDs stop at 41 °C at the skin-side sensor (design choice).",
+      "text": "Tissue damage at 49 °C or above (Table 9.3-4); pain range 43 to 49 °C (Table 9.3-5). The LEDs stop at 41 °C at the skin-side sensor (design choice); the pulse LED runs around the clock, so the cut-off is always armed.",
       "chip": "NASA-published", "snapshot": "std_vol2_requirements"
     },
     {
@@ -648,27 +711,39 @@
     },
     {
       "id": "battery_class", "topic": "Battery safety class", "refs": ["JSC-20793 Rev D"],
-      "text": "Non-Critical: under 4 Wh per isolated pack, Li-ion COTS up to 1000 mAh. Critical: 1-fault tolerant, under 20 V and 60 Wh. Catastrophic: 2-fault tolerant. Section 4.4.3: monitor voltage, current and temperature.",
+      "links": [{ "label": "JSC-20793 Rev D on NTRS (20170009182)", "url": "https://ntrs.nasa.gov/citations/20170009182" }],
+      "text": "Non-Critical: under 4 Wh per isolated pack, Li-ion COTS up to 1000 mAh. Critical: single-fault tolerant, Li-ion COTS under 20 V and 60 Wh. Catastrophic: two-fault tolerant. Section 4.4.3: monitor cell voltage, cell temperature and current.",
       "chip": "NASA-published", "snapshot": null
     },
     {
-      "id": "materials", "topic": "Materials in the habitable volume", "refs": ["NASA-STD-6001B w/Chg 3", "NASA-STD-6016C"],
-      "text": "Test 1 flammability (5 specimens of 30 × 6.5 cm, none burns more than 15 cm), Test 4 wire insulation, Test 7 offgassing (72 ± 1 h at 50 ± 3 °C, total T value under 0.5), Test 18 arc tracking. An untested material needs a Material Usage Agreement under NASA-STD-6016C.",
+      "id": "materials", "topic": "Materials in the habitable volume", "refs": ["NASA-STD-6001B w/Change 3", "NASA-STD-6016"],
+      "links": [{ "label": "NASA-STD-6001B in the NASA Technical Standards System", "url": "https://standards.nasa.gov/standard/NASA/NASA-STD-6001" }],
+      "text": "Test 1 upward flame propagation (five specimens of 30 × 6.5 cm; none may burn more than 15 cm), Test 4 electrical wire insulation flammability, Test 7 offgassed products (72 ± 1 h at 50 ± 3 °C; total T value below 0.5), Test 18 arc tracking. A material that is untested or fails these tests needs a Materials Usage Agreement (MUA) under NASA-STD-6016.",
       "chip": "NASA-published", "snapshot": null
     }
   ],
-  "safety_basis": "Vol 2 Rev F items are frozen in std_vol2_requirements. JSC-20793 and NASA-STD-6001B were read in project preparation (PLANO Appendix B) and are not frozen in this build.",
+  "safety_basis": "Vol 2 Rev F items are frozen in std_vol2_requirements. JSC-20793 Rev D (NTRS 20170009182) and NASA-STD-6001B w/Change 3 are public NASA documents, not frozen in this build; their numbers here were checked against them on 2026-11-14.",
   "open_items": [
     "No schematic capture or PCB: block level only (KiCad not available).",
-    "Every current in the power budget is a datasheet-typical estimate; bench measurement replaces it.",
+    "Every current in the power budget is an estimate; bench measurement replaces it.",
     "Battery monitoring: the MCP73831 has no thermistor input (verified on its datasheet) and the MAX17048's current and temperature measurement is not verified, so JSC-20793 section 4.4.3 is treated as not met. Fix: a gauge whose datasheet shows current and temperature measurement.",
-    "Five datasheets were not read in this build (MAX30003, MAX86141, MAX30208, MAX17048, LSM6DSOX): confirm each part offers what the design assumes (256 sps ECG, an accelerometer rate of 52 Hz, skin-range accuracy, I2C addressing) before selection.",
+    "Five datasheets were not read in this build (MAX30003, MAX86141, MAX30208, MAX17048, LSM6DSOX): confirm each part offers what the design assumes (256 sps ECG, a continuous low-power pulse channel plus an SpO2 mode, an accelerometer rate of 52 Hz, skin-range accuracy, I2C addressing) before selection.",
+    "PRV against ECG: measure how far the band's pulse-interval SDNN departs from ECG SDNN in sleep; until then hrv_sdnn is compared only with the crewmember's own PRV baseline.",
+    "Pulse wavelength: the design reuses the SpO2 infrared LED for the continuous pulse channel; choose the wavelength on the bench.",
+    "No ECG viewer: LANDFALL does not show the spot-check strip to the Crew Medical Officer or put it in the ground packet yet.",
     "Confirm two TWI (I2C) instances on the nRF52840 beside SPI and QSPI in its product specification: the design uses two I2C buses.",
-    "Prolonged DC contact: check every DC lead-bias and lead-off current of the ECG front end against Table 9.3-11 and its footnote.",
+    "Prolonged DC contact: check every DC lead-bias and lead-off current of the ECG front end against Table 9.3-11 and its footnote, with the front end powered down between spot checks.",
     "No power switch or status light for [V2 9017] / [V2 9018].",
-    "Power tree (1.8 V AFE rail, LED supply) not designed.",
-    "Electrode material, strap and housing materials not selected: NASA-STD-6001B testing or a Material Usage Agreement is needed.",
+    "Power tree (front-end and LED supply rails) not designed.",
+    "Electrode material, strap and housing materials not selected: NASA-STD-6001B testing or a Materials Usage Agreement is needed.",
     "Core body temperature is not derived: that needs a validated model.",
     "Check the MAX30208 addressing on the datasheet before layout; the two-bus split avoids the question for now."
+  ],
+  "build_notes": [
+    "Five part datasheets (MAX30003, MAX86141, MAX30208, MAX17048, LSM6DSOX) are hosted on analog.com and st.com, which did not answer automated downloads during the build on 2026-11-14. Manufacturer claims drafted for those parts earlier were removed rather than kept unverified.",
+    "The Bio-Monitor channel table, pitfalls and recorder facts were first transcribed before the hackathon from Hexoskin's documentation. On 2026-11-14 each was re-read on the public pages listed with the flown reference, and three were corrected: the recorder runs on replaceable AA batteries (its product page says it \"is not rechargeable\"); HERA Campaign 3 was a test meant to raise the TRL from 5 to 6, not a validation at that level; and the registry gives the systolic estimate at 1 Hz, so it is no longer called non-continuous.",
+    "JSC-20793 Rev D and NASA-STD-6001B w/Change 3 were first read before the hackathon. On 2026-11-14 their numbers were re-checked in the public copies linked under Safety constraints, and the battery quotes were replaced by the documents' verbatim text.",
+    "The ExMC Mars concept of operations (NTRS 20200001715), the PRV review (PMID 22809539) and the FDA De Novo summary DEN180044 were read in full text on 2026-11-14. None is frozen in this build, so the band test cannot re-check those quotes; each one links to its source.",
+    "An earlier draft put two ECG electrodes on the inner face and took resting heart rate and HRV from their R-R intervals. Two electrodes on one wrist form no lead across the heart, so that could not work: heart rate and HRV now come from the optical pulse, and the ECG is an on-demand spot check closed by the other hand."
   ]
 }

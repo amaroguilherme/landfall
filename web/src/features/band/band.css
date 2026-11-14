@@ -17,8 +17,15 @@
 .band-block { display: block; }
 .band-mono { font-family: var(--lf-font-mono); }
 
-.band-gap { border-left: 3px solid var(--lf-border-strong); background: var(--lf-surface-1); padding: var(--lf-space-1) var(--lf-space-2); }
-.band-gap p { margin: 0; max-width: none; font-size: var(--lf-text-sm); }
+/* the two asides under the diagram: where the heart signals come from, and the gap the band fills */
+.band-asides { display: grid; gap: var(--lf-space-2); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 960px) { .band-asides { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.band-aside { border-left: 3px solid var(--lf-border-strong); background: var(--lf-surface-1); padding: var(--lf-space-1-5) var(--lf-space-2); min-width: 0; display: grid; gap: var(--lf-space-1); align-content: start; }
+.band-aside p { margin: 0; max-width: none; }
+.band-aside-h { font-family: var(--lf-font-heading); font-size: var(--lf-text-md); margin: 0; }
+.band-heart-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--lf-space-1); }
+.band-heart-head { font-size: var(--lf-text-sm); }
+.band-gap-claim { font-size: var(--lf-text-sm); }
 
 /* ---- the diagram ---- */
 .band-figure { margin: 0; border: 1px solid var(--lf-border-subtle); background: var(--lf-bg); padding: var(--lf-space-1); }
@@ -171,3 +178,13 @@
 .band-ds[data-status='not_retrieved'] .band-ds-status { color: var(--lf-data-stale); }
 .band-ds-quotes { margin: 0.2em 0 0; padding-left: 1.1em; color: var(--lf-text-2); }
 .band-bom td[data-ds='not_retrieved'] a { color: var(--lf-data-stale); }
+
+/* published basis outside NASA-STD-3001 (review, regulatory summary, NASA concept of operations) */
+.band-evidence { margin-top: var(--lf-space-2); border-top: 1px solid var(--lf-border-subtle); padding-top: var(--lf-space-1); }
+.band-evidence-sub { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--lf-text-muted); }
+.band-evidence-claim { margin: 0; }
+.band-evidence .lf-cite { font-style: normal; }
+.band-sources-lede { margin: var(--lf-space-1) 0 0.25em; }
+.band-sources { margin: 0 0 var(--lf-space-1); padding-left: 1.1em; display: grid; gap: 0.2em; }
+.band-ref-link { margin-top: 0.3em; }
+.band-build .lf-expander-body { font-size: var(--lf-text-sm); }

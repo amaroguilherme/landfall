@@ -7,12 +7,12 @@ import type { FeatureProps } from '../../app/router'
 import { Link } from '../../app/location'
 import { useManifest } from '../../app/data'
 import type { ManifestEntry } from '../../app/data'
-import { Chip, Expander, FreshnessChip, Num, ReqId, UnknownIcon } from '../../ui'
+import { Chip, Citation, Expander, FreshnessChip, Num, ReqId, UnknownIcon } from '../../ui'
 import { BandDiagram } from './Diagram'
 import type { Selection } from './Diagram'
 import { BLOCKS, HAND_OFFS, SENSOR_MAP, blockById, handOffById, referencedSnapshots } from './map'
 import { RELATION_SHORT, casesServed, datasheetStatus, interfaceLabel } from './render'
-import type { Block, Datasheet, FeedRef, HandOff, Limit, Rate, ReqRef, Step } from './types'
+import type { Block, Datasheet, Evidence, FeedRef, HandOff, Limit, Rate, ReqRef, Step } from './types'
 import './band.css'
 
 const MAP = SENSOR_MAP
@@ -123,10 +123,50 @@ function ReqCard({ r, meta }: { r: ReqRef; meta: ReturnType<typeof useSnapshotMe
             Verbatim in <code>{r.snapshot}</code> <FreshnessChip meta={snap.entry} status={snap.status} id={r.snapshot ?? undefined} compact />
           </>
         ) : (
-          <span className="band-muted">Not frozen in this build (read in project preparation).</span>
+          <span className="band-muted">
+            Public document, not frozen in this build
+            {r.checked ? (
+              <>
+                {' '}
+                · read <span className="band-n">{r.checked}</span>
+              </>
+            ) : null}
+          </span>
         )}
       </p>
     </li>
+  )
+}
+
+/** Published sources outside NASA-STD-3001 behind a design decision: quote, chip, citation, date read. */
+function EvidenceList({ list }: { list?: Evidence[] }) {
+  if (!list?.length) return null
+  return (
+    <section className="band-evidence" aria-label="Published basis, not a NASA requirement">
+      <h3 className="band-label-h">
+        Published basis <span className="band-evidence-sub">not a NASA requirement</span>
+      </h3>
+      <ul className="band-list">
+        {list.map((e) => (
+          <li key={e.source.url + e.claim} className="band-req">
+            <p className="band-small band-evidence-claim">
+              <Prose text={e.claim} />
+            </p>
+            <blockquote className="band-quote">
+              <p>
+                <Prose text={e.quote} />
+              </p>
+            </blockquote>
+            <p className="band-verbatim">
+              <ChipFor chip={e.chip} /> <Citation source={e.source} />
+              <span>
+                read <span className="band-n">{e.checked}</span>; not frozen in this build
+              </span>
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -257,7 +297,7 @@ function BlockDetail({ b, meta }: { b: Block; meta: ReturnType<typeof useSnapsho
               {b.produces.map((p) => (
                 <li key={p.variable + p.label}>
                   <code>{p.variable}</code> <span className="band-unit">[{p.unit}]</span> {p.label}
-                  {p.not_in_spec ? <span className="band-flag"> not a LANDFALL indicator</span> : null}
+                  {p.not_in_spec ? <span className="band-flag"> no LANDFALL rule</span> : null}
                   <span className="band-small band-block"> <Prose text={p.how} /></span>
                 </li>
               ))}
@@ -320,8 +360,8 @@ function BlockDetail({ b, meta }: { b: Block; meta: ReturnType<typeof useSnapsho
           </p>
         ) : b.datasheet ? (
           <p className="band-small">
-            <span className="band-kind">Manufacturer spec</span> none claimed: the manufacturer's page could not be read for this
-            build, so nothing about the part is stated from memory.
+            <span className="band-kind">Manufacturer spec</span> none quoted: the datasheet could not be retrieved for this build,
+            so this page quotes no claim about the part. What the design assumes of it is an open item.
           </p>
         ) : null}
         <DatasheetNote d={b.datasheet} />
@@ -335,6 +375,7 @@ function BlockDetail({ b, meta }: { b: Block; meta: ReturnType<typeof useSnapsho
           ))}
         </div>
       ) : null}
+      <EvidenceList list={b.evidence} />
     </>
   )
 }
@@ -389,6 +430,7 @@ function HandOffDetail({ h, meta }: { h: HandOff; meta: ReturnType<typeof useSna
           </ul>
         </section>
       </div>
+      <EvidenceList list={h.evidence} />
     </>
   )
 }
@@ -463,6 +505,7 @@ export default function Band({ query }: FeatureProps) {
   const logTarget = MAP.log.steps.find((s) => s.id === 'target')
   const logEst = MAP.log.steps.find((s) => s.id === 'depth')
   const energy = MAP.power.steps.find((s) => s.id === 'energy')
+  const numbered = BLOCKS.filter((b) => b.datasheet).length
 
   return (
     <article className="band">
@@ -470,13 +513,17 @@ export default function Band({ query }: FeatureProps) {
         <p className="lf-eyebrow">Hardware concept · block level · never built or bench-tested</p>
         <h1 className="band-h1">{MAP.title}</h1>
         <p className="band-lede">
-          A wrist-worn sensor band sized from hardware that flew. Each block names what it measures, the LANDFALL rule it
-          feeds and the NASA requirement behind it. What a wearable cannot measure sits outside the device, behind the
-          dashed line, with the path it takes instead.
+          A wrist-worn sensor band. Heart rate comes from an optical pulse sensor, around the clock; the ECG is a spot check
+          that the other hand closes. Each block names what it measures, the LANDFALL rule it feeds and the NASA
+          requirement behind it. What a wearable cannot measure sits outside the device, behind the dashed line, with the
+          path it takes instead.
         </p>
         <ul className="band-facts" aria-label="Key numbers">
           <li>
-            <span className="band-fact-k">Parts</span> <Num value={BLOCKS.length} /> <span className="band-muted">real part numbers</span>
+            <span className="band-fact-k">Parts</span> <Num value={BLOCKS.length} />{' '}
+            <span className="band-muted">
+              (<Num value={numbered} /> part numbers, <Num value={BLOCKS.length - numbered} /> cell not yet selected)
+            </span>
           </li>
           <li>
             <span className="band-fact-k">Not measurable here</span> <Num value={HAND_OFFS.length} />
@@ -509,16 +556,57 @@ export default function Band({ query }: FeatureProps) {
         </figcaption>
       </figure>
 
-      <aside className="band-gap" aria-label="The gap this design fills">
-        <p>
-          <strong><Prose text={MAP.gap.claim} /></strong> The ExMC Mars medical concept of operations assumes{' '}
-          <q>{MAP.gap.quote}</q> and lists no sensor, rate or specification (
-          <a href={MAP.gap.url} target="_blank" rel="noopener noreferrer">
-            NTRS <span className="band-n">{MAP.gap.ntrs}</span>
-          </a>
-          ). This band is one concrete, cited answer.
-        </p>
-      </aside>
+      <div className="band-asides">
+        <aside className="band-aside band-heart" aria-labelledby="band-heart-h">
+          <h2 id="band-heart-h" className="band-aside-h">
+            {MAP.heart.title}
+          </h2>
+          <ul className="band-heart-list">
+            {MAP.heart.points.map((h) => {
+              const b = blockById(h.block)
+              return (
+                <li key={h.block}>
+                  <p className="band-heart-head">
+                    <strong>{h.head}</strong>
+                    {b ? (
+                      <>
+                        {' '}
+                        ·{' '}
+                        <button type="button" className="band-linkbtn" onClick={() => onSelect({ kind: 'block', id: b.id })} aria-label={`Show ${b.part} in the diagram details`}>
+                          {b.part}
+                        </button>
+                      </>
+                    ) : null}
+                  </p>
+                  <p className="band-small">
+                    <Prose text={h.text} />
+                  </p>
+                </li>
+              )
+            })}
+          </ul>
+        </aside>
+        <aside className="band-aside band-gap" aria-labelledby="band-gap-h">
+          <h2 id="band-gap-h" className="band-aside-h">
+            The gap this design fills
+          </h2>
+          <p className="band-gap-claim">
+            <strong>
+              <Prose text={MAP.gap.claim} />
+            </strong>
+          </p>
+          <p className="band-small">
+            <Prose text={MAP.gap.detail} />
+          </p>
+          <p className="band-small band-muted">
+            <a href={MAP.gap.url} target="_blank" rel="noopener noreferrer">
+              <Prose text={MAP.gap.doc} /> (NTRS <span className="band-n">{MAP.gap.ntrs}</span>)
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+            ; <Prose text={MAP.gap.verified_in} />.
+          </p>
+        </aside>
+      </div>
 
       <section ref={detailRef} className="band-detail" aria-live="polite" aria-atomic="false" tabIndex={-1}>
         {selBlock ? <BlockDetail b={selBlock} meta={meta} /> : null}
@@ -580,7 +668,7 @@ export default function Band({ query }: FeatureProps) {
 
       <section className="band-section" aria-labelledby="band-neg-h">
         <h2 id="band-neg-h" className="band-h2">
-          What NASA does not publish, declared on the drawing
+          What NASA-STD-3001 Vol 2 Rev F does not require, declared on the drawing
         </h2>
         <ul className="band-neg">
           {MAP.negatives.map((n) => {
@@ -627,7 +715,7 @@ export default function Band({ query }: FeatureProps) {
             </li>
           ))}
         </ol>
-        <Expander summary={`Flown reference: ${MAP.flown_reference.name} channel table`}>
+        <Expander summary={`Flown reference: ${MAP.flown_reference.name}, facts and channel table`}>
           <ul className="band-list">
             {MAP.flown_reference.facts.map((f) => (
               <li key={f} className="band-small">
@@ -635,9 +723,22 @@ export default function Band({ query }: FeatureProps) {
               </li>
             ))}
           </ul>
+          <p className="band-small band-muted band-sources-lede">
+            <Prose text={MAP.flown_reference.basis} />
+          </p>
+          <ul className="band-sources">
+            {MAP.flown_reference.sources.map((src) => (
+              <li key={src.url} className="band-small">
+                <a href={src.url} target="_blank" rel="noopener noreferrer">
+                  <Prose text={src.label} />
+                  <span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              </li>
+            ))}
+          </ul>
           <div className="band-table-wrap">
             <table className="band-table">
-              <caption>Bio-Monitor channels (basis: {MAP.flown_reference.basis})</caption>
+              <caption>Bio-Monitor channels, as the Hexoskin datatype registry lists them</caption>
               <thead>
                 <tr>
                   <th scope="col">Channel</th>
@@ -683,6 +784,12 @@ export default function Band({ query }: FeatureProps) {
                       <span key={r} className="band-ref">
                         {/^V[12] \d/.test(r) ? <ReqId id={r} /> : r}
                       </span>
+                    ))}
+                    {(s.links ?? []).map((l) => (
+                      <a key={l.url} className="band-small band-block band-ref-link" href={l.url} target="_blank" rel="noopener noreferrer">
+                        {l.label}
+                        <span className="sr-only"> (opens in a new tab)</span>
+                      </a>
                     ))}
                   </td>
                   <td className="band-small"><Prose text={s.text} /></td>
@@ -761,10 +868,23 @@ export default function Band({ query }: FeatureProps) {
         </ul>
       </section>
 
+      <section className="band-section band-build" aria-label="Build notes">
+        <Expander summary="Build notes: how this build checked its sources">
+          <ul className="band-open">
+            {MAP.build_notes.map((n) => (
+              <li key={n}>
+                <Prose text={n} />
+              </li>
+            ))}
+          </ul>
+        </Expander>
+      </section>
+
       <footer className="band-foot">
         <p className="band-small">
           Rendered from <code>hardware/sensor-map.json</code>, bundled at build time (no request at runtime). A unit test checks
-          every quote above verbatim against these frozen snapshots:
+          every quote taken from these frozen snapshots verbatim; a quote from a public document that is not frozen here links
+          to its source and gives the date it was read.
         </p>
         <ul className="band-foot-snaps">
           {snapIds.map((id) => {

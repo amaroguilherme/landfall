@@ -22,8 +22,8 @@ const SENSOR_H = { wide: 84, narrow: 78 }
 
 function blockLines(b: Block) {
   const part = b.qty > 1 ? `${b.part} ×${b.qty}` : b.part
-  const a = b.produces.filter((p) => !p.not_in_spec).map((p) => p.variable)
-  const extra = b.produces.filter((p) => p.not_in_spec).map((p) => p.variable)
+  const a = b.produces.filter((p) => !p.not_in_spec).map((p) => p.diagram ?? p.variable)
+  const extra = b.produces.filter((p) => p.not_in_spec).map((p) => p.diagram ?? p.variable)
   const produces = [...a, ...extra].join(' · ')
   const reqs = b.justified_by.map((r) => diagramReqLabel(r)).join(' · ')
   return { part, produces, reqs }
@@ -288,8 +288,10 @@ function SvgFrame({ w, h, y0 = 0, titleId, descId, children, map }: { w: number;
       <title id={titleId}>{map.title}: block diagram</title>
       <desc id={descId}>
         Sensors on the band connect over SPI and I2C to the nRF52840 microcontroller, which logs to flash and sends data
-        over Bluetooth to the LANDFALL app. Outside the device, a dashed boundary lists what the band cannot measure and
-        the path each of those values takes instead: {map.not_measurable_here.map((h) => `${h.what} via ${h.via}`).join('; ')}.
+        over Bluetooth to the LANDFALL app. Heart rate comes from the optical pulse sensor, around the clock; the ECG
+        records only during a spot check, while a finger of the other hand touches its outer electrode. Outside the
+        device, a dashed boundary lists what the band cannot measure and the path each of those values takes instead:{' '}
+        {map.not_measurable_here.map((h) => `${h.what} via ${h.via}`).join('; ')}.
       </desc>
       <Defs />
       {children}
@@ -303,7 +305,7 @@ function Wide({ map, selection, onSelect, titleId, descId }: ViewProps) {
   const W = 1200
   const sensors = map.blocks.filter((b) => b.group === 'sensor')
   const sx = 24
-  const sw = 296
+  const sw = 306
   const sTop = 104
   const gap = 10
   const sH = SENSOR_H.wide
@@ -641,7 +643,8 @@ function Narrow({ map, selection, onSelect, titleId, descId }: ViewProps) {
   // 2. BLE down into the app; 3. hand-offs up into the app from the zone below it.
   const app: Rect = { x: x0, y: devBottom + 44, w: W - 2 * x0, h: 56 }
   const nmhTop = app.y + app.h + 44
-  const nmh: Rect = { x: x0, y: nmhTop, w: W - 2 * x0, h: 70 + map.not_measurable_here.length * 62 }
+  const nmhStep = 68
+  const nmh: Rect = { x: x0, y: nmhTop, w: W - 2 * x0, h: 70 + map.not_measurable_here.length * nmhStep }
   const H = nmh.y + nmh.h + 8
 
   return (
@@ -680,7 +683,7 @@ function Narrow({ map, selection, onSelect, titleId, descId }: ViewProps) {
         <HandOffItem
           key={h.id}
           h={h}
-          r={{ x: nmh.x + 10, y: nmh.y + 64 + i * 62, w: nmh.w - 20, h: 56 }}
+          r={{ x: nmh.x + 10, y: nmh.y + 64 + i * nmhStep, w: nmh.w - 20, h: 62 }}
           selected={isSel(selection, 'handoff', h.id)}
           onSelect={onSelect}
         />

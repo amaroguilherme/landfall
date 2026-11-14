@@ -11,6 +11,7 @@
 //   df       = n - 1
 //   critical = tCritical(alpha, df)       two-tailed, alpha from personal.json (0.001)
 //   reliable when |rc| > critical
+//   mdc      = critical * s_diff           the minimum detectable change: the band's half-width
 //
 // Under normal, independent day-to-day noise the chance of a reliable change is exactly alpha per
 // indicator-day (alpha / 2 in a given direction); autocorrelated or skewed data raise it
@@ -30,6 +31,7 @@ import type {
   Direction,
   FalseAlarms,
   Indicator,
+  MinDetectableChange,
   PersonalFinding,
   RciConfig,
   RciReason,
@@ -72,9 +74,11 @@ function validateAlpha(alpha: unknown): number {
  * Single-case test of `current` against `baseline` (numbers; null entries are skipped).
  * status "ok" or "insufficient_data" (reason baseline_too_short, no_current or zero_sd, checked in
  * that order). Fields are reported when computable: mean needs n >= 1; sd, df and s_diff need
- * n >= 2; critical needs n >= minBaselineN; rc needs status "ok". zero_sd is an exact constancy
- * test, so float noise cannot fake a reliable change. A baseline mean or SD, or a statistic, that
- * is not finite raises invalid_argument: the engine never returns NaN or infinity.
+ * n >= 2; critical needs n >= minBaselineN; rc needs status "ok"; mdc (critical * s_diff, the
+ * smallest change from the mean that is a reliable change) needs critical and an SD above 0, so it
+ * is reported even without a current value. zero_sd is an exact constancy test, so float noise
+ * cannot fake a reliable change. A baseline mean or SD, the minimum detectable change or the
+ * statistic that is not finite raises invalid_argument: the engine never returns NaN or infinity.
  */
 export function rci(
   baseline: ReadonlyArray<number | null>,
@@ -119,6 +123,13 @@ export function rci(
   const df = n >= 2 ? n - 1 : null
   const sDiff = sd !== null ? sd * Math.sqrt(1.0 + 1.0 / n) : null
   const crit = n >= minBaselineN && df !== null ? critical(alpha, df) : null
+  let mdc: number | null = null
+  if (crit !== null && sDiff !== null && sd !== null && sd > 0) {
+    mdc = crit * sDiff
+    if (!Number.isFinite(mdc)) {
+      throw new EngineError('invalid_argument', 'the minimum detectable change is not finite (values too large)')
+    }
+  }
   let direction: Direction | null = null
   if (mean !== null && cur !== null) direction = cur > mean ? 'increase' : cur < mean ? 'decrease' : 'none'
   const out: RciResult = {
@@ -135,6 +146,7 @@ export function rci(
     alpha,
     reliable: false,
     direction,
+    mdc,
   }
   if (n < minBaselineN) return { ...out, reason: 'baseline_too_short' }
   if (cur === null) return { ...out, reason: 'no_current' }
@@ -167,8 +179,9 @@ function validateCfg(cfg: unknown): asserts cfg is RciConfig {
  * Tier B finding for one personal indicator. baseline: numbers / null / observations (same unit as
  * the indicator); current: number, null or an observation; cfg: the `rci` block of personal.json.
  * Severity: reliable change in the worse direction -> caution (never warning), but nominal for a
- * non-alerting indicator, which never alerts; reliable change in the better direction -> nominal;
- * insufficient data -> advisory; within -> nominal. Any reliability_r on the indicator is ignored.
+ * non-alerting indicator, which never alerts; reliable change in the other direction -> nominal
+ * (shown, no alert; LANDFALL does not call it better); insufficient data -> advisory; within ->
+ * nominal. Any reliability_r on the indicator is ignored.
  */
 export function evaluatePersonal(
   indicator: Indicator,
@@ -230,7 +243,7 @@ export function evaluatePersonal(
       status = 'reliable_change'
       const isWorse = worse === 'either' || direction === worse
       severity = isWorse ? 'caution' : 'nominal'
-      txt = isWorse ? 'reliable change in the worse direction' : 'reliable change in the better direction'
+      txt = isWorse ? 'reliable change in the worse direction' : 'reliable change in the other direction (no alert)'
     } else {
       status = 'within'
       severity = 'nominal'
@@ -281,8 +294,30 @@ export function evaluatePersonal(
       n: res.n,
       reliable: res.reliable,
       reason,
+      mdc: res.mdc,
     },
   }
+}
+
+/**
+ * The smallest one-day change from the baseline mean that the single-case test flags:
+ * mdc = critical * s_diff, s_diff = sd * sqrt(1 + 1/n), critical = tCritical(alpha, n - 1), the
+ * half-width of the personal band. Use it to state Tier B's sensitivity at the crewmember's own SD
+ * (rci().mdc is the same number) or at a literature SD. sd must be > 0, n an integer >= 2, alpha in
+ * (0, 1); anything else, or a result that is not finite, raises invalid_argument.
+ */
+export function minDetectableChange(sd: number, n: number, alpha: number = 0.001): MinDetectableChange {
+  requireNumber(sd, 'sd')
+  if (!(sd > 0)) throw new EngineError('invalid_argument', `sd must be > 0 (the test is undefined at SD 0), got ${pyStr(sd)}`)
+  if (!isInt(n) || n < 2) throw new EngineError('invalid_argument', 'n must be an integer >= 2')
+  validateAlpha(alpha)
+  const sDiff = sd * Math.sqrt(1.0 + 1.0 / n)
+  const crit = critical(alpha, n - 1)
+  const mdc = crit * sDiff
+  if (!(Number.isFinite(sDiff) && Number.isFinite(mdc))) {
+    throw new EngineError('invalid_argument', 'the minimum detectable change is not finite (values too large)')
+  }
+  return { mdc, critical: crit, s_diff: sDiff, sd, n, df: n - 1, alpha }
 }
 
 export const FALSE_ALARM_ASSUMES =
@@ -293,35 +328,45 @@ export const FALSE_ALARM_ASSUMES =
 /**
  * Chance flags and chance cautions for k indicators tested once a day for `days` days.
  * Flags (a reliable change in either direction): (k * days) * alpha, i.e. per_day = k * alpha.
- * Cautions (only a change in the worse direction raises one): half of that, because the test is
- * two-tailed and each indicator has one worse direction. N = 1 / per_day and
- * M = 1 / (per_day / 2), formatted with fmtNum(dp = 1).
+ * Cautions: an indicator with one worse direction raises a caution on half of its chance flags (the
+ * test is two-tailed); one whose worse is "either" (kEither of the k) on all of them:
+ * cautions_per_day = ((k - kEither) * alpha) / 2 + kEither * alpha; with kEither = 0 that is
+ * per_day / 2. N = 1 / per_day and M = 1 / cautions_per_day, formatted with fmtNum(dp = 1).
  */
-export function expectedFalseAlarms(kIndicators: number, days: number, alpha: number = 0.001): FalseAlarms {
+export function expectedFalseAlarms(kIndicators: number, days: number, alpha: number = 0.001, kEither: number = 0): FalseAlarms {
   for (const [name, x] of [
     ['k_indicators', kIndicators],
     ['days', days],
     ['alpha', alpha],
+    ['k_either', kEither],
   ] as const) {
     requireNumber(x, name)
     if (x < 0) throw new EngineError('invalid_argument', `${name} must be >= 0`)
   }
   if (alpha > 1) throw new EngineError('invalid_argument', 'alpha must be <= 1')
+  if (kEither > kIndicators) throw new EngineError('invalid_argument', 'k_either must be <= k_indicators')
   const perDay = kIndicators * alpha
   const expected = kIndicators * days * alpha
   const every = perDay > 0 ? 1.0 / perDay : null
-  const cautionsPerDay = perDay / 2.0
-  const expectedCautions = expected / 2.0
+  const oneSided = kIndicators - kEither
+  const cautionsPerDay = (oneSided * alpha) / 2.0 + kEither * alpha
+  const expectedCautions = (oneSided * days * alpha) / 2.0 + kEither * days * alpha
   const cautionEvery = cautionsPerDay > 0 ? 1.0 / cautionsPerDay : null
   const text =
     every === null
       ? 'no false flags expected'
       : `one false flag every ${fmtNum(every, 1)} days on average, counting chance changes in either direction`
-  const cautionText =
-    cautionEvery === null
-      ? 'no false cautions expected'
-      : `one false caution every ${fmtNum(cautionEvery, 1)} days on average: ` +
-        'only a chance change in the worse direction raises a caution'
+  let cautionText: string
+  if (cautionEvery === null) cautionText = 'no false cautions expected'
+  else if (kEither > 0) {
+    cautionText =
+      `one false caution every ${fmtNum(cautionEvery, 1)} days on average: a chance change in the worse direction ` +
+      `raises a caution, and in either direction for the ${fmtNum(kEither)} indicator(s) that alert both ways`
+  } else {
+    cautionText =
+      `one false caution every ${fmtNum(cautionEvery, 1)} days on average: ` +
+      'only a chance change in the worse direction raises a caution'
+  }
   return {
     expected,
     per_day: perDay,
@@ -335,5 +380,6 @@ export function expectedFalseAlarms(kIndicators: number, days: number, alpha: nu
     k_indicators: kIndicators,
     days,
     alpha,
+    k_either: kEither,
   }
 }

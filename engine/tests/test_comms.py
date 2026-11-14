@@ -16,7 +16,7 @@ def test_blocked_inside_conjunction_window_with_resumes_at():
     assert r["blocked"] is True and r["reason"] == "solar_conjunction"
     # the fixture has two touching windows [35596800, 36000000) and [36000000, 36620400): chained
     assert r["resumes_at"] == 36620400
-    assert format_met(r["resumes_at"] - NOW) == "0011/06:00:00"  # "QUEUED - CONJUNCTION, 11d 06h"
+    assert format_met(r["resumes_at"] - NOW) == "11/06:00:00"  # F.6.1 f: no leading zeros in the day field
     assert r["round_trip_s"] == 2 * r["one_way_s"]
 
 

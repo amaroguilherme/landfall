@@ -145,8 +145,15 @@ function opsLevel(rule: Rule): number {
   return isCeiling(rule.op) ? sLevel(rule.limit) : 0
 }
 
-/** SPEC section 2 default mapping (design choice, mirrored in rules/meta.json). */
-function severityTierA(rule: Rule, status: Status, ctx: JsonObject): Severity {
+/**
+ * SPEC section 2 mapping (rules/meta.json severity_mapping), after NASA-STD-3001 Vol 2 Table 10.3-1.
+ * Warning is "Event that requires immediate action because it has the potential to become a
+ * life/mission threat"; Caution is "Event that needs attention, but not immediate action". The only
+ * Warning is an OPS level of S3 or above, whose rules carry the shelter action. FFD, PEL, POL and
+ * TARGET findings are Caution at most. `ctx` is accepted for compatibility; none of its fields
+ * changes the result.
+ */
+function severityTierA(rule: Rule, status: Status, _ctx: JsonObject): Severity {
   if (status === 'insufficient_data' || status === 'stale') return 'advisory'
   if (status === 'within' || status === 'not_applicable') return 'nominal'
   let sev: Severity
@@ -154,13 +161,14 @@ function severityTierA(rule: Rule, status: Status, ctx: JsonObject): Severity {
     if (status === 'approaching') {
       sev = 'advisory' // SPEC is silent on approaching an OPS level: we never exceed advisory
     } else {
-      sev = opsLevel(rule) >= 3 ? (pyGet(ctx, 'eva') === true ? 'warning' : 'caution') : 'advisory'
+      sev = opsLevel(rule) >= 3 ? 'warning' : 'advisory'
     }
   } else if (rule.category === 'TARGET') {
-    // literature targets are not NASA limits (meta.json rows target_outside / target_approaching)
+    // countermeasure targets are not NASA limits (meta.json rows target_outside / target_approaching)
     sev = status === 'outside' ? 'caution' : 'advisory'
   } else {
-    sev = status === 'outside' ? 'warning' : 'caution'
+    // FFD / PEL / POL, outside or approaching (meta.json rows tier_a_outside / tier_a_approaching)
+    sev = 'caution'
   }
   if (rule.role === 'context') sev = capSeverity(sev, 'advisory')
   const maxSev = pyGet(rule, 'max_severity')
@@ -172,7 +180,8 @@ function severityTierA(rule: Rule, status: Status, ctx: JsonObject): Severity {
  * Evaluate one Tier A / context / OPS rule (SPEC section 5).
  * value: number, null (no data) or an observation {value, unit, t?, variable?}.
  * envId: current environment id. t: evaluation MET seconds or null.
- * ctx: optional {eva: true} when an EVA is planned or in progress (OPS severity).
+ * ctx: optional object, accepted for compatibility ({eva} in older callers); no field of it changes the
+ * result: an S3-or-above OPS level is a Warning whether or not an EVA is under way.
  */
 export function evaluateRule(
   rule: Rule,

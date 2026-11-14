@@ -117,7 +117,10 @@ describe('real rules (engine/rules/*.json)', () => {
     const surface = byReq('V1 4002')
     expect(evaluateRule(micro, 35.1, 'iss', NOW)).toMatchObject({ status: 'within', severity: 'nominal' })
     expect(evaluateRule(surface, 35.1, 'iss', NOW).status).toBe('not_applicable')
-    expect(evaluateRule(surface, 35.1, 'mars_surface', NOW)).toMatchObject({ status: 'outside', severity: 'warning' })
+    // D1: a fitness floor not met is a Caution ("EVA assignment not cleared"), never a Warning
+    expect(evaluateRule(surface, 35.1, 'mars_surface', NOW)).toMatchObject({ status: 'outside', severity: 'caution' })
+    expect(surface.max_severity).toBe('caution')
+    expect(surface.action?.label).toBe('EVA assignment not cleared')
     expect(evaluateRule(micro, 35.1, 'mars_surface', NOW).status).toBe('not_applicable')
   })
 
@@ -155,11 +158,20 @@ describe('real rules (engine/rules/*.json)', () => {
     const lookup = triggerLookup(RULES)
     const onboard = thresholdRules(RULES).find((r) => r.id === 'ops_onboard_proton_s3') as Rule
     const finding = evaluateRule(onboard, { variable: 'proton_flux_10mev', value: 1100, unit: 'pfu', t: NOW }, 'mars_surface', NOW)
-    expect(finding.severity).toBe('caution')
+    expect(finding.severity).toBe('warning') // D1: S3+ with the shelter action is the only Warning
     let s: CaseState = newCase(def, 'CM-1', lookup, 'mars_surface')
     expect(s.spec.tripwire.condition).toMatchObject({ ref_id: 'ops_onboard_proton_s3', variable: 'proton_flux_10mev', unit: 'pfu' })
+    expect(s.spec.required_step_ids).toEqual(['p2', 'p3'])
     s = caseReduce(s, { type: 'OPEN', t: NOW, finding })
     s = caseReduce(s, { type: 'SELECT', t: NOW + 60, countermeasure_id: def.countermeasure!.primary.id })
+    // D5: the shelter confirmations are required before an outcome arms the tripwire
+    const blocked = caseReduce(s, { type: 'OUTCOME', t: NOW + 600, text: 'Crew in the storm shelter.' })
+    expect(blocked.log[blocked.log.length - 1]).toMatchObject({ error: 'required_steps_pending', to: 'acting' })
+    s = caseReduce(s, { type: 'STEP', t: NOW + 120, step_id: 'p2' })
+    s = caseReduce(s, { type: 'STEP', t: NOW + 180, step_id: 'p3', input: { variable: 'shelter_entry', value: NOW + 170, unit: 'MET', t: NOW + 180 } })
+    expect(s.packet_queued_at).toBeNull() // Prepared (held on board)
+    s = caseReduce(s, { type: 'STEP', t: NOW + 240, step_id: 'p6' })
+    expect(s.packet_queued_at).toBe(NOW + 240) // Queued (crew release)
     s = caseReduce(s, { type: 'OUTCOME', t: NOW + 600, text: 'Crew in the storm shelter.' })
     expect(s.status).toBe('watch')
     const reassess = s.reassess_at as number
@@ -182,9 +194,32 @@ describe('real rules (engine/rules/*.json)', () => {
     expect(s.status).toBe('watch') // two of three are >= 1000 pfu, but it is judged only at T+6 h
     s = caseReduce(s, { type: 'TICK', t: reassess, observations: obs })
     expect(s.status).toBe('escalated')
+    expect(s.escalation).toEqual({ t: reassess, reason: 'tripwire', step_id: null, tiers: ['crew_medical_officer', 'flight_surgeon'] })
+    expect(s.packet_queued_at).toBe(NOW + 240) // the first queueing time is kept
     const packet = buildGroundPacket(s, obs, {}, 'mars_surface', reassess, SIM_EPOCH)
     expect(packet.entry).toHaveLength(3)
     expect(packet.entry[0].resource.meta?.tag?.map((t) => t.code)).toContain('scope-vehicle')
+  })
+
+  it('renal red flag: a "yes" escalates at once to the Crew Medical Officer and queues the packet (D4, D5)', () => {
+    const def = getCase(RULES, 'renal_stone')
+    const lookup = triggerLookup(RULES)
+    const target = thresholdRules(RULES).find((r) => r.id === 'target_urine_output_24h') as Rule
+    const finding = evaluateRule(target, { variable: 'urine_volume_24h', value: 1200, unit: 'mL', t: NOW }, 'mars_surface', NOW)
+    let s: CaseState = newCase(def, 'CM-3', lookup, 'mars_surface')
+    expect([s.spec.required_step_ids, s.spec.red_flag_step_ids]).toEqual([['r4'], ['r4']])
+    s = caseReduce(s, { type: 'OPEN', t: NOW, finding })
+    s = caseReduce(s, { type: 'SELECT', t: NOW + 60, countermeasure_id: 'cm_hydration' })
+    const unanswered = caseReduce(s, { type: 'STEP', t: NOW + 90, step_id: 'r4' })
+    expect(unanswered.log[unanswered.log.length - 1].error).toBe('invalid_event')
+    const no = caseReduce(s, { type: 'STEP', t: NOW + 90, step_id: 'r4', input: { variable: 'renal_symptoms', value: 0, unit: 'yes/no' } })
+    expect(no.status).toBe('acting')
+    const declined = caseReduce(s, { type: 'DECLINE', t: NOW + 90, step_id: 'r4', reason: 'CM-3 asleep; ask at wake.' })
+    expect(caseReduce(declined, { type: 'OUTCOME', t: NOW + 99, text: 'Hydration plan started.' }).status).toBe('watch')
+    const yes = caseReduce(s, { type: 'STEP', t: NOW + 90, step_id: 'r4', input: { variable: 'renal_symptoms', value: 1, unit: 'yes/no' } })
+    expect(yes).toMatchObject({ status: 'escalated', closed_at: NOW + 90, packet_queued_at: NOW + 90 })
+    expect(yes.escalation).toEqual({ t: NOW + 90, reason: 'red_flag', step_id: 'r4', tiers: ['crew_medical_officer', 'flight_surgeon'] })
+    expect(yes.log[yes.log.length - 1].detail).toContain('the Crew Medical Officer, now')
   })
 
   it('comms: fixed light time at the ISS; Mars needs the Horizons table', () => {

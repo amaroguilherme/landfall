@@ -56,6 +56,7 @@ UCUM_CODES = {
     "mGy/day": "mGy/d",
     "µGy/day": "uGy/d",
     "mmHg": "mm[Hg]",
+    "mg/dL": "mg/dL",
     "ml/min/kg": "mL/min/kg",
     "%": "%",
     "% of pre-mission": "%",
@@ -85,6 +86,11 @@ LOCAL_DISPLAY = {
     "dose_bfo": "Blood-forming organs dose",
     "dose_skin": "Skin dose",
     "dose_lens": "Lens dose",
+    # cuff and glucometer readings are local codes: the FHIR R4 blood-pressure vital sign is a panel
+    # (systolic and diastolic as components), not two single-value Observations
+    "bp_systolic": "Systolic blood pressure (cuff, manual entry)",
+    "bp_diastolic": "Diastolic blood pressure (cuff, manual entry)",
+    "glucose": "Blood glucose (fingerstick, manual entry)",
 }
 
 # Variables that need an explicit consent[var] === true (mirrors private: true in personal.json).

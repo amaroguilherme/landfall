@@ -54,7 +54,20 @@
     "url": "https://pubmed.ncbi.nlm.nih.gov/16046228/"
    }
   },
-  "change_note": "An earlier version applied Jacobson & Truax's arithmetic (S_diff = SD x sqrt(2) x sqrt(1 - r), critical 3.29) to the crewmember's own baseline SD. An audit showed that this shrinks the denominator: with a 14-day baseline and r = 0.8 the chance-flag rate was about 6.6% per indicator-day, not the 0.1% printed. Tier B now uses Crawford & Howell's test, whose chance rate is alpha."
+  "change_note": "An earlier version applied Jacobson & Truax's arithmetic (S_diff = SD x sqrt(2) x sqrt(1 - r), critical 3.29) to the crewmember's own baseline SD. An audit showed that this shrinks the denominator: with a 14-day baseline and r = 0.8 the chance-flag rate was about 6.6% per indicator-day, not the 0.1% printed. Tier B now uses Crawford & Howell's test, whose chance rate is alpha.",
+  "detectable_change": {
+   "text": "The smallest one-day change Tier B can flag is the band's half-width, critical x baseline SD x sqrt(1 + 1/n) (min_detectable_change in the engine; every Tier B finding carries it as rci.mdc). With a full 14-day baseline that is 4.37 baseline SDs; at the 7-day minimum, 6.37. A real change smaller than that is never flagged, however much it matters: Tier B's sensitivity is set by the crewmember's own day-to-day noise.",
+   "chip": "derived",
+   "source": {
+    "kind": "derived",
+    "from": [
+     "rci.alpha_two_tailed",
+     "rci.baseline_window_days",
+     "rci.min_baseline_n"
+    ],
+    "arithmetic": "t_critical(0.001, 13) x sqrt(1 + 1/14) = 4.221 x 1.035 = 4.37; t_critical(0.001, 6) x sqrt(1 + 1/7) = 5.959 x 1.069 = 6.37"
+   }
+  }
  },
  "indicators": [
   {
@@ -175,11 +188,11 @@
     }
    },
    "definition": {
-    "text": "absolute difference, in hours, between the night's sleep midpoint and the median midpoint of the crewmember's baseline window (clock arithmetic across midnight)",
+    "text": "absolute shift, in hours, of the night's sleep midpoint from the median sleep midpoint of the crewmember's fixed baseline window (the window Tier B uses; MET days 368-381 in the demo scenario), with clock arithmetic across midnight. It is never negative, and a larger value is worse whether sleep moved earlier or later",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "An absolute shift lets one 'worse' direction (increase) cover both earlier and later drift."
+     "rationale": "An absolute shift lets one worse direction (increase) cover both earlier and later drift. Its baseline values are never negative and are skewed, so the normal-theory chance rate is a lower bound here too (rci.caveat)."
     }
    },
    "case_id": "sleep_circadian"
@@ -238,7 +251,16 @@
      "rationale": "Measured during sleep so posture and activity are comparable from day to day."
     }
    },
-   "case_id": null
+   "case_id": null,
+   "action": {
+    "label": "Resting heart rate up",
+    "text": "Resting heart rate is up against your own baseline. Tell the Crew Medical Officer today; LANDFALL does not say why.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). No case opens on it; its meaning is the Crew Medical Officer's call."
+    }
+   }
   },
   {
    "id": "hrv_sdnn",
@@ -266,7 +288,16 @@
      "rationale": "Short windows in sleep keep the recording conditions comparable."
     }
    },
-   "case_id": null
+   "case_id": null,
+   "action": {
+    "label": "Heart rate variability down",
+    "text": "Heart rate variability is down against your own baseline. Tell the Crew Medical Officer today; on its own it is not a diagnosis.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). No case opens on it; its meaning is the Crew Medical Officer's call."
+    }
+   }
   },
   {
    "id": "skin_temp",
@@ -351,6 +382,156 @@
     }
    },
    "case_id": "renal_stone"
+  },
+  {
+   "id": "bp_systolic",
+   "label": "Systolic blood pressure (cuff)",
+   "variable": "bp_systolic",
+   "unit": "mmHg",
+   "worse": "increase",
+   "alerting": true,
+   "private": false,
+   "device": "manual",
+   "reliability_r": {
+    "value": null,
+    "used_by_engine": false,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Not used by any computation. LANDFALL's single-case test (Crawford & Howell 1998) compares today's value with this crewmember's own baseline mean and SD, so it needs no test-retest reliability, and none is claimed for this measure."
+    }
+   },
+   "definition": {
+    "text": "systolic pressure of one cuff reading, taken at rest with the blood pressure cuff of the vehicle medical kit and typed in by the crewmember",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "The challenge names blood pressure. The band has no blood-pressure sensor, so the cuff of the vehicle medical kit and manual entry are the hand-off boundary. Tier B compares each reading only with the crewmember's own baseline and needs at least 7 baseline readings (rci.min_baseline_n). Worse is an increase; a reliable drop is shown and does not alert."
+    }
+   },
+   "limit_note": {
+    "text": "No NASA numeric limit: NASA-STD-3001 Vol 1 Rev C and Vol 2 Rev F print no blood-pressure number. A text search of both documents at build found blood pressure only as the condition name 'Hypertension' in a Vol 1 appendix list, in a Vol 2 rationale on uprighting, and as 'blood pressure cuffs' among Vol 2's examples of non-isolated medical equipment. LANDFALL therefore has no Tier A rule for it, and Tier B alerts at caution at most.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Our reading of the two standards, by a text search of the PDFs frozen at build. It is a negative finding, so no requirement ID is cited."
+    }
+   },
+   "action": {
+    "label": "Systolic blood pressure up",
+    "text": "Systolic blood pressure is up against your own baseline. Repeat the cuff reading at rest and tell the Crew Medical Officer today.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is the Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice."
+    }
+   },
+   "case_id": null
+  },
+  {
+   "id": "bp_diastolic",
+   "label": "Diastolic blood pressure (cuff)",
+   "variable": "bp_diastolic",
+   "unit": "mmHg",
+   "worse": "increase",
+   "alerting": true,
+   "private": false,
+   "device": "manual",
+   "reliability_r": {
+    "value": null,
+    "used_by_engine": false,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Not used by any computation. LANDFALL's single-case test (Crawford & Howell 1998) compares today's value with this crewmember's own baseline mean and SD, so it needs no test-retest reliability, and none is claimed for this measure."
+    }
+   },
+   "definition": {
+    "text": "diastolic pressure of one cuff reading, taken at rest with the blood pressure cuff of the vehicle medical kit and typed in by the crewmember",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "The challenge names blood pressure. The band has no blood-pressure sensor, so the cuff of the vehicle medical kit and manual entry are the hand-off boundary. Tier B compares each reading only with the crewmember's own baseline and needs at least 7 baseline readings (rci.min_baseline_n). Worse is an increase; a reliable drop is shown and does not alert."
+    }
+   },
+   "limit_note": {
+    "text": "No NASA numeric limit: NASA-STD-3001 Vol 1 Rev C and Vol 2 Rev F print no blood-pressure number. A text search of both documents at build found blood pressure only as the condition name 'Hypertension' in a Vol 1 appendix list, in a Vol 2 rationale on uprighting, and as 'blood pressure cuffs' among Vol 2's examples of non-isolated medical equipment. LANDFALL therefore has no Tier A rule for it, and Tier B alerts at caution at most.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Our reading of the two standards, by a text search of the PDFs frozen at build. It is a negative finding, so no requirement ID is cited."
+    }
+   },
+   "action": {
+    "label": "Diastolic blood pressure up",
+    "text": "Diastolic blood pressure is up against your own baseline. Repeat the cuff reading at rest and tell the Crew Medical Officer today.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is the Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice."
+    }
+   },
+   "case_id": null
+  },
+  {
+   "id": "glucose",
+   "label": "Blood glucose (fingerstick)",
+   "variable": "glucose",
+   "unit": "mg/dL",
+   "worse": "either",
+   "alerting": true,
+   "private": false,
+   "device": "manual",
+   "reliability_r": {
+    "value": null,
+    "used_by_engine": false,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Not used by any computation. LANDFALL's single-case test (Crawford & Howell 1998) compares today's value with this crewmember's own baseline mean and SD, so it needs no test-retest reliability, and none is claimed for this measure."
+    }
+   },
+   "definition": {
+    "text": "capillary glucose of one fingerstick reading with the glucometer of the vehicle medical kit, typed in by the crewmember",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "The challenge names blood sugar. The band has no glucose sensor, so the glucometer of the vehicle medical kit and manual entry are the hand-off boundary. Tier B compares each reading only with the crewmember's own baseline and needs at least 7 baseline readings (rci.min_baseline_n). A reading can move too low or too high, so worse is either: a reliable change in either direction raises a caution, which doubles this indicator's chance-caution rate (expected_false_alarms, k_either)."
+    }
+   },
+   "limit_note": {
+    "text": "No NASA numeric limit: NASA-STD-3001 Vol 1 Rev C and Vol 2 Rev F print no blood-glucose number. A text search of both documents at build found glucose only once, in a Vol 2 lighting rationale on glucose and lipid regulation. LANDFALL therefore has no Tier A rule for it, and Tier B alerts at caution at most.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Our reading of the two standards, by a text search of the PDFs frozen at build. It is a negative finding, so no requirement ID is cited."
+    }
+   },
+   "context": {
+    "text": "Context only, not a limit: the SpaceX Inspiration4 crew's serum glucose (comprehensive metabolic panel, NASA OSDR OSD-575) was reported against a laboratory reference range of 65-99 mg/dL for every sample. A laboratory serum range is not a fingerstick threshold, and LANDFALL never alerts on it.",
+    "range": {
+     "min": 65,
+     "max": 99,
+     "unit": "mg/dL"
+    },
+    "chip": "literature",
+    "source": {
+     "kind": "literature",
+     "citation": "NASA Open Science Data Repository (OSDR). OSD-575: SpaceX Inspiration4 Blood Serum Metabolic Panel and Immune/Cardiac Cytokine Arrays (Comprehensive Metabolic Panel and Multiplex). Study version 3, submitted 2022-12-05, publicly released 2024-05-14. https://osdr.nasa.gov/bio/repo/data/studies/OSD-575 (no dataset DOI is stated in the OSDR metadata). Investigators listed by OSDR: Christopher Mason (principal investigator); Eliah Overbey (co-investigator); Kirill Grigorev (formal analysis role); Theodore Nelson (formal analysis role). Publications listed by OSDR: The Space Omics and Medical Atlas (SOMA) and international astronaut biobank (doi:10.1038/s41586-024-07639-y); Collection of Biospecimens from the Inspiration4 Mission Establishes the Standards for the Space Omics and Medical Atlas (SOMA) (doi:10.1038/s41467-024-48806-z); CAMbank: SST Field Processing v1 (doi:10.17504/protocols.io.81wgbxxo1lpk/v1).",
+     "url": "https://osdr.nasa.gov/bio/repo/data/studies/OSD-575",
+     "snapshot": "osdr_cmp"
+    }
+   },
+   "action": {
+    "label": "Fingerstick glucose changed",
+    "text": "Fingerstick glucose has changed against your own baseline. Repeat the reading and tell the Crew Medical Officer today.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is the Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice."
+    }
+   },
+   "case_id": null
   },
   {
    "id": "mood",

@@ -199,11 +199,41 @@ def test_every_case_runs_through_the_state_machine(case_def):
     assert s["status"] == "detected", s["log"][-1]
     s = case_reduce(s, {"type": "SELECT", "countermeasure_id": s["spec"]["countermeasure_ids"][0], "t": NOW + 1})
     assert s["status"] == "acting", s["log"][-1]
+    if s["spec"]["required_step_ids"]:   # D5: OUTCOME waits for every required step
+        r = case_reduce(s, {"type": "OUTCOME", "text": "test outcome", "t": NOW + 1})
+        assert r["log"][-1]["error"] == "required_steps_pending", case_def["id"]
+    inputs = {x["step_id"]: x for x in s["spec"]["step_inputs"]}
     for i, step_id in enumerate(s["spec"]["step_ids"]):
-        s = case_reduce(s, {"type": "STEP", "step_id": step_id, "t": NOW + 2 + i})
-        assert s["log"][-1]["error"] is None
+        ev = {"type": "STEP", "step_id": step_id, "t": NOW + 2 + i}
+        if step_id in inputs:   # answer "no" to a yes/no question; any number otherwise
+            unit = inputs[step_id]["unit"]
+            ev["input"] = {"variable": inputs[step_id]["variable"], "unit": unit,
+                           "value": False if unit == "yes/no" else NOW + 2 + i}
+        s = case_reduce(s, ev)
+        assert s["log"][-1]["error"] is None, s["log"][-1]
     s = case_reduce(s, {"type": "OUTCOME", "text": "test outcome", "t": NOW + 100})
     assert s["status"] == "watch"
+
+
+def test_required_and_red_flag_steps_of_the_real_cases():
+    """D5: renal r4 is a required red-flag question; the SPE shelter confirmations p2 and p3 are required;
+    p6 releases the ground packet. A "yes" to r4 escalates at once to the Crew Medical Officer (D4)."""
+    cases = {c["id"]: c for c in _cases()}
+    if not cases:
+        pytest.skip("cases.json has no cases")
+    lk = trigger_lookup(RULES)
+    spec = {cid: new_case(c, "CM-1", lk, "mars_surface")["spec"] for cid, c in cases.items()}
+    assert spec["renal_stone"]["required_step_ids"] == ["r4"] and spec["renal_stone"]["red_flag_step_ids"] == ["r4"]
+    assert spec["spe_shelter"]["required_step_ids"] == ["p2", "p3"] and spec["spe_shelter"]["red_flag_step_ids"] == []
+    assert spec["spe_shelter"]["packet_step_ids"] == ["p6"]
+    assert spec["sleep_circadian"]["required_step_ids"] == []
+    s = new_case(cases["renal_stone"], "CM-3", lk, "mars_surface")
+    s = case_reduce(s, {"type": "OPEN", "finding": {"rule_id": "target_urine_output_24h", "severity": "caution"}, "t": NOW})
+    s = case_reduce(s, {"type": "SELECT", "countermeasure_id": "cm_hydration", "t": NOW + 1})
+    s = case_reduce(s, {"type": "STEP", "step_id": "r4", "t": NOW + 2,
+                        "input": {"variable": "renal_symptoms", "value": 1, "unit": "yes/no"}})
+    assert s["status"] == "escalated" and s["escalation"]["reason"] == "red_flag"
+    assert s["escalation"]["tiers"] == ["crew_medical_officer", "flight_surgeon"] and s["packet_queued_at"] == NOW + 2
 
 
 @pytest.mark.parametrize("case_def", _cases() or [None], ids=lambda c: c["id"] if c else "no-cases")

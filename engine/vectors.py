@@ -13,7 +13,8 @@ decoded to that float before the call (decode_args), at any depth.
 The randomized vectors (engine/tests/vectors_random/random_<fn>.json) keep their seeded inputs
 frozen; --random recomputes their expectations with the current engine, migrates the arguments of
 a function whose signature changed (rci and evaluate_personal lost the reliability r and the fixed
-critical z), and draws seeded inputs for a function that has no random file yet.
+critical z; case states gained the required-step, escalation and packet fields), and draws seeded
+inputs for a function that has no random file yet.
 """
 
 from __future__ import annotations
@@ -31,7 +32,7 @@ from .comms import comms_eta
 from .errors import EngineError
 from .fmt import fmt_num, format_met, met_to_iso
 from .packet import build_ground_packet
-from .rci import evaluate_personal, expected_false_alarms, rci
+from .rci import evaluate_personal, expected_false_alarms, min_detectable_change, rci
 from .tdist import t_cdf, t_critical, t_quantile
 from .thresholds import evaluate_rule, s_level
 
@@ -46,6 +47,7 @@ FUNCTIONS = {
     "rci": rci,
     "evaluate_personal": evaluate_personal,
     "expected_false_alarms": expected_false_alarms,
+    "min_detectable_change": min_detectable_change,
     "t_cdf": t_cdf,
     "t_quantile": t_quantile,
     "t_critical": t_critical,
@@ -123,6 +125,12 @@ def build_vectors() -> dict[str, list[dict]]:
     add("format_met", "fraction_floored", seconds=59.9)
     add("format_met", "negative_prelaunch", seconds=-5)
     add("format_met", "rejects_string", seconds="12")
+    # NASA-STD-3001 Vol 2 Appendix F F.6.1 f: leading zeros suppressed in the day field
+    add("format_met", "f_6_1_f_example_57", seconds=57 * DAY + 14 * 3600 + 8 * 60 + 33)
+    add("format_met", "f_6_1_f_example_1089", seconds=1089 * DAY + 13 * 3600 + 3 * 60 + 1)
+    add("format_met", "countdown_11_days", seconds=11 * DAY + 5 * 3600 + 59 * 60 + 51)
+    add("format_met", "duration_under_a_day", seconds=39 * 60 + 41)
+    add("format_met", "negative_zero", seconds=-0.0)
     for x, dp in ((0.1 + 0.2, 3), (600.0, 3), (-0.0004, 3), (2.5, 0), (-2.5, 0), (0.125, 2),
                   (1234.5678, 3), (35.1, 3), (1e-7, 3), (99999999.9996, 3), (100.0, 1)):
         add("fmt_num", f"fmt_{x!r}_dp{dp}", x=x, dp=dp)
@@ -177,10 +185,17 @@ def build_vectors() -> dict[str, list[dict]]:
     s1, s3 = _rule(fx, "ops_noaa_s1"), _rule(fx, "ops_noaa_s3")
     add("evaluate_rule", "ops_s1_outside_advisory", rule=s1, value=50, env_id="iss", t=NOW)
     add("evaluate_rule", "ops_s3_approaching_advisory", rule=s3, value=600, env_id="iss", t=NOW)
-    add("evaluate_rule", "ops_s3_outside_no_eva_caution", rule=s3, value=2500, env_id="cislunar", t=NOW)
+    add("evaluate_rule", "ops_s3_outside_no_eva_warning", rule=s3, value=2500, env_id="cislunar", t=NOW)
     add("evaluate_rule", "ops_s3_outside_eva_warning", rule=s3, value=2500, env_id="lunar_surface", t=NOW,
         ctx={"eva": True})
+    add("evaluate_rule", "ops_s3_outside_eva_false_still_warning", rule=s3, value=2500, env_id="iss", t=NOW,
+        ctx={"eva": False})
     add("evaluate_rule", "ops_not_applicable_at_mars", rule=s3, value=2500, env_id="mars_surface", t=NOW)
+    add("evaluate_rule", "ffd_outside_capped_caution", rule=dict(vo2_sf, max_severity="caution"), value=30.0,
+        env_id="mars_surface", t=NOW)
+    add("evaluate_rule", "pel_outside_is_caution_never_warning", rule=dose, value=750, env_id="iss", t=NOW,
+        ctx={"eva": True})
+    add("evaluate_rule", "ctx_not_an_object_rejected", rule=dose, value=100, env_id="iss", t=NOW, ctx=[True])
     target = dict(dose, id="fixture_target", category="TARGET", max_severity="caution")
     add("evaluate_rule", "target_outside_caution_not_warning", rule=target, value=700, env_id="iss", t=NOW)
     add("evaluate_rule", "target_approaching_advisory", rule=target, value=500, env_id="iss", t=NOW)
@@ -251,6 +266,10 @@ def build_vectors() -> dict[str, list[dict]]:
     add("rci", "min_baseline_n_override", baseline=base[:3], current=18, min_baseline_n=3)
     add("rci", "constant_float_baseline_is_zero_sd", baseline=[7.3] * 7, current=7.4)
     add("rci", "current_equals_mean_direction_none", baseline=[1, 3, 1, 3, 1, 3, 1, 3], current=2)
+    add("rci", "mdc_reported_without_current", baseline=base, current=None)
+    add("rci", "mdc_null_below_min_baseline", baseline=base[:5], current=None)
+    # finite SD (7.1e99), but critical 6.4e279 x s_diff 8.7e99 overflows the minimum detectable change
+    add("rci", "mdc_overflow_rejected", baseline=[0, 1e100], current=None, alpha=1e-280, min_baseline_n=2)
     ch_base = [60] * 7 + [40] * 7 + [50]  # n = 15, mean 50, SD 10: Crawford & Howell 1998, p. 483-484
     add("rci", "crawford_howell_1998_example_one_tailed_05_not_significant", baseline=ch_base, current=33, alpha=0.1)
     add("rci", "crawford_howell_1998_example_one_tailed_10_significant", baseline=ch_base, current=33, alpha=0.2)
@@ -340,6 +359,30 @@ def build_vectors() -> dict[str, list[dict]]:
     add("expected_false_alarms", "negative_rejected", k_indicators=-1, days=30, alpha=0.001)
     add("expected_false_alarms", "alpha_above_one_rejected", k_indicators=8, days=30, alpha=1.5)
     add("expected_false_alarms", "alpha_nan_rejected", k_indicators=8, days=30, alpha=NAN)
+    add("expected_false_alarms", "k11_with_3_either_indicators", k_indicators=11, days=1, alpha=0.001, k_either=3)
+    add("expected_false_alarms", "all_either", k_indicators=4, days=30, alpha=0.001, k_either=4)
+    add("expected_false_alarms", "k_either_zero_matches_default", k_indicators=8, days=1, alpha=0.001, k_either=0)
+    add("expected_false_alarms", "k_either_fraction", k_indicators=8.5, days=7, alpha=0.001, k_either=0.5)
+    add("expected_false_alarms", "k_either_above_k_rejected", k_indicators=3, days=30, alpha=0.001, k_either=4)
+    add("expected_false_alarms", "k_either_negative_rejected", k_indicators=3, days=30, alpha=0.001, k_either=-1)
+    add("expected_false_alarms", "k_either_nan_rejected", k_indicators=3, days=30, alpha=0.001, k_either=NAN)
+
+    # ---- min_detectable_change: the band half-width, critical x sd x sqrt(1 + 1/n) ----
+    add("min_detectable_change", "sleep_sd_0_171_full_baseline", sd=0.171, n=14, alpha=0.001)
+    add("min_detectable_change", "unit_sd_full_baseline", sd=1.0, n=14)
+    add("min_detectable_change", "unit_sd_minimum_baseline", sd=1.0, n=7)
+    add("min_detectable_change", "literature_scale_sd", sd=0.67, n=14, alpha=0.001)
+    add("min_detectable_change", "n2_alpha_0_05", sd=2.5, n=2, alpha=0.05)
+    add("min_detectable_change", "integer_sd", sd=5, n=30)
+    for name, kw in (("sd_zero_rejected", {"sd": 0, "n": 14}), ("sd_negative_rejected", {"sd": -1.0, "n": 14}),
+                     ("sd_nan_rejected", {"sd": NAN, "n": 14}), ("sd_string_rejected", {"sd": "1", "n": 14}),
+                     ("sd_boolean_rejected", {"sd": True, "n": 14}), ("n_one_rejected", {"sd": 1.0, "n": 1}),
+                     ("n_float_rejected", {"sd": 1.0, "n": 7.5}), ("n_boolean_rejected", {"sd": 1.0, "n": True}),
+                     ("n_null_rejected", {"sd": 1.0, "n": None}), ("alpha_zero_rejected", {"sd": 1.0, "n": 14, "alpha": 0}),
+                     ("alpha_one_rejected", {"sd": 1.0, "n": 14, "alpha": 1}),
+                     ("df_above_1e6_rejected", {"sd": 1.0, "n": 1000002}),
+                     ("overflow_rejected", {"sd": 1e308, "n": 14})):
+        add("min_detectable_change", name, **kw)
 
     # ---- new_case ----
     case_def = fx["case"]
@@ -389,6 +432,29 @@ def build_vectors() -> dict[str, list[dict]]:
         env_id="mars_surface")
     add("new_case", "env_id_empty_rejected", case_def=case_def, crew_id="CM-1", env_id="")
     add("new_case", "env_id_number_rejected", case_def=case_def, crew_id="CM-1", env_id=5)
+    # required, red-flag and packet-release steps (SPEC 3.4, D5)
+    gated = copy.deepcopy(case_def)
+    gated["id"] = "gated_fixture"
+    gated["procedure"] = [
+        {"id": "step_1", "text": "plain step"},
+        {"id": "step_2", "text": "required, with a value", "required": True,
+         "input": {"variable": "sleep_duration", "unit": "h", "source": "band"}},
+        {"id": "step_3", "text": "red-flag question", "required": True, "red_flag": True,
+         "input": {"variable": "renal_symptoms", "unit": "yes/no", "source": "manual"}},
+        {"id": "step_4", "text": "required confirmation", "required": True},
+        {"id": "step_5", "text": "release the packet", "releases_packet": True},
+    ]
+    gst = add("new_case", "gated_steps_recorded_in_spec", case_def=gated, crew_id="CM-1")["expect"]
+    for name, patch in (("flag_not_boolean_rejected", {"required": 1}),
+                        ("red_flag_not_required_rejected", {"red_flag": True,
+                                                            "input": {"variable": "x", "unit": "yes/no"}}),
+                        ("red_flag_without_yes_no_input_rejected", {"red_flag": True, "required": True,
+                                                                    "input": {"variable": "x", "unit": "mL"}}),
+                        ("input_without_unit_rejected", {"input": {"variable": "x"}}),
+                        ("input_not_an_object_rejected", {"input": "sleep_duration"})):
+        bad_case = copy.deepcopy(gated)
+        bad_case["procedure"][0].update(patch)
+        add("new_case", name, case_def=bad_case, crew_id="CM-1")
 
     # ---- case_reduce: happy path detected -> acting -> watch -> resolved ----
     finding = run("evaluate_personal", {"indicator": pvt, "baseline": pvt_base, "current": 8, "cfg": cfg,
@@ -457,6 +523,60 @@ def build_vectors() -> dict[str, list[dict]]:
     step("tick_valid_obs_then_mismatch_outside_window_accepted", watch_state,
          {"type": "TICK", "t": t0 + 300 + DAY,
           "observations": [obs_ok[0], dict(obs_ok[1], unit="lapses")]})
+
+    # ---- case_reduce: required steps, DECLINE, red flags, escalation tiers, packet release (D4, D5) ----
+    g = run("case_reduce", {"state": gst, "event": {"type": "OPEN", "finding": finding, "t": t0}})["expect"]
+    g = step("gated_select", g, {"type": "SELECT", "countermeasure_id": "cm_primary", "t": t0 + 10})
+    gated_acting = g
+    step("gated_outcome_blocked_three_pending", g, {"type": "OUTCOME", "text": "done", "t": t0 + 20})
+    step("gated_outcome_blocked_before_text_check", g, {"type": "OUTCOME", "text": " ", "t": t0 + 20})
+    step("gated_required_value_missing_rejected", g, {"type": "STEP", "step_id": "step_2", "t": t0 + 20})
+    step("gated_required_value_null_rejected", g, {"type": "STEP", "step_id": "step_2", "t": t0 + 20,
+                                                   "input": {"variable": "sleep_duration", "value": None, "unit": "h"}})
+    step("gated_required_unit_mismatch_rejected", g, {"type": "STEP", "step_id": "step_2", "t": t0 + 20,
+                                                      "input": {"variable": "sleep_duration", "value": 390, "unit": "min"}})
+    step("gated_red_flag_unanswered_rejected", g, {"type": "STEP", "step_id": "step_3", "t": t0 + 20})
+    step("gated_red_flag_answer_2_rejected", g, {"type": "STEP", "step_id": "step_3", "t": t0 + 20,
+                                                 "input": {"variable": "renal_symptoms", "value": 2, "unit": "yes/no"}})
+    step("gated_red_flag_string_rejected", g, {"type": "STEP", "step_id": "step_3", "t": t0 + 20,
+                                               "input": {"value": "yes"}})
+    step("gated_red_flag_unit_mismatch_rejected", g, {"type": "STEP", "step_id": "step_3", "t": t0 + 20,
+                                                      "input": {"value": True, "unit": "bool"}})
+    step("gated_red_flag_yes_escalates", g, {"type": "STEP", "step_id": "step_3", "t": t0 + 20,
+                                             "input": {"variable": "renal_symptoms", "value": True, "unit": "yes/no"}})
+    step("gated_red_flag_one_escalates", g, {"type": "STEP", "step_id": "step_3", "t": t0 + 20,
+                                             "input": {"variable": "renal_symptoms", "value": 1, "unit": "yes/no"}})
+    step("gated_decline_from_detected_rejected", opened, {"type": "DECLINE", "step_id": "step_1", "reason": "x",
+                                                          "t": t0 + 20})
+    step("gated_decline_unknown_step_rejected", g, {"type": "DECLINE", "step_id": "step_9", "reason": "x", "t": t0 + 20})
+    step("gated_decline_without_reason_rejected", g, {"type": "DECLINE", "step_id": "step_4", "reason": "", "t": t0 + 20})
+    g = step("gated_red_flag_no", g, {"type": "STEP", "step_id": "step_3", "t": t0 + 30,
+                                      "input": {"variable": "renal_symptoms", "value": 0, "unit": "yes/no"}})
+    g = step("gated_required_value_given", g, {"type": "STEP", "step_id": "step_2", "t": t0 + 40,
+                                               "input": {"variable": "sleep_duration", "value": 6.5, "unit": "h"}})
+    step("gated_outcome_blocked_one_pending", g, {"type": "OUTCOME", "text": "done", "t": t0 + 50})
+    g = step("gated_decline_required_with_reason", g, {"type": "DECLINE", "step_id": "step_4",
+                                                       "reason": "CM-2 still on EVA ingress; confirmed by radio.",
+                                                       "t": t0 + 50})
+    step("gated_decline_again_rejected", g, {"type": "DECLINE", "step_id": "step_4", "reason": "again", "t": t0 + 55})
+    step("gated_decline_done_step_rejected", g, {"type": "DECLINE", "step_id": "step_2", "reason": "x", "t": t0 + 55})
+    g = step("gated_step_after_decline_accepted", g, {"type": "STEP", "step_id": "step_4", "t": t0 + 60})
+    g = step("gated_packet_step_queues_packet", g, {"type": "STEP", "step_id": "step_5", "t": t0 + 70})
+    g = step("gated_outcome_after_all_settled", g, {"type": "OUTCOME", "text": "Crew in the shelter.", "t": t0 + 80})
+    g_obs = [{"crew_id": None, "variable": "pvt_lapses", "value": v, "unit": "count", "t": t0 + 80 + d * 3600}
+             for d, v in ((1, 6), (2, 7), (3, 2))]
+    step("gated_tripwire_escalation_keeps_first_packet_time", g,
+         {"type": "TICK", "t": t0 + 80 + 3 * DAY, "observations": g_obs})
+    dec = step("gated_decline_plain_step", gated_acting, {"type": "DECLINE", "step_id": "step_1",
+                                                          "reason": "Not needed today.", "t": t0 + 20})
+    step("gated_tripwire_escalation_queues_packet", run("case_reduce", {"state": run("case_reduce", {
+        "state": run("case_reduce", {"state": run("case_reduce", {"state": dec, "event": {
+            "type": "STEP", "step_id": "step_3", "t": t0 + 21,
+            "input": {"value": False, "unit": "yes/no"}}})["expect"], "event": {
+            "type": "DECLINE", "step_id": "step_2", "reason": "No band reading.", "t": t0 + 22}})["expect"],
+        "event": {"type": "STEP", "step_id": "step_4", "t": t0 + 23}})["expect"],
+        "event": {"type": "OUTCOME", "text": "Partial.", "t": t0 + 24}})["expect"],
+         {"type": "TICK", "t": t0 + 24 + 3 * DAY, "observations": [dict(o, t=o["t"] - 56) for o in g_obs]})
 
     # ---- build_ground_packet ----
     esc_state = s_
@@ -563,11 +683,20 @@ def _alpha_from_z(z: object) -> object:
 
 
 def _upgrade_state(state: object) -> None:
-    """Give an old case state the spec fields new_case now writes (env_id, condition.ref_id), as null."""
-    spec = state.get("spec") if isinstance(state, dict) else None
+    """Give an old case state the fields new_case now writes, with the values of a case that has no
+    required, red-flag or packet steps: spec env_id and condition.ref_id (null), the step lists (empty),
+    and the state's steps_declined (empty), escalation and packet_queued_at (null)."""
+    if not isinstance(state, dict):
+        return
+    spec = state.get("spec")
     if not isinstance(spec, dict):
         return
+    state.setdefault("steps_declined", [])
+    state.setdefault("escalation", None)
+    state.setdefault("packet_queued_at", None)
     spec.setdefault("env_id", None)
+    for key in ("required_step_ids", "red_flag_step_ids", "packet_step_ids", "step_inputs"):
+        spec.setdefault(key, [])
     tw = spec.get("tripwire")
     if isinstance(tw, dict) and isinstance(tw.get("condition"), dict):
         tw["condition"].setdefault("ref_id", None)
@@ -620,11 +749,36 @@ def _random_unit_interval(rng: random.Random, invalid: list) -> object:
     return rng.choice(invalid)
 
 
+def _random_mdc_args(rng: random.Random) -> dict:
+    u = rng.random()
+    if u < 0.55:
+        sd = rng.choice([rng.uniform(0.001, 5.0), 10.0 ** rng.uniform(-6.0, 6.0)])
+    elif u < 0.8:
+        sd = rng.choice([1, 2, 0.171, 0.67, 1e-300, 1e300, 1.7976931348623157e308])
+    else:
+        sd = rng.choice([0, -1.0, -0.0, NAN, INF, True, None, "1"])
+    v = rng.random()
+    if v < 0.6:
+        n = rng.randint(2, 120)
+    elif v < 0.85:
+        n = rng.choice([2, 7, 14, 1000, 1000001, 1000002])
+    else:
+        n = rng.choice([1, 0, -3, 7.5, True, None, "14", NAN])
+    args = {"sd": sd, "n": n}
+    if rng.random() < 0.6:
+        args["alpha"] = _random_unit_interval(rng, [0, 1, -0.5, NAN, True, "0.001"])
+    return args
+
+
 def random_inputs(fn: str, n: int = 160) -> list[dict]:
-    """Seeded inputs for a function that has no random file yet (only the t distribution so far)."""
+    """Seeded inputs for a function that has no random file yet (the t distribution and the minimum
+    detectable change so far)."""
     rng = random.Random(f"{RANDOM_SEED}:{fn}")
     out = []
     for _ in range(n):
+        if fn == "min_detectable_change":
+            out.append(_random_mdc_args(rng))
+            continue
         df = _random_df(rng)
         if fn == "t_cdf":
             u = rng.random()

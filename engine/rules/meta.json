@@ -103,7 +103,7 @@
  "tiers": [
   {
    "id": "A",
-   "definition": "A fixed number NASA or NOAA publishes: a NASA standard (with its requirement ID, or a Table 4.8-1 row and column), a NASA report without a requirement ID (the renal TARGET rule, from the HRP evidence report), or the NOAA S-scale. The chip says which. One Tier A rule, ops_onboard_proton_s3, reuses NOAA's S3 number at Mars, where NOAA does not define its scale, so its chip is design choice."
+   "definition": "A fixed number NASA or NOAA publishes: a NASA standard (with its requirement ID, or a Table 4.8-1 row and column), a NASA report without a requirement ID (the renal TARGET rule, from the HRP evidence report), or the NOAA S-scale. The chip says which. One Tier A rule, ops_onboard_proton_s3, reuses NOAA's S3 number at Mars, on the reading of a space-weather monitor in Mars orbit, where NOAA does not define its scale, so its chip is design choice."
   },
   {
    "id": "B",
@@ -146,7 +146,7 @@
   "chip": "design choice",
   "source": {
    "kind": "design_choice",
-   "rationale": "NASA-STD-3001 Vol 2 Appendix F gives the colour semantics (red reserved for Emergency/Warning); which LANDFALL finding maps to which class is ours."
+   "rationale": "NASA-STD-3001 Vol 2 Rev F Table 10.3-1 defines the alert classes (each row below quotes the definition of its class) and Appendix F Table F.5-1 their colours; which LANDFALL finding falls in which class is ours. The only Warning LANDFALL emits is a solar particle event at NOAA S3 or above, whose rules carry the shelter action (immediate action). FFD, PEL, POL and TARGET findings and Tier B changes need attention, not immediate action: Caution at most. LANDFALL never emits Emergency."
   },
   "rows": [
    {
@@ -161,7 +161,9 @@
      ],
      "status": "outside"
     },
-    "severity": "warning"
+    "severity": "caution",
+    "class_definition": "Event that needs attention, but not immediate action.",
+    "note": "A fitness-for-duty floor not met (VO2max below [V1 4001] or [V1 4002]: 'EVA assignment not cleared'), or an exposure or outcome limit reached, needs attention but not immediate action. Any immediate alarm (cabin CO2, suit CO2) belongs to the vehicle or suit caution and warning system."
    },
    {
     "id": "tier_a_approaching",
@@ -175,7 +177,9 @@
      ],
      "status": "approaching"
     },
-    "severity": "caution"
+    "severity": "caution",
+    "class_definition": "Event that needs attention, but not immediate action.",
+    "note": "At or past LANDFALL's watch level (80% of a ceiling, a design choice): needs attention before the limit."
    },
    {
     "id": "tier_a_within",
@@ -192,7 +196,8 @@
      "status": "outside"
     },
     "severity": "caution",
-    "note": "Countermeasure targets (NASA report) are not NASA limits, so never warning (rule field max_severity)."
+    "note": "Countermeasure targets (NASA report) are not NASA limits, so never warning (rule field max_severity).",
+    "class_definition": "Event that needs attention, but not immediate action."
    },
    {
     "id": "target_approaching",
@@ -200,7 +205,8 @@
      "category": "TARGET",
      "status": "approaching"
     },
-    "severity": "advisory"
+    "severity": "advisory",
+    "class_definition": "Message describing a routine event, situation, or action, or an off-nominal event that does not meet the criteria for a Caution."
    },
    {
     "id": "personal_worse",
@@ -211,7 +217,8 @@
      "alerting": true
     },
     "severity": "caution",
-    "note": "Personal change is not a limit, so never warning."
+    "note": "Personal change is not a limit, so never warning.",
+    "class_definition": "Event that needs attention, but not immediate action."
    },
    {
     "id": "personal_better",
@@ -220,7 +227,8 @@
      "status": "reliable_change",
      "direction": "better"
     },
-    "severity": "nominal"
+    "severity": "nominal",
+    "note": "The direction opposite to the indicator's worse direction: shown, no alert. LANDFALL does not call it better."
    },
    {
     "id": "personal_non_alerting",
@@ -242,17 +250,8 @@
       2
      ]
     },
-    "severity": "advisory"
-   },
-   {
-    "id": "ops_s3_plus_eva",
-    "when": {
-     "category": "OPS",
-     "status": "outside",
-     "s_level_min": 3,
-     "eva": "planned_or_in_progress"
-    },
-    "severity": "warning"
+    "severity": "advisory",
+    "class_definition": "Message describing a routine event, situation, or action, or an off-nominal event that does not meet the criteria for a Caution."
    },
    {
     "id": "ops_s3_plus",
@@ -261,7 +260,9 @@
      "status": "outside",
      "s_level_min": 3
     },
-    "severity": "caution"
+    "severity": "warning",
+    "class_definition": "Event that requires immediate action because it has the potential to become a life/mission threat.",
+    "note": "Every OPS rule at S3 or above carries the shelter action (action_id spe_shelter), which is immediate. In the same table, the Warning row's auditory annunciation gives 'Radiation' as an example warning message (Vol 2 Rev F, PDF page 206; the frozen snapshot keeps only the first clause of that column). An EVA in progress does not change the class."
    },
    {
     "id": "context",
@@ -280,7 +281,8 @@
     },
     "severity": "advisory",
     "note": "[V2 10020]: indicate data that is stale, missing, unavailable, or unknown.",
-    "colour_note": "Severity advisory, but the colour is cyan, not advisory blue: NASA-STD-3001 Vol 2 Appendix F Table F.5-1 requires cyan for 'Missing or stale data'."
+    "colour_note": "Severity advisory, but the colour is cyan, not advisory blue: NASA-STD-3001 Vol 2 Appendix F Table F.5-1 requires cyan for 'Missing or stale data'.",
+    "class_definition": "Message describing a routine event, situation, or action, or an off-nominal event that does not meet the criteria for a Caution."
    },
    {
     "id": "not_applicable",
@@ -289,7 +291,16 @@
     },
     "severity": "nominal"
    }
-  ]
+  ],
+  "table_10_3_1": {
+   "snapshot": "std_vol2_requirements",
+   "table": "table_10_3_1",
+   "caption": "Table 10.3-1—Alert Type and Annunciation Table",
+   "requirement_ids": [
+    "V2 10114",
+    "V2 10175"
+   ]
+  }
  },
  "hazards": [
   {
@@ -333,7 +344,7 @@
  "principles": [
   {
    "id": "no_nasa_alert_thresholds",
-   "text": "NASA publishes no numeric in-flight alert thresholds for crew health. Its alert requirements delegate the number to the program; LANDFALL never presents its own number as NASA's.",
+   "text": "NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew health; its alert requirements leave the number to the program. LANDFALL never presents its own number as NASA's.",
    "requirement_ids": [
     "V2 6022",
     "V2 6164",
@@ -374,12 +385,76 @@
    "text": "LANDFALL never raises an Emergency-class alarm; that belongs to the vehicle caution and warning system."
   },
   {
+   "id": "no_radiation_alarm",
+   "text": "LANDFALL is not the radiation alarm: the vehicle's radiation monitoring system raises it ([V2 6164]); LANDFALL opens the health case that follows and guides the crew."
+  },
+  {
    "id": "no_own_msv_projection",
-   "text": "No radiation dose projection of our own; LANDFALL triggers on NOAA's scale or the onboard monitor."
+   "text": "No radiation dose projection of our own; LANDFALL triggers on NOAA's scale near Earth or on the Mars-orbit space-weather monitor at Mars."
   },
   {
    "id": "no_llm_in_decision_path",
    "text": "No language model in the decision path; every rule is data you can read on /provenance."
   }
- ]
+ ],
+ "escalation": {
+  "tiers": [
+   {
+    "tier": 1,
+    "id": "crew_medical_officer",
+    "label": "Crew Medical Officer (onboard)",
+    "when": "now"
+   },
+   {
+    "tier": 2,
+    "id": "flight_surgeon",
+    "label": "Flight surgeon (ground)",
+    "when": "through the ground packet, with the next link: at once when the link is up (AOS), when it resumes during loss of signal or solar conjunction"
+   }
+  ],
+  "autonomy": {
+   "AOS": "With the link up (for example at the ISS, in cislunar space or on the lunar surface), the ground has the case within the round-trip light time; the crew follows Mission Control and flight-surgeon direction, and LANDFALL is the decision aid.",
+   "LOS": "With no link (loss of signal or solar conjunction), the crew acts onboard with the Crew Medical Officer; the ground packet is queued and is sent when the link resumes."
+  },
+  "chip": "design choice",
+  "source": {
+   "kind": "design_choice",
+   "rationale": "Earth-independent operations put the onboard Crew Medical Officer first, and the flight surgeon is reached through the ground packet. How much the crew decides onboard scales with the link, as [V2 6164]'s rationale does for radiation alerts: the crew is alerted even when ground communication is unviable, and operations teams when communication is available or restored."
+  },
+  "citations": [
+   {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+    "url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf",
+    "snapshot": "std_vol2_requirements",
+    "requirement_id": "V2 6164",
+    "section": "6.8.1.6",
+    "page": 112,
+    "verbatim": "The crew must be alerted even if ground communication is disrupted or is unviable."
+   },
+   {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+    "url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf",
+    "snapshot": "std_vol2_requirements",
+    "requirement_id": "V2 6164",
+    "section": "6.8.1.6",
+    "page": 112,
+    "verbatim": "The systems must alert operations teams if communication is available or upon being restored."
+   }
+  ]
+ },
+ "packet_states": [
+  {
+   "id": "prepared",
+   "label": "Prepared (held on board)",
+   "when": "the case is open and the packet has been neither released by the crew nor escalated: it is built on board and not sent"
+  },
+  {
+   "id": "queued",
+   "label": "Queued",
+   "when": "after crew release (a procedure step marked releases_packet) or escalation (state.packet_queued_at): it is sent when a link exists, at once at AOS, when the link resumes during loss of signal or solar conjunction"
+  }
+ ],
+ "body_region_rule": "A case's body_regions are its hazard footprint, the organs the hazard can reach, drawn as a hatched outline. Only a measured finding for the selected crewmember fills an organ. VO2max is a fitness tag (EVA assignment), not a heart or lung finding."
 }

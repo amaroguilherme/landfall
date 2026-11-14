@@ -73,7 +73,8 @@
     }
    },
    "notes": [
-    "NOAA S-scale flux is measured by GOES in geostationary orbit, outside the geomagnetic shielding the ISS orbit enjoys; NOAA's biological text is written for astronauts on EVA."
+    "NOAA S-scale flux is measured by GOES in geostationary orbit, outside the geomagnetic shielding the ISS orbit enjoys; NOAA's biological text is written for astronauts on EVA.",
+    "With the link up, Mission Control directs the response, including any sheltering; LANDFALL is the decision aid (meta.json escalation.autonomy)."
    ]
   },
   {
@@ -160,8 +161,9 @@
     }
    },
    "notes": [
-    "noaa_scale_available is false on purpose: GOES measures near Earth, and during solar conjunction no NOAA alert reaches the crew. The SPE case runs on the onboard monitor ([V2 6164], [V2 6165]).",
-    "The demo replays near-Earth GOES flux as a stand-in for an onboard monitor; at the Mars surface the atmosphere changes the proton flux a monitor would see, so real values would differ."
+    "noaa_scale_available is false on purpose: GOES measures near Earth, and during solar conjunction no NOAA alert reaches the crew. At Mars the SPE case reads an external space-weather monitor above the atmosphere, in Mars orbit, relayed to the habitat locally with no Earth link: the in-situ extravehicular monitoring [V2 6165] requires. The vehicle's radiation monitoring system raises the alarm ([V2 6164]); LANDFALL opens the health case.",
+    "Scenario assumption: the monitor's >=10 MeV reading is the GOES-7 October 1989 replay, with no radial-distance or atmospheric correction. The habitat dose rate shown at Mars is a separate simulated confirmation (an assumption, not a radiation-transport calculation).",
+    "The solar conjunction window is modelled from JPL Horizons geometry, its edges fitted to NASA's published command moratoria (RMS 0.79 d); it is not an announced window."
    ]
   }
  ]

@@ -10,6 +10,7 @@ t-test of Crawford & Howell (1998), after Sokal & Rohlf.
     df       = n - 1
     critical = t_critical(alpha, df)      two-tailed, alpha from personal.json (0.001)
     reliable when |rc| > critical
+    mdc      = critical * s_diff          the minimum detectable change: the band's half-width
 
 s_diff is the standard deviation of the difference between one new value and the mean of n
 values from the same distribution (variance sigma^2 + sigma^2/n). Under normal, independent day-to-day
@@ -59,12 +60,15 @@ def rci(baseline: list, current: float | None, alpha: float = 0.001, min_baselin
     """Single-case test of `current` against `baseline` (numbers; None entries are skipped).
 
     Returns {method, status, reason, n, df, mean, sd, s_diff, rc, critical, alpha, reliable,
-    direction}. status is "ok" or "insufficient_data" (reason "baseline_too_short", "no_current"
-    or "zero_sd", checked in that order). Fields are reported when computable: mean needs n >= 1;
-    sd, df and s_diff need n >= 2; critical needs n >= min_baseline_n; rc needs status "ok".
+    direction, mdc}. status is "ok" or "insufficient_data" (reason "baseline_too_short",
+    "no_current" or "zero_sd", checked in that order). Fields are reported when computable: mean
+    needs n >= 1; sd, df and s_diff need n >= 2; critical needs n >= min_baseline_n; rc needs status
+    "ok"; mdc (= critical * s_diff, the smallest change from the mean that is a reliable change)
+    needs critical and an SD above 0, so it is reported even without a current value.
     direction is "increase" | "decrease" | "none" (sign of current - mean) or None.
-    Raises invalid_argument when a baseline statistic or the statistic itself is not finite
-    (inputs near the float range): the engine never returns NaN or infinity.
+    Raises invalid_argument when a baseline statistic, the minimum detectable change or the
+    statistic itself is not finite (inputs near the float range): the engine never returns NaN or
+    infinity.
     """
     if not isinstance(baseline, list):
         raise EngineError("invalid_argument", "baseline must be a list")
@@ -101,12 +105,17 @@ def rci(baseline: list, current: float | None, alpha: float = 0.001, min_baselin
     df = n - 1 if n >= 2 else None
     s_diff = sd * math.sqrt(1.0 + 1.0 / n) if sd is not None else None
     critical = _critical(alpha, df) if n >= min_baseline_n else None
+    mdc = None
+    if critical is not None and s_diff is not None and sd > 0:
+        mdc = critical * s_diff
+        if not math.isfinite(mdc):
+            raise EngineError("invalid_argument", "the minimum detectable change is not finite (values too large)")
     direction = None
     if mean is not None and current is not None:
         direction = "increase" if current > mean else ("decrease" if current < mean else "none")
     out = {"method": METHOD, "status": "insufficient_data", "reason": None, "n": n, "df": df,
            "mean": mean, "sd": sd, "s_diff": s_diff, "rc": None, "critical": critical, "alpha": alpha,
-           "reliable": False, "direction": direction}
+           "reliable": False, "direction": direction, "mdc": mdc}
     if n < min_baseline_n:
         out["reason"] = "baseline_too_short"
         return out
@@ -150,8 +159,9 @@ def evaluate_personal(indicator: dict, baseline: list, current: object, cfg: dic
     baseline: list of numbers / None / observations (same unit as the indicator).
     current: number, None or an observation. cfg: the `rci` block of personal.json.
     Severity: reliable change in the worse direction -> caution (never warning), but nominal for a
-    non-alerting indicator, which never alerts; reliable change in the better direction -> nominal;
-    insufficient data -> advisory; within -> nominal.
+    non-alerting indicator, which never alerts; reliable change in the other direction -> nominal
+    (shown, no alert; LANDFALL does not call it better); insufficient data -> advisory; within ->
+    nominal.
     """
     _validate_indicator(indicator)
     _validate_cfg(cfg)
@@ -199,7 +209,7 @@ def evaluate_personal(indicator: dict, baseline: list, current: object, cfg: dic
             is_worse = worse == "either" or direction == worse
             severity = "caution" if is_worse else "nominal"
             txt = "reliable change in the worse direction" if is_worse else \
-                "reliable change in the better direction"
+                "reliable change in the other direction (no alert)"
         else:
             status = "within"
             severity = "nominal"
@@ -237,9 +247,34 @@ def evaluate_personal(indicator: dict, baseline: list, current: object, cfg: dic
         "rci": {
             "method": res["method"], "rc": res["rc"], "df": res["df"], "critical": res["critical"],
             "alpha": res["alpha"], "s_diff": res["s_diff"], "mean": res["mean"], "sd": res["sd"],
-            "n": res["n"], "reliable": res["reliable"], "reason": res["reason"],
+            "n": res["n"], "reliable": res["reliable"], "reason": res["reason"], "mdc": res["mdc"],
         },
     }
+
+
+def min_detectable_change(sd: float, n: int, alpha: float = 0.001) -> dict:
+    """The smallest one-day change from the baseline mean that the single-case test flags.
+
+    mdc = critical * s_diff, with s_diff = sd * sqrt(1 + 1/n) and critical = t_critical(alpha, n - 1):
+    the half-width of the personal band. A value further than mdc from the baseline mean is a
+    reliable change; a smaller change never is, however real. Use it to state Tier B's sensitivity,
+    at the crewmember's own SD (rci()["mdc"] is the same number) or at a literature SD.
+    Returns {mdc, critical, s_diff, sd, n, df, alpha}. sd must be > 0 (the test is undefined at SD
+    0), n an integer >= 2, alpha in (0, 1); anything else, or a result that is not finite, raises
+    invalid_argument.
+    """
+    require_number(sd, "sd")
+    if not sd > 0:  # type: ignore[operator]
+        raise EngineError("invalid_argument", f"sd must be > 0 (the test is undefined at SD 0), got {sd!r}")
+    if isinstance(n, bool) or not isinstance(n, int) or n < 2:
+        raise EngineError("invalid_argument", "n must be an integer >= 2")
+    _validate_alpha(alpha)
+    s_diff = sd * math.sqrt(1.0 + 1.0 / n)
+    critical = _critical(alpha, n - 1)
+    mdc = critical * s_diff
+    if not (math.isfinite(s_diff) and math.isfinite(mdc)):
+        raise EngineError("invalid_argument", "the minimum detectable change is not finite (values too large)")
+    return {"mdc": mdc, "critical": critical, "s_diff": s_diff, "sd": sd, "n": n, "df": n - 1, "alpha": alpha}
 
 
 FALSE_ALARM_ASSUMES = ("one test per indicator per day, with normal day-to-day noise that is independent "
@@ -247,33 +282,43 @@ FALSE_ALARM_ASSUMES = ("one test per indicator per day, with normal day-to-day n
                        "between indicators leaves the average unchanged and only bunches chance flags together")
 
 
-def expected_false_alarms(k_indicators: float, days: float, alpha: float = 0.001) -> dict:
+def expected_false_alarms(k_indicators: float, days: float, alpha: float = 0.001, k_either: float = 0) -> dict:
     """Chance flags and chance cautions for k indicators tested once a day for `days` days.
 
     Flags (a reliable change in either direction): (k * days) * alpha, i.e. per_day = k * alpha.
-    Cautions (only a change in the worse direction raises one): half of that, because the test is
-    two-tailed and each indicator has one worse direction. N = 1 / per_day and M = 1 / (per_day / 2),
-    formatted with fmt_num(dp=1).
+    Cautions: an indicator with one worse direction raises a caution on half of its chance flags
+    (the test is two-tailed); one whose worse is "either" (k_either of the k) on all of them:
+    cautions_per_day = ((k - k_either) * alpha) / 2 + k_either * alpha. With k_either = 0 that is
+    per_day / 2. N = 1 / per_day and M = 1 / cautions_per_day, formatted with fmt_num(dp=1).
     """
-    for name, x in (("k_indicators", k_indicators), ("days", days), ("alpha", alpha)):
+    for name, x in (("k_indicators", k_indicators), ("days", days), ("alpha", alpha), ("k_either", k_either)):
         require_number(x, name)
         if x < 0:
             raise EngineError("invalid_argument", f"{name} must be >= 0")
     if alpha > 1:
         raise EngineError("invalid_argument", "alpha must be <= 1")
+    if k_either > k_indicators:
+        raise EngineError("invalid_argument", "k_either must be <= k_indicators")
     per_day = k_indicators * alpha
     expected = (k_indicators * days) * alpha
     every = (1.0 / per_day) if per_day > 0 else None
-    cautions_per_day = per_day / 2.0
-    expected_cautions = expected / 2.0
+    one_sided = k_indicators - k_either
+    cautions_per_day = (one_sided * alpha) / 2.0 + k_either * alpha
+    expected_cautions = ((one_sided * days) * alpha) / 2.0 + (k_either * days) * alpha
     caution_every = (1.0 / cautions_per_day) if cautions_per_day > 0 else None
     text = "no false flags expected" if every is None else \
         f"one false flag every {fmt_num(every, 1)} days on average, counting chance changes in either direction"
-    caution_text = "no false cautions expected" if caution_every is None else \
-        (f"one false caution every {fmt_num(caution_every, 1)} days on average: "
-         "only a chance change in the worse direction raises a caution")
+    if caution_every is None:
+        caution_text = "no false cautions expected"
+    elif k_either > 0:
+        caution_text = (f"one false caution every {fmt_num(caution_every, 1)} days on average: a chance change "
+                        f"in the worse direction raises a caution, and in either direction for the "
+                        f"{fmt_num(k_either)} indicator(s) that alert both ways")
+    else:
+        caution_text = (f"one false caution every {fmt_num(caution_every, 1)} days on average: "
+                        "only a chance change in the worse direction raises a caution")
     return {"expected": expected, "per_day": per_day, "every_n_days": every, "text": text,
             "expected_cautions": expected_cautions, "cautions_per_day": cautions_per_day,
             "caution_every_n_days": caution_every, "caution_text": caution_text,
             "assumes": FALSE_ALARM_ASSUMES,
-            "k_indicators": k_indicators, "days": days, "alpha": alpha}
+            "k_indicators": k_indicators, "days": days, "alpha": alpha, "k_either": k_either}

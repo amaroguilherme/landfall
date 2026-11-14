@@ -213,6 +213,25 @@ def test_delegation_requirements_verbatim(snap):
     assert r8["section"] == "4.2.4"
 
 
+def test_cognitive_status_and_planned_sleep_requirements_verbatim(snap):
+    # Cited by the sleep case (engine/rules/cases.json steps s5 and s4) instead of the sensorimotor [V1 4006].
+    r11 = _req(snap, "4011")
+    assert r11["text"] == ("Pre-mission, in-mission, and post-mission crew behavioral health and crewmember cognitive "
+                           "status shall be within clinically accepted values as determined by behavioral health "
+                           "evaluations.")
+    assert (r11["section"], r11["section_title"], r11["pdf_page_number"]) == ("4.3.1", "Mission Cognitive Status", 34)
+    assert r11["verified"] is True and r11["values"] == []
+    # the compliance matrix words it differently ("as judged by behavioral health evaluation"); the body is normative
+    assert r11["appendix_d"]["same_as_body"] is False and "as judged by behavioral health evaluation" in r11["appendix_d"]["text"]
+    r14 = _req(snap, "4014")
+    assert r14["text"] == ("The planned number of hours for in-mission completion of critical tasks and events, "
+                           "workday, physical activity/exercise, and planned sleep period shall have established "
+                           "limits to assure continued crew health and safety.")
+    assert (r14["section"], r14["section_title"], r14["pdf_page_number"]) == (
+        "4.3.4", "In-Mission Completion of Critical Tasks", 35)
+    assert r14["verified"] is True and r14["values"] == [] and r14["appendix_d"]["same_as_body"] is True
+
+
 def test_monitoring_root_requirements(snap):
     assert _req(snap, "3003")["items"]["a"] == "Periodic monitoring of general health status."
     assert _req(snap, "3003")["section"] == "3.4"

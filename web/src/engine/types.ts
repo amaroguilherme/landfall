@@ -53,6 +53,16 @@ export interface Observation {
 export type ObservationValue = Pick<Observation, 'value' | 'unit' | 't' | 'variable'> & Record<string, unknown>
 export type RuleValue = number | null | ObservationValue
 
+/**
+ * A one-line action for a finding without a deep case (SPEC 3.2 / 3.3, D11): the crew-facing label
+ * (e.g. "EVA assignment not cleared") and text. Present on every alerting rule or indicator that no
+ * case lists as a trigger.
+ */
+export interface FindingAction extends Basis {
+  label: string
+  text: string
+}
+
 /** thresholds.json rule (SPEC 3.2). */
 export interface Rule {
   id: string
@@ -73,12 +83,14 @@ export interface Rule {
   chip: Chip
   source: Source
   action_id?: string | null
+  /** One-line action when no case lists this rule as a trigger (D11). */
+  action?: FindingAction
   case_id?: string | null
   notes?: string[]
   [key: string]: unknown
 }
 
-/** ctx of evaluate_rule: eva true = an EVA is planned or in progress (OPS severity). */
+/** ctx of evaluate_rule: accepted for compatibility; no field of it changes the result (D1). */
 export interface RuleContext {
   eva?: boolean
   [key: string]: unknown
@@ -119,6 +131,12 @@ export interface Indicator {
   /** Non-computational context only (SPEC 3.3): the engine ignores it, and value is null in the real rules. */
   reliability_r?: Basis & { value: number | null; used_by_engine?: boolean }
   definition?: Basis & { text?: string }
+  /** Context only, never a limit (e.g. glucose: the Inspiration4 lab range, with `range`). */
+  context?: Basis & { text?: string; range?: { min: number; max: number; unit: string } }
+  /** Why there is no Tier A rule for this indicator (D8: "No NASA numeric limit ..."). */
+  limit_note?: Basis & { text?: string }
+  /** One-line action when no case lists this indicator as a trigger (D11). */
+  action?: FindingAction
   case_id?: string | null
   action_id?: string | null
   [key: string]: unknown
@@ -168,6 +186,19 @@ export interface RciResult {
   alpha: number
   reliable: boolean
   direction: Direction | null
+  /** critical * s_diff: the smallest change from the mean that is a reliable change (null without critical or SD). */
+  mdc: number | null
+}
+
+/** minDetectableChange(sd, n, alpha): the band half-width at a given SD (D10). */
+export interface MinDetectableChange {
+  mdc: number
+  critical: number
+  s_diff: number
+  sd: number
+  n: number
+  df: number
+  alpha: number
 }
 
 export interface PersonalRci {
@@ -183,6 +214,8 @@ export interface PersonalRci {
   n: number
   reliable: boolean
   reason: RciReason | null
+  /** The minimum detectable change of this band, critical * s_diff (D10). */
+  mdc: number | null
 }
 
 export interface PersonalFinding extends Finding {
@@ -213,9 +246,29 @@ export interface FalseAlarms {
   k_indicators: number
   days: number
   alpha: number
+  /** How many of the k indicators alert in either direction (worse "either"): both tails raise a caution. */
+  k_either: number
 }
 
 // ---- cases (SPEC 3.4 and 5) ----
+
+/** A guided procedure step (SPEC 3.4). */
+export interface CaseStep {
+  id: string
+  text?: string
+  input?: { variable: string; unit: string; source?: string; [key: string]: unknown }
+  /** OUTCOME waits until this step is done or declined with a reason (D5). */
+  required?: boolean
+  /** A required yes/no question: "yes" escalates the case at once (D4, D5). */
+  red_flag?: boolean
+  /** Doing this step releases the ground packet: Prepared (held on board) -> Queued. */
+  releases_packet?: boolean
+  /** The symptoms a red-flag question asks about, in plain language. */
+  red_flags?: string[]
+  /** Citation of the step (kept out of the crew-facing text). */
+  basis?: Basis & { note?: string }
+  [key: string]: unknown
+}
 
 export interface CaseTrigger {
   kind: 'rule' | 'personal' | 'ops' | (string & {})
@@ -248,7 +301,7 @@ export interface CaseDef {
     alternatives?: Array<{ id: string; [key: string]: unknown }>
     [key: string]: unknown
   }
-  procedure?: Array<{ id: string; text?: string; input?: Record<string, unknown>; [key: string]: unknown }>
+  procedure?: CaseStep[]
   tripwire?: { reassess_after_s: number; condition: TripwireCondition; text?: string; [key: string]: unknown }
   escalation?: { ground_packet?: boolean; observations?: string[]; [key: string]: unknown } | null
   [key: string]: unknown
@@ -258,7 +311,7 @@ export interface CaseDef {
 export type TriggerLookup = Record<string, { variable: unknown; unit: unknown }>
 
 export type CaseStatus = 'idle' | 'detected' | 'acting' | 'watch' | 'resolved' | 'escalated' | 'dismissed'
-export type CaseEventType = 'OPEN' | 'SELECT' | 'STEP' | 'OUTCOME' | 'TICK' | 'DISMISS'
+export type CaseEventType = 'OPEN' | 'SELECT' | 'STEP' | 'DECLINE' | 'OUTCOME' | 'TICK' | 'DISMISS'
 
 export interface CaseSpec {
   case_id: string
@@ -267,6 +320,14 @@ export interface CaseSpec {
   trigger_ids: string[]
   countermeasure_ids: string[]
   step_ids: string[]
+  /** Steps marked required, in procedure order. */
+  required_step_ids: string[]
+  /** Required yes/no steps whose "yes" escalates at once. */
+  red_flag_step_ids: string[]
+  /** Steps whose completion queues the ground packet (crew release). */
+  packet_step_ids: string[]
+  /** The declared input of each step that has one. */
+  step_inputs: Array<{ step_id: string; variable: string; unit: string }>
   tripwire: {
     reassess_after_s: number
     condition: {
@@ -302,6 +363,15 @@ export interface TripwireResult {
   tripped: boolean
 }
 
+/** Why and when a case escalated; tier 1 is told now, tier 2 gets the ground packet with the next link (D4). */
+export interface CaseEscalation {
+  t: number
+  reason: 'tripwire' | 'red_flag'
+  /** The red-flag step answered "yes", or null for the tripwire. */
+  step_id: string | null
+  tiers: Array<'crew_medical_officer' | 'flight_surgeon'>
+}
+
 export interface CaseState {
   schema: 'landfall.case_state/1'
   case_id: string
@@ -312,11 +382,16 @@ export interface CaseState {
   finding: Finding | null
   countermeasure_id: string | null
   steps_done: Array<{ step_id: string; t: number; input: unknown }>
+  /** Steps declined with a reason (event DECLINE). */
+  steps_declined: Array<{ step_id: string; t: number; reason: string }>
   outcome: { text: string; t: number } | null
   watch_started_at: number | null
   reassess_at: number | null
   tripwire_obs: Array<{ t: number; value: number }>
   tripwire_result: TripwireResult | null
+  escalation: CaseEscalation | null
+  /** MET when the ground packet went from Prepared (held on board) to Queued: crew release or escalation. */
+  packet_queued_at: number | null
   closed_at: number | null
   dismiss_reason: string | null
   updated_at: number | null
@@ -327,6 +402,7 @@ export type CaseEvent =
   | { type: 'OPEN'; t: number; finding: Finding }
   | { type: 'SELECT'; t: number; countermeasure_id: string }
   | { type: 'STEP'; t: number; step_id: string; input?: unknown }
+  | { type: 'DECLINE'; t: number; step_id: string; reason: string }
   | { type: 'OUTCOME'; t: number; text: string }
   | { type: 'TICK'; t: number; observations: Observation[] }
   | { type: 'DISMISS'; t: number; reason: string }

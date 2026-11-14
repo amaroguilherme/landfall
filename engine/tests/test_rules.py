@@ -47,6 +47,8 @@ REQUIRED_INDICATORS = {
     "pvt_lapses": "count", "pvt_median_rt": "ms", "sleep_duration": "h", "sleep_midpoint_shift": "h",
     "light_exposure_daytime": "lux", "resting_hr": "bpm", "hrv_sdnn": "ms", "skin_temp": "°C",
     "urine_volume_24h": "mL", "fluid_intake_24h": "mL", "mood": "score_1_5",
+    # D8: manual readings with the vehicle medical kit (cuff, fingerstick glucometer)
+    "bp_systolic": "mmHg", "bp_diastolic": "mmHg", "glucose": "mg/dL",
 }
 
 
@@ -320,7 +322,7 @@ def test_personal_indicators(R):
     for iid, unit in REQUIRED_INDICATORS.items():
         i = inds[iid]
         assert i["unit"] == unit and i["variable"] == iid, iid
-        assert i["worse"] in {"increase", "decrease"}, iid
+        assert i["worse"] in ({"increase", "decrease", "either"} if iid == "glucose" else {"increase", "decrease"}), iid
         # reliability_r is not used by the computation: if present it holds no value and says so
         r = i.get("reliability_r")
         if r is not None:
@@ -603,7 +605,7 @@ def test_hrp_and_noaa_quotes_appear_in_snapshots(R):
     checked = 0
     for name, path, src in all_sources(R):
         sid = src.get("snapshot")
-        if sid not in ("hrp_risks", "hrp_hazards", "swpc_s_scale") or not src.get("verbatim"):
+        if sid not in ("hrp_risks", "hrp_hazards", "hrp_roadmap", "swpc_s_scale") or not src.get("verbatim"):
             continue
         snap = need_snapshot(sid)
         assert any(src["verbatim"] in s for s in snapshot_strings(snap)), (name, path, src["verbatim"])
@@ -682,3 +684,229 @@ def test_hand_off_requirement_ids_are_quoted_from_the_requirement(R):
     imaging = next(h for h in renal["not_measurable_here"] if h.get("requirement_id") == "V1 3004")
     assert "(e.g., cardiac, vascular, ocular)" in imaging["requirement_quote"]
     assert "medical kit ultrasound" not in imaging["via"] and "names neither the kidney nor ultrasound" in imaging["note"]
+
+
+# ------------------------------------------------------------------ lead decisions D1-D14 in the data
+
+
+def _case(R, cid):
+    return next(c for c in R["cases"]["cases"] if c["id"] == cid)
+
+
+def _crew_texts(c):
+    """The crew-facing strings of a case: one-liner, interpretation, procedure, tripwire, countermeasures."""
+    out = [c["one_line"], c["interpretation"]["text"], c["tripwire"]["text"]]
+    out += [st["text"] for st in c["procedure"]]
+    cm = c["countermeasure"]
+    out += [x.get("title", "") for x in [cm["primary"]] + cm["alternatives"]]
+    out += [x.get("rationale", "") for x in [cm["primary"]] + cm["alternatives"]]
+    return out
+
+
+def test_severity_mapping_follows_table_10_3_1(R):
+    """D1: the class of each row is quoted verbatim from the frozen Table 10.3-1; the only Warning is S3+."""
+    snap = need_snapshot("std_vol2_requirements")
+    table = snap["data"]["tables"]["table_10_3_1"]
+    definitions = {row[0]: row[1] for row in table["rows"]}
+    sm = R["meta"]["severity_mapping"]
+    assert sm["table_10_3_1"]["table"] == "table_10_3_1" and sm["table_10_3_1"]["caption"] == table["caption"]
+    rows = {r["id"]: r for r in sm["rows"]}
+    assert "ops_s3_plus_eva" not in rows
+    for row in sm["rows"]:
+        if "class_definition" in row:
+            sev = row.get("severity", row.get("severity_max"))
+            assert row["class_definition"] == definitions[sev.capitalize()], row["id"]
+    assert rows["ops_s3_plus"]["severity"] == "warning"
+    assert rows["tier_a_outside"]["severity"] == rows["tier_a_approaching"]["severity"] == "caution"
+    assert rows["ops_s1_s2"]["severity"] == "advisory"
+    warn = [r["id"] for r in sm["rows"] if r.get("severity") == "warning"]
+    assert warn == ["ops_s3_plus"]
+    # every OPS rule at S3 or above carries the shelter action that makes it a Warning
+    for r in R["thresholds"]["rules"]:
+        if r["category"] == "OPS" and r.get("s_level", 0) >= 3:
+            assert r["action_id"] == "spe_shelter" and r["case_id"] == "spe_shelter", r["id"]
+
+
+def test_vo2max_is_an_eva_assignment_caution(R):
+    """D1/D6/D11: the FFD floor is capped at caution, labelled 'EVA assignment not cleared', with a one-line action."""
+    by = {r["id"]: r for r in R["thresholds"]["rules"]}
+    for rid in ("ffd_vo2max_microgravity_eva", "ffd_vo2max_surface_eva"):
+        r = by[rid]
+        assert r["max_severity"] == "caution" and r["case_id"] is None, rid
+        assert r["action"]["label"] == "EVA assignment not cleared", rid
+        assert r["action"]["text"].startswith("EVA assignment not cleared") and "Crew Medical Officer" in r["action"]["text"]
+        assert "heart or the lungs" in r["action"]["source"]["rationale"], rid
+
+
+def test_findings_without_a_deep_case_carry_an_action(R):
+    """D11: an alerting rule or indicator that no case lists as a trigger carries a one-line action; a trigger
+    does not (its case is the action). OPS levels below S3 never exceed advisory and S4/S5 co-fire with the S3
+    trigger, so OPS rules are covered by the shelter case."""
+    triggers = {t.get("rule_id") or t.get("indicator_id") for c in R["cases"]["cases"] for t in c["triggers"]}
+    for r in R["thresholds"]["rules"]:
+        if r["role"] != "alert" or r["category"] == "OPS":
+            continue
+        if r["id"] in triggers:
+            assert "action" not in r, r["id"]
+        else:
+            a = r.get("action")
+            assert a and a["label"] and a["text"] and a["chip"] == "design choice", r["id"]
+    for i in R["personal"]["indicators"]:
+        if not i["alerting"] or i["id"] in triggers:
+            assert "action" not in i, i["id"]
+        else:
+            assert i["case_id"] is None and i["action"]["text"] and i["action"]["chip"] == "design choice", i["id"]
+            assert "Crew Medical Officer" in i["action"]["text"], i["id"]
+
+
+def test_manual_bp_and_glucose_indicators(R):
+    """D8: cuff and fingerstick readings, Tier B alerting at caution at most, no NASA limit (said so), and the
+    Inspiration4 lab range as context only, matching the frozen OSDR snapshot."""
+    inds = {i["id"]: i for i in R["personal"]["indicators"]}
+    for iid in ("bp_systolic", "bp_diastolic", "glucose"):
+        i = inds[iid]
+        assert i["device"] == "manual" and i["alerting"] is True and i["private"] is False and i["case_id"] is None
+        assert i["limit_note"]["text"].startswith("No NASA numeric limit") and i["limit_note"]["chip"] == "design choice"
+        assert not any(r["variable"] == i["variable"] for r in R["thresholds"]["rules"]), iid  # no Tier A rule
+    assert inds["glucose"]["worse"] == "either"
+    ctx = inds["glucose"]["context"]
+    snap = need_snapshot("osdr_cmp")
+    glu = next(a for a in snap["data"]["analytes"] if a["key"] == "glucose")
+    ranges = [rng for subj in glu["ranges"].values() for rng in subj.values()]
+    assert {(x["min"], x["max"]) for x in ranges} == {(ctx["range"]["min"], ctx["range"]["max"])} == {(65, 99)}
+    assert ctx["range"]["unit"] == glu["unit"] == inds["glucose"]["unit"]
+    assert "65-99 mg/dL" in ctx["text"] and "never alerts" in ctx["text"]
+    assert ctx["source"]["snapshot"] == "osdr_cmp" and ctx["source"]["citation"] == snap["source"]["citation"]
+
+
+def test_sleep_midpoint_shift_is_an_absolute_shift(R):
+    """D9: the absolute shift from the fixed baseline's median midpoint; worse = increase."""
+    i = next(x for x in R["personal"]["indicators"] if x["id"] == "sleep_midpoint_shift")
+    assert i["worse"] == "increase" and i["unit"] == "h"
+    assert i["definition"]["text"].startswith("absolute shift, in hours")
+    assert "fixed baseline window" in i["definition"]["text"] and "never negative" in i["definition"]["text"]
+
+
+def test_detectable_change_text_quotes_the_engine(R):
+    """D10: the band half-width in baseline SDs, quoted from min_detectable_change itself."""
+    from engine import fmt_num, min_detectable_change
+
+    rci = R["personal"]["rci"]
+    dc = rci["detectable_change"]
+    alpha = rci["alpha_two_tailed"]
+    full = min_detectable_change(1.0, rci["baseline_window_days"], alpha)["mdc"]
+    minimum = min_detectable_change(1.0, rci["min_baseline_n"], alpha)["mdc"]
+    assert f"{fmt_num(full, 2)} baseline SDs" in dc["text"] and f"minimum, {fmt_num(minimum, 2)}" in dc["text"]
+    assert dc["source"]["arithmetic"].endswith(f"= {fmt_num(minimum, 2)}") and f"= {fmt_num(full, 2)};" in dc["source"]["arithmetic"]
+
+
+def test_red_flags_and_required_steps(R):
+    """D5: renal r4 is a required yes/no red-flag question listing the HRR risk-statement symptoms; the SPE shelter
+    confirmations are required; the SPE packet step releases the ground packet."""
+    renal = _case(R, "renal_stone")
+    r4 = next(st for st in renal["procedure"] if st["id"] == "r4")
+    assert r4["required"] is True and r4["red_flag"] is True and r4["input"]["unit"] == "yes/no"
+    assert r4["red_flags"] == ["pain in the side or back (flank)", "blood in the urine",
+                               "pain or burning when passing urine", "fever or chills", "nausea or vomiting",
+                               "being unable to pass urine"]
+    for symptom in ("flank", "blood in the urine", "passing urine", "fever or chills", "nausea or vomiting",
+                    "unable to pass urine", "Crew Medical Officer"):
+        assert symptom in r4["text"], symptom
+    src = r4["basis"]["source"]
+    assert src["snapshot"] == "hrp_roadmap" and "renal colic (pain), nausea, vomiting, hematuria, infection" in src["verbatim"]
+    roadmap = need_snapshot("hrp_roadmap")
+    hrr81 = next(r for r in roadmap["data"]["risks"] if r["hrr_id"] == 81)
+    assert hrr81["detail"]["risk_statement"] == src["verbatim"]
+    assert [st["id"] for st in renal["procedure"] if st.get("required")] == ["r4"]
+    spe = _case(R, "spe_shelter")
+    assert [st["id"] for st in spe["procedure"] if st.get("required")] == ["p2", "p3"]
+    assert [st["id"] for st in spe["procedure"] if st.get("releases_packet")] == ["p6"]
+    sleep = _case(R, "sleep_circadian")
+    assert not any(st.get("required") or st.get("red_flag") for st in sleep["procedure"])
+
+
+def test_escalation_reaches_the_crew_medical_officer_first(R):
+    """D4: every tripwire escalates to the onboard CMO now and queues the packet for the flight surgeon."""
+    tiers = R["meta"]["escalation"]["tiers"]
+    assert [(t["tier"], t["id"]) for t in tiers] == [(1, "crew_medical_officer"), (2, "flight_surgeon")]
+    assert set(R["meta"]["escalation"]["autonomy"]) == {"AOS", "LOS"}
+    for c in R["cases"]["cases"]:
+        text = c["tripwire"]["text"]
+        assert "escalate: " in text and "Crew Medical Officer" in text and "flight surgeon" in text, c["id"]
+        assert "reclassify" not in text and "flight-surgeon review" not in text, c["id"]
+
+
+def test_packet_state_wording_is_one_vocabulary(R):
+    """Packet states: 'Prepared (held on board)', then 'Queued' after crew release or escalation."""
+    labels = [p["label"] for p in R["meta"]["packet_states"]]
+    assert labels == ["Prepared (held on board)", "Queued"]
+    p6 = next(st for st in _case(R, "spe_shelter")["procedure"] if st["id"] == "p6")
+    assert "Prepared (held on board)" in p6["text"] and "Queued" in p6["text"]
+    for c in R["cases"]["cases"]:
+        for text in _crew_texts(c):
+            assert "is queued now" not in text and "not queued" not in text, (c["id"], text)
+
+
+def test_case_texts_are_role_environment_and_plain_language_aware(R):
+    """D7 and the judges' findings: no rule IDs and no anthropomorphic phrasing in crew text; the sleep step
+    does not tell the Commander to tell the commander; the renal text covers reduced gravity."""
+    ids = {r["id"] for r in R["thresholds"]["rules"]} | {i["id"] for i in R["personal"]["indicators"]}
+    ids |= {r["variable"] for r in R["thresholds"]["rules"]} | {i["variable"] for i in R["personal"]["indicators"]}
+    ids -= {"glucose", "mood"}   # plain English words as well as ids
+    for c in R["cases"]["cases"]:
+        for text in _crew_texts(c):
+            for rid in ids:
+                assert not re.search(rf"\b{re.escape(rid)}\b", text), (c["id"], rid, text)
+            assert not re.search(r"LANDFALL (sees|saw|knows|thinks|decides|acts)\b|it sees\b", text), (c["id"], text)
+    s5 = next(st for st in _case(R, "sleep_circadian")["procedure"] if st["id"] == "s5")
+    assert "tell the commander" not in s5["text"] and "Commander and the Crew Medical Officer" in s5["text"]
+    assert "[V1" not in s5["text"] and s5["basis"]["source"]["requirement_id"] == "V1 4011"
+    s4 = next(st for st in _case(R, "sleep_circadian")["procedure"] if st["id"] == "s4")
+    assert s4["basis"]["source"]["requirement_id"] == "V1 4014"
+    assert "weightlessness or reduced gravity" in _case(R, "renal_stone")["interpretation"]["text"]
+    assert "projections" not in _case(R, "renal_stone")      # ISS-rate months-to-POL dropped (judges)
+
+
+def test_no_medication_advice_in_crew_text(R):
+    """D12: potassium citrate appears only in the flight-surgeon note of the renal ground packet."""
+    for c in R["cases"]["cases"]:
+        for text in _crew_texts(c) + c["refusals"]:
+            assert "citrate" not in text.lower(), (c["id"], text)
+        alt_ids = [a["id"] for a in c["countermeasure"]["alternatives"]]
+        assert not any("citrate" in a for a in alt_ids), c["id"]
+    note = _case(R, "renal_stone")["escalation"]["flight_surgeon_note"]
+    assert note["audience"] == "flight_surgeon"
+    assert "a NASA-studied countermeasure (Whitson et al. 2009); the decision rests with the flight surgeon" in note["text"]
+    assert note["source"]["citation"].startswith("Whitson PA")
+
+
+def test_spe_source_framing_and_shelter_chip(R):
+    """D3: an above-atmosphere monitor in Mars orbit, relayed locally; LANDFALL is not the radiation alarm; sheltering
+    crew who are not on EVA at S3 is a labelled design choice (writing open item 3)."""
+    onboard = next(r for r in R["thresholds"]["rules"] if r["id"] == "ops_onboard_proton_s3")
+    assert onboard["label"].startswith("Mars-orbit space-weather monitor") and onboard["chip"] == "design choice"
+    for frag in ("above the atmosphere, in Mars orbit", "no Earth link", "[V2 6165]", "raises the alarm ([V2 6164])"):
+        assert frag in onboard["source"]["rationale"], frag
+    assert any("no radial-distance or atmospheric correction" in n for n in onboard["notes"])
+    spe = _case(R, "spe_shelter")
+    assert "in Mars orbit" in spe["interpretation"]["text"] and "raises the radiation alarm" in spe["interpretation"]["text"]
+    cm = spe["countermeasure"]["primary"]
+    assert cm["chip"] == "design choice" and "is LANDFALL's choice" in cm["source"]["rationale"]
+    assert {c["kind"] for c in cm["citations"]} == {"nasa_standard", "noaa"}
+    assert any(r["id"] == "no_radiation_alarm" for r in R["meta"]["refusals"])
+
+
+def test_scoped_claims_and_modelled_window(R):
+    """D13/D14: never the unscoped 'NASA publishes no ...', never a 'real' conjunction window; the plan's wrong
+    '> 2 L/day' urine figure is never printed (writing open item 4)."""
+    for name, text in rules_texts(R):
+        assert not re.search(r"NASA publishes no", text), (name, text[:120])
+        assert not re.search(r"(?i)real (Mars solar )?conjunction|window is real|real window", text), (name, text[:120])
+        assert not re.search(r"2 L/day|> ?2 L\b", text), (name, text[:120])
+    principle = next(p for p in R["meta"]["principles"] if p["id"] == "no_nasa_alert_thresholds")
+    assert principle["text"].startswith("NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew health; "
+                                        "its alert requirements leave the number to the program")
+    mars = next(e for e in R["environments"]["environments"] if e["id"] == "mars_surface")
+    assert any("modelled from JPL Horizons geometry" in n and "RMS 0.79 d" in n for n in mars["notes"])
+    snap = need_snapshot("horizons_mars_comms")
+    assert any("RMS edge residual 0.79 d" in c for c in snap["caveats"])

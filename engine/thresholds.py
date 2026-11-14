@@ -114,7 +114,14 @@ def basis_text(chip: str, source: dict) -> str:
 
 
 def _severity_tier_a(rule: dict, status: str, ctx: dict) -> str:
-    """SPEC section 2 default mapping (design choice, mirrored in rules/meta.json)."""
+    """SPEC section 2 mapping (rules/meta.json severity_mapping), after NASA-STD-3001 Vol 2 Table 10.3-1.
+
+    Warning is "Event that requires immediate action because it has the potential to become a
+    life/mission threat"; Caution is "Event that needs attention, but not immediate action". The
+    only Warning LANDFALL emits is an OPS level of S3 or above, whose rules carry the shelter action.
+    FFD, PEL, POL and TARGET findings need attention, not immediate action: Caution at most. `ctx`
+    is accepted for compatibility; none of its fields changes the result.
+    """
     if status in ("insufficient_data", "stale"):
         return "advisory"
     if status in ("within", "not_applicable"):
@@ -124,16 +131,13 @@ def _severity_tier_a(rule: dict, status: str, ctx: dict) -> str:
         if status == "approaching":
             sev = "advisory"  # SPEC is silent on approaching an OPS level: we never exceed advisory
         else:
-            level = _ops_level(rule)
-            if level >= 3:
-                sev = "warning" if ctx.get("eva") is True else "caution"
-            else:
-                sev = "advisory"
+            sev = "warning" if _ops_level(rule) >= 3 else "advisory"
     elif category == "TARGET":
-        # literature targets are not NASA limits (meta.json rows target_outside / target_approaching)
+        # countermeasure targets are not NASA limits (meta.json rows target_outside / target_approaching)
         sev = "caution" if status == "outside" else "advisory"
     else:
-        sev = "warning" if status == "outside" else "caution"
+        # FFD / PEL / POL, outside or approaching (meta.json rows tier_a_outside / tier_a_approaching)
+        sev = "caution"
     if rule["role"] == "context":
         sev = cap_severity(sev, "advisory")
     if rule.get("max_severity") is not None:
@@ -154,7 +158,8 @@ def evaluate_rule(rule: dict, value: object, env_id: str, t: float | None, ctx: 
 
     value: number, None (no data) or an observation {value, unit, t?, variable?}.
     env_id: current environment id (string). t: evaluation MET seconds (or None).
-    ctx: optional {"eva": bool}; true when an EVA is planned or in progress (OPS severity).
+    ctx: optional object, accepted for compatibility ({"eva": bool} in older callers); no field of
+    it changes the result: an S3-or-above OPS level is a Warning whether or not an EVA is under way.
     """
     _validate_rule(rule)
     if not isinstance(env_id, str):

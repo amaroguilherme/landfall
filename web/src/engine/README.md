@@ -11,12 +11,13 @@ const f = evaluateRule(getRule(RULES, 'ffd_vo2max_surface_eva'), 35.1, 'mars_sur
 let s = newCase(getCase(RULES, 'spe_shelter'), 'CM-1', triggerLookup(RULES), 'mars_surface')  // lookup required; env picks the tripwire rule
 s = caseReduce(s, { type: 'OPEN', t, finding })
 const c = tCritical(0.001, 13)  // 4.2208..., the Tier B critical value for a 14-day baseline
+const m = minDetectableChange(0.171, 14).mdc  // 0.747: the smallest one-day change that band can flag
 ```
 
 ## Proof
 
 - `conformance.test.ts` loads **every** file in `engine/tests/vectors/*.json` (`node:fs` + `import.meta.url`).
-  Today that is 619 vectors in 15 files. Arguments written `{"$float": "NaN" | "Infinity" | "-Infinity"}` are
+  Today that is 690 vectors in 16 files. Arguments written `{"$float": "NaN" | "Infinity" | "-Infinity"}` are
   decoded, at any depth, before the call (SPEC section 6). For each vector the test checks four things:
   - the TS result deep-equals `expect` (numbers within 1e-9, relative above magnitude 1, absolute below), or the
     error `code` equals `raises`;
@@ -26,7 +27,7 @@ const c = tCritical(0.001, 13)  // 4.2208..., the Tier B critical value for a 14
   - a second run gives the same answer.
 
   The test also fails when a vector file has no TS mapping or a vector uses an argument name the mapping does not know.
-- The same test also replays `engine/tests/vectors_random/random_<fn>.json`: 5,019 seeded random vectors (all 15
+- The same test also replays `engine/tests/vectors_random/random_<fn>.json`: 5,179 seeded random vectors (all 16
   functions: valid and invalid inputs, case_reduce event sequences, FHIR packets). They sit outside `vectors/`
   because `python -m engine.vectors --check` reports any extra file there. Their inputs are frozen, and their
   generator is committed: `uv run python -m engine.vectors --random` recomputes the expectations with the current
@@ -36,19 +37,23 @@ const c = tCritical(0.001, 13)  // 4.2208..., the Tier B critical value for a 14
   infinity) and every cell of the NIST/SEMATECH e-Handbook table 1.3.6.7.2. It also reproduces Crawford & Howell's
   (1998) worked example, and tests `fma` and `lgamma` (below).
 - `scenario.test.ts` runs the TS engine on the shipped `web/public/data/sim_crew.json` the way `src/app/evaluate.ts`
-  does (baseline MET days 368-381, n 14, df 13, critical 4.221). CM-1's PVT-B lapses are a reliable change from day
-  406 (by day 407, SPEC section 7) and CM-3's 24-h urine output on days 398-401. Only the scripted episodes change
-  reliably, and mood never alerts.
+  does (baseline MET days 368-381, n 14, df 13, critical 4.221) and requires it to agree exactly with the generator's
+  own Tier B report (`data.self_check.tier_b`: baselines, minimum detectable changes, flagged episode days, chance
+  flags, nothing else at caution). Every finding carries `rci.mdc`, caution only means a reliable change in the
+  worse direction of an alerting indicator, and mood never alerts.
 - `engine.test.ts` runs the port on the **real** `engine/rules/*.json`:
   - every threshold rule and every indicator validates;
   - `PRIVATE_VARIABLES` equals the `private: true` indicators;
   - mood (non-alerting) shows a reliable change at severity `nominal`, and missing data stays `advisory`;
   - the critical values quoted in `rci.method` are the engine's, and an indicator's `reliability_r` changes nothing;
-  - the CM-2 VO2max 35.1 verdict flips between `[V1 4001]` and `[V1 4002]` when the environment changes;
+  - the CM-2 VO2max 35.1 verdict flips between `[V1 4001]` and `[V1 4002]` when the environment changes, and outside
+    it is a caution labelled "EVA assignment not cleared";
   - all three cases open with `triggerLookup`, and in every environment each one watches a tripwire rule that
     applies there (`spe_shelter`: `ops_onboard_proton_s3` at Mars, `ops_noaa_s3` near Earth);
-  - the SPE case rejects a TICK with a unit mismatch atomically, escalates at T+6 h on vehicle data
-    (`crew_id: null`) and yields a `scope-vehicle` packet.
+  - the SPE case opens as a warning, refuses an outcome until the shelter confirmations p2 and p3 are done, queues
+    the packet at p6, rejects a TICK with a unit mismatch atomically, escalates at T+6 h on vehicle data
+    (`crew_id: null`) to both tiers and yields a `scope-vehicle` packet;
+  - the renal red-flag question r4 must be answered or declined, and a "yes" escalates at once.
 
   It also checks the tables the port copies (UCUM, LOINC vital signs, local displays, private/boolean/MET units, error codes and NOAA thresholds) against the Python source text, so a change on one side alone fails.
 - Run: `cd web && npx vitest run src/engine` (or `npm test`), then `npx tsc -p tsconfig.app.json --noEmit`.
@@ -91,13 +96,14 @@ the same snake_case keys, so a value can pass between the two languages unchange
 | `thresholds.SEVERITIES`, `STATUSES`, `CEILING_OPS`, `FLOOR_OPS`, `OP_SYMBOL`, `NOAA_S_THRESHOLDS_PFU` | same names (`S_THRESHOLDS_PFU` is an alias for the shell facade) |
 | `rci.rci(baseline, current, alpha=0.001, min_baseline_n=7)` | `rci(baseline, current, alpha = 0.001, minBaselineN = 7)` |
 | `rci.evaluate_personal(indicator, baseline, current, cfg, t=None)` | `evaluatePersonal(indicator, baseline, current, cfg, t = null)` |
-| `rci.expected_false_alarms(k_indicators, days, alpha=0.001)` | `expectedFalseAlarms(kIndicators, days, alpha = 0.001)` |
+| `rci.min_detectable_change(sd, n, alpha=0.001)` | `minDetectableChange(sd, n, alpha = 0.001)` |
+| `rci.expected_false_alarms(k_indicators, days, alpha=0.001, k_either=0)` | `expectedFalseAlarms(kIndicators, days, alpha = 0.001, kEither = 0)` |
 | `rci.METHOD`, `FALSE_ALARM_ASSUMES` | `RCI_METHOD`, `FALSE_ALARM_ASSUMES` |
 | `tdist.t_cdf(t, df)`, `t_quantile(p, df)`, `t_critical(alpha, df)` | `tCdf(t, df)`, `tQuantile(p, df)`, `tCritical(alpha, df)` |
 | `math.lgamma` (C library) | `lgamma` in `tdist.ts` (CPython's `m_lgamma`, with `fma`) |
 | `cases.new_case(case_def, crew_id, lookup=None, env_id=None)` | `newCase(caseDef, crewId, lookup = null, envId = null)` |
 | `cases.case_reduce(state, event)` | `caseReduce(state, event)` |
-| `cases.STATES`, `OPEN_STATES`, `TERMINAL_STATES`, `EVENTS`, `OPENING_SEVERITIES` | same names |
+| `cases.STATES`, `OPEN_STATES`, `TERMINAL_STATES`, `EVENTS`, `OPENING_SEVERITIES`, `ESCALATION_TIERS`, `STEP_FLAGS`, `OP_WORDS` | same names |
 | `packet.build_ground_packet(case_state, observations, consent, env_id, t, mission_epoch)` | `buildGroundPacket(caseState, observations, consent, envId, t, missionEpoch)` |
 | `packet.consent_allows`, `PRIVATE_VARIABLES`, `VITAL_SIGNS`, `UCUM_CODES`, `LOCAL_DISPLAY`, `BOOLEAN_UNITS`, `MET_UNITS` | `consentAllows`, same constant names (the dicts become `ReadonlyMap`s) |
 | `comms.comms_eta(env, t, comms_table=None)` | `commsEta(env, t, commsTable = null)` |
@@ -120,7 +126,8 @@ the same snake_case keys, so a value can pass between the two languages unchange
 ## Known, deliberate differences (none is reachable with the real rules or any vector)
 
 1. **JS cannot tell `3` from `3.0`.** Python's `isinstance(x, int)` checks (`fmt_num` dp, `min_baseline_n`,
-   `of_last_n`/`at_least`, an OPS rule's `s_level` field) therefore accept a JSON `3.0` here. Python rejects it,
+   `of_last_n`/`at_least`, `min_detectable_change`'s `n`, an OPS rule's `s_level` field) therefore accept a JSON
+   `3.0` here. Python rejects it,
    or falls back to `s_level(limit)`. Likewise, `repr()` of an integral Python float prints `5.0` in Python and `5`
    here. That only matters in a rejected event's `detail`, such as `unknown event type 5.0`. All real ids and
    counts are JSON integers. Negative zero is the exception and does match: no Python int is `-0`, so `-0` prints
@@ -159,9 +166,23 @@ shapes differ from the shim in six ways, and the compiler flags each one:
   caution_every_n_days, caution_text, assumes, k_indicators, days, alpha}`: chance flags in either direction, and
   the half of them that are cautions (only a change in the worse direction raises one).
 - Tier B findings carry `rci: {method: "crawford_howell_1998", rc, df, critical, alpha, s_diff, mean, sd, n,
-  reliable, reason}`. `rc` is the t statistic of the single-case test. There is no `critical_z`, `r` or `sem`
-  any more, and an indicator's `reliability_r` is optional, non-computational context.
-- `newCase` takes a 4th argument, `envId`: pass the current environment so the SPE case watches the onboard
+  reliable, reason, mdc}`. `rc` is the t statistic of the single-case test and `mdc = critical * s_diff` the
+  minimum detectable change (print it next to the band). There is no `critical_z`, `r` or `sem` any more, and an
+  indicator's `reliability_r` is optional, non-computational context.
+- `minDetectableChange(sd, n, alpha)` gives the same figure at any SD (e.g. a literature SD).
+- `expectedFalseAlarms(k, days, alpha, kEither)`: pass the number of alerting indicators whose `worse` is
+  `either` (glucose) as `kEither`; both of their tails raise cautions. The result has `k_either`.
+- Severity (SPEC section 2, NASA-STD-3001 Vol 2 Table 10.3-1): the only `warning` is an OPS level of S3 or above
+  (the shelter action); FFD / PEL / POL are `caution` outside or approaching; `evaluateRule`'s `ctx` is accepted but
+  no longer changes anything (`{eva}` has no effect).
+- `formatMet` prints `d/hh:mm:ss` with no leading zeros in the day field (F.6.1 f): `412/14:20:00`, a countdown
+  `11/05:59:51`. Code that sliced fixed character positions of the old `0412/...` string must split on `/` instead.
+- Case states have `steps_declined`, `escalation {t, reason, step_id, tiers}` and `packet_queued_at`; their
+  `spec` has `required_step_ids`, `red_flag_step_ids`, `packet_step_ids` and `step_inputs`. New event
+  `DECLINE {step_id, reason}`; new rejection `required_steps_pending` (OUTCOME before every required step is
+  done or declined). A red-flag STEP answered yes (`input.value` true or 1) escalates at once. Log details print
+  MET with `formatMet` ("reassess at MET 415/14:25:00") instead of raw seconds.
+- `newCase` takes a 4th argument, `envId`: pass the current environment so the SPE case watches the Mars-orbit
   monitor rule at Mars (`spec.tripwire.condition.ref_id`). Without it the base condition (NOAA) is used; both
   rules watch the same variable and unit.
 

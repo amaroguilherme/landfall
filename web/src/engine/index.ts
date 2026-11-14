@@ -23,9 +23,20 @@ export {
   sLevel,
   severityRank,
 } from './thresholds'
-export { FALSE_ALARM_ASSUMES, RCI_METHOD, WORSE_VALUES, evaluatePersonal, expectedFalseAlarms, rci } from './rci'
+export { FALSE_ALARM_ASSUMES, RCI_METHOD, WORSE_VALUES, evaluatePersonal, expectedFalseAlarms, minDetectableChange, rci } from './rci'
 export { DF_MAX as T_DF_MAX, DF_MIN as T_DF_MIN, tCdf, tCritical, tQuantile } from './tdist'
-export { EVENTS, OPENING_SEVERITIES, OPEN_STATES, STATES, TERMINAL_STATES, caseReduce, newCase } from './cases'
+export {
+  ESCALATION_TIERS,
+  EVENTS,
+  OPENING_SEVERITIES,
+  OPEN_STATES,
+  OP_WORDS,
+  STATES,
+  STEP_FLAGS,
+  TERMINAL_STATES,
+  caseReduce,
+  newCase,
+} from './cases'
 export {
   BOOLEAN_UNITS,
   LOCAL_CS,

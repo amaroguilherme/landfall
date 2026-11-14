@@ -77,7 +77,12 @@ def test_tripwire_two_of_three_escalates():
     s = case_reduce(s, {"type": "TICK", "t": s["reassess_at"], "observations": []})
     assert s["status"] == "escalated"
     assert s["tripwire_result"] == {"hits": 2, "considered": 3, "of_last_n": 3, "at_least": 2, "tripped": True}
-    assert s["log"][-1]["to"] == "escalated" and "flight-surgeon" in s["log"][-1]["detail"]
+    assert s["log"][-1]["to"] == "escalated"
+    # D4: two tiers, the onboard Crew Medical Officer now and the flight surgeon through the queued packet
+    assert "Crew Medical Officer" in s["log"][-1]["detail"] and "flight surgeon" in s["log"][-1]["detail"]
+    assert s["escalation"] == {"t": s["reassess_at"], "reason": "tripwire", "step_id": None,
+                               "tiers": ["crew_medical_officer", "flight_surgeon"]}
+    assert s["packet_queued_at"] == s["reassess_at"]
 
 
 def test_vehicle_observations_with_null_crew_id_count_for_the_tripwire():
@@ -241,3 +246,126 @@ def test_new_case_validation():
     s = new_case(rule_tw, "CM-1", lookup={"pel_cabin_ppco2_1h": {"variable": "cabin_ppco2_1h_mean", "unit": "mmHg"}})
     assert s["spec"]["tripwire"]["condition"]["variable"] == "cabin_ppco2_1h_mean"
     assert s["spec"]["tripwire"]["condition"]["unit"] == "mmHg"
+
+
+# ---------------------------------------------------------------- required steps, red flags, tiers (D4, D5)
+
+GATED = copy.deepcopy(CASE)
+GATED["procedure"] = [
+    {"id": "step_1", "text": "plain step"},
+    {"id": "step_2", "text": "required step with a value", "required": True,
+     "input": {"variable": "sleep_duration", "unit": "h", "source": "band"}},
+    {"id": "step_3", "text": "red-flag question", "required": True, "red_flag": True,
+     "input": {"variable": "renal_symptoms", "unit": "yes/no", "source": "manual"}},
+    {"id": "step_4", "text": "release the packet", "releases_packet": True},
+]
+
+
+def gated_acting():
+    s = new_case(GATED, "CM-1")
+    return drive(s, [{"type": "OPEN", "finding": FINDING, "t": T0},
+                     {"type": "SELECT", "countermeasure_id": "cm_primary", "t": T0 + 60}])
+
+
+def test_new_case_records_required_red_flag_and_packet_steps():
+    spec = new_case(GATED, "CM-1")["spec"]
+    assert spec["step_ids"] == ["step_1", "step_2", "step_3", "step_4"]
+    assert spec["required_step_ids"] == ["step_2", "step_3"]
+    assert spec["red_flag_step_ids"] == ["step_3"]
+    assert spec["packet_step_ids"] == ["step_4"]
+    assert spec["step_inputs"] == [{"step_id": "step_2", "variable": "sleep_duration", "unit": "h"},
+                                   {"step_id": "step_3", "variable": "renal_symptoms", "unit": "yes/no"}]
+    s = new_case(GATED, "CM-1")
+    assert (s["steps_declined"], s["escalation"], s["packet_queued_at"]) == ([], None, None)
+    for bad in ({"required": "yes"}, {"red_flag": True},                       # red flag must be required
+                {"red_flag": True, "required": True, "input": {"variable": "x", "unit": "mL"}},  # and yes/no
+                {"input": {"variable": "x"}}, {"input": "x"}):
+        case = copy.deepcopy(GATED)
+        case["procedure"][0].update(bad)
+        with pytest.raises(EngineError) as e:
+            new_case(case, "CM-1")
+        assert e.value.code == "invalid_case", bad
+
+
+def test_outcome_is_blocked_until_required_steps_are_done_or_declined():
+    s = gated_acting()
+    r = case_reduce(s, {"type": "OUTCOME", "text": "done", "t": T0 + 100})
+    assert r["status"] == "acting" and r["log"][-1]["error"] == "required_steps_pending"
+    assert "step_2, step_3" in r["log"][-1]["detail"]
+    s = case_reduce(s, {"type": "STEP", "step_id": "step_3", "t": T0 + 110,
+                        "input": {"variable": "renal_symptoms", "value": False, "unit": "yes/no"}})
+    assert s["status"] == "acting" and "answered no" in s["log"][-1]["detail"]
+    r = case_reduce(s, {"type": "OUTCOME", "text": "done", "t": T0 + 120})
+    assert r["log"][-1]["error"] == "required_steps_pending" and r["log"][-1]["detail"].endswith("step_2")
+    s = case_reduce(s, {"type": "DECLINE", "step_id": "step_2", "reason": "Band off-wrist overnight.", "t": T0 + 130})
+    assert s["status"] == "acting" and s["steps_declined"] == [
+        {"step_id": "step_2", "t": T0 + 130, "reason": "Band off-wrist overnight."}]
+    assert s["log"][-1]["detail"] == "step step_2 (required) declined: Band off-wrist overnight."
+    s = case_reduce(s, {"type": "OUTCOME", "text": "Light schedule shifted.", "t": T0 + 140})
+    assert s["status"] == "watch" and s["log"][-1]["error"] is None
+    assert "(1 of 4 steps done, 1 declined)" in s["log"][-1]["detail"]
+    assert "reassess at MET 415/14:22:20" in s["log"][-1]["detail"]       # F.6.1 f, never raw seconds
+
+
+def test_required_step_values_and_red_flag_answers_are_checked():
+    s = gated_acting()
+    for event, code in [
+        ({"type": "STEP", "step_id": "step_2", "t": T0 + 70}, "invalid_event"),            # needs its value
+        ({"type": "STEP", "step_id": "step_2", "t": T0 + 70, "input": {"value": None}}, "invalid_event"),
+        ({"type": "STEP", "step_id": "step_2", "t": T0 + 70, "input": {"value": 6.5, "unit": "min"}}, "unit_mismatch"),
+        ({"type": "STEP", "step_id": "step_3", "t": T0 + 70}, "invalid_event"),            # yes or no needed
+        ({"type": "STEP", "step_id": "step_3", "t": T0 + 70, "input": {"value": 2, "unit": "yes/no"}}, "invalid_event"),
+        ({"type": "STEP", "step_id": "step_3", "t": T0 + 70, "input": {"value": "yes"}}, "invalid_event"),
+        ({"type": "STEP", "step_id": "step_3", "t": T0 + 70, "input": {"value": True, "unit": "bool"}}, "unit_mismatch"),
+        ({"type": "DECLINE", "step_id": "step_9", "reason": "x", "t": T0 + 70}, "unknown_step"),
+        ({"type": "DECLINE", "step_id": "step_2", "reason": "  ", "t": T0 + 70}, "invalid_event"),
+    ]:
+        r = case_reduce(s, event)
+        assert r["log"][-1]["error"] == code, event
+        assert {k: v for k, v in r.items() if k != "log"} == {k: v for k, v in s.items() if k != "log"}  # atomic
+    ok = case_reduce(s, {"type": "STEP", "step_id": "step_2", "t": T0 + 70,
+                         "input": {"variable": "sleep_duration", "value": 6.5, "unit": "h"}})
+    assert ok["log"][-1]["error"] is None and ok["steps_done"][-1]["input"]["value"] == 6.5
+    # a declined step can still be done later; a done step cannot be declined
+    d = case_reduce(s, {"type": "DECLINE", "step_id": "step_1", "reason": "Not now.", "t": T0 + 70})
+    d = case_reduce(d, {"type": "STEP", "step_id": "step_1", "t": T0 + 80})
+    assert d["log"][-1]["error"] is None and [x["step_id"] for x in d["steps_done"]] == ["step_1"]
+    again = case_reduce(d, {"type": "DECLINE", "step_id": "step_1", "reason": "x", "t": T0 + 90})
+    assert again["log"][-1]["error"] == "duplicate_step"
+    assert case_reduce(new_case(GATED, "CM-1"), {"type": "DECLINE", "step_id": "step_1", "reason": "x",
+                                                 "t": T0})["log"][-1]["error"] == "invalid_transition"
+
+
+def test_red_flag_yes_escalates_at_once_with_two_tiers():
+    s = gated_acting()
+    for yes in (True, 1):
+        e = case_reduce(s, {"type": "STEP", "step_id": "step_3", "t": T0 + 90,
+                            "input": {"variable": "renal_symptoms", "value": yes, "unit": "yes/no"}})
+        assert e["status"] == "escalated" and e["closed_at"] == T0 + 90
+        assert e["escalation"] == {"t": T0 + 90, "reason": "red_flag", "step_id": "step_3",
+                                   "tiers": ["crew_medical_officer", "flight_surgeon"]}
+        assert e["packet_queued_at"] == T0 + 90
+        assert e["log"][-1]["detail"].startswith("step step_3 answered yes, a red flag; escalated: tier 1, the Crew Medical Officer, now")
+        # terminal: nothing more is accepted
+        assert case_reduce(e, {"type": "OUTCOME", "text": "x", "t": T0 + 99})["log"][-1]["error"] == "invalid_transition"
+
+
+def test_a_packet_step_queues_the_ground_packet_once():
+    s = gated_acting()
+    assert s["packet_queued_at"] is None                      # Prepared (held on board)
+    s = case_reduce(s, {"type": "STEP", "step_id": "step_4", "t": T0 + 100})
+    assert s["packet_queued_at"] == T0 + 100                  # Queued (crew release)
+    assert "ground packet queued, sent when a link exists" in s["log"][-1]["detail"]
+
+
+def test_old_states_without_the_new_fields_are_malformed():
+    s = new_case(CASE, "CM-1")
+    for key in ("steps_declined", "escalation", "packet_queued_at"):
+        with pytest.raises(EngineError) as e:
+            case_reduce({k: v for k, v in s.items() if k != key}, {"type": "TICK", "t": T0, "observations": []})
+        assert e.value.code == "invalid_argument", key
+    for key in ("required_step_ids", "red_flag_step_ids", "packet_step_ids", "step_inputs"):
+        bad = dict(s, spec={k: v for k, v in s["spec"].items() if k != key})
+        with pytest.raises(EngineError) as e:
+            case_reduce(bad, {"type": "TICK", "t": T0, "observations": []})
+        assert e.value.code == "invalid_argument", key

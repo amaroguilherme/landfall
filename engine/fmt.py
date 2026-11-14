@@ -78,11 +78,16 @@ def fmt_num(x: float, dp: int = 3) -> str:
 
 
 def format_met(seconds: float) -> str:
-    """Mission elapsed time as 'dddd/hh:mm:ss'.
+    """Mission elapsed time as 'd/hh:mm:ss', the format of NASA-STD-3001 Vol 2 Appendix F F.6.1 f:
 
-    Day 0 starts at MET 0 (Shuttle-style 000/00:00:00 at launch). Non-integral input is floored.
-    Days are zero-padded to 4 digits and never truncated (day 10000 prints as 10000).
-    Negative MET (pre-launch) prints with a leading '-' and the absolute value.
+        "Time must be displayed using a 24-hour clock in the following format (Note: leading zeros
+        are suppressed in day field): label dddd/hh:mm:ss (e.g., MET 57/14:08:33, or MET
+        1089/13:03:01)."
+
+    Day 0 starts at MET 0. Non-integral input is floored. The day field has no leading zeros and
+    is never truncated (day 412 prints as 412, day 10000 as 10000); hours, minutes and seconds keep
+    two digits. Negative MET (pre-launch) prints with a leading '-' and the absolute value. The
+    same format serves day-count durations: a countdown of 11 d 05 h 59 min 51 s is '11/05:59:51'.
     """
     require_number(seconds, "format_met seconds")
     s = math.floor(seconds)
@@ -91,7 +96,7 @@ def format_met(seconds: float) -> str:
     days, rem = divmod(a, 86400)
     hh, rem = divmod(rem, 3600)
     mm, ss = divmod(rem, 60)
-    return f"{sign}{days:04d}/{hh:02d}:{mm:02d}:{ss:02d}"
+    return f"{sign}{days}/{hh:02d}:{mm:02d}:{ss:02d}"
 
 
 def parse_epoch(epoch: str) -> datetime:

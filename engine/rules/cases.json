@@ -4,7 +4,7 @@
   {
    "id": "renal_stone",
    "title": "Renal stone risk: low urine output",
-   "one_line": "Urine output is low: under 1.5 L/day, where NASA's renal stone evidence report says stone risk rises, or clearly down against your own baseline. Drink more, log it, and watch for symptoms.",
+   "one_line": "Urine output is low: under 1.5 L/day, where NASA's renal stone evidence report says stone risk rises, or clearly down against your own baseline. Drink more, log it, and answer the symptom questions.",
    "hrp_risk": {
     "title": "Risk of Spaceflight-Induced Bone Changes",
     "url": "https://www.nasa.gov/reference/risk-of-spaceflight-induced-bone-changes/",
@@ -35,7 +35,7 @@
     }
    ],
    "interpretation": {
-    "text": "This case opened because your 24-hour urine output is below 1.5 L, the level below which NASA's renal stone evidence report says stone risk rises, or because your urine output or fluid intake has dropped reliably against your own baseline. In weightlessness bone releases calcium that leaves the body in urine, and less urine means that calcium is more concentrated. NASA's Human Research Program: 'If preventive measures are not implemented, crews may experience an increased risk of developing kidney stones due to dehydration and increased excretion of calcium from their bones.' This is not a diagnosis. LANDFALL cannot see urine chemistry or a stone; it sees how much you drink and pass.",
+    "text": "This case opened because your 24-hour urine output is below 1.5 L, the level below which NASA's renal stone evidence report says stone risk rises, or because your urine output or fluid intake has dropped reliably against your own baseline. In weightlessness or reduced gravity bone releases calcium that leaves the body in urine, and less urine means that calcium is more concentrated. NASA's Human Research Program: 'If preventive measures are not implemented, crews may experience an increased risk of developing kidney stones due to dehydration and increased excretion of calcium from their bones.' This is not a diagnosis. LANDFALL has no urine chemistry and no imaging: it works only from the volumes you log and your answers to the symptom questions.",
     "citations": [
      {
       "kind": "literature",
@@ -109,17 +109,6 @@
        "snapshot": "std_vol1_requirements",
        "verbatim": "reduction in renal stone formation"
       }
-     },
-     {
-      "id": "cm_ask_flight_surgeon_citrate",
-      "title": "Ask the flight surgeon about potassium citrate",
-      "rationale": "Potassium citrate was tested in ISS crewmembers and kept calcium oxalate supersaturation risk at preflight levels (Whitson et al. 2009). Whether to take it, and how much, is a flight-surgeon decision; LANDFALL gives no dose.",
-      "chip": "literature",
-      "source": {
-       "kind": "literature",
-       "citation": "Whitson PA, Pietrzyk RA, Jones JA, Nelman-Gonzalez M, Hudson EK, Sams CF. Effect of potassium citrate therapy on the risk of renal stone formation during spaceflight. J Urol 2009;182(5):2490-2496. doi:10.1016/j.juro.2009.07.010. PMID 19765769",
-       "url": "https://pubmed.ncbi.nlm.nih.gov/19765769/"
-      }
      }
     ]
    },
@@ -148,11 +137,32 @@
     },
     {
      "id": "r4",
-     "text": "Ask: any pain in the side or back, blood in the urine, or pain when passing urine? If yes, stop here and send the ground packet now. That needs a flight surgeon.",
+     "text": "Ask now: any pain in the side or back (flank), blood in the urine, pain or burning when passing urine, fever or chills, nausea or vomiting, or being unable to pass urine? If any answer is yes, tell your Crew Medical Officer now: the case escalates, and the ground packet is queued for the flight surgeon.",
+     "required": true,
+     "red_flag": true,
      "input": {
       "variable": "renal_symptoms",
       "unit": "yes/no",
       "source": "manual"
+     },
+     "red_flags": [
+      "pain in the side or back (flank)",
+      "blood in the urine",
+      "pain or burning when passing urine",
+      "fever or chills",
+      "nausea or vomiting",
+      "being unable to pass urine"
+     ],
+     "basis": {
+      "note": "The list follows the HRR risk statement: its renal colic (pain), nausea, vomiting and hematuria directly; its infection through painful urination and fever or chills; its hydronephrosis through being unable to pass urine, a sign of a blocked urinary tract. The plain-language wording is ours.",
+      "chip": "literature",
+      "source": {
+       "kind": "literature",
+       "citation": "NASA Human Research Roadmap. Risk of Renal Stone Formation (HRR risk 81), risk statement. https://humanresearchroadmap.nasa.gov/risks/?i=81",
+       "url": "https://humanresearchroadmap.nasa.gov/risks/?i=81",
+       "snapshot": "hrp_roadmap",
+       "verbatim": "Given changes in urinary biochemistry during spaceflight, there is a possibility that symptomatic renal stones will occur, which could cause renal colic (pain), nausea, vomiting, hematuria, infection, and/or hydronephrosis."
+      }
      }
     },
     {
@@ -169,7 +179,7 @@
      "of_last_n": 3,
      "at_least": 2
     },
-    "text": "Reassess at T+72 h; if 24-h urine output is still below 1,500 mL on 2 of the last 3 days, reclassify and queue for flight-surgeon review.",
+    "text": "Reassess at T+72 h; if 24-h urine output is still below 1,500 mL on 2 of the last 3 days, escalate: tell the Crew Medical Officer now, and the ground packet is queued for the flight surgeon.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -184,71 +194,18 @@
      "renal_symptoms",
      "resting_hr",
      "skin_temp"
-    ]
-   },
-   "projections": [
-    {
-     "id": "proj_hip_months_to_pol",
-     "label": "Months until hip BMD reaches the 95% POL at Lang 2004 loss rates",
-     "value": {
-      "min": 3.3,
-      "max": 3.6
-     },
-     "unit": "months",
-     "chip": "derived",
+    ],
+    "flight_surgeon_note": {
+     "audience": "flight_surgeon",
+     "text": "For the flight surgeon: potassium citrate is a NASA-studied countermeasure (Whitson et al. 2009); the decision rests with the flight surgeon.",
+     "chip": "literature",
      "source": {
-      "kind": "derived",
-      "from": [
-       "pol_bmd_hip",
-       "lang2004_hip_abmd_loss"
-      ],
-      "arithmetic": "(100 - 95) / 1.5 = 3.3 months; (100 - 95) / 1.4 = 3.6 months. Linear, at the hip aBMD loss Lang et al. measured on 4-6 month ISS flights; not a prediction for this crewmember."
-     },
-     "caveat": {
-      "text": "Illustration of why bone matters, not a forecast. Lang et al. (2004) measured ISS crews of that era. NASA's [V1 4027] rationale says that with current countermeasures (ARED, cycle ergometer, treadmill) the majority of crewmembers return from 6-month ISS missions with < 5% deficit at the total hip and spine, that is, inside this POL.",
-      "chip": "NASA-published",
-      "source": {
-       "kind": "nasa_standard",
-       "doc": "NASA-STD-3001 Vol. 1 Rev. C",
-       "requirement_id": "V1 4027",
-       "section": "4.7.2",
-       "page": 38,
-       "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
-       "snapshot": "std_vol1_requirements",
-       "verbatim": "have resulted in the majority of crewmembers returning with <10% deficit bone mineral density in femoral neck and <5% in total hip or spine during 6-month ISS missions"
-      }
-     }
-    },
-    {
-     "id": "proj_spine_months_to_pol",
-     "label": "Months until spine BMD reaches the 95% POL at Lang 2004 loss rates",
-     "value": 5.6,
-     "unit": "months",
-     "chip": "derived",
-     "source": {
-      "kind": "derived",
-      "from": [
-       "pol_bmd_spine",
-       "lang2004_spine_abmd_loss"
-      ],
-      "arithmetic": "(100 - 95) / 0.9 = 5.6 months. Linear; not a prediction for this crewmember."
-     },
-     "caveat": {
-      "text": "Illustration of why bone matters, not a forecast. Lang et al. (2004) measured ISS crews of that era. NASA's [V1 4027] rationale says that with current countermeasures (ARED, cycle ergometer, treadmill) the majority of crewmembers return from 6-month ISS missions with < 5% deficit at the total hip and spine, that is, inside this POL.",
-      "chip": "NASA-published",
-      "source": {
-       "kind": "nasa_standard",
-       "doc": "NASA-STD-3001 Vol. 1 Rev. C",
-       "requirement_id": "V1 4027",
-       "section": "4.7.2",
-       "page": 38,
-       "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
-       "snapshot": "std_vol1_requirements",
-       "verbatim": "have resulted in the majority of crewmembers returning with <10% deficit bone mineral density in femoral neck and <5% in total hip or spine during 6-month ISS missions"
-      }
+      "kind": "literature",
+      "citation": "Whitson PA, Pietrzyk RA, Jones JA, Nelman-Gonzalez M, Hudson EK, Sams CF. Effect of potassium citrate therapy on the risk of renal stone formation during spaceflight. J Urol 2009;182(5):2490-2496. doi:10.1016/j.juro.2009.07.010. PMID 19765769",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/19765769/"
      }
     }
-   ],
+   },
    "not_measurable_here": [
     {
      "what": "Urine chemistry and supersaturation (calcium, oxalate, citrate, pH)",
@@ -269,8 +226,8 @@
     }
    ],
    "refusals": [
-    "No diagnosis of a kidney stone: LANDFALL cannot see one.",
-    "No medication or dose advice: potassium citrate or any drug is a flight-surgeon decision.",
+    "No diagnosis of a kidney stone: LANDFALL has no imaging.",
+    "No medication or dose advice: any medication is a decision for the Crew Medical Officer and the flight surgeon.",
     "No stone-risk probability: LANDFALL does not model urine supersaturation."
    ]
   },
@@ -311,7 +268,7 @@
     }
    ],
    "interpretation": {
-    "text": "This case opened because at least one of your PVT-B lapses, PVT-B median reaction time, sleep duration or sleep midpoint has moved in the worse direction by more than your own day-to-day variation explains: a reliable change on a single-case t-test against your two-week baseline (Crawford & Howell 1998). The test is set so that chance alone would do this about once in 2,000 days for each indicator, if days were independent. NASA's Human Research Program describes this risk as performance decrements and adverse health outcomes resulting from sleep loss, circadian desynchronization and work overload, and names work overload, irregular light-dark cycles and sleep-pattern disruptions among the stressors of spaceflight. Short sleep is common in flight: ISS crewmembers averaged 6.09 h a night by actigraphy (Barger et al. 2014). This is not a diagnosis of a sleep disorder.",
+    "text": "This case opened because at least one of your PVT-B lapses, PVT-B median reaction time, sleep duration or sleep midpoint has moved in the worse direction by more than your own day-to-day variation explains: a reliable change on a single-case t-test against your two-week baseline (Crawford & Howell 1998). The test is set so that chance alone would do this about once in 2,000 days for each indicator, if days were independent and the day-to-day noise were normal; for PVT-B lapses, a count, chance cautions come about 10 times as often. NASA's Human Research Program describes this risk as performance decrements and adverse health outcomes resulting from sleep loss, circadian desynchronization and work overload, and names work overload, irregular light-dark cycles and sleep-pattern disruptions among the stressors of spaceflight. Short sleep is common in flight: ISS crewmembers averaged 6.09 h a night by actigraphy (Barger et al. 2014). This is not a diagnosis of a sleep disorder.",
     "citations": [
      {
       "kind": "literature",
@@ -415,11 +372,39 @@
     },
     {
      "id": "s4",
-     "text": "Ask the planner to protect your next sleep period."
+     "text": "Ask the planner to protect your next sleep period.",
+     "basis": {
+      "note": "Planned sleep periods are among the hours that must have established limits.",
+      "chip": "NASA-published",
+      "source": {
+       "kind": "nasa_standard",
+       "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+       "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+       "snapshot": "std_vol1_requirements",
+       "requirement_id": "V1 4014",
+       "section": "4.3.4",
+       "page": 35,
+       "verbatim": "The planned number of hours for in-mission completion of critical tasks and events, workday, physical activity/exercise, and planned sleep period shall have established limits to assure continued crew health and safety."
+      }
+     }
     },
     {
      "id": "s5",
-     "text": "Before any safety-critical task (EVA, robotics, vehicle control), tell the commander your PVT-B result. Fitness-for-duty decisions follow the mission's critical operations ([V1 4006]), not LANDFALL."
+     "text": "Before any safety-critical task (EVA, robotics, vehicle control), give your PVT-B result to the Commander and the Crew Medical Officer (if you hold one of those roles, to the other). Whether you do the task is their decision under the mission's rules, not LANDFALL's.",
+     "basis": {
+      "note": "Cognitive status is determined by behavioral health evaluations; a PVT-B result informs that decision and does not make it.",
+      "chip": "NASA-published",
+      "source": {
+       "kind": "nasa_standard",
+       "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+       "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+       "snapshot": "std_vol1_requirements",
+       "requirement_id": "V1 4011",
+       "section": "4.3.1",
+       "page": 34,
+       "verbatim": "Pre-mission, in-mission, and post-mission crew behavioral health and crewmember cognitive status shall be within clinically accepted values as determined by behavioral health evaluations."
+      }
+     }
     }
    ],
    "tripwire": {
@@ -431,7 +416,7 @@
      "of_last_n": 3,
      "at_least": 2
     },
-    "text": "Reassess at T+72 h; if PVT-B lapses are still 4 or more on at least 2 of the last 3 tests, reclassify and queue for flight-surgeon review.",
+    "text": "Reassess at T+72 h; if PVT-B lapses are still 4 or more on at least 2 of the last 3 tests, escalate: tell the Crew Medical Officer now, and the ground packet is queued for the flight surgeon.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -468,14 +453,14 @@
    ],
    "refusals": [
     "No insomnia or sleep-disorder diagnosis.",
-    "No sleep-medication advice: any hypnotic is a flight-surgeon decision, even though use in flight is common (Barger et al. 2014).",
+    "No sleep-medication advice: any sleep medication is a decision for the Crew Medical Officer and the flight surgeon.",
     "No psychiatric alert: mood stays private and never alerts."
    ]
   },
   {
    "id": "spe_shelter",
    "title": "Solar particle event: shelter",
-   "one_line": "Solar protons are at the NOAA S3 level, or organ dose is nearing a 30-day limit. Stop EVA, shelter, and log the dose the vehicle reports, with or without Houston.",
+   "one_line": "Solar protons have reached the NOAA S3 level, or the blood-forming-organ dose the vehicle reports is near its 30-day limit. Stop EVA, go to the shelter, and log the dose the vehicle reports. With the link up, follow Mission Control; without it, act onboard with the Crew Medical Officer.",
    "hrp_risk": {
     "title": "Risk of Radiation-Induced Cancers",
     "url": "https://www.nasa.gov/reference/risk-of-radiation-induced-cancers/",
@@ -509,7 +494,7 @@
     }
    ],
    "interpretation": {
-    "text": "This case opened because the >=10 MeV proton flux has reached the level NOAA calls S3 (Strong), 1,000 pfu, or because the blood-forming-organ dose the vehicle reports is nearing its 30-day limit of 250 mGy-Eq (NASA-STD-3001 Vol 1 Table 4.8-1). NOAA's published text for S3 reads: 'Radiation hazard avoidance recommended for astronauts on EVA'. NOAA does not define its scale away from Earth; at Mars LANDFALL applies the same 1,000 pfu level to the onboard monitor, and that is our choice. The rationale of NASA's radiation-alerting requirement [V2 6164] says the crew must be alerted even if ground communication is disrupted or is unviable, so LANDFALL acts without waiting for Houston. LANDFALL does not estimate your dose or your cancer risk. It tells you to follow the shelter procedure and tracks the organ dose the vehicle's monitor reports against the Table 4.8-1 limits.",
+    "text": "This case opened because the >=10 MeV proton flux has reached the level NOAA calls S3 (Strong), 1,000 pfu, or because the blood-forming-organ dose the vehicle reports is near or over its 30-day limit of 250 mGy-Eq (NASA-STD-3001 Vol 1 Table 4.8-1). Near Earth the flux is NOAA's GOES reading. At Mars it comes from an external space-weather monitor above the atmosphere, in Mars orbit ([V2 6165]), relayed to the habitat with no Earth link; the scenario replays the GOES-7 October 1989 flux as that reading, with no distance or atmosphere correction. NOAA's published text for S3 reads: 'Radiation hazard avoidance recommended for astronauts on EVA'. NOAA does not define its scale away from Earth; applying the 1,000 pfu level at Mars is LANDFALL's choice. The vehicle's radiation monitoring system raises the radiation alarm ([V2 6164]); LANDFALL opens the health case that follows and guides the crew. With the link up, Mission Control and the flight surgeon direct the response, and the ground has this case within the round-trip light time. With no link, the crew acts onboard with the Crew Medical Officer: the rationale of [V2 6164] says the crew must be alerted even if ground communication is disrupted or is unviable. LANDFALL does not estimate your dose or your cancer risk: it shows the shelter procedure and tracks the organ dose the vehicle reports against the Table 4.8-1 limits.",
     "citations": [
      {
       "kind": "noaa",
@@ -527,6 +512,16 @@
       "url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf",
       "snapshot": "std_vol2_requirements",
       "verbatim": "The crew must be alerted even if ground communication is disrupted or is unviable."
+     },
+     {
+      "kind": "nasa_standard",
+      "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+      "url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf",
+      "snapshot": "std_vol2_requirements",
+      "requirement_id": "V2 6165",
+      "section": "6.8.1.7",
+      "page": 112,
+      "verbatim": "The program shall monitor the in-situ extravehicular space weather environment including the external exposure rates, electron flux spectra, and proton flux spectra."
      }
     ]
    },
@@ -534,18 +529,32 @@
     "primary": {
      "id": "cm_shelter",
      "title": "Stop or postpone EVA and move to the most shielded area",
-     "rationale": "[V2 6164] rationale: the crew must be able to follow sheltering procedures planned for when dose rates exceed predefined thresholds. NOAA S3: radiation hazard avoidance recommended for astronauts on EVA.",
-     "chip": "NASA-published",
+     "rationale": "NOAA S3: radiation hazard avoidance recommended for astronauts on EVA. [V2 6164] rationale: the crew must be able to follow sheltering procedures planned for when dose rates exceed predefined thresholds. Sheltering the whole crew at the S3 flux level, before the dose rate confirms, is LANDFALL's choice.",
+     "chip": "design choice",
      "source": {
-      "kind": "nasa_standard",
-      "doc": "NASA-STD-3001 Vol. 2 Rev. F",
-      "requirement_id": "V2 6164",
-      "section": "6.8.1.6",
-      "page": 112,
-      "url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf",
-      "snapshot": "std_vol2_requirements",
-      "verbatim": "The crew must be able to follow sheltering procedures planned in the event that dose rates exceed predefined thresholds."
-     }
+      "kind": "design_choice",
+      "rationale": "Sheltering crew who are not on EVA when the flux reaches S3 is LANDFALL's choice. NOAA's S3 text recommends radiation hazard avoidance for astronauts on EVA, and the rationale of [V2 6164] asks that the crew be able to follow sheltering procedures planned for when dose rates exceed predefined thresholds. LANDFALL moves everyone to the shelter at the flux level, before the habitat dose rate confirms, trading some work time for margin while Earth may be out of reach; the vehicle's shelter plan and its dose-rate threshold decide when the crew leaves."
+     },
+     "citations": [
+      {
+       "kind": "nasa_standard",
+       "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+       "url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf",
+       "snapshot": "std_vol2_requirements",
+       "requirement_id": "V2 6164",
+       "section": "6.8.1.6",
+       "page": 112,
+       "verbatim": "The crew must be able to follow sheltering procedures planned in the event that dose rates exceed predefined thresholds."
+      },
+      {
+       "kind": "noaa",
+       "doc": "NOAA Space Weather Scales (Solar Radiation Storms)",
+       "url": "https://www.swpc.noaa.gov/noaa-scales-explanation",
+       "snapshot": "swpc_s_scale",
+       "level": "S3",
+       "verbatim": "Radiation hazard avoidance recommended for astronauts on EVA; passengers and crew in high-flying aircraft at high latitudes may be exposed to radiation risk."
+      }
+     ]
     },
     "alternatives": [
      {
@@ -586,7 +595,8 @@
     },
     {
      "id": "p2",
-     "text": "Everyone goes to the designated shelter location, the most shielded area of the vehicle or habitat."
+     "text": "Everyone goes to the designated shelter location, the most shielded area of the vehicle or habitat.",
+     "required": true
     },
     {
      "id": "p3",
@@ -595,11 +605,12 @@
       "variable": "shelter_entry",
       "unit": "MET",
       "source": "manual"
-     }
+     },
+     "required": true
     },
     {
      "id": "p4",
-     "text": "Watch the onboard proton flux. Stay sheltered until it falls below the S3 level and the vehicle's shelter plan clears you.",
+     "text": "Watch the >=10 MeV proton flux. Stay sheltered until it falls below the S3 level and the vehicle's shelter plan, with its dose-rate threshold, clears you.",
      "input": {
       "variable": "proton_flux_10mev",
       "unit": "pfu",
@@ -617,7 +628,8 @@
     },
     {
      "id": "p6",
-     "text": "The ground packet is queued now and sends itself when a link exists. You do not need to wait for an answer to keep sheltering."
+     "text": "Release the ground packet for the flight surgeon: it changes from Prepared (held on board) to Queued and is sent when a link exists. Keep sheltering; you do not need to wait for an answer.",
+     "releases_packet": true
     }
    ],
    "tripwire": {
@@ -634,11 +646,11 @@
       }
      }
     },
-    "text": "Reassess at T+6 h; if the >=10 MeV flux is still at or above S3 on 2 of the last 3 readings, stay sheltered, keep logging, and keep the ground packet queued.",
+    "text": "Reassess at T+6 h; if the >=10 MeV flux is still at or above S3 on 2 of the last 3 readings, escalate: stay sheltered, tell the Crew Medical Officer and keep logging; the ground packet is queued for the flight surgeon.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "6 h and 2-of-3 are ours (NOAA notes these events can last more than one day). The 1,000 pfu value is NOAA's S3 threshold. Near Earth the tripwire watches rule ops_noaa_s3; at Mars, where NOAA's scale does not apply, by_env switches it to rule ops_onboard_proton_s3 (the same 1,000 pfu on the onboard monitor)."
+     "rationale": "6 h and 2-of-3 are ours (NOAA notes these events can last more than one day). The 1,000 pfu value is NOAA's S3 threshold. Near Earth the tripwire watches rule ops_noaa_s3; at Mars, where NOAA's scale does not apply, by_env switches it to rule ops_onboard_proton_s3 (the same 1,000 pfu on the Mars-orbit monitor)."
     }
    },
    "escalation": {
@@ -660,8 +672,8 @@
      "requirement_quote": "The radiation monitoring system shall alert the crew and operations teams when radiation exposure rates exceed predefined thresholds."
     },
     {
-     "what": "Proton energy spectrum outside the vehicle",
-     "via": "in-situ external space weather monitor",
+     "what": "Proton energy spectrum outside the vehicle (the demo uses only the >=10 MeV channel)",
+     "via": "the external space-weather monitor's full spectrum, read with ground radiation analysts",
      "requirement_id": "V2 6165",
      "requirement_quote": "The program shall monitor the in-situ extravehicular space weather environment including the external exposure rates, electron flux spectra, and proton flux spectra."
     },
@@ -674,7 +686,8 @@
    ],
    "refusals": [
     "No personal cancer-risk (REID) estimate.",
-    "No mSv projection of our own: the case triggers on NOAA's scale or the onboard monitor and shows only doses the vehicle reports.",
+    "No mSv projection of our own: the case triggers on NOAA's scale or the Mars-orbit monitor and shows only doses the vehicle reports.",
+    "Not the radiation alarm: the vehicle's radiation monitoring system raises it; LANDFALL opens the health case that follows.",
     "Never an Emergency alarm: that belongs to the vehicle caution and warning system."
    ]
   }

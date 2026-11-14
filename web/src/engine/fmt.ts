@@ -61,8 +61,10 @@ function pad(n: bigint | number, width: number): string {
 }
 
 /**
- * MET as "dddd/hh:mm:ss". Day 0 starts at MET 0; input is floored; days are never truncated
- * (10000/...); negative MET prints as "-dddd/...". BigInt keeps it exact for any finite input.
+ * MET as "d/hh:mm:ss", NASA-STD-3001 Vol 2 Appendix F F.6.1 f: "leading zeros are suppressed in day
+ * field" (e.g. MET 57/14:08:33, MET 1089/13:03:01). Day 0 starts at MET 0; input is floored; the day
+ * field is never truncated (10000/...); negative MET prints as "-d/...". The same format serves
+ * day-count durations (a countdown prints "11/05:59:51"). BigInt keeps it exact for any finite input.
  */
 export function formatMet(seconds: number): string {
   requireNumber(seconds, 'format_met seconds')
@@ -75,7 +77,7 @@ export function formatMet(seconds: number): string {
   rem = rem % 3600n
   const mm = rem / 60n
   const ss = rem % 60n
-  return `${sign}${pad(days, 4)}/${pad(hh, 2)}:${pad(mm, 2)}:${pad(ss, 2)}`
+  return `${sign}${days.toString()}/${pad(hh, 2)}:${pad(mm, 2)}:${pad(ss, 2)}`
 }
 
 function isLeap(y: number): boolean {

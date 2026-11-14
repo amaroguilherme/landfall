@@ -37,7 +37,8 @@ def test_ceiling_lt_with_approach():
     f = ev("pel_career_effective_dose", 480)
     assert (f["status"], f["severity"], f["margin"]) == ("approaching", "caution", 120)  # 600 - 480
     f = ev("pel_career_effective_dose", 600)  # lt: 600 is NOT < 600
-    assert (f["status"], f["severity"], f["margin"]) == ("outside", "warning", 0)
+    # a PEL reached needs attention, not immediate action: Table 10.3-1 Caution, never Warning (D1)
+    assert (f["status"], f["severity"], f["margin"]) == ("outside", "caution", 0)
     assert ev("pel_career_effective_dose", 750)["margin"] == -150  # 600 - 750
 
 
@@ -98,9 +99,19 @@ def test_context_rule_never_above_advisory():
 def test_ops_severity_by_level_and_eva():
     assert ev("ops_noaa_s1", 50)["severity"] == "advisory"               # S1 outside
     assert ev("ops_noaa_s3", 600)["severity"] == "advisory"              # approaching S3
-    assert ev("ops_noaa_s3", 2500, "cislunar")["severity"] == "caution"   # S3, no EVA
+    # S3 or above carries the shelter action: a Table 10.3-1 Warning with or without an EVA (D1)
+    assert ev("ops_noaa_s3", 2500, "cislunar")["severity"] == "warning"
     assert ev("ops_noaa_s3", 2500, "lunar_surface", ctx={"eva": True})["severity"] == "warning"
+    assert ev("ops_noaa_s3", 2500, "lunar_surface", ctx={"eva": False})["severity"] == "warning"
     assert ev("ops_noaa_s3", 2500, "mars_surface")["status"] == "not_applicable"
+
+
+def test_ffd_pel_pol_outside_is_caution_never_warning():
+    # D1: only an S3+ solar particle event is a Warning; a VO2max test below the floor is a Caution
+    f = ev("ffd_vo2max_microgravity_eva", 30.0)
+    assert (f["status"], f["severity"]) == ("outside", "caution")
+    assert ev("pel_cabin_ppco2_1h", 9.0)["severity"] == "caution"
+    assert ev("pol_bmd_hip", 80)["severity"] == "caution"
 
 
 def test_engine_never_emits_emergency():
@@ -136,7 +147,7 @@ def test_target_category_and_max_severity_cap():
 
 def test_ops_level_prefers_explicit_s_level_field():
     s1 = RULES["ops_noaa_s1"]
-    assert evaluate_rule(dict(s1, s_level=3), 50, "iss", NOW)["severity"] == "caution"
+    assert evaluate_rule(dict(s1, s_level=3), 50, "iss", NOW)["severity"] == "warning"
 
 
 def test_stale_has_null_margin_because_nothing_was_compared():

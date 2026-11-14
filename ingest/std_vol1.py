@@ -58,6 +58,12 @@ TARGETS: dict[str, dict] = {
          "unit": "% of pre-mission", "verbatim": "at or above 80% of the pre-mission capacity"}]},
     "4006": {"in_plan": True, "expect": ["shall be guided by the nature of mission-associated critical operations"]},
     "4008": {"in_plan": True, "expect": ["shall be operationally defined"]},
+    # Cited by the sleep case (steps s5 and s4): cognitive status is a behavioral-health determination,
+    # and planned sleep periods must have established limits. Anchors read from the cached PDF, p. 34-35.
+    "4011": {"in_plan": False, "expect": ["crewmember cognitive status shall be within clinically accepted values",
+                                          "as determined by behavioral health evaluations"]},
+    "4014": {"in_plan": False, "expect": ["planned sleep period shall have established limits",
+                                          "to assure continued crew health and safety"]},
     "4024": {"in_plan": False, "values": [
         {"quantity": "in-mission skeletal muscle strength relative to baseline", "op": ">=", "value": 80,
          "unit": "% of baseline", "verbatim": "at or above 80% of baseline values"}]},

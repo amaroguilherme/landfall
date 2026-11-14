@@ -1,0 +1,228 @@
+[
+ {
+  "args": {
+   "alpha": 0.001,
+   "n": 14,
+   "sd": 0.171
+  },
+  "expect": {
+   "alpha": 0.001,
+   "critical": 4.2208317280747,
+   "df": 13,
+   "mdc": 0.7470948807785607,
+   "n": 14,
+   "s_diff": 0.17700181597131387,
+   "sd": 0.171
+  },
+  "fn": "min_detectable_change",
+  "name": "sleep_sd_0_171_full_baseline"
+ },
+ {
+  "args": {
+   "n": 14,
+   "sd": 1.0
+  },
+  "expect": {
+   "alpha": 0.001,
+   "critical": 4.2208317280747,
+   "df": 13,
+   "mdc": 4.368975910985735,
+   "n": 14,
+   "s_diff": 1.0350983390135313,
+   "sd": 1.0
+  },
+  "fn": "min_detectable_change",
+  "name": "unit_sd_full_baseline"
+ },
+ {
+  "args": {
+   "n": 7,
+   "sd": 1.0
+  },
+  "expect": {
+   "alpha": 0.001,
+   "critical": 5.958816178608686,
+   "df": 6,
+   "mdc": 6.370242448891217,
+   "n": 7,
+   "s_diff": 1.0690449676496976,
+   "sd": 1.0
+  },
+  "fn": "min_detectable_change",
+  "name": "unit_sd_minimum_baseline"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "n": 14,
+   "sd": 0.67
+  },
+  "expect": {
+   "alpha": 0.001,
+   "critical": 4.2208317280747,
+   "df": 13,
+   "mdc": 2.927213860360442,
+   "n": 14,
+   "s_diff": 0.693515887139066,
+   "sd": 0.67
+  },
+  "fn": "min_detectable_change",
+  "name": "literature_scale_sd"
+ },
+ {
+  "args": {
+   "alpha": 0.05,
+   "n": 2,
+   "sd": 2.5
+  },
+  "expect": {
+   "alpha": 0.05,
+   "critical": 12.706204735673964,
+   "df": 1,
+   "mdc": 38.90464771217052,
+   "n": 2,
+   "s_diff": 3.0618621784789726,
+   "sd": 2.5
+  },
+  "fn": "min_detectable_change",
+  "name": "n2_alpha_0_05"
+ },
+ {
+  "args": {
+   "n": 30,
+   "sd": 5
+  },
+  "expect": {
+   "alpha": 0.001,
+   "critical": 3.6594050193671137,
+   "df": 29,
+   "mdc": 18.59947575356283,
+   "n": 30,
+   "s_diff": 5.082650227325636,
+   "sd": 5
+  },
+  "fn": "min_detectable_change",
+  "name": "integer_sd"
+ },
+ {
+  "args": {
+   "n": 14,
+   "sd": 0
+  },
+  "fn": "min_detectable_change",
+  "name": "sd_zero_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "n": 14,
+   "sd": -1.0
+  },
+  "fn": "min_detectable_change",
+  "name": "sd_negative_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "n": 14,
+   "sd": {
+    "$float": "NaN"
+   }
+  },
+  "fn": "min_detectable_change",
+  "name": "sd_nan_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "n": 14,
+   "sd": "1"
+  },
+  "fn": "min_detectable_change",
+  "name": "sd_string_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "n": 14,
+   "sd": true
+  },
+  "fn": "min_detectable_change",
+  "name": "sd_boolean_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "n": 1,
+   "sd": 1.0
+  },
+  "fn": "min_detectable_change",
+  "name": "n_one_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "n": 7.5,
+   "sd": 1.0
+  },
+  "fn": "min_detectable_change",
+  "name": "n_float_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "n": true,
+   "sd": 1.0
+  },
+  "fn": "min_detectable_change",
+  "name": "n_boolean_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "n": null,
+   "sd": 1.0
+  },
+  "fn": "min_detectable_change",
+  "name": "n_null_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "alpha": 0,
+   "n": 14,
+   "sd": 1.0
+  },
+  "fn": "min_detectable_change",
+  "name": "alpha_zero_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "alpha": 1,
+   "n": 14,
+   "sd": 1.0
+  },
+  "fn": "min_detectable_change",
+  "name": "alpha_one_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "n": 1000002,
+   "sd": 1.0
+  },
+  "fn": "min_detectable_change",
+  "name": "df_above_1e6_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "n": 14,
+   "sd": 1e+308
+  },
+  "fn": "min_detectable_change",
+  "name": "overflow_rejected",
+  "raises": "invalid_argument"
+ }
+]

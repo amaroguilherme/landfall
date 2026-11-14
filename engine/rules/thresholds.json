@@ -34,8 +34,19 @@
    "case_id": null,
    "notes": [
     "'as determined by either direct or indirect measures' (requirement text).",
-    "No approach_at: NASA gives a floor, and we do not invent a margin above it."
-   ]
+    "No approach_at: NASA gives a floor, and we do not invent a margin above it.",
+    "Caution at most (max_severity): a fitness floor not met needs attention, not immediate action. The crew-facing label is 'EVA assignment not cleared'."
+   ],
+   "max_severity": "caution",
+   "action": {
+    "label": "EVA assignment not cleared",
+    "text": "EVA assignment not cleared: this VO2max test is below the floor NASA-STD-3001 sets for missions with microgravity EVAs. Review the exercise prescription with the Crew Medical Officer and retest before an EVA is assigned.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "[V1 4001] says crewmembers 'shall maintain' this capacity, so a test below the floor is an exercise-prescription and EVA-assignment matter: it needs attention, not immediate action (Table 10.3-1 Caution), and it says nothing about the heart or the lungs. The assignment decision belongs to the Crew Medical Officer, the flight surgeon and Mission Control, not to LANDFALL."
+    }
+   }
   },
   {
    "id": "ffd_vo2max_surface_eva",
@@ -69,8 +80,19 @@
    "action_id": "aerobic_capacity_review",
    "case_id": null,
    "notes": [
-    "The same crewmember can be within [V1 4001] and outside [V1 4002]: the environment decides."
-   ]
+    "The same crewmember can be within [V1 4001] and outside [V1 4002]: the environment decides.",
+    "Caution at most (max_severity): a fitness floor not met needs attention, not immediate action. The crew-facing label is 'EVA assignment not cleared'."
+   ],
+   "max_severity": "caution",
+   "action": {
+    "label": "EVA assignment not cleared",
+    "text": "EVA assignment not cleared: this VO2max test is below the floor NASA-STD-3001 sets for missions with extraterrestrial surface EVAs. Review the exercise prescription with the Crew Medical Officer and retest before an EVA is assigned.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "[V1 4002] says crewmembers 'shall maintain' this capacity, so a test below the floor is an exercise-prescription and EVA-assignment matter: it needs attention, not immediate action (Table 10.3-1 Caution), and it says nothing about the heart or the lungs. The assignment decision belongs to the Crew Medical Officer, the flight surgeon and Mission Control, not to LANDFALL."
+    }
+   }
   },
   {
    "id": "pol_bmd_hip",
@@ -107,7 +129,16 @@
     "The requirement binds countermeasures ('Countermeasures shall maintain ...').",
     "BMD is measured by DXA before and after flight; there is no in-flight DXA, so in flight this rule is usually insufficient_data.",
     "Tied to renal_stone because bone resorption raises urinary calcium (Vol 1 Rev C sec. 4.7 introduction)."
-   ]
+   ],
+   "action": {
+    "label": "Bone density below the NASA limit",
+    "text": "Bone density is below the NASA-STD-3001 limit against your pre-mission value. Review the exercise countermeasure with the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "A POL is a countermeasure goal ('Countermeasures shall maintain ...', [V1 4027]): a value below it needs attention, not immediate action. No case opens on it; in flight it is usually insufficient_data, because bone density is measured by DXA before and after flight."
+    }
+   }
   },
   {
    "id": "pol_bmd_spine",
@@ -144,7 +175,16 @@
     "The requirement binds countermeasures ('Countermeasures shall maintain ...').",
     "BMD is measured by DXA before and after flight; there is no in-flight DXA, so in flight this rule is usually insufficient_data.",
     "Tied to renal_stone because bone resorption raises urinary calcium (Vol 1 Rev C sec. 4.7 introduction)."
-   ]
+   ],
+   "action": {
+    "label": "Bone density below the NASA limit",
+    "text": "Bone density is below the NASA-STD-3001 limit against your pre-mission value. Review the exercise countermeasure with the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "A POL is a countermeasure goal ('Countermeasures shall maintain ...', [V1 4027]): a value below it needs attention, not immediate action. No case opens on it; in flight it is usually insufficient_data, because bone density is measured by DXA before and after flight."
+    }
+   }
   },
   {
    "id": "pol_bmd_femoral_neck",
@@ -181,7 +221,16 @@
     "The requirement binds countermeasures ('Countermeasures shall maintain ...').",
     "BMD is measured by DXA before and after flight; there is no in-flight DXA, so in flight this rule is usually insufficient_data.",
     "Tied to renal_stone because bone resorption raises urinary calcium (Vol 1 Rev C sec. 4.7 introduction)."
-   ]
+   ],
+   "action": {
+    "label": "Bone density below the NASA limit",
+    "text": "Bone density is below the NASA-STD-3001 limit against your pre-mission value. Review the exercise countermeasure with the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "A POL is a countermeasure goal ('Countermeasures shall maintain ...', [V1 4027]): a value below it needs attention, not immediate action. No case opens on it; in flight it is usually insufficient_data, because bone density is measured by DXA before and after flight."
+    }
+   }
   },
   {
    "id": "pel_career_effective_dose",
@@ -204,7 +253,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (480 of 600 mSv). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (480 of 600 mSv). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -223,7 +272,16 @@
    "notes": [
     "Universal for all ages and sexes (requirement text).",
     "NASA effective dose uses 35-year-old female model parameters for everyone (requirement note). LANDFALL does not compute a personal REID."
-   ]
+   ],
+   "action": {
+    "label": "Career dose at or near the NASA limit",
+    "text": "Career effective dose has reached or is near the NASA-STD-3001 limit. Tell the Crew Medical Officer; dose planning belongs to the ground radiation health officers.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "A cumulative exposure limit needs attention, not immediate action. No case opens on it, and LANDFALL makes no dose projection of its own."
+    }
+   }
   },
   {
    "id": "pel_t481_lens_30d",
@@ -247,7 +305,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (800 of 1000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (800 of 1000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -272,7 +330,16 @@
     "Footnote *: lens limits are intended to prevent early (<5 years) severe cataracts.",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_t481_lens_1y",
@@ -296,7 +363,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (1600 of 2000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (1600 of 2000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -321,7 +388,16 @@
     "Footnote *: lens limits are intended to prevent early (<5 years) severe cataracts.",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_t481_lens_career",
@@ -344,7 +420,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (3200 of 4000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (3200 of 4000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -369,7 +445,16 @@
     "Footnote *: lens limits are intended to prevent early (<5 years) severe cataracts.",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_t481_skin_30d",
@@ -393,7 +478,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (1200 of 1500 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (1200 of 1500 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -417,7 +502,16 @@
     "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_t481_skin_1y",
@@ -441,7 +535,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (2400 of 3000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (2400 of 3000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -465,7 +559,16 @@
     "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_t481_skin_career",
@@ -488,7 +591,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (4800 of 6000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (4800 of 6000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -512,7 +615,16 @@
     "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_t481_bfo_30d",
@@ -536,7 +648,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (200 of 250 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (200 of 250 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -585,7 +697,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (400 of 500 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (400 of 500 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -610,7 +722,16 @@
     "Table 4.8-1 gives no career limit for blood-forming organs ('Not applicable').",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_t481_circulatory_30d",
@@ -634,7 +755,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (200 of 250 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (200 of 250 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -659,7 +780,16 @@
     "Footnote **: circulatory system doses are calculated as average over heart muscle and adjacent arteries. There is no 'heart' row in Table 4.8-1.",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_t481_circulatory_1y",
@@ -683,7 +813,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (400 of 500 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (400 of 500 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -708,7 +838,16 @@
     "Footnote **: circulatory system doses are calculated as average over heart muscle and adjacent arteries. There is no 'heart' row in Table 4.8-1.",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_t481_circulatory_career",
@@ -731,7 +870,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (800 of 1000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (800 of 1000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -756,7 +895,16 @@
     "Footnote **: circulatory system doses are calculated as average over heart muscle and adjacent arteries. There is no 'heart' row in Table 4.8-1.",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_t481_cns_30d",
@@ -780,7 +928,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (400 of 500 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (400 of 500 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -805,7 +953,16 @@
     "Footnote ***: Central Nervous System limits are to be calculated at the hippocampus.",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_t481_cns_1y",
@@ -829,7 +986,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (800 of 1000 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (800 of 1000 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -854,7 +1011,16 @@
     "Footnote ***: Central Nervous System limits are to be calculated at the hippocampus.",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_t481_cns_career",
@@ -877,7 +1043,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (1200 of 1500 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (1200 of 1500 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -902,7 +1068,16 @@
     "Footnote ***: Central Nervous System limits are to be calculated at the hippocampus.",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_t481_cns_z10_1y",
@@ -926,7 +1101,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (80 of 100 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (80 of 100 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -951,7 +1126,16 @@
     "Footnote ***: calculated at the hippocampus. Table 4.8-1 gives no 30-day limit for Z>=10 ('-').",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_t481_cns_z10_career",
@@ -974,7 +1158,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (200 of 250 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (200 of 250 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -999,7 +1183,16 @@
     "Footnote ***: calculated at the hippocampus. Table 4.8-1 gives no 30-day limit for Z>=10 ('-').",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
-   ]
+   ],
+   "action": {
+    "label": "Organ dose at or near a NASA limit",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An organ dose limit over a window needs attention, not immediate action. Only the blood-forming-organ 30-day limit opens the shelter case; the other Table 4.8-1 limits carry this action."
+    }
+   }
   },
   {
    "id": "pel_cabin_ppco2_1h",
@@ -1023,7 +1216,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (2.4 of 3 mmHg). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (2.4 of 3 mmHg). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -1044,7 +1237,16 @@
     "Category PEL is assigned by shape (a ceiling on exposure over a time window). NASA-STD-3001 Vol 2 does not itself label [V2 6004] a PEL.",
     "The defensible health claim is headache risk; LANDFALL makes no claim that CO2 causes a cognitive deficit.",
     "The value comes from the vehicle (ECLSS); the vehicle caution and warning system owns any alarm."
-   ]
+   ],
+   "action": {
+    "label": "Cabin CO2 at or near the 1-hour limit",
+    "text": "Cabin CO2 is at or near the 1-hour limit. The vehicle's caution and warning system owns this alarm: follow the vehicle CO2 procedure, and tell the Crew Medical Officer about any headache.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "The defensible health claim for CO2 is headache risk (rule note); the vehicle's caution and warning system owns the alarm, so LANDFALL only points to the procedure and the Crew Medical Officer."
+    }
+   }
   },
   {
    "id": "pel_suit_pico2_contingency",
@@ -1069,7 +1271,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "80% of the limit (16 of 20 mmHg). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+     "rationale": "80% of the limit (16 of 20 mmHg). LANDFALL uses the same 80% convention for every ceiling; NASA-STD-3001 publishes no 'approaching' level."
     }
    },
    "chip": "NASA-published",
@@ -1089,7 +1291,16 @@
     "Section title: 'Contingency Spacesuit Carbon Dioxide Levels for Partial Gravity Scenarios', so this rule applies to surface environments only.",
     "Rationale note: 'to be used only during contingency scenarios where crew life is in jeopardy'. The suit's own caution and warning system owns the alarm.",
     "Category PEL is assigned by shape; Vol 2 does not label it a PEL."
-   ]
+   ],
+   "action": {
+    "label": "Suit CO2 at or near the contingency limit",
+    "text": "Suit CO2 is at or near the contingency limit. The suit's caution and warning system owns this alarm: follow the suit's contingency procedure.",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "[V2 11040] is a contingency limit for scenarios where crew life is in jeopardy (rule note); the suit's caution and warning system owns the alarm."
+    }
+   }
   },
   {
    "id": "ctx_spe_design_reference",
@@ -1344,7 +1555,8 @@
    "case_id": "spe_shelter",
    "notes": [
     "Compliant (within) while the >=10 MeV integral proton flux is below this level; 'outside' means S3 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
-    "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID."
+    "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID.",
+    "Outside (S3 or higher) is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
    ]
   },
   {
@@ -1383,7 +1595,8 @@
    "case_id": "spe_shelter",
    "notes": [
     "Compliant (within) while the >=10 MeV integral proton flux is below this level; 'outside' means S4 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
-    "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID."
+    "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID.",
+    "Outside (S3 or higher) is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
    ]
   },
   {
@@ -1422,12 +1635,13 @@
    "case_id": "spe_shelter",
    "notes": [
     "Compliant (within) while the >=10 MeV integral proton flux is below this level; 'outside' means S5 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
-    "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID."
+    "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID.",
+    "Outside (S3 or higher) is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
    ]
   },
   {
    "id": "ops_onboard_proton_s3",
-   "label": "Onboard monitor: >=10 MeV protons at NOAA S3 level (Mars)",
+   "label": "Mars-orbit space-weather monitor: >=10 MeV protons at the NOAA S3 level",
    "variable": "proton_flux_10mev",
    "unit": "pfu",
    "op": "lt",
@@ -1446,13 +1660,15 @@
    "chip": "design choice",
    "source": {
     "kind": "design_choice",
-    "rationale": "[V2 6164] requires the radiation monitoring system to alert the crew 'when radiation exposure rates exceed predefined thresholds' and leaves the threshold to the program. At Mars no NOAA alert reaches the crew, so LANDFALL reuses NOAA's S3 threshold (10^3 pfu at >=10 MeV, rule ops_noaa_s3) on the onboard proton monitor ([V2 6165]). NOAA does not define its scale away from Earth; applying it at Mars is ours."
+    "rationale": "[V2 6164] requires the radiation monitoring system to alert the crew 'when radiation exposure rates exceed predefined thresholds' and leaves the threshold to the program. At Mars no NOAA alert reaches the crew. The scenario assumes an external space-weather monitor above the atmosphere, in Mars orbit, whose >=10 MeV proton reading is relayed to the habitat locally, with no Earth link: the in-situ extravehicular monitoring of 'proton flux spectra' that [V2 6165] requires. LANDFALL reuses NOAA's S3 threshold (10^3 pfu at >=10 MeV, rule ops_noaa_s3) on that reading; NOAA does not define its scale away from Earth, so applying it at Mars is ours. The vehicle's radiation monitoring system raises the alarm ([V2 6164]); this rule opens the health case that follows."
    },
    "derived_from_rule": "ops_noaa_s3",
    "action_id": "spe_shelter",
    "case_id": "spe_shelter",
    "notes": [
-    "Same variable as the NOAA rules; applies_to keeps exactly one of the two rule sets active."
+    "Same variable as the NOAA rules; applies_to keeps exactly one of the two rule sets active.",
+    "Scenario assumption: the demo values are the GOES-7 October 1989 >=10 MeV replay, with no radial-distance or atmospheric correction. A monitor on the surface would read less, because the atmosphere stops the lower-energy protons; that is why the scenario's monitor sits above it, in orbit.",
+    "Outside (S3 or higher) is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
    ]
   },
   {
@@ -1501,7 +1717,7 @@
    "case_id": "renal_stone",
    "notes": [
     "Not a NASA standard and not a NASA alert threshold: the numbers come from a NASA HRP evidence report. Outside = below 1,500 mL/day (where the report says stone risk rises); approaching = below 2,500 mL/day (short of the 2.5-3 L/day countermeasure target).",
-    "A '> 2 L/day' urine target that circulates informally was not found in any NASA text we read and is not used.",
+    "An informal urine-output target that circulates without a NASA source is not used; the numbers here come only from the evidence-report sentence quoted in the source.",
     "Context: [V2 6109] Table 6.3-1 requires the vehicle to provide a minimum of 2.5 L of potable water for hydration per crewmember per day.",
     "Capped at caution: a low-urine day is something to act on, not a warning."
    ]

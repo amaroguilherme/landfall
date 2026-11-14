@@ -345,7 +345,7 @@
    "op": "lt",
    "role": "alert",
    "rule_id": "pel_career_effective_dose",
-   "severity": "warning",
+   "severity": "caution",
    "source": {
     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
     "kind": "nasa_standard",
@@ -418,7 +418,7 @@
    "op": "lt",
    "role": "alert",
    "rule_id": "pel_career_effective_dose",
-   "severity": "warning",
+   "severity": "caution",
    "source": {
     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
     "kind": "nasa_standard",
@@ -731,7 +731,7 @@
    "op": "le",
    "role": "alert",
    "rule_id": "pel_cabin_ppco2_1h",
-   "severity": "warning",
+   "severity": "caution",
    "source": {
     "doc": "NASA-STD-3001 Vol. 2 Rev. F",
     "kind": "nasa_standard",
@@ -1011,7 +1011,7 @@
    "op": "ge",
    "role": "alert",
    "rule_id": "ffd_vo2max_microgravity_eva",
-   "severity": "warning",
+   "severity": "caution",
    "source": {
     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
     "kind": "nasa_standard",
@@ -1143,7 +1143,7 @@
    "op": "ge",
    "role": "alert",
    "rule_id": "ffd_vo2max_surface_eva",
-   "severity": "warning",
+   "severity": "caution",
    "source": {
     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
     "kind": "nasa_standard",
@@ -1273,7 +1273,7 @@
    "op": "ge",
    "role": "alert",
    "rule_id": "ffd_vo2max_surface_eva",
-   "severity": "warning",
+   "severity": "caution",
    "source": {
     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
     "kind": "nasa_standard",
@@ -1842,7 +1842,7 @@
    "op": "ge",
    "role": "alert",
    "rule_id": "pol_bmd_hip",
-   "severity": "warning",
+   "severity": "caution",
    "source": {
     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
     "kind": "nasa_standard",
@@ -2183,7 +2183,7 @@
    "op": "lt",
    "role": "alert",
    "rule_id": "ops_noaa_s3",
-   "severity": "caution",
+   "severity": "warning",
    "source": {
     "doc": "NOAA Space Weather Scales",
     "kind": "noaa",
@@ -2198,7 +2198,7 @@
    "why": "NOAA S3 (Strong): 2500 pfu; compliant when < 1000 pfu; outside. Basis: NOAA-published."
   },
   "fn": "evaluate_rule",
-  "name": "ops_s3_outside_no_eva_caution"
+  "name": "ops_s3_outside_no_eva_warning"
  },
  {
   "args": {
@@ -2275,6 +2275,79 @@
  },
  {
   "args": {
+   "ctx": {
+    "eva": false
+   },
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "iss",
+     "cislunar",
+     "lunar_surface"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 500
+    },
+    "case_id": "spe_shelter",
+    "category": "OPS",
+    "chip": "NOAA-published",
+    "id": "ops_noaa_s3",
+    "label": "NOAA S3 (Strong)",
+    "limit": 1000,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NOAA Space Weather Scales",
+     "kind": "noaa",
+     "snapshot": "swpc_s_scale",
+     "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+    },
+    "tier": "A",
+    "unit": "pfu",
+    "variable": "proton_flux_10mev",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 2500
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 500,
+   "case_id": "spe_shelter",
+   "category": "OPS",
+   "chip": "NOAA-published",
+   "env_id": "iss",
+   "limit": 1000,
+   "margin": -1500,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "ops_noaa_s3",
+   "severity": "warning",
+   "source": {
+    "doc": "NOAA Space Weather Scales",
+    "kind": "noaa",
+    "snapshot": "swpc_s_scale",
+    "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "pfu",
+   "value": 2500,
+   "why": "NOAA S3 (Strong): 2500 pfu; compliant when < 1000 pfu; outside. Basis: NOAA-published."
+  },
+  "fn": "evaluate_rule",
+  "name": "ops_s3_outside_eva_false_still_warning"
+ },
+ {
+  "args": {
    "env_id": "mars_surface",
    "rule": {
     "applies_to": [
@@ -2342,6 +2415,194 @@
   },
   "fn": "evaluate_rule",
   "name": "ops_not_applicable_at_mars"
+ },
+ {
+  "args": {
+   "env_id": "mars_surface",
+   "rule": {
+    "applies_to": [
+     "lunar_surface",
+     "mars_surface"
+    ],
+    "category": "FFD",
+    "chip": "NASA-published",
+    "id": "ffd_vo2max_surface_eva",
+    "label": "VO2max, surface EVA",
+    "limit": 36.5,
+    "max_severity": "caution",
+    "op": "ge",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4002",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "ml/min/kg",
+    "variable": "vo2max",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 30.0
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": null,
+   "case_id": null,
+   "category": "FFD",
+   "chip": "NASA-published",
+   "env_id": "mars_surface",
+   "limit": 36.5,
+   "margin": -6.5,
+   "op": "ge",
+   "role": "alert",
+   "rule_id": "ffd_vo2max_surface_eva",
+   "severity": "caution",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4002",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "ml/min/kg",
+   "value": 30.0,
+   "why": "VO2max, surface EVA: 30 ml/min/kg; compliant when >= 36.5 ml/min/kg; outside. Basis: NASA-published [V1 4002]."
+  },
+  "fn": "evaluate_rule",
+  "name": "ffd_outside_capped_caution"
+ },
+ {
+  "args": {
+   "ctx": {
+    "eva": true
+   },
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": 750
+  },
+  "expect": {
+   "action_id": "radiation_dose_review",
+   "approach_at": 480,
+   "case_id": "spe_shelter",
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 600,
+   "margin": -150,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "pel_career_effective_dose",
+   "severity": "caution",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4030",
+    "section": "4.8.2",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mSv",
+   "value": 750,
+   "why": "Career effective dose: 750 mSv; compliant when < 600 mSv; outside. Basis: NASA-published [V1 4030]."
+  },
+  "fn": "evaluate_rule",
+  "name": "pel_outside_is_caution_never_warning"
+ },
+ {
+  "args": {
+   "ctx": [
+    true
+   ],
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": 100
+  },
+  "fn": "evaluate_rule",
+  "name": "ctx_not_an_object_rejected",
+  "raises": "invalid_argument"
  },
  {
   "args": {
@@ -2611,7 +2872,7 @@
    "op": "lt",
    "role": "alert",
    "rule_id": "ops_noaa_s1",
-   "severity": "caution",
+   "severity": "warning",
    "source": {
     "doc": "NOAA Space Weather Scales",
     "kind": "noaa",

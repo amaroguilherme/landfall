@@ -15,6 +15,7 @@
    "every_n_days": 100.0,
    "expected": 0.3,
    "expected_cautions": 0.15,
+   "k_either": 0,
    "k_indicators": 10,
    "per_day": 0.01,
    "text": "one false flag every 100 days on average, counting chance changes in either direction"
@@ -37,6 +38,7 @@
    "every_n_days": 100.0,
    "expected": 0.3,
    "expected_cautions": 0.15,
+   "k_either": 0,
    "k_indicators": 10,
    "per_day": 0.01,
    "text": "one false flag every 100 days on average, counting chance changes in either direction"
@@ -60,6 +62,7 @@
    "every_n_days": 125.0,
    "expected": 0.008,
    "expected_cautions": 0.004,
+   "k_either": 0,
    "k_indicators": 8,
    "per_day": 0.008,
    "text": "one false flag every 125 days on average, counting chance changes in either direction"
@@ -83,6 +86,7 @@
    "every_n_days": 333.3333333333333,
    "expected": 0.135,
    "expected_cautions": 0.0675,
+   "k_either": 0,
    "k_indicators": 3,
    "per_day": 0.003,
    "text": "one false flag every 333.3 days on average, counting chance changes in either direction"
@@ -106,6 +110,7 @@
    "every_n_days": null,
    "expected": 0.0,
    "expected_cautions": 0.0,
+   "k_either": 0,
    "k_indicators": 0,
    "per_day": 0.0,
    "text": "no false flags expected"
@@ -129,6 +134,7 @@
    "every_n_days": null,
    "expected": 0,
    "expected_cautions": 0.0,
+   "k_either": 0,
    "k_indicators": 8,
    "per_day": 0,
    "text": "no false flags expected"
@@ -166,6 +172,141 @@
   },
   "fn": "expected_false_alarms",
   "name": "alpha_nan_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "days": 1,
+   "k_either": 3,
+   "k_indicators": 11
+  },
+  "expect": {
+   "alpha": 0.001,
+   "assumes": "one test per indicator per day, with normal day-to-day noise that is independent from one day to the next; autocorrelated or skewed data give more, while correlation between indicators leaves the average unchanged and only bunches chance flags together",
+   "caution_every_n_days": 142.85714285714286,
+   "caution_text": "one false caution every 142.9 days on average: a chance change in the worse direction raises a caution, and in either direction for the 3 indicator(s) that alert both ways",
+   "cautions_per_day": 0.007,
+   "days": 1,
+   "every_n_days": 90.90909090909092,
+   "expected": 0.011,
+   "expected_cautions": 0.007,
+   "k_either": 3,
+   "k_indicators": 11,
+   "per_day": 0.011,
+   "text": "one false flag every 90.9 days on average, counting chance changes in either direction"
+  },
+  "fn": "expected_false_alarms",
+  "name": "k11_with_3_either_indicators"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "days": 30,
+   "k_either": 4,
+   "k_indicators": 4
+  },
+  "expect": {
+   "alpha": 0.001,
+   "assumes": "one test per indicator per day, with normal day-to-day noise that is independent from one day to the next; autocorrelated or skewed data give more, while correlation between indicators leaves the average unchanged and only bunches chance flags together",
+   "caution_every_n_days": 250.0,
+   "caution_text": "one false caution every 250 days on average: a chance change in the worse direction raises a caution, and in either direction for the 4 indicator(s) that alert both ways",
+   "cautions_per_day": 0.004,
+   "days": 30,
+   "every_n_days": 250.0,
+   "expected": 0.12,
+   "expected_cautions": 0.12,
+   "k_either": 4,
+   "k_indicators": 4,
+   "per_day": 0.004,
+   "text": "one false flag every 250 days on average, counting chance changes in either direction"
+  },
+  "fn": "expected_false_alarms",
+  "name": "all_either"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "days": 1,
+   "k_either": 0,
+   "k_indicators": 8
+  },
+  "expect": {
+   "alpha": 0.001,
+   "assumes": "one test per indicator per day, with normal day-to-day noise that is independent from one day to the next; autocorrelated or skewed data give more, while correlation between indicators leaves the average unchanged and only bunches chance flags together",
+   "caution_every_n_days": 250.0,
+   "caution_text": "one false caution every 250 days on average: only a chance change in the worse direction raises a caution",
+   "cautions_per_day": 0.004,
+   "days": 1,
+   "every_n_days": 125.0,
+   "expected": 0.008,
+   "expected_cautions": 0.004,
+   "k_either": 0,
+   "k_indicators": 8,
+   "per_day": 0.008,
+   "text": "one false flag every 125 days on average, counting chance changes in either direction"
+  },
+  "fn": "expected_false_alarms",
+  "name": "k_either_zero_matches_default"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "days": 7,
+   "k_either": 0.5,
+   "k_indicators": 8.5
+  },
+  "expect": {
+   "alpha": 0.001,
+   "assumes": "one test per indicator per day, with normal day-to-day noise that is independent from one day to the next; autocorrelated or skewed data give more, while correlation between indicators leaves the average unchanged and only bunches chance flags together",
+   "caution_every_n_days": 222.2222222222222,
+   "caution_text": "one false caution every 222.2 days on average: a chance change in the worse direction raises a caution, and in either direction for the 0.5 indicator(s) that alert both ways",
+   "cautions_per_day": 0.0045000000000000005,
+   "days": 7,
+   "every_n_days": 117.6470588235294,
+   "expected": 0.059500000000000004,
+   "expected_cautions": 0.0315,
+   "k_either": 0.5,
+   "k_indicators": 8.5,
+   "per_day": 0.0085,
+   "text": "one false flag every 117.6 days on average, counting chance changes in either direction"
+  },
+  "fn": "expected_false_alarms",
+  "name": "k_either_fraction"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "days": 30,
+   "k_either": 4,
+   "k_indicators": 3
+  },
+  "fn": "expected_false_alarms",
+  "name": "k_either_above_k_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "days": 30,
+   "k_either": -1,
+   "k_indicators": 3
+  },
+  "fn": "expected_false_alarms",
+  "name": "k_either_negative_rejected",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "days": 30,
+   "k_either": {
+    "$float": "NaN"
+   },
+   "k_indicators": 3
+  },
+  "fn": "expected_false_alarms",
+  "name": "k_either_nan_rejected",
   "raises": "invalid_argument"
  }
 ]

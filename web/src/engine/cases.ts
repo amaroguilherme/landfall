@@ -7,20 +7,29 @@
 // the bad one). A malformed *state* (not produced by newCase / caseReduce) is a contract violation
 // and throws invalid_argument.
 //
+// Required steps: a step marked "required" must be done or declined with a reason (DECLINE) before
+// OUTCOME is accepted (else required_steps_pending); a required step with an input needs its value. A
+// "red_flag" step is a required yes/no question whose "yes" escalates the case at once.
+//
+// Escalation has two tiers (state.escalation.tiers): the onboard Crew Medical Officer now, and the
+// flight surgeon through the ground packet, which is Queued at escalation (state.packet_queued_at)
+// and leaves with the next link. A "releases_packet" step queues it too (crew release); before that
+// the packet of an open case is Prepared (held on board). The reducer does not know the link.
+//
 // Tripwire timing: observations are collected throughout watch, but the tripwire is only judged at
-// t >= reassess_at, matching the case texts ("Reassess at T+72 h; if ... still ..., reclassify").
-// Observations with crew_id null or absent (vehicle / habitat sensors, e.g. the onboard proton
-// monitor) describe the shared environment and count for every crewmember's case.
+// t >= reassess_at, matching the case texts ("Reassess at T+72 h; if ... still ..., escalate").
+// Observations with crew_id null or absent (vehicle / habitat sensors, e.g. the proton monitor)
+// describe the shared environment and count for every crewmember's case.
 //
 // Environment: a tripwire condition may carry "by_env": {env_id: {overrides}}. newCase(..., envId)
 // applies the override for that environment, so a case watches the rule that applies there (the SPE
-// case watches the onboard monitor rule at Mars and the NOAA rule near Earth).
+// case watches the Mars-orbit monitor rule at Mars and the NOAA rule near Earth).
 
 import { EngineError } from './errors'
-import { fmtNum, isNumber } from './fmt'
+import { fmtNum, formatMet, isNumber } from './fmt'
 import { clone, has, isInt, isNonemptyStr, isObj, pyEq, pyGet, pyIn, pyOr, pyRepr, pyStr, setOwn, sortedStrings, truthy } from './py'
 import type { JsonObject } from './py'
-import { OP_SYMBOL, compare, isOp } from './thresholds'
+import { compare, isOp } from './thresholds'
 import type {
   CaseDef,
   CaseEvent,
@@ -28,6 +37,7 @@ import type {
   CaseSpec,
   CaseState,
   CaseStatus,
+  Op,
   TriggerLookup,
   TripwireResult,
 } from './types'
@@ -35,8 +45,16 @@ import type {
 export const STATES = ['idle', 'detected', 'acting', 'watch', 'resolved', 'escalated', 'dismissed'] as const
 export const OPEN_STATES = ['detected', 'acting', 'watch'] as const
 export const TERMINAL_STATES = ['resolved', 'escalated', 'dismissed'] as const
-export const EVENTS = ['OPEN', 'SELECT', 'STEP', 'OUTCOME', 'TICK', 'DISMISS'] as const
+export const EVENTS = ['OPEN', 'SELECT', 'STEP', 'DECLINE', 'OUTCOME', 'TICK', 'DISMISS'] as const
 export const OPENING_SEVERITIES = ['caution', 'warning', 'emergency'] as const
+/** Tier 1 is told now, onboard; tier 2 gets the ground packet with the next link. */
+export const ESCALATION_TIERS = ['crew_medical_officer', 'flight_surgeon'] as const
+export const STEP_FLAGS = ['required', 'red_flag', 'releases_packet'] as const
+const YES_NO_UNIT = 'yes/no'
+export const OP_WORDS: Readonly<Record<Op, string>> = { lt: 'below', le: 'at or below', gt: 'above', ge: 'at or above' }
+const ESCALATED_TEXT =
+  'escalated: tier 1, the Crew Medical Officer, now; tier 2, the flight surgeon, ' +
+  'through the ground packet, queued and sent when a link exists'
 
 function list(x: unknown, what: string): unknown[] {
   // Python iterates `x or []`; a truthy non-list would crash it (or iterate dict keys / chars)
@@ -75,6 +93,45 @@ function idOf(x: unknown, what: string): unknown {
   return x.id
 }
 
+interface ProcedureSpec {
+  step_ids: unknown[]
+  required_step_ids: unknown[]
+  red_flag_step_ids: unknown[]
+  packet_step_ids: unknown[]
+  step_inputs: Array<{ step_id: unknown; variable: string; unit: string }>
+}
+
+/** step_ids plus the step metadata the reducer enforces (required, red flag, packet release, inputs). */
+function procedureSpec(cid: string, procedure: unknown[]): ProcedureSpec {
+  const out: ProcedureSpec = { step_ids: [], required_step_ids: [], red_flag_step_ids: [], packet_step_ids: [], step_inputs: [] }
+  for (const st of procedure) {
+    const sid = idOf(st, 'procedure step')
+    const step = st as JsonObject
+    out.step_ids.push(sid)
+    for (const flag of STEP_FLAGS) {
+      if (has(step, flag) && typeof step[flag] !== 'boolean') {
+        throw new EngineError('invalid_case', `case ${cid}: step ${pyRepr(sid)} ${flag} must be true or false`)
+      }
+    }
+    const inp = pyGet(step, 'input')
+    if (inp !== null) {
+      if (!(isObj(inp) && typeof pyGet(inp, 'variable') === 'string' && typeof pyGet(inp, 'unit') === 'string' && inp.unit !== '')) {
+        throw new EngineError('invalid_case', `case ${cid}: step ${pyRepr(sid)} input needs a variable and a unit`)
+      }
+      out.step_inputs.push({ step_id: sid, variable: inp.variable as string, unit: inp.unit as string })
+    }
+    if (pyGet(step, 'red_flag') === true) {
+      if (pyGet(step, 'required') !== true || inp === null || (inp as JsonObject).unit !== YES_NO_UNIT) {
+        throw new EngineError('invalid_case', `case ${cid}: red-flag step ${pyRepr(sid)} must be required and take a yes/no input`)
+      }
+      out.red_flag_step_ids.push(sid)
+    }
+    if (pyGet(step, 'required') === true) out.required_step_ids.push(sid)
+    if (pyGet(step, 'releases_packet') === true) out.packet_step_ids.push(sid)
+  }
+  return out
+}
+
 /**
  * Build the pre-OPEN ("idle") state for one case and one crewmember. `lookup` maps a rule or
  * indicator id to {variable, unit} (triggerLookup(rules)); it resolves the tripwire variable when the
@@ -82,6 +139,8 @@ function idOf(x: unknown, what: string): unknown {
  * condition variable / unit wins. An unresolvable variable or unit raises invalid_case.
  * `envId` (a non-empty string or null) selects the condition's by_env override for that environment;
  * the state records it as spec.env_id and the effective reference as spec.tripwire.condition.ref_id.
+ * Procedure steps may carry required, red_flag and releases_packet (booleans); a red-flag step must be
+ * required and take a yes/no input (SPEC 3.4).
  */
 export function newCase(
   caseDef: CaseDef,
@@ -113,7 +172,7 @@ export function newCase(
     throw new EngineError('invalid_case', `case ${cid}: countermeasure.primary.id required`)
   }
   const cmIds = [primary.id, ...list(pyGet(cm, 'alternatives'), `case ${cid}: alternatives`).map((a) => idOf(a, 'alternative'))]
-  const stepIds = list(pyGet(def, 'procedure'), `case ${cid}: procedure`).map((s) => idOf(s, 'procedure step'))
+  const proc = procedureSpec(cid, list(pyGet(def, 'procedure'), `case ${cid}: procedure`))
   const tw = pyGet(def, 'tripwire')
   if (!isObj(tw) || !isNumber(pyGet(tw, 'reassess_after_s')) || !isObj(pyGet(tw, 'condition'))) {
     throw new EngineError('invalid_case', `case ${cid}: tripwire.reassess_after_s and condition required`)
@@ -154,7 +213,11 @@ export function newCase(
     env_id: env as string | null,
     trigger_ids: sortedStrings(triggerIds),
     countermeasure_ids: cmIds as string[],
-    step_ids: stepIds as string[],
+    step_ids: proc.step_ids as string[],
+    required_step_ids: proc.required_step_ids as string[],
+    red_flag_step_ids: proc.red_flag_step_ids as string[],
+    packet_step_ids: proc.packet_step_ids as string[],
+    step_inputs: proc.step_inputs as CaseSpec['step_inputs'],
     tripwire: {
       reassess_after_s: tw.reassess_after_s as number,
       condition: {
@@ -179,11 +242,14 @@ export function newCase(
     finding: null,
     countermeasure_id: null,
     steps_done: [],
+    steps_declined: [],
     outcome: null,
     watch_started_at: null,
     reassess_at: null,
     tripwire_obs: [],
     tripwire_result: null,
+    escalation: null,
+    packet_queued_at: null,
     closed_at: null,
     dismiss_reason: null,
     updated_at: null,
@@ -205,6 +271,11 @@ function tripwireEval(s: CaseState): TripwireResult {
   }
 }
 
+/** '1000 pfu', or a bare '4' for a count. */
+function quantity(value: number, unit: string): string {
+  return unit === 'count' ? fmtNum(value) : `${fmtNum(value)} ${unit}`
+}
+
 function malformed(why: string): EngineError {
   return new EngineError('invalid_argument', `state must be a case state built by new_case / case_reduce (${why})`)
 }
@@ -223,6 +294,30 @@ function validateState(state: unknown): asserts state is CaseState {
     )
   ) {
     throw malformed('top-level fields')
+  }
+  // the required-step, escalation and packet fields (checked in Python too)
+  const st = state as unknown as JsonObject
+  const sp = st.spec as JsonObject
+  const esc = pyGet(st, 'escalation')
+  const pq = pyGet(st, 'packet_queued_at')
+  const declinedList = pyGet(st, 'steps_declined')
+  const inputs = pyGet(sp, 'step_inputs')
+  if (
+    !(
+      Array.isArray(declinedList) &&
+      has(st, 'escalation') &&
+      (esc === null || isObj(esc)) &&
+      has(st, 'packet_queued_at') &&
+      (pq === null || isNumber(pq)) &&
+      Array.isArray(pyGet(sp, 'required_step_ids')) &&
+      Array.isArray(pyGet(sp, 'red_flag_step_ids')) &&
+      Array.isArray(pyGet(sp, 'packet_step_ids')) &&
+      Array.isArray(inputs) &&
+      inputs.every((x) => isObj(x)) &&
+      declinedList.every((d) => isObj(d))
+    )
+  ) {
+    throw malformed('required-step, escalation or packet fields')
   }
   // TS only: the fields the reducer reads further down. Python has no such check and fails later
   // with KeyError / TypeError on these states; here they are the same contract violation.
@@ -287,7 +382,16 @@ export function caseReduce(state: CaseState, event: CaseEvent): CaseState {
     return reject('time_reversed', `t ${fmtNum(t)} is before the last transition at ${fmtNum(s.updated_at)}`)
   }
   const caseId = pyStr(pyGet(s as unknown as JsonObject, 'case_id'))
-  const nSteps = s.spec.step_ids.length
+  const spec = s.spec
+  const nSteps = spec.step_ids.length
+  const escalate = (reason: 'tripwire' | 'red_flag', stepId: unknown): void => {
+    s.escalation = { t: t as number, reason, step_id: stepId as string | null, tiers: [...ESCALATION_TIERS] }
+    if (s.packet_queued_at === null) s.packet_queued_at = t as number
+    s.closed_at = t as number
+  }
+  const isDone = (stepId: unknown): boolean => s.steps_done.some((d) => pyEq(pyGet(d as unknown as JsonObject, 'step_id'), stepId))
+  const isDeclined = (stepId: unknown): boolean =>
+    s.steps_declined.some((d) => pyEq(pyGet(d as unknown as JsonObject, 'step_id'), stepId))
 
   if (etype === 'OPEN') {
     if (frm !== 'idle') return reject('invalid_transition', `OPEN is only valid from idle, case is ${frm}`)
@@ -331,24 +435,69 @@ export function caseReduce(state: CaseState, event: CaseEvent): CaseState {
   if (etype === 'STEP') {
     if (frm !== 'acting') return reject('invalid_transition', `STEP is only valid from acting, case is ${frm}`)
     const stepId = pyGet(ev, 'step_id')
-    if (!pyIn(stepId, s.spec.step_ids)) return reject('unknown_step', `${pyRepr(stepId)} is not a step of ${caseId}`)
-    if (s.steps_done.some((d) => pyEq(pyGet(d as unknown as JsonObject, 'step_id'), stepId))) {
-      return reject('duplicate_step', `step ${pyStr(stepId)} already done`)
+    if (!pyIn(stepId, spec.step_ids)) return reject('unknown_step', `${pyRepr(stepId)} is not a step of ${caseId}`)
+    if (isDone(stepId)) return reject('duplicate_step', `step ${pyStr(stepId)} already done`)
+    const inp = pyGet(ev, 'input')
+    const decl = stepInput(spec, stepId)
+    if (decl !== null && isObj(inp) && has(inp, 'unit') && !pyEq(inp.unit, decl.unit)) {
+      return reject('unit_mismatch', `step ${pyStr(stepId)} expects ${pyRepr(decl.unit)}, input has ${pyRepr(inp.unit)}`)
     }
-    s.steps_done.push({ step_id: stepId as string, t, input: clone(pyGet(ev, 'input')) })
-    return accept('acting', `step ${pyStr(stepId)} done (${s.steps_done.length} of ${nSteps})`)
+    const red = pyIn(stepId, spec.red_flag_step_ids)
+    let answer: unknown = null
+    if (red) {
+      const [ok, a] = answerOf(YES_NO_UNIT, inp)
+      if (!ok) return reject('invalid_event', `step ${pyStr(stepId)} is a red-flag question: answer yes or no`)
+      answer = a
+    } else if (decl !== null && pyIn(stepId, spec.required_step_ids)) {
+      const [ok] = answerOf(decl.unit, inp)
+      if (!ok) {
+        return reject('invalid_event', `step ${pyStr(stepId)} is required and needs its value: ${decl.variable} (${decl.unit})`)
+      }
+    }
+    s.steps_done.push({ step_id: stepId as string, t, input: clone(inp) })
+    if (red && answer === true) {
+      escalate('red_flag', stepId)
+      return accept('escalated', `step ${pyStr(stepId)} answered yes, a red flag; ${ESCALATED_TEXT}`)
+    }
+    let note = red ? ', answered no' : ''
+    if (pyIn(stepId, spec.packet_step_ids) && s.packet_queued_at === null) {
+      s.packet_queued_at = t
+      note += '; ground packet queued, sent when a link exists'
+    }
+    return accept('acting', `step ${pyStr(stepId)} done${note} (${s.steps_done.length} of ${nSteps})`)
+  }
+
+  if (etype === 'DECLINE') {
+    if (frm !== 'acting') return reject('invalid_transition', `DECLINE is only valid from acting, case is ${frm}`)
+    const stepId = pyGet(ev, 'step_id')
+    if (!pyIn(stepId, spec.step_ids)) return reject('unknown_step', `${pyRepr(stepId)} is not a step of ${caseId}`)
+    if (isDone(stepId) || isDeclined(stepId)) return reject('duplicate_step', `step ${pyStr(stepId)} already done or declined`)
+    const reason = pyGet(ev, 'reason')
+    if (!isNonemptyStr(reason)) return reject('invalid_event', 'DECLINE needs a non-empty reason')
+    s.steps_declined.push({ step_id: stepId as string, t, reason })
+    const req = pyIn(stepId, spec.required_step_ids) ? ' (required)' : ''
+    return accept('acting', `step ${pyStr(stepId)}${req} declined: ${reason}`)
   }
 
   if (etype === 'OUTCOME') {
     if (frm !== 'acting') return reject('invalid_transition', `OUTCOME is only valid from acting, case is ${frm}`)
+    const pending = spec.required_step_ids.filter((sid) => !isDone(sid) && !isDeclined(sid))
+    if (pending.length) {
+      return reject(
+        'required_steps_pending',
+        'required step(s) neither done nor declined with a reason: ' + pending.map((p) => pyStr(p)).join(', '),
+      )
+    }
     const text = pyGet(ev, 'text')
     if (!isNonemptyStr(text)) return reject('invalid_event', 'OUTCOME needs a non-empty text')
     s.outcome = { text, t }
     s.watch_started_at = t
-    s.reassess_at = t + s.spec.tripwire.reassess_after_s
+    s.reassess_at = t + spec.tripwire.reassess_after_s
+    const nDeclined = s.steps_declined.length
+    const dec = nDeclined ? `, ${nDeclined} declined` : ''
     return accept(
       'watch',
-      `outcome recorded; reassess at ${fmtNum(s.reassess_at)} (${s.steps_done.length} of ${nSteps} steps done)`,
+      `outcome recorded; reassess at MET ${formatMet(s.reassess_at)} (${s.steps_done.length} of ${nSteps} steps done${dec})`,
     )
   }
 
@@ -381,13 +530,13 @@ export function caseReduce(state: CaseState, event: CaseEvent): CaseState {
   s.tripwire_obs.sort((a, b) => a.t - b.t)
   const res = tripwireEval(s)
   const desc =
-    `${res.hits} of last ${res.considered} ${cond.variable} ${OP_SYMBOL[cond.op]} ${fmtNum(cond.value)} ` +
-    `(escalate at ${pyStr(cond.at_least)} of ${pyStr(cond.of_last_n)})`
+    `${res.hits} of the last ${res.considered} readings ${OP_WORDS[cond.op]} ${quantity(cond.value, cond.unit)} ` +
+    `(escalates at ${pyStr(cond.at_least)} of ${pyStr(cond.of_last_n)})`
   if (t >= reassessAt) {
     if (res.tripped) {
       s.tripwire_result = res
-      s.closed_at = t
-      return accept('escalated', `reassessed: tripwire ${desc}; queued for flight-surgeon review`)
+      escalate('tripwire', null)
+      return accept('escalated', `reassessed: ${desc}; ${ESCALATED_TEXT}`)
     }
     const remaining = cond.of_last_n - res.considered
     if (res.hits + remaining < cond.at_least) {
@@ -395,9 +544,25 @@ export function caseReduce(state: CaseState, event: CaseEvent): CaseState {
       s.closed_at = t
       return accept('resolved', `reassessed: ${desc}`)
     }
-    if (added) return accept('watch', `reassessment due, need more observations: ${desc}`)
+    if (added) return accept('watch', `reassessment due, need more readings: ${desc}`)
     return s
   }
-  if (added) return accept('watch', `${added} new observation(s): ${desc}; judged at reassessment (${fmtNum(reassessAt)})`)
+  if (added) return accept('watch', `${added} new reading(s): ${desc}; judged at reassessment (MET ${formatMet(reassessAt)})`)
   return s
+}
+
+function stepInput(spec: CaseSpec, stepId: unknown): { variable: string; unit: string } | null {
+  for (const x of spec.step_inputs) if (pyEq(pyGet(x as unknown as JsonObject, 'step_id'), stepId)) return x
+  return null
+}
+
+/** [ok, answer] for a step input's value: a number, or a yes/no (boolean or 0/1) for unit yes/no. */
+function answerOf(unit: string, inp: unknown): [boolean, unknown] {
+  const v = isObj(inp) ? pyGet(inp, 'value') : null
+  if (unit === YES_NO_UNIT) {
+    if (v === true || v === false) return [true, v]
+    if (isNumber(v) && (v === 0 || v === 1)) return [true, v === 1]
+    return [false, null]
+  }
+  return [isNumber(v), v]
 }

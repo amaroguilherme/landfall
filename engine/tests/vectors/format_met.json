@@ -3,7 +3,7 @@
   "args": {
    "seconds": 0
   },
-  "expect": "0000/00:00:00",
+  "expect": "0/00:00:00",
   "fn": "format_met",
   "name": "zero"
  },
@@ -11,7 +11,7 @@
   "args": {
    "seconds": 35648407
   },
-  "expect": "0412/14:20:07",
+  "expect": "412/14:20:07",
   "fn": "format_met",
   "name": "demo_now_plus_7s"
  },
@@ -19,7 +19,7 @@
   "args": {
    "seconds": 35696407
   },
-  "expect": "0413/03:40:07",
+  "expect": "413/03:40:07",
   "fn": "format_met",
   "name": "brief_literal_35644800_plus_51607"
  },
@@ -27,7 +27,7 @@
   "args": {
    "seconds": 86399
   },
-  "expect": "0000/23:59:59",
+  "expect": "0/23:59:59",
   "fn": "format_met",
   "name": "one_second_before_day_1"
  },
@@ -43,7 +43,7 @@
   "args": {
    "seconds": 59.9
   },
-  "expect": "0000/00:00:59",
+  "expect": "0/00:00:59",
   "fn": "format_met",
   "name": "fraction_floored"
  },
@@ -51,7 +51,7 @@
   "args": {
    "seconds": -5
   },
-  "expect": "-0000/00:00:05",
+  "expect": "-0/00:00:05",
   "fn": "format_met",
   "name": "negative_prelaunch"
  },
@@ -62,5 +62,45 @@
   "fn": "format_met",
   "name": "rejects_string",
   "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "seconds": 4975713
+  },
+  "expect": "57/14:08:33",
+  "fn": "format_met",
+  "name": "f_6_1_f_example_57"
+ },
+ {
+  "args": {
+   "seconds": 94136581
+  },
+  "expect": "1089/13:03:01",
+  "fn": "format_met",
+  "name": "f_6_1_f_example_1089"
+ },
+ {
+  "args": {
+   "seconds": 971991
+  },
+  "expect": "11/05:59:51",
+  "fn": "format_met",
+  "name": "countdown_11_days"
+ },
+ {
+  "args": {
+   "seconds": 2381
+  },
+  "expect": "0/00:39:41",
+  "fn": "format_met",
+  "name": "duration_under_a_day"
+ },
+ {
+  "args": {
+   "seconds": -0.0
+  },
+  "expect": "0/00:00:00",
+  "fn": "format_met",
+  "name": "negative_zero"
  }
 ]

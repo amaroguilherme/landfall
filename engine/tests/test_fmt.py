@@ -4,28 +4,38 @@ from engine import EngineError, fmt_num, format_met, met_to_iso
 
 
 def test_format_met_zero():
-    assert format_met(0) == "0000/00:00:00"
+    assert format_met(0) == "0/00:00:00"
 
 
 def test_format_met_demo_known_answer():
     # Day 412 starts at 412 * 86400 = 35,596,800 s (day 0 starts at MET 0).
     # 14:20:07 = 14*3600 + 20*60 + 7 = 50,400 + 1,200 + 7 = 51,607 s.
-    assert format_met(412 * 86400 + 51607) == "0412/14:20:07"
+    assert format_met(412 * 86400 + 51607) == "412/14:20:07"
     assert 412 * 86400 + 51607 == 35648407
 
 
 def test_format_met_brief_literal_input_is_day_413():
     # The task brief wrote 35644800 + 51607. 35,644,800 is NOT 412 * 86400 (that is 35,596,800):
     # 35,644,800 + 51,607 = 35,696,407 = 413 * 86400 (35,683,200) + 13,207 s -> 03:40:07.
-    assert format_met(35644800 + 51607) == "0413/03:40:07"
+    assert format_met(35644800 + 51607) == "413/03:40:07"
 
 
 def test_format_met_edges():
-    assert format_met(86399) == "0000/23:59:59"
-    assert format_met(86400) == "0001/00:00:00"
+    assert format_met(86399) == "0/23:59:59"
+    assert format_met(86400) == "1/00:00:00"
     assert format_met(10000 * 86400) == "10000/00:00:00"  # never truncated
-    assert format_met(59.9) == "0000/00:00:59"  # floored
-    assert format_met(-5) == "-0000/00:00:05"
+    assert format_met(59.9) == "0/00:00:59"  # floored
+    assert format_met(-5) == "-0/00:00:05"
+    assert format_met(-0.0) == "0/00:00:00"
+
+
+def test_format_met_follows_appendix_f_f_6_1_f():
+    # NASA-STD-3001 Vol 2 Appendix F F.6.1 f: "leading zeros are suppressed in day field ...
+    # (e.g., MET 57/14:08:33, or MET 1089/13:03:01)". The same format serves day-count durations.
+    assert format_met(57 * 86400 + 14 * 3600 + 8 * 60 + 33) == "57/14:08:33"
+    assert format_met(1089 * 86400 + 13 * 3600 + 3 * 60 + 1) == "1089/13:03:01"
+    assert format_met(11 * 86400 + 5 * 3600 + 59 * 60 + 51) == "11/05:59:51"   # a countdown
+    assert format_met(39 * 60 + 41) == "0/00:39:41"
     with pytest.raises(EngineError) as e:
         format_met(None)
     assert e.value.code == "invalid_argument"

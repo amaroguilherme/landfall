@@ -862,7 +862,9 @@ def build_donki(ctx: RunContext) -> dict:
         # Fallback: NASA's API gateway serves the same DONKI records. A personal key may be
         # supplied via NASA_API_KEY; otherwise NASA's public DEMO_KEY (fine for one build run).
         # The key never enters the snapshot.
-        key = os.environ.get("NASA_API_KEY") or "DEMO_KEY"
+        key_file = os.path.expanduser("~/.config/landfall/nasa_api_key")  # outside the repo, never committed
+        key = os.environ.get("NASA_API_KEY") or (
+            open(key_file).read().strip() if os.path.exists(key_file) else "") or "DEMO_KEY"
         shown = "DEMO_KEY" if key == "DEMO_KEY" else "<NASA_API_KEY>"
         records, access = [], []
         for a, b in donki_chunks("2024-01-01", end):

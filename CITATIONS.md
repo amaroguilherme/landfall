@@ -74,6 +74,10 @@ runs in the product's decision path.
 
 - LANDFALL simulated crew scenario (seed 20261114), ingest/sim_crew.py, https://github.com/amaroguilherme/landfall. Calibrated against Barger et al. 2014 (PMID 25127232) and Basner et al. 2011 (PMID 22025811); SPE shape from NOAA NCEI GOES-07 EPS (October 1989); Mars-surface baseline from NASA CCMC iSWA MSL RAD; conjunction window from JPL Horizons when present. *(snapshots: `sim_crew`)*
 
+**NASA Community Coordinated Modeling Center (CCMC)**
+
+- NASA Community Coordinated Modeling Center. DONKI (Space Weather Database Of Notifications, Knowledge, Information), SEP web service, https://api.nasa.gov/DONKI/SEP?startDate=2024-01-01&endDate=2024-02-29&api_key=<NASA_API_KEY>. Accessed 2026-11-14. *(snapshots: `swpc_sep_events`)*
+
 **NASA GSFC Community Coordinated Modeling Center (CCMC), iSWA HAPI server**
 
 - NASA GSFC Community Coordinated Modeling Center (CCMC), Integrated Space Weather Analysis system (iSWA), HAPI dataset 'CRaTER' ('CRaTER Dose Rates', startDate 2009-06-26T20:06:35Z, stopDate 2026-10-07T23:30:00Z), HAPI server https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi, retrieved 2026-11-14T13:30:58Z. *(snapshots: `hapi_crater_dose`)*
@@ -116,7 +120,7 @@ runs in the product's decision path.
 
 **NOAA Space Weather Prediction Center (SWPC)**
 
-- NOAA Space Weather Prediction Center. GOES primary integral proton flux, 5-minute averages (integral-protons-6-hour.json and integral-protons-7-day.json), SWPC data service, https://services.swpc.noaa.gov/json/goes/primary/. Accessed 2026-11-14T13:44:37Z. *(snapshots: `swpc_protons_live`)*
+- NOAA Space Weather Prediction Center. GOES primary integral proton flux, 5-minute averages (integral-protons-6-hour.json and integral-protons-7-day.json), SWPC data service, https://services.swpc.noaa.gov/json/goes/primary/. Accessed 2026-11-14T15:17:52Z. *(snapshots: `swpc_protons_live`)*
 - NOAA Space Weather Prediction Center. NOAA Space Weather Scales (Solar Radiation Storms, S1-S5). Web page https://www.swpc.noaa.gov/noaa-scales-explanation (served from www.spaceweather.gov) and PDF 'NOAA Space Weather Scales', dated December 11, 2023, https://www.swpc.noaa.gov/sites/default/files/images/NOAAscales.pdf. Accessed 2026-11-14. *(snapshots: `swpc_s_scale`)*
 
 **NOAA Space Weather Prediction Center (formerly SESC); mirrored by NASA GSFC Solar Data Analysis Center**

@@ -115,7 +115,8 @@ class RunContext:
                 r.raise_for_status()
                 self.cache_dir.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(r.content)
-                (path.with_suffix(".url")).write_text(str(r.url))
+                # Never persist credentials, even in the gitignored cache.
+                (path.with_suffix(".url")).write_text(re.sub(r"(api_key=)[^&]+", r"\1<redacted>", str(r.url)))
                 return r.content
             except Exception as exc:  # noqa: BLE001 - surface the last error after retries
                 last = exc

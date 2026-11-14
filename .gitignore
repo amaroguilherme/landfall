@@ -11,3 +11,7 @@ __pycache__/
 .DS_Store
 .vscode/
 .idea/
+
+# Local secrets (never commit)
+.env
+.env.*

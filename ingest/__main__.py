@@ -28,6 +28,22 @@ def discover() -> dict:
     return found
 
 
+def ordered(wanted: list[str], registry: dict) -> list[str]:
+    """Order adapters so every DEPENDS_ON (e.g. sim after swpc) runs first when both are wanted."""
+    pending, done = list(wanted), []
+    while pending:
+        progressed = False
+        for aid in list(pending):
+            deps = [d for d in getattr(registry[aid], "DEPENDS_ON", []) if d in wanted]
+            if all(d in done for d in deps):
+                done.append(aid)
+                pending.remove(aid)
+                progressed = True
+        if not progressed:
+            raise SystemExit(f"dependency cycle among adapters: {pending}")
+    return done
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m ingest")
     ap.add_argument("adapters", nargs="*", help="adapter ids to run")
@@ -47,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
 
     ctx = RunContext(offline=args.offline)
     failures = 0
-    for aid in wanted:
+    for aid in ordered(wanted, registry):
         try:
             snaps = registry[aid].run(ctx)
             for s in snaps:

@@ -77,7 +77,8 @@ function formatMet(s) {
   const whole = Math.floor(s)
   const p = (n, w = 2) => String(n).padStart(w, '0')
   const frac = s - whole > 1e-6 ? `.${Math.round((s - whole) * 10)}` : ''
-  return `${p(Math.floor(whole / 86400), 4)}/${p(Math.floor((whole % 86400) / 3600))}:${p(Math.floor((whole % 3600) / 60))}:${p(whole % 60)}${frac}`
+  // F.6.1 f (D2): no leading zeros in the day field, as the app prints MET (412/14:20:09).
+  return `${Math.floor(whole / 86400)}/${p(Math.floor((whole % 86400) / 3600))}:${p(Math.floor((whole % 3600) / 60))}:${p(whole % 60)}${frac}`
 }
 
 // ---- fonts: the app's own Inter / Public Sans Web / DM Mono, inlined for the title cards ---------

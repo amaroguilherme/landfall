@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Mobile layout QA over the Chrome DevTools Protocol, no dependencies (Node >= 22: global WebSocket).
 // Emulates a real phone viewport (mobile: true) and reports, per route, whether the page overflows
-// horizontally and which elements stick out past the viewport's right edge.
+// horizontally and which elements stick out past the viewport's right edge. A route that renders the
+// not-found view fails too (a route list entry must be a real view).
 //
 //   node scripts/qa-mobile.mjs http://localhost:4301 [width=390] [height=844]
 import { spawn } from 'node:child_process'
@@ -64,8 +65,11 @@ const PROBE = `(() => {
       if (!clipped) out.push({ tag: el.tagName.toLowerCase(), cls: (el.className && el.className.baseVal === undefined ? el.className : '').toString().slice(0, 60), right: Math.round(r.right), text: (el.textContent || '').trim().slice(0, 40) })
     }
   }
+  // A route that renders the not-found view ("No such view") is a failure even when nothing overflows.
+  const main = document.querySelector('main')?.innerText || ''
+  const notFound = /is not a LANDFALL route/.test(main)
   // keep only the outermost offenders
-  return JSON.stringify({ vw, scrollWidth: document.documentElement.scrollWidth, offenders: out.slice(0, 12) })
+  return JSON.stringify({ vw, scrollWidth: document.documentElement.scrollWidth, offenders: out.slice(0, 12), notFound })
 })()`
 
 let failures = 0
@@ -74,9 +78,9 @@ for (const route of ROUTES) {
   await sleep(2500)
   const res = await send('Runtime.evaluate', { expression: PROBE, returnByValue: true })
   const v = JSON.parse(res.result.result.value)
-  const ok = v.scrollWidth <= v.vw + 1 && v.offenders.length === 0
+  const ok = v.scrollWidth <= v.vw + 1 && v.offenders.length === 0 && !v.notFound
   if (!ok) failures++
-  console.log(`${ok ? 'OK  ' : 'FAIL'} ${route.padEnd(24)} viewport=${v.vw} scrollWidth=${v.scrollWidth}`)
+  console.log(`${ok ? 'OK  ' : 'FAIL'} ${route.padEnd(24)} viewport=${v.vw} scrollWidth=${v.scrollWidth}${v.notFound ? ' NOT-FOUND VIEW (not a LANDFALL route)' : ''}`)
   for (const o of v.offenders.slice(0, 6)) console.log(`       ${o.tag}.${o.cls} right=${o.right} "${o.text}"`)
 }
 ws.close()

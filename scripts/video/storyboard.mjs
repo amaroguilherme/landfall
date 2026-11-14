@@ -23,7 +23,9 @@ export const PUBLIC_URL = 'https://landfall.landfall-web.workers.dev'
 /** Hard limit for global judging is 30.0 s; the storyboard must stay at or under this. */
 export const MAX_SECONDS = 29.5
 /** The app's own footer, word for word (factsPass checks it against footer.lf-footer). */
-const FOOTER = 'Not endorsed by NASA. Not a medical device: no diagnosis, no dosing. Crew data is simulated. NASA and NOAA data are real, frozen at build. Runs offline; no backend.'
+// The app footer's own words (factsPass checks them word for word). No offline claim here: the app shows
+// "Works offline after first load" only once its service worker holds the build.
+const FOOTER = 'Not endorsed by NASA. Not a medical device: no diagnosis, no dosing. Crew data is simulated. NASA and NOAA data are real, frozen at build. No backend: everything runs in this browser.'
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x))
 const fadeIn = (t, start, dur) => clamp01((t - start) / dur)
@@ -287,7 +289,7 @@ export const SHOTS = [
         return {
           intro: /Every number LANDFALL uses[^\n]*/.exec(main)?.[0] ?? null,
           oursHeading: h.textContent.trim(),
-          ours: /NASA publishes no numeric in-flight alert thresholds[^\n]*/.exec(main)?.[0] ?? null,
+          ours: /NASA-STD-3001 publishes no numeric in-flight alert thresholds[^\n]*/.exec(main)?.[0] ?? null,
           headingTop: Math.round(h.getBoundingClientRect().top + window.scrollY),
         }
       })

@@ -1,0 +1,383 @@
+{
+ "schema": "landfall.meta/1",
+ "chips": [
+  {
+   "id": "NASA-published",
+   "source_kind": "nasa_standard",
+   "definition": "A number printed in a NASA technical standard, cited with its requirement ID (or table)."
+  },
+  {
+   "id": "NASA brief",
+   "source_kind": "nasa_brief",
+   "definition": "A number from an OCHMO technical brief; NASA-authored, but no requirement ID."
+  },
+  {
+   "id": "NOAA-published",
+   "source_kind": "noaa",
+   "definition": "A number from NOAA's operational Space Weather Scales; not a NASA crew-health limit."
+  },
+  {
+   "id": "literature",
+   "source_kind": "literature",
+   "definition": "A number from a peer-reviewed paper or a NASA report (e.g. an HRP evidence report), cited in full."
+  },
+  {
+   "id": "derived",
+   "source_kind": "derived",
+   "definition": "Arithmetic on published values; the inputs and the formula are shown."
+  },
+  {
+   "id": "design choice",
+   "source_kind": "design_choice",
+   "definition": "No published basis: LANDFALL's own number, labeled as ours, with the reason."
+  }
+ ],
+ "categories": [
+  {
+   "id": "FFD",
+   "name": "Fitness for Duty",
+   "shape": "floor on the crewmember's capability",
+   "glossary": "Minimum measurable capability or capacity for a given physiological or behavioral parameter that allows successful performance of all required duties.",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "section": "Appendix C.2",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "term": "Fitness for Duty (FFD)"
+   }
+  },
+  {
+   "id": "PEL",
+   "name": "Space Permissible Exposure Limit",
+   "shape": "ceiling on cumulative exposure over a time window",
+   "glossary": "Quantifiable limit of exposure to a spaceflight factor over a given length of time, e.g., lifetime radiation exposure.",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "section": "Appendix C.2",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "term": "Space Permissible Exposure Limits (SPEL)"
+   }
+  },
+  {
+   "id": "POL",
+   "name": "Permissible Outcome Limit",
+   "shape": "maximum change against the crewmember's own pre-mission value",
+   "glossary": "Acceptable maximum decrement or change in a physiological or behavioral parameter, during or after a spaceflight mission, as the result of exposure to the space environment. Biological/clinical parameter measured, e.g., bone mineral density.",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "section": "Appendix C.2",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "term": "Permissible Outcome Limits (POL)"
+   }
+  },
+  {
+   "id": "OPS",
+   "name": "Operational scale (other agency)",
+   "shape": "level on a published operational scale (NOAA S-scale)",
+   "glossary": null,
+   "source": null
+  },
+  {
+   "id": "PERSONAL",
+   "name": "Personal reliable change (Tier B)",
+   "shape": "reliable change against the crewmember's own recent baseline",
+   "glossary": null,
+   "source": null
+  },
+  {
+   "id": "TARGET",
+   "name": "Case target from literature",
+   "shape": "a published countermeasure target that is not a NASA limit (e.g. urine output)",
+   "glossary": null,
+   "source": null
+  }
+ ],
+ "tiers": [
+  {
+   "id": "A",
+   "definition": "A fixed number someone publishes: NASA (with requirement ID, or Table 4.8-1 row and column), NOAA, or, for TARGET rules, the literature. The chip says which. One Tier A rule, ops_onboard_proton_s3, reuses NOAA's S3 number at Mars, where NOAA does not define its scale, so its chip is design choice."
+  },
+  {
+   "id": "B",
+   "definition": "Reliable Change Index against the crewmember's own baseline (Jacobson & Truax 1991), critical value 3.29."
+  }
+ ],
+ "statuses": [
+  "within",
+  "approaching",
+  "outside",
+  "reliable_change",
+  "insufficient_data",
+  "stale",
+  "not_applicable"
+ ],
+ "severities": [
+  {
+   "id": "nominal",
+   "emitted": true
+  },
+  {
+   "id": "advisory",
+   "emitted": true
+  },
+  {
+   "id": "caution",
+   "emitted": true
+  },
+  {
+   "id": "warning",
+   "emitted": true
+  },
+  {
+   "id": "emergency",
+   "emitted": false,
+   "note": "Exists in the type; LANDFALL never emits it. Emergency belongs to the vehicle caution and warning system."
+  }
+ ],
+ "severity_mapping": {
+  "chip": "design choice",
+  "source": {
+   "kind": "design_choice",
+   "rationale": "NASA-STD-3001 Vol 2 Appendix F gives the colour semantics (red reserved for Emergency/Warning); which LANDFALL finding maps to which class is ours."
+  },
+  "rows": [
+   {
+    "id": "tier_a_outside",
+    "when": {
+     "tier": "A",
+     "role": "alert",
+     "category_in": [
+      "FFD",
+      "PEL",
+      "POL"
+     ],
+     "status": "outside"
+    },
+    "severity": "warning"
+   },
+   {
+    "id": "tier_a_approaching",
+    "when": {
+     "tier": "A",
+     "role": "alert",
+     "category_in": [
+      "FFD",
+      "PEL",
+      "POL"
+     ],
+     "status": "approaching"
+    },
+    "severity": "caution"
+   },
+   {
+    "id": "tier_a_within",
+    "when": {
+     "tier": "A",
+     "status": "within"
+    },
+    "severity": "nominal"
+   },
+   {
+    "id": "target_outside",
+    "when": {
+     "category": "TARGET",
+     "status": "outside"
+    },
+    "severity": "caution",
+    "note": "Literature targets are not NASA limits, so never warning (rule field max_severity)."
+   },
+   {
+    "id": "target_approaching",
+    "when": {
+     "category": "TARGET",
+     "status": "approaching"
+    },
+    "severity": "advisory"
+   },
+   {
+    "id": "personal_worse",
+    "when": {
+     "tier": "B",
+     "status": "reliable_change",
+     "direction": "worse",
+     "alerting": true
+    },
+    "severity": "caution",
+    "note": "Personal change is not a limit, so never warning."
+   },
+   {
+    "id": "personal_better",
+    "when": {
+     "tier": "B",
+     "status": "reliable_change",
+     "direction": "better"
+    },
+    "severity": "nominal"
+   },
+   {
+    "id": "personal_non_alerting",
+    "when": {
+     "tier": "B",
+     "alerting": false
+    },
+    "severity_max": "advisory"
+   },
+   {
+    "id": "ops_s1_s2",
+    "when": {
+     "category": "OPS",
+     "status": "outside",
+     "s_level_in": [
+      1,
+      2
+     ]
+    },
+    "severity": "advisory"
+   },
+   {
+    "id": "ops_s3_plus_eva",
+    "when": {
+     "category": "OPS",
+     "status": "outside",
+     "s_level_min": 3,
+     "eva": "planned_or_in_progress"
+    },
+    "severity": "warning"
+   },
+   {
+    "id": "ops_s3_plus",
+    "when": {
+     "category": "OPS",
+     "status": "outside",
+     "s_level_min": 3
+    },
+    "severity": "caution"
+   },
+   {
+    "id": "context",
+    "when": {
+     "role": "context"
+    },
+    "severity_max": "advisory"
+   },
+   {
+    "id": "no_data",
+    "when": {
+     "status_in": [
+      "insufficient_data",
+      "stale"
+     ]
+    },
+    "severity": "advisory",
+    "note": "[V2 10020]: indicate data that is stale, missing, unavailable, or unknown.",
+    "colour_note": "Severity advisory, but the colour is cyan, not advisory blue: NASA-STD-3001 Vol 2 Appendix F Table F.5-1 requires cyan for 'Missing or stale data'."
+   },
+   {
+    "id": "not_applicable",
+    "when": {
+     "status": "not_applicable"
+    },
+    "severity": "nominal"
+   }
+  ]
+ },
+ "hazards": [
+  {
+   "id": "space_radiation",
+   "label": "Space radiation",
+   "hrp_snapshot_id": "space_radiation"
+  },
+  {
+   "id": "isolation_confinement",
+   "label": "Isolation and confinement",
+   "hrp_snapshot_id": "isolation_and_confinement"
+  },
+  {
+   "id": "distance_from_earth",
+   "label": "Distance from Earth",
+   "hrp_snapshot_id": "distance_from_earth"
+  },
+  {
+   "id": "gravity_fields",
+   "label": "Gravity fields",
+   "hrp_snapshot_id": "gravity_fields"
+  },
+  {
+   "id": "hostile_closed_environment",
+   "label": "Hostile and closed environments",
+   "hrp_snapshot_id": "hostile_closed_environments"
+  }
+ ],
+ "body_regions": [
+  "brain",
+  "eyes",
+  "skin",
+  "heart",
+  "lungs",
+  "blood_forming_organs",
+  "kidneys",
+  "skeleton",
+  "muscles",
+  "immune"
+ ],
+ "principles": [
+  {
+   "id": "no_nasa_alert_thresholds",
+   "text": "NASA publishes no numeric in-flight alert thresholds for crew health. Its alert requirements delegate the number to the program; LANDFALL never presents its own number as NASA's.",
+   "requirement_ids": [
+    "V2 6022",
+    "V2 6164",
+    "V2 11036",
+    "V1 4006",
+    "V1 4008"
+   ]
+  },
+  {
+   "id": "three_kinds_of_limit",
+   "text": "FFD (floor), PEL (ceiling on exposure over a window) and POL (maximum change from baseline) are never merged into one 'threshold exceeded' state.",
+   "requirement_ids": []
+  }
+ ],
+ "refusals": [
+  {
+   "id": "no_diagnosis",
+   "text": "No diagnosis. LANDFALL reports measurements against published limits and your own baseline; diagnosis is a flight surgeon's job."
+  },
+  {
+   "id": "no_dosing",
+   "text": "No medication or dosing advice of any kind."
+  },
+  {
+   "id": "no_psychiatric_alert",
+   "text": "No psychiatric alert. Mood is private, never alerts, and leaves the device only with consent."
+  },
+  {
+   "id": "no_reid",
+   "text": "No personal cancer-risk (REID) model. NASA's 600 mSv career limit uses 35-year-old female model parameters for everyone ([V1 4030] note)."
+  },
+  {
+   "id": "no_co2_cognition_claim",
+   "text": "No claim that CO2 causes a cognitive deficit; the defensible claim is headache risk."
+  },
+  {
+   "id": "no_emergency_alarm",
+   "text": "LANDFALL never raises an Emergency-class alarm; that belongs to the vehicle caution and warning system."
+  },
+  {
+   "id": "no_own_msv_projection",
+   "text": "No radiation dose projection of our own; LANDFALL triggers on NOAA's scale or the onboard monitor."
+  },
+  {
+   "id": "no_llm_in_decision_path",
+   "text": "No language model in the decision path; every rule is data you can read on /provenance."
+  }
+ ]
+}

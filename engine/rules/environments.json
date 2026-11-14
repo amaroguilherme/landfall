@@ -1,0 +1,168 @@
+{
+ "schema": "landfall.environments/1",
+ "constants": [
+  {
+   "id": "c_speed_of_light",
+   "label": "Speed of light in vacuum",
+   "value": 299792.458,
+   "unit": "km/s",
+   "chip": "literature",
+   "source": {
+    "kind": "literature",
+    "citation": "BIPM. The International System of Units (SI Brochure), 9th edition, 2019: c = 299 792 458 m/s (exact, by definition).",
+    "url": "https://www.bipm.org/en/publications/si-brochure"
+   }
+  },
+  {
+   "id": "moon_semimajor_axis_km",
+   "label": "Moon orbit semimajor axis",
+   "value": 384400,
+   "unit": "km",
+   "chip": "literature",
+   "source": {
+    "kind": "literature",
+    "citation": "Williams DR. Moon Fact Sheet. NASA Space Science Data Coordinated Archive, Goddard Space Flight Center (last updated 11 January 2024): semimajor axis 0.3844 x 10^6 km.",
+    "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html"
+   }
+  },
+  {
+   "id": "moon_perigee_km",
+   "label": "Moon mean perigee",
+   "value": 363300,
+   "unit": "km",
+   "chip": "literature",
+   "source": {
+    "kind": "literature",
+    "citation": "Williams DR. Moon Fact Sheet. NASA NSSDCA (last updated 11 January 2024): perigee 0.3633 x 10^6 km (mean perigee).",
+    "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html"
+   }
+  },
+  {
+   "id": "moon_apogee_km",
+   "label": "Moon mean apogee",
+   "value": 405500,
+   "unit": "km",
+   "chip": "literature",
+   "source": {
+    "kind": "literature",
+    "citation": "Williams DR. Moon Fact Sheet. NASA NSSDCA (last updated 11 January 2024): apogee 0.4055 x 10^6 km (mean apogee).",
+    "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html"
+   }
+  }
+ ],
+ "environments": [
+  {
+   "id": "iss",
+   "label": "ISS · low Earth orbit",
+   "kind": "station",
+   "gravity": "microgravity",
+   "eva_type": "microgravity",
+   "gcr_regime": "leo",
+   "dose_snapshot": "hapi_iss_tepc",
+   "noaa_scale_available": true,
+   "comms": {
+    "one_way_light_time_s": {
+     "min": 0.0,
+     "max": 1.0
+    },
+    "conjunction": false,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Relay through geostationary TDRS satellites; the light path is a fraction of a second. 0-1 s is an envelope we chose, not a NASA figure, and excludes ground processing latency."
+    }
+   },
+   "notes": [
+    "NOAA S-scale flux is measured by GOES in geostationary orbit, outside the geomagnetic shielding the ISS orbit enjoys; NOAA's biological text is written for astronauts on EVA."
+   ]
+  },
+  {
+   "id": "cislunar",
+   "label": "Cislunar space · spacecraft",
+   "kind": "spacecraft",
+   "gravity": "microgravity",
+   "eva_type": "microgravity",
+   "gcr_regime": "free_space",
+   "dose_snapshot": "hapi_crater_dose",
+   "noaa_scale_available": true,
+   "comms": {
+    "one_way_light_time_s": {
+     "min": 0.0,
+     "max": 1.5
+    },
+    "conjunction": false,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Envelope for any point between Earth and 450,000 km (beyond the Moon's mean apogee of 405,500 km): 450,000 km / c = 1.50 s. Light time only; relay and processing latency are excluded."
+    }
+   },
+   "notes": [
+    "CRaTER dose is measured by LRO in lunar orbit; it stands in for deep-space dose and is not a dose inside a crewed vehicle."
+   ]
+  },
+  {
+   "id": "lunar_surface",
+   "label": "Lunar surface · base",
+   "kind": "surface",
+   "gravity": "lunar",
+   "eva_type": "surface",
+   "gcr_regime": "planetary_surface",
+   "dose_snapshot": null,
+   "noaa_scale_available": true,
+   "comms": {
+    "one_way_light_time_s": {
+     "min": 1.212,
+     "mean": 1.282,
+     "max": 1.353
+    },
+    "conjunction": false,
+    "chip": "derived",
+    "source": {
+     "kind": "derived",
+     "from": [
+      "moon_perigee_km",
+      "moon_semimajor_axis_km",
+      "moon_apogee_km",
+      "c_speed_of_light"
+     ],
+     "arithmetic": "one-way light time = Earth-Moon distance / c: 363,300 km / 299,792.458 km/s = 1.212 s (mean perigee); 384,400 km / c = 1.282 s (semimajor axis); 405,500 km / c = 1.353 s (mean apogee). Centre-to-centre distance; relay and processing latency excluded."
+    }
+   },
+   "comms_snapshot": "horizons_moon_comms",
+   "notes": [
+    "No lunar-surface dosimetry snapshot is shipped; CRaTER (lunar orbit) is not a surface measurement, so dose_snapshot is null rather than borrowed.",
+    "The min/max above use the Moon's MEAN perigee and apogee. The JPL Horizons snapshot horizons_moon_comms gives the real 2026-2029 series (about 1.19 s to 1.36 s, since actual perigees come closer than the mean); prefer it for time-resolved values."
+   ]
+  },
+  {
+   "id": "mars_surface",
+   "label": "Mars surface · base",
+   "kind": "surface",
+   "gravity": "martian",
+   "eva_type": "surface",
+   "gcr_regime": "planetary_surface",
+   "dose_snapshot": "hapi_msl_rad_dose",
+   "noaa_scale_available": false,
+   "comms": {
+    "one_way_light_time_s": {
+     "from_snapshot": "horizons_mars_comms"
+    },
+    "conjunction": true,
+    "chip": "derived",
+    "source": {
+     "kind": "derived",
+     "from": [
+      "c_speed_of_light"
+     ],
+     "snapshot": "horizons_mars_comms",
+     "arithmetic": "one-way light time = Earth-Mars distance from the JPL Horizons ephemeris snapshot / c, per time step (computed by the ingest adapter, not here)."
+    }
+   },
+   "notes": [
+    "noaa_scale_available is false on purpose: GOES measures near Earth, and during solar conjunction no NOAA alert reaches the crew. The SPE case runs on the onboard monitor ([V2 6164], [V2 6165]).",
+    "The demo replays near-Earth GOES flux as a stand-in for an onboard monitor; at the Mars surface the atmosphere changes the proton flux a monitor would see, so real values would differ."
+   ]
+  }
+ ]
+}

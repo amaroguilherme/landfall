@@ -1,0 +1,1557 @@
+{
+ "schema": "landfall.thresholds/1",
+ "rules": [
+  {
+   "id": "ffd_vo2max_microgravity_eva",
+   "label": "VO2max floor, missions with microgravity EVAs",
+   "variable": "vo2max",
+   "unit": "ml/min/kg",
+   "op": "ge",
+   "limit": 32.9,
+   "category": "FFD",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "iss",
+    "cislunar"
+   ],
+   "applies_to_eva_type": "microgravity",
+   "window": {
+    "kind": "instant"
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": "V1 4001",
+    "section": "4.1.1",
+    "page": 31,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "at or above 32.9 ml⁄min/kg"
+   },
+   "action_id": "aerobic_capacity_review",
+   "case_id": null,
+   "notes": [
+    "'as determined by either direct or indirect measures' (requirement text).",
+    "No approach_at: NASA gives a floor, and we do not invent a margin above it."
+   ]
+  },
+  {
+   "id": "ffd_vo2max_surface_eva",
+   "label": "VO2max floor, missions with extraterrestrial surface EVAs",
+   "variable": "vo2max",
+   "unit": "ml/min/kg",
+   "op": "ge",
+   "limit": 36.5,
+   "category": "FFD",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "lunar_surface",
+    "mars_surface"
+   ],
+   "applies_to_eva_type": "surface",
+   "window": {
+    "kind": "instant"
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": "V1 4002",
+    "section": "4.1.2",
+    "page": 32,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "at or above 36.5 ml⁄min/kg"
+   },
+   "action_id": "aerobic_capacity_review",
+   "case_id": null,
+   "notes": [
+    "The same crewmember can be within [V1 4001] and outside [V1 4002]: the environment decides."
+   ]
+  },
+  {
+   "id": "pol_bmd_hip",
+   "label": "Hip bone mineral density vs pre-mission",
+   "variable": "bmd_hip_pct_preflight",
+   "unit": "% of pre-mission",
+   "op": "ge",
+   "limit": 95,
+   "category": "POL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "ratio_to_baseline",
+    "baseline": "pre-mission",
+    "value_definition": "100 x current / pre-mission (percent, to match the requirement text)"
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": "V1 4027",
+    "section": "4.7.2",
+    "page": 38,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "hip and spine at or above 95% of pre-mission values"
+   },
+   "action_id": "bone_countermeasure_review",
+   "case_id": "renal_stone",
+   "notes": [
+    "The requirement binds countermeasures ('Countermeasures shall maintain ...').",
+    "BMD is measured by DXA before and after flight; there is no in-flight DXA, so in flight this rule is usually insufficient_data.",
+    "Tied to renal_stone because bone resorption raises urinary calcium (Vol 1 Rev C sec. 4.7 introduction)."
+   ]
+  },
+  {
+   "id": "pol_bmd_spine",
+   "label": "Spine bone mineral density vs pre-mission",
+   "variable": "bmd_spine_pct_preflight",
+   "unit": "% of pre-mission",
+   "op": "ge",
+   "limit": 95,
+   "category": "POL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "ratio_to_baseline",
+    "baseline": "pre-mission",
+    "value_definition": "100 x current / pre-mission (percent, to match the requirement text)"
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": "V1 4027",
+    "section": "4.7.2",
+    "page": 38,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "hip and spine at or above 95% of pre-mission values"
+   },
+   "action_id": "bone_countermeasure_review",
+   "case_id": "renal_stone",
+   "notes": [
+    "The requirement binds countermeasures ('Countermeasures shall maintain ...').",
+    "BMD is measured by DXA before and after flight; there is no in-flight DXA, so in flight this rule is usually insufficient_data.",
+    "Tied to renal_stone because bone resorption raises urinary calcium (Vol 1 Rev C sec. 4.7 introduction)."
+   ]
+  },
+  {
+   "id": "pol_bmd_femoral_neck",
+   "label": "Femoral neck bone mineral density vs pre-mission",
+   "variable": "bmd_femoral_neck_pct_preflight",
+   "unit": "% of pre-mission",
+   "op": "ge",
+   "limit": 90,
+   "category": "POL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "ratio_to_baseline",
+    "baseline": "pre-mission",
+    "value_definition": "100 x current / pre-mission (percent, to match the requirement text)"
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": "V1 4027",
+    "section": "4.7.2",
+    "page": 38,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "at or above 90% for the femoral neck"
+   },
+   "action_id": "bone_countermeasure_review",
+   "case_id": "renal_stone",
+   "notes": [
+    "The requirement binds countermeasures ('Countermeasures shall maintain ...').",
+    "BMD is measured by DXA before and after flight; there is no in-flight DXA, so in flight this rule is usually insufficient_data.",
+    "Tied to renal_stone because bone resorption raises urinary calcium (Vol 1 Rev C sec. 4.7 introduction)."
+   ]
+  },
+  {
+   "id": "pel_career_effective_dose",
+   "label": "Career effective dose",
+   "variable": "career_effective_dose",
+   "unit": "mSv",
+   "op": "lt",
+   "limit": 600,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "career"
+   },
+   "approach_at": {
+    "value": 480,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (480 of 600 mSv). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": "V1 4030",
+    "section": "4.8.2",
+    "page": 39,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "shall be less than 600 mSv"
+   },
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Universal for all ages and sexes (requirement text).",
+    "NASA effective dose uses 35-year-old female model parameters for everyone (requirement note). LANDFALL does not compute a personal REID."
+   ]
+  },
+  {
+   "id": "pel_t481_lens_30d",
+   "label": "Lens dose, 30-day limit (Table 4.8-1)",
+   "variable": "dose_lens",
+   "unit": "mGy-Eq",
+   "op": "le",
+   "limit": 1000,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "cumulative",
+    "duration": "P30D"
+   },
+   "approach_at": {
+    "value": 800,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (800 of 1000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Lens",
+    "column": "30_day",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "1,000 mGy-Eq"
+   },
+   "body_region": "eyes",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Footnote *: lens limits are intended to prevent early (<5 years) severe cataracts.",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_lens_1y",
+   "label": "Lens dose, 1-year limit (Table 4.8-1)",
+   "variable": "dose_lens",
+   "unit": "mGy-Eq",
+   "op": "le",
+   "limit": 2000,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "cumulative",
+    "duration": "P1Y"
+   },
+   "approach_at": {
+    "value": 1600,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (1600 of 2000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Lens",
+    "column": "1_year",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "2,000 mGy-Eq"
+   },
+   "body_region": "eyes",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Footnote *: lens limits are intended to prevent early (<5 years) severe cataracts.",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_lens_career",
+   "label": "Lens dose, career limit (Table 4.8-1)",
+   "variable": "dose_lens",
+   "unit": "mGy-Eq",
+   "op": "le",
+   "limit": 4000,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "career"
+   },
+   "approach_at": {
+    "value": 3200,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (3200 of 4000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Lens",
+    "column": "career",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "4,000 mGy-Eq"
+   },
+   "body_region": "eyes",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Footnote *: lens limits are intended to prevent early (<5 years) severe cataracts.",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_skin_30d",
+   "label": "Skin dose, 30-day limit (Table 4.8-1)",
+   "variable": "dose_skin",
+   "unit": "mGy-Eq",
+   "op": "le",
+   "limit": 1500,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "cumulative",
+    "duration": "P30D"
+   },
+   "approach_at": {
+    "value": 1200,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (1200 of 1500 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Skin",
+    "column": "30_day",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "1,500 mGy-Eq"
+   },
+   "body_region": "skin",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_skin_1y",
+   "label": "Skin dose, 1-year limit (Table 4.8-1)",
+   "variable": "dose_skin",
+   "unit": "mGy-Eq",
+   "op": "le",
+   "limit": 3000,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "cumulative",
+    "duration": "P1Y"
+   },
+   "approach_at": {
+    "value": 2400,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (2400 of 3000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Skin",
+    "column": "1_year",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "3,000 mGy-Eq"
+   },
+   "body_region": "skin",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_skin_career",
+   "label": "Skin dose, career limit (Table 4.8-1)",
+   "variable": "dose_skin",
+   "unit": "mGy-Eq",
+   "op": "le",
+   "limit": 6000,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "career"
+   },
+   "approach_at": {
+    "value": 4800,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (4800 of 6000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Skin",
+    "column": "career",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "6,000 mGy-Eq"
+   },
+   "body_region": "skin",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_bfo_30d",
+   "label": "Blood-forming Organs dose, 30-day limit (Table 4.8-1)",
+   "variable": "dose_bfo",
+   "unit": "mGy-Eq",
+   "op": "le",
+   "limit": 250,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "cumulative",
+    "duration": "P30D"
+   },
+   "approach_at": {
+    "value": 200,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (200 of 250 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Blood-forming Organs",
+    "column": "30_day",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "250 mGy-Eq"
+   },
+   "body_region": "blood_forming_organs",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Table 4.8-1 gives no career limit for blood-forming organs ('Not applicable').",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_bfo_1y",
+   "label": "Blood-forming Organs dose, 1-year limit (Table 4.8-1)",
+   "variable": "dose_bfo",
+   "unit": "mGy-Eq",
+   "op": "le",
+   "limit": 500,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "cumulative",
+    "duration": "P1Y"
+   },
+   "approach_at": {
+    "value": 400,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (400 of 500 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Blood-forming Organs",
+    "column": "1_year",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "500 mGy-Eq"
+   },
+   "body_region": "blood_forming_organs",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Table 4.8-1 gives no career limit for blood-forming organs ('Not applicable').",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_circulatory_30d",
+   "label": "Circulatory System dose, 30-day limit (Table 4.8-1)",
+   "variable": "dose_circulatory",
+   "unit": "mGy-Eq",
+   "op": "le",
+   "limit": 250,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "cumulative",
+    "duration": "P30D"
+   },
+   "approach_at": {
+    "value": 200,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (200 of 250 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Circulatory System",
+    "column": "30_day",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "250 mGy-Eq"
+   },
+   "body_region": "heart",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Footnote **: circulatory system doses are calculated as average over heart muscle and adjacent arteries. There is no 'heart' row in Table 4.8-1.",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_circulatory_1y",
+   "label": "Circulatory System dose, 1-year limit (Table 4.8-1)",
+   "variable": "dose_circulatory",
+   "unit": "mGy-Eq",
+   "op": "le",
+   "limit": 500,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "cumulative",
+    "duration": "P1Y"
+   },
+   "approach_at": {
+    "value": 400,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (400 of 500 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Circulatory System",
+    "column": "1_year",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "500 mGy-Eq"
+   },
+   "body_region": "heart",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Footnote **: circulatory system doses are calculated as average over heart muscle and adjacent arteries. There is no 'heart' row in Table 4.8-1.",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_circulatory_career",
+   "label": "Circulatory System dose, career limit (Table 4.8-1)",
+   "variable": "dose_circulatory",
+   "unit": "mGy-Eq",
+   "op": "le",
+   "limit": 1000,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "career"
+   },
+   "approach_at": {
+    "value": 800,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (800 of 1000 mGy-Eq). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Circulatory System",
+    "column": "career",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "1000 mGy-Eq"
+   },
+   "body_region": "heart",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Footnote **: circulatory system doses are calculated as average over heart muscle and adjacent arteries. There is no 'heart' row in Table 4.8-1.",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_cns_30d",
+   "label": "Central Nervous System dose, 30-day limit (Table 4.8-1)",
+   "variable": "dose_cns",
+   "unit": "mGy",
+   "op": "le",
+   "limit": 500,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "cumulative",
+    "duration": "P30D"
+   },
+   "approach_at": {
+    "value": 400,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (400 of 500 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Central Nervous System",
+    "column": "30_day",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "500 mGy"
+   },
+   "body_region": "brain",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Footnote ***: Central Nervous System limits are to be calculated at the hippocampus.",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_cns_1y",
+   "label": "Central Nervous System dose, 1-year limit (Table 4.8-1)",
+   "variable": "dose_cns",
+   "unit": "mGy",
+   "op": "le",
+   "limit": 1000,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "cumulative",
+    "duration": "P1Y"
+   },
+   "approach_at": {
+    "value": 800,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (800 of 1000 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Central Nervous System",
+    "column": "1_year",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "1,000 mGy"
+   },
+   "body_region": "brain",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Footnote ***: Central Nervous System limits are to be calculated at the hippocampus.",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_cns_career",
+   "label": "Central Nervous System dose, career limit (Table 4.8-1)",
+   "variable": "dose_cns",
+   "unit": "mGy",
+   "op": "le",
+   "limit": 1500,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "career"
+   },
+   "approach_at": {
+    "value": 1200,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (1200 of 1500 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Central Nervous System",
+    "column": "career",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "1,500 mGy"
+   },
+   "body_region": "brain",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Footnote ***: Central Nervous System limits are to be calculated at the hippocampus.",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_cns_z10_1y",
+   "label": "Central Nervous System (Z≥10) dose, 1-year limit (Table 4.8-1)",
+   "variable": "dose_cns_z10",
+   "unit": "mGy",
+   "op": "le",
+   "limit": 100,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "cumulative",
+    "duration": "P1Y"
+   },
+   "approach_at": {
+    "value": 80,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (80 of 100 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Central Nervous System (Z≥10)",
+    "column": "1_year",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "100 mGy"
+   },
+   "body_region": "brain",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Footnote ***: calculated at the hippocampus. Table 4.8-1 gives no 30-day limit for Z>=10 ('-').",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_t481_cns_z10_career",
+   "label": "Central Nervous System (Z≥10) dose, career limit (Table 4.8-1)",
+   "variable": "dose_cns_z10",
+   "unit": "mGy",
+   "op": "le",
+   "limit": 250,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "career"
+   },
+   "approach_at": {
+    "value": 200,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (200 of 250 mGy). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": null,
+    "table": "Table 4.8-1",
+    "row": "Central Nervous System (Z≥10)",
+    "column": "career",
+    "section": "4.8",
+    "page": 40,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "250 mGy"
+   },
+   "body_region": "brain",
+   "action_id": "radiation_dose_review",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
+    "Footnote ***: calculated at the hippocampus. Table 4.8-1 gives no 30-day limit for Z>=10 ('-').",
+    "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
+    "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
+   ]
+  },
+  {
+   "id": "pel_cabin_ppco2_1h",
+   "label": "Cabin ppCO2, one-hour average",
+   "variable": "cabin_ppco2",
+   "unit": "mmHg",
+   "op": "le",
+   "limit": 3,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "rolling_mean",
+    "duration": "PT1H"
+   },
+   "approach_at": {
+    "value": 2.4,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (2.4 of 3 mmHg). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+    "requirement_id": "V2 6004",
+    "section": "6.2.1.3",
+    "page": 53,
+    "url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf",
+    "snapshot": "std_vol2_requirements",
+    "verbatim": "to no more than 3 mmHg"
+   },
+   "action_id": "co2_review",
+   "case_id": null,
+   "notes": [
+    "Three CO2 windows are easy to confuse: this NASA standard is a 1-hour average. The ISS flight rule (24-hour average) and research findings (7-day average) are different numbers and are not used here.",
+    "Category PEL is assigned by shape (a ceiling on exposure over a time window). NASA-STD-3001 Vol 2 does not itself label [V2 6004] a PEL.",
+    "The defensible health claim is headache risk; LANDFALL makes no claim that CO2 causes a cognitive deficit.",
+    "The value comes from the vehicle (ECLSS); the vehicle caution and warning system owns any alarm."
+   ]
+  },
+  {
+   "id": "pel_suit_pico2_contingency",
+   "label": "Spacesuit inspired CO2, contingency (partial gravity)",
+   "variable": "suit_pico2",
+   "unit": "mmHg",
+   "op": "le",
+   "limit": 20,
+   "category": "PEL",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "lunar_surface",
+    "mars_surface"
+   ],
+   "window": {
+    "kind": "instant",
+    "max_duration": "PT1H"
+   },
+   "approach_at": {
+    "value": 16,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "80% of the limit (16 of 20 mmHg). LANDFALL uses the same 80% convention for every ceiling; NASA publishes no 'approaching' level."
+    }
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+    "requirement_id": "V2 11040",
+    "section": "11.3.6",
+    "page": 240,
+    "url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf",
+    "snapshot": "std_vol2_requirements",
+    "verbatim": "shall not exceed 20 mmHg during contingency scenarios up to a duration of 1-hour"
+   },
+   "action_id": "suit_co2_review",
+   "case_id": null,
+   "notes": [
+    "Section title: 'Contingency Spacesuit Carbon Dioxide Levels for Partial Gravity Scenarios', so this rule applies to surface environments only.",
+    "Rationale note: 'to be used only during contingency scenarios where crew life is in jeopardy'. The suit's own caution and warning system owns the alarm.",
+    "Category PEL is assigned by shape; Vol 2 does not label it a PEL."
+   ]
+  },
+  {
+   "id": "ctx_spe_design_reference",
+   "label": "Vehicle SPE protection (design reference: Oct 1989 events)",
+   "variable": "spe_design_effective_dose",
+   "unit": "mSv",
+   "op": "lt",
+   "limit": 250,
+   "category": "PEL",
+   "tier": "A",
+   "role": "context",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "cumulative",
+    "duration": null,
+    "basis": "design reference SPE environment proton energy spectrum (sum of the October 1989 events)"
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": "V1 4031",
+    "section": "4.8.3",
+    "page": 41,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "less than an effective dose of 250 mSv"
+   },
+   "action_id": null,
+   "case_id": "spe_shelter",
+   "notes": [
+    "A vehicle design requirement on the program, not a crew-dose alert. Shown, never fires."
+   ]
+  },
+  {
+   "id": "ctx_nuclear_tech_dose",
+   "label": "Dose from onboard nuclear technologies",
+   "variable": "nuclear_tech_effective_dose",
+   "unit": "mSv per mission year",
+   "op": "lt",
+   "limit": 20,
+   "category": "PEL",
+   "tier": "A",
+   "role": "context",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "cumulative",
+    "duration": "P1Y",
+    "basis": "per mission year, prorated/extrapolated"
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": "V1 4032",
+    "section": "4.8.4",
+    "page": 42,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "less than an effective dose of 20 mSv per mission year"
+   },
+   "action_id": null,
+   "case_id": null,
+   "notes": [
+    "Design requirement for radioisotope power systems, fission reactors, etc. Shown, never fires."
+   ]
+  },
+  {
+   "id": "ctx_gcr_free_space",
+   "label": "GCR design dose rate, systems in free space",
+   "variable": "gcr_effective_dose_rate",
+   "unit": "mSv/day",
+   "op": "lt",
+   "limit": 1.3,
+   "category": "PEL",
+   "tier": "A",
+   "role": "context",
+   "applies_to": [
+    "cislunar"
+   ],
+   "window": {
+    "kind": "instant",
+    "basis": "design dose rate from the 2009 solar-minimum Badhwar-O'Neill GCR spectrum"
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": "V1 4033",
+    "section": "4.8.5",
+    "page": 44,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "rate of 1.3 mSv/day for systems in free space"
+   },
+   "action_id": null,
+   "case_id": null,
+   "notes": [
+    "For habitable systems designed to support crew for > 60 days, beyond low Earth orbit (rationale). Not applicable to the ISS."
+   ]
+  },
+  {
+   "id": "ctx_gcr_planetary_surface",
+   "label": "GCR design dose rate, systems on planetary surfaces",
+   "variable": "gcr_effective_dose_rate",
+   "unit": "mSv/day",
+   "op": "lt",
+   "limit": 0.9,
+   "category": "PEL",
+   "tier": "A",
+   "role": "context",
+   "applies_to": [
+    "lunar_surface",
+    "mars_surface"
+   ],
+   "window": {
+    "kind": "instant",
+    "basis": "design dose rate from the 2009 solar-minimum Badhwar-O'Neill GCR spectrum"
+   },
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "requirement_id": "V1 4033",
+    "section": "4.8.5",
+    "page": 44,
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+    "snapshot": "std_vol1_requirements",
+    "verbatim": "less than 0.9 mSv/day for systems on planetary surfaces"
+   },
+   "action_id": null,
+   "case_id": null,
+   "notes": [
+    "For habitable systems designed to support crew for > 60 days (requirement text)."
+   ]
+  },
+  {
+   "id": "ops_noaa_s1",
+   "label": "NOAA S1 (Minor) solar radiation storm",
+   "variable": "proton_flux_10mev",
+   "unit": "pfu",
+   "op": "lt",
+   "limit": 10,
+   "category": "OPS",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "iss",
+    "cislunar",
+    "lunar_surface"
+   ],
+   "window": {
+    "kind": "instant",
+    "basis": "NOAA: flux levels are 5-minute averages"
+   },
+   "s_level": 1,
+   "descriptor": "Minor",
+   "threshold_as_printed": "10",
+   "biological_text": "None.",
+   "chip": "NOAA-published",
+   "source": {
+    "kind": "noaa",
+    "doc": "NOAA Space Weather Scales (Solar Radiation Storms)",
+    "url": "https://www.swpc.noaa.gov/noaa-scales-explanation",
+    "snapshot": "swpc_s_scale",
+    "level": "S1",
+    "verbatim": "None."
+   },
+   "action_id": null,
+   "case_id": "spe_shelter",
+   "notes": [
+    "Compliant (within) while the >=10 MeV integral proton flux is below this level; 'outside' means S1 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID."
+   ]
+  },
+  {
+   "id": "ops_noaa_s2",
+   "label": "NOAA S2 (Moderate) solar radiation storm",
+   "variable": "proton_flux_10mev",
+   "unit": "pfu",
+   "op": "lt",
+   "limit": 100,
+   "category": "OPS",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "iss",
+    "cislunar",
+    "lunar_surface"
+   ],
+   "window": {
+    "kind": "instant",
+    "basis": "NOAA: flux levels are 5-minute averages"
+   },
+   "s_level": 2,
+   "descriptor": "Moderate",
+   "threshold_as_printed": "10^2",
+   "biological_text": "Passengers and crew in high-flying aircraft at high latitudes may be exposed to elevated radiation risk.",
+   "chip": "NOAA-published",
+   "source": {
+    "kind": "noaa",
+    "doc": "NOAA Space Weather Scales (Solar Radiation Storms)",
+    "url": "https://www.swpc.noaa.gov/noaa-scales-explanation",
+    "snapshot": "swpc_s_scale",
+    "level": "S2",
+    "verbatim": "Passengers and crew in high-flying aircraft at high latitudes may be exposed to elevated radiation risk."
+   },
+   "action_id": null,
+   "case_id": "spe_shelter",
+   "notes": [
+    "Compliant (within) while the >=10 MeV integral proton flux is below this level; 'outside' means S2 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID."
+   ]
+  },
+  {
+   "id": "ops_noaa_s3",
+   "label": "NOAA S3 (Strong) solar radiation storm",
+   "variable": "proton_flux_10mev",
+   "unit": "pfu",
+   "op": "lt",
+   "limit": 1000,
+   "category": "OPS",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "iss",
+    "cislunar",
+    "lunar_surface"
+   ],
+   "window": {
+    "kind": "instant",
+    "basis": "NOAA: flux levels are 5-minute averages"
+   },
+   "s_level": 3,
+   "descriptor": "Strong",
+   "threshold_as_printed": "10^3",
+   "biological_text": "Radiation hazard avoidance recommended for astronauts on EVA; passengers and crew in high-flying aircraft at high latitudes may be exposed to radiation risk.",
+   "chip": "NOAA-published",
+   "source": {
+    "kind": "noaa",
+    "doc": "NOAA Space Weather Scales (Solar Radiation Storms)",
+    "url": "https://www.swpc.noaa.gov/noaa-scales-explanation",
+    "snapshot": "swpc_s_scale",
+    "level": "S3",
+    "verbatim": "Radiation hazard avoidance recommended for astronauts on EVA; passengers and crew in high-flying aircraft at high latitudes may be exposed to radiation risk."
+   },
+   "action_id": "spe_shelter",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Compliant (within) while the >=10 MeV integral proton flux is below this level; 'outside' means S3 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID."
+   ]
+  },
+  {
+   "id": "ops_noaa_s4",
+   "label": "NOAA S4 (Severe) solar radiation storm",
+   "variable": "proton_flux_10mev",
+   "unit": "pfu",
+   "op": "lt",
+   "limit": 10000,
+   "category": "OPS",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "iss",
+    "cislunar",
+    "lunar_surface"
+   ],
+   "window": {
+    "kind": "instant",
+    "basis": "NOAA: flux levels are 5-minute averages"
+   },
+   "s_level": 4,
+   "descriptor": "Severe",
+   "threshold_as_printed": "10^4",
+   "biological_text": "Unavoidable radiation hazard to astronauts on EVA; passengers and crew in high-flying aircraft at high latitudes may be exposed to radiation risk.",
+   "chip": "NOAA-published",
+   "source": {
+    "kind": "noaa",
+    "doc": "NOAA Space Weather Scales (Solar Radiation Storms)",
+    "url": "https://www.swpc.noaa.gov/noaa-scales-explanation",
+    "snapshot": "swpc_s_scale",
+    "level": "S4",
+    "verbatim": "Unavoidable radiation hazard to astronauts on EVA; passengers and crew in high-flying aircraft at high latitudes may be exposed to radiation risk."
+   },
+   "action_id": "spe_shelter",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Compliant (within) while the >=10 MeV integral proton flux is below this level; 'outside' means S4 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID."
+   ]
+  },
+  {
+   "id": "ops_noaa_s5",
+   "label": "NOAA S5 (Extreme) solar radiation storm",
+   "variable": "proton_flux_10mev",
+   "unit": "pfu",
+   "op": "lt",
+   "limit": 100000,
+   "category": "OPS",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "iss",
+    "cislunar",
+    "lunar_surface"
+   ],
+   "window": {
+    "kind": "instant",
+    "basis": "NOAA: flux levels are 5-minute averages"
+   },
+   "s_level": 5,
+   "descriptor": "Extreme",
+   "threshold_as_printed": "10^5",
+   "biological_text": "Unavoidable high radiation hazard to astronauts on EVA (extra-vehicular activity); passengers and crew in high-flying aircraft at high latitudes may be exposed to radiation risk.",
+   "chip": "NOAA-published",
+   "source": {
+    "kind": "noaa",
+    "doc": "NOAA Space Weather Scales (Solar Radiation Storms)",
+    "url": "https://www.swpc.noaa.gov/noaa-scales-explanation",
+    "snapshot": "swpc_s_scale",
+    "level": "S5",
+    "verbatim": "Unavoidable high radiation hazard to astronauts on EVA (extra-vehicular activity); passengers and crew in high-flying aircraft at high latitudes may be exposed to radiation risk."
+   },
+   "action_id": "spe_shelter",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Compliant (within) while the >=10 MeV integral proton flux is below this level; 'outside' means S5 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID."
+   ]
+  },
+  {
+   "id": "ops_onboard_proton_s3",
+   "label": "Onboard monitor: >=10 MeV protons at NOAA S3 level (Mars)",
+   "variable": "proton_flux_10mev",
+   "unit": "pfu",
+   "op": "lt",
+   "limit": 1000,
+   "category": "OPS",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "mars_surface"
+   ],
+   "window": {
+    "kind": "instant"
+   },
+   "s_level": 3,
+   "descriptor": "Strong (NOAA threshold reused)",
+   "chip": "design choice",
+   "source": {
+    "kind": "design_choice",
+    "rationale": "[V2 6164] requires the radiation monitoring system to alert the crew 'when radiation exposure rates exceed predefined thresholds' and leaves the threshold to the program. At Mars no NOAA alert reaches the crew, so LANDFALL reuses NOAA's S3 threshold (10^3 pfu at >=10 MeV, rule ops_noaa_s3) on the onboard proton monitor ([V2 6165]). NOAA does not define its scale away from Earth; applying it at Mars is ours."
+   },
+   "derived_from_rule": "ops_noaa_s3",
+   "action_id": "spe_shelter",
+   "case_id": "spe_shelter",
+   "notes": [
+    "Same variable as the NOAA rules; applies_to keeps exactly one of the two rule sets active."
+   ]
+  },
+  {
+   "id": "target_urine_output_24h",
+   "label": "24-h urine output (renal stone case)",
+   "variable": "urine_volume_24h",
+   "unit": "mL",
+   "op": "ge",
+   "limit": 1500,
+   "category": "TARGET",
+   "tier": "A",
+   "role": "alert",
+   "applies_to": [
+    "*"
+   ],
+   "window": {
+    "kind": "cumulative",
+    "duration": "P1D"
+   },
+   "approach_at": {
+    "value": 2500,
+    "chip": "literature",
+    "source": {
+     "kind": "literature",
+     "citation": "Stratton E, Lumpkins S, Antonsen E. Evidence Report: Risk of Renal Stone Formation. NASA Human Research Program, Exploration Medical Capabilities Element, Lyndon B. Johnson Space Center, Houston, TX. Approved for public release September 23, 2024. NTRS 20240012429.",
+     "url": "https://ntrs.nasa.gov/citations/20240012429",
+     "page": 13,
+     "verbatim": "the risk for renal stone development increases when urinary volume drops below 1.5 liters/day; therefore, an effective hydration countermeasure should be sufficient to produce 2.5-3 liters/day of urine volume (Kassemi and Thompson 2016b)",
+     "note": "NASA-authored HRP evidence report, not a standard: it carries no requirement ID. The scanned 2024 PDF was read by OCR; the identical sentence is machine-readable in the 2017 edition (Sibonga JD, Pietrzyk R. Evidence Report: Risk of Renal Stone Formation. NASA HRP, approved for public release May 15, 2017. NTRS 20170004709, p. 14). The underlying source is the Kassemi and Thompson 2016 model cited there."
+    },
+    "rationale": "Below 2,500 mL/day the hydration countermeasure is short of its 2.5-3 L/day target (same sentence)."
+   },
+   "max_severity": "caution",
+   "chip": "literature",
+   "source": {
+    "kind": "literature",
+    "citation": "Stratton E, Lumpkins S, Antonsen E. Evidence Report: Risk of Renal Stone Formation. NASA Human Research Program, Exploration Medical Capabilities Element, Lyndon B. Johnson Space Center, Houston, TX. Approved for public release September 23, 2024. NTRS 20240012429.",
+    "url": "https://ntrs.nasa.gov/citations/20240012429",
+    "page": 13,
+    "verbatim": "the risk for renal stone development increases when urinary volume drops below 1.5 liters/day; therefore, an effective hydration countermeasure should be sufficient to produce 2.5-3 liters/day of urine volume (Kassemi and Thompson 2016b)",
+    "note": "NASA-authored HRP evidence report, not a standard: it carries no requirement ID. The scanned 2024 PDF was read by OCR; the identical sentence is machine-readable in the 2017 edition (Sibonga JD, Pietrzyk R. Evidence Report: Risk of Renal Stone Formation. NASA HRP, approved for public release May 15, 2017. NTRS 20170004709, p. 14). The underlying source is the Kassemi and Thompson 2016 model cited there."
+   },
+   "action_id": "hydration",
+   "case_id": "renal_stone",
+   "notes": [
+    "Not a NASA standard and not a NASA alert threshold: the numbers come from a NASA HRP evidence report. Outside = below 1,500 mL/day (where the report says stone risk rises); approaching = below 2,500 mL/day (short of the 2.5-3 L/day countermeasure target).",
+    "A '> 2 L/day' urine target that circulates informally was not found in any NASA text we read and is not used.",
+    "Context: [V2 6109] Table 6.3-1 requires the vehicle to provide a minimum of 2.5 L of potable water for hydration per crewmember per day.",
+    "Capped at caution: a low-urine day is something to act on, not a warning."
+   ]
+  }
+ ],
+ "constants": [
+  {
+   "id": "lang2004_spine_abmd_loss",
+   "label": "Spine areal BMD loss rate, ISS 4-6 month flights",
+   "value": 0.9,
+   "unit": "%/month",
+   "chip": "literature",
+   "source": {
+    "kind": "literature",
+    "citation": "Lang T, LeBlanc A, Evans H, Lu Y, Genant H, Yu A. Cortical and trabecular bone mineral loss from the spine and hip in long-duration spaceflight. J Bone Miner Res 2004;19(6):1006-1012. doi:10.1359/JBMR.040307. PMID 15125798",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/15125798/",
+    "verbatim": "aBMD was lost at rates of 0.9%/month at the spine"
+   }
+  },
+  {
+   "id": "lang2004_hip_abmd_loss",
+   "label": "Hip areal BMD loss rate, ISS 4-6 month flights",
+   "value": {
+    "min": 1.4,
+    "max": 1.5
+   },
+   "unit": "%/month",
+   "chip": "literature",
+   "source": {
+    "kind": "literature",
+    "citation": "Lang T, LeBlanc A, Evans H, Lu Y, Genant H, Yu A. Cortical and trabecular bone mineral loss from the spine and hip in long-duration spaceflight. J Bone Miner Res 2004;19(6):1006-1012. doi:10.1359/JBMR.040307. PMID 15125798",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/15125798/",
+    "verbatim": "1.4-1.5%/month at the hip"
+   }
+  },
+  {
+   "id": "v2_6109_potable_water_hydration",
+   "label": "Vehicle minimum potable water for hydration",
+   "value": 2.5,
+   "unit": "L per crewmember per day",
+   "chip": "NASA-published",
+   "source": {
+    "kind": "nasa_standard",
+    "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+    "requirement_id": "V2 6109",
+    "section": "6.3.2",
+    "page": 71,
+    "url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf",
+    "snapshot": "std_vol2_requirements",
+    "verbatim": "Minimum 2.5 L (84.5 fl oz) per crewmember per day",
+    "table": "Table 6.3-1"
+   }
+  }
+ ]
+}

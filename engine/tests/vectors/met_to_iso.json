@@ -1,0 +1,47 @@
+[
+ {
+  "args": {
+   "mission_epoch": "2035-01-01T00:00:00Z",
+   "t": 1000000000000.0
+  },
+  "fn": "met_to_iso",
+  "name": "rejects_year_above_9999",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "mission_epoch": "2035-01-01T00:00:00Z",
+   "t": 0
+  },
+  "expect": "2035-01-01T00:00:00Z",
+  "fn": "met_to_iso",
+  "name": "epoch"
+ },
+ {
+  "args": {
+   "mission_epoch": "2035-01-01T00:00:00Z",
+   "t": 35648400
+  },
+  "expect": "2036-02-17T14:20:00Z",
+  "fn": "met_to_iso",
+  "name": "demo_now"
+ },
+ {
+  "args": {
+   "mission_epoch": "2035-01-01T00:00:00Z",
+   "t": 1.5
+  },
+  "fn": "met_to_iso",
+  "name": "rejects_fractional_met",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "mission_epoch": "2035-01-01T00:00:00+00:00",
+   "t": 0
+  },
+  "fn": "met_to_iso",
+  "name": "rejects_offset_epoch",
+  "raises": "invalid_argument"
+ }
+]

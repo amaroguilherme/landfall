@@ -1,0 +1,106 @@
+[
+ {
+  "args": {
+   "flux_pfu": 0
+  },
+  "expect": 0,
+  "fn": "s_level",
+  "name": "flux_0"
+ },
+ {
+  "args": {
+   "flux_pfu": 9.99
+  },
+  "expect": 0,
+  "fn": "s_level",
+  "name": "flux_9.99"
+ },
+ {
+  "args": {
+   "flux_pfu": 10
+  },
+  "expect": 1,
+  "fn": "s_level",
+  "name": "flux_10"
+ },
+ {
+  "args": {
+   "flux_pfu": 99.9
+  },
+  "expect": 1,
+  "fn": "s_level",
+  "name": "flux_99.9"
+ },
+ {
+  "args": {
+   "flux_pfu": 100
+  },
+  "expect": 2,
+  "fn": "s_level",
+  "name": "flux_100"
+ },
+ {
+  "args": {
+   "flux_pfu": 999.999
+  },
+  "expect": 2,
+  "fn": "s_level",
+  "name": "flux_999.999"
+ },
+ {
+  "args": {
+   "flux_pfu": 1000.0
+  },
+  "expect": 3,
+  "fn": "s_level",
+  "name": "flux_1000.0"
+ },
+ {
+  "args": {
+   "flux_pfu": 10000.0
+  },
+  "expect": 4,
+  "fn": "s_level",
+  "name": "flux_10000.0"
+ },
+ {
+  "args": {
+   "flux_pfu": 99999.9
+  },
+  "expect": 4,
+  "fn": "s_level",
+  "name": "flux_99999.9"
+ },
+ {
+  "args": {
+   "flux_pfu": 100000.0
+  },
+  "expect": 5,
+  "fn": "s_level",
+  "name": "flux_100000.0"
+ },
+ {
+  "args": {
+   "flux_pfu": 10000000.0
+  },
+  "expect": 5,
+  "fn": "s_level",
+  "name": "flux_10000000.0"
+ },
+ {
+  "args": {
+   "flux_pfu": -1
+  },
+  "expect": 0,
+  "fn": "s_level",
+  "name": "flux_-1"
+ },
+ {
+  "args": {
+   "flux_pfu": null
+  },
+  "fn": "s_level",
+  "name": "rejects_null",
+  "raises": "invalid_argument"
+ }
+]

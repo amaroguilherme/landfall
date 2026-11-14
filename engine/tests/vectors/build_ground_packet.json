@@ -1,0 +1,4004 @@
+[
+ {
+  "args": {
+   "case_state": {
+    "case_id": "sleep_circadian",
+    "closed_at": 35907900,
+    "countermeasure_id": "cm_primary",
+    "crew_id": "CM-1",
+    "dismiss_reason": null,
+    "finding": {
+     "action_id": null,
+     "approach_at": null,
+     "case_id": "sleep_circadian",
+     "category": "PERSONAL",
+     "chip": "literature",
+     "direction": "increase",
+     "env_id": null,
+     "limit": 3.240788695654045,
+     "margin": -4.759211304345955,
+     "op": null,
+     "private": false,
+     "rci": {
+      "critical_z": 3.29,
+      "mean": 1.7857142857142858,
+      "n": 14,
+      "r": 0.8,
+      "r_chip": "design choice",
+      "r_source": {
+       "kind": "design_choice",
+       "rationale": "fixture"
+      },
+      "rc": 14.050827820445576,
+      "reason": null,
+      "reliable": true,
+      "s_diff": 0.44227185712454686,
+      "sd": 0.6992932067530679,
+      "sem": 0.31273342930073494
+     },
+     "role": "alert",
+     "rule_id": "pvt_lapses",
+     "severity": "caution",
+     "source": {
+      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "kind": "literature"
+     },
+     "status": "reliable_change",
+     "t": 35648400,
+     "tier": "B",
+     "unit": "count",
+     "value": 8,
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "worse": "increase"
+    },
+    "log": [
+     {
+      "detail": "opened by pvt_lapses (reliable_change, caution)",
+      "error": null,
+      "event": "OPEN",
+      "from": "idle",
+      "t": 35648400,
+      "to": "detected"
+     },
+     {
+      "detail": "selected cm_primary (primary)",
+      "error": null,
+      "event": "SELECT",
+      "from": "detected",
+      "t": 35648460,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_1 done (1 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648520,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 done (2 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648580,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 already done",
+      "error": "duplicate_step",
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648600,
+      "to": "acting"
+     },
+     {
+      "detail": "outcome recorded; reassess at 35907900 (2 of 3 steps done)",
+      "error": null,
+      "event": "OUTCOME",
+      "from": "acting",
+      "t": 35648700,
+      "to": "watch"
+     },
+     {
+      "detail": "1 new observation(s): 1 of last 1 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35691900,
+      "to": "watch"
+     },
+     {
+      "detail": "2 new observation(s): 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35778300,
+      "to": "watch"
+     },
+     {
+      "detail": "reassessed: tripwire 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); queued for flight-surgeon review",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35907900,
+      "to": "escalated"
+     }
+    ],
+    "opened_at": 35648400,
+    "outcome": {
+     "t": 35648700,
+     "text": "Shifted light schedule; nap taken."
+    },
+    "reassess_at": 35907900,
+    "schema": "landfall.case_state/1",
+    "spec": {
+     "case_id": "sleep_circadian",
+     "countermeasure_ids": [
+      "cm_primary",
+      "cm_alt_1"
+     ],
+     "escalation": {
+      "ground_packet": true,
+      "observations": [
+       "pvt_lapses",
+       "sleep_duration",
+       "resting_hr",
+       "skin_temp",
+       "mood"
+      ]
+     },
+     "step_ids": [
+      "step_1",
+      "step_2",
+      "step_3"
+     ],
+     "trigger_ids": [
+      "pvt_lapses",
+      "sleep_duration"
+     ],
+     "tripwire": {
+      "condition": {
+       "at_least": 2,
+       "of_last_n": 3,
+       "op": "ge",
+       "unit": "count",
+       "value": 4,
+       "variable": "pvt_lapses"
+      },
+      "reassess_after_s": 259200
+     }
+    },
+    "status": "escalated",
+    "steps_done": [
+     {
+      "input": null,
+      "step_id": "step_1",
+      "t": 35648520
+     },
+     {
+      "input": {
+       "unit": "h",
+       "value": 6.5,
+       "variable": "sleep_duration"
+      },
+      "step_id": "step_2",
+      "t": 35648580
+     }
+    ],
+    "tripwire_obs": [
+     {
+      "t": 35691900,
+      "value": 6
+     },
+     {
+      "t": 35735100,
+      "value": 3
+     },
+     {
+      "t": 35778300,
+      "value": 5
+     }
+    ],
+    "tripwire_result": {
+     "at_least": 2,
+     "considered": 3,
+     "hits": 2,
+     "of_last_n": 3,
+     "tripped": true
+    },
+    "updated_at": 35907900,
+    "watch_started_at": 35648700
+   },
+   "consent": {},
+   "env_id": "mars_surface",
+   "mission_epoch": "2035-01-01T00:00:00Z",
+   "observations": [
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "app",
+     "t": 35691900,
+     "unit": "count",
+     "value": 6,
+     "variable": "pvt_lapses"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "band",
+     "t": 35691400,
+     "unit": "bpm",
+     "value": 58,
+     "variable": "resting_hr"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "app",
+     "t": 35691400,
+     "unit": "score_1_5",
+     "value": 2,
+     "variable": "mood"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "band",
+     "t": 35691400,
+     "unit": "°C",
+     "value": 33.2,
+     "variable": "skin_temp"
+    },
+    {
+     "crew_id": "CM-2",
+     "t": 35691400,
+     "unit": "bpm",
+     "value": 61,
+     "variable": "resting_hr"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 35691400,
+     "unit": "mL",
+     "value": 1480,
+     "variable": "urine_volume_24h"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 36512400,
+     "unit": "count",
+     "value": 7,
+     "variable": "pvt_lapses"
+    }
+   ],
+   "t": 35821200
+  },
+  "expect": {
+   "entry": [
+    {
+     "resource": {
+      "category": [
+       {
+        "coding": [
+         {
+          "code": "vital-signs",
+          "display": "Vital Signs",
+          "system": "http://terminology.hl7.org/CodeSystem/observation-category"
+         }
+        ],
+        "text": "Vital Signs"
+       }
+      ],
+      "code": {
+       "coding": [
+        {
+         "code": "8867-4",
+         "display": "Heart rate",
+         "system": "http://loinc.org"
+        }
+       ],
+       "text": "Heart rate"
+      },
+      "effectiveDateTime": "2036-02-18T02:16:40Z",
+      "id": "CM-1-resting-hr-35691400",
+      "meta": {
+       "profile": [
+        "http://hl7.org/fhir/StructureDefinition/vitalsigns"
+       ],
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-band",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "/min",
+       "system": "http://unitsofmeasure.org",
+       "unit": "beats/minute",
+       "value": 58
+      }
+     }
+    },
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "skin_temp",
+         "display": "Skin temperature",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "Skin temperature"
+      },
+      "effectiveDateTime": "2036-02-18T02:16:40Z",
+      "id": "CM-1-skin-temp-35691400",
+      "meta": {
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-band",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "Cel",
+       "system": "http://unitsofmeasure.org",
+       "unit": "°C",
+       "value": 33.2
+      }
+     }
+    },
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "pvt_lapses",
+         "display": "PVT-B lapses",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "PVT-B lapses"
+      },
+      "effectiveDateTime": "2036-02-18T02:25:00Z",
+      "id": "CM-1-pvt-lapses-35691900",
+      "meta": {
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-app",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "{count}",
+       "system": "http://unitsofmeasure.org",
+       "unit": "count",
+       "value": 6
+      }
+     }
+    }
+   ],
+   "id": "landfall-sleep-circadian-CM-1-35821200",
+   "meta": {
+    "tag": [
+     {
+      "code": "ground-packet",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "case-sleep_circadian",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "case-status-escalated",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "environment-mars_surface",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     }
+    ]
+   },
+   "resourceType": "Bundle",
+   "timestamp": "2036-02-19T14:20:00Z",
+   "type": "collection"
+  },
+  "fn": "build_ground_packet",
+  "name": "default_consent_mood_excluded"
+ },
+ {
+  "args": {
+   "case_state": {
+    "case_id": "sleep_circadian",
+    "closed_at": 35907900,
+    "countermeasure_id": "cm_primary",
+    "crew_id": "CM-1",
+    "dismiss_reason": null,
+    "finding": {
+     "action_id": null,
+     "approach_at": null,
+     "case_id": "sleep_circadian",
+     "category": "PERSONAL",
+     "chip": "literature",
+     "direction": "increase",
+     "env_id": null,
+     "limit": 3.240788695654045,
+     "margin": -4.759211304345955,
+     "op": null,
+     "private": false,
+     "rci": {
+      "critical_z": 3.29,
+      "mean": 1.7857142857142858,
+      "n": 14,
+      "r": 0.8,
+      "r_chip": "design choice",
+      "r_source": {
+       "kind": "design_choice",
+       "rationale": "fixture"
+      },
+      "rc": 14.050827820445576,
+      "reason": null,
+      "reliable": true,
+      "s_diff": 0.44227185712454686,
+      "sd": 0.6992932067530679,
+      "sem": 0.31273342930073494
+     },
+     "role": "alert",
+     "rule_id": "pvt_lapses",
+     "severity": "caution",
+     "source": {
+      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "kind": "literature"
+     },
+     "status": "reliable_change",
+     "t": 35648400,
+     "tier": "B",
+     "unit": "count",
+     "value": 8,
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "worse": "increase"
+    },
+    "log": [
+     {
+      "detail": "opened by pvt_lapses (reliable_change, caution)",
+      "error": null,
+      "event": "OPEN",
+      "from": "idle",
+      "t": 35648400,
+      "to": "detected"
+     },
+     {
+      "detail": "selected cm_primary (primary)",
+      "error": null,
+      "event": "SELECT",
+      "from": "detected",
+      "t": 35648460,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_1 done (1 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648520,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 done (2 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648580,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 already done",
+      "error": "duplicate_step",
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648600,
+      "to": "acting"
+     },
+     {
+      "detail": "outcome recorded; reassess at 35907900 (2 of 3 steps done)",
+      "error": null,
+      "event": "OUTCOME",
+      "from": "acting",
+      "t": 35648700,
+      "to": "watch"
+     },
+     {
+      "detail": "1 new observation(s): 1 of last 1 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35691900,
+      "to": "watch"
+     },
+     {
+      "detail": "2 new observation(s): 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35778300,
+      "to": "watch"
+     },
+     {
+      "detail": "reassessed: tripwire 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); queued for flight-surgeon review",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35907900,
+      "to": "escalated"
+     }
+    ],
+    "opened_at": 35648400,
+    "outcome": {
+     "t": 35648700,
+     "text": "Shifted light schedule; nap taken."
+    },
+    "reassess_at": 35907900,
+    "schema": "landfall.case_state/1",
+    "spec": {
+     "case_id": "sleep_circadian",
+     "countermeasure_ids": [
+      "cm_primary",
+      "cm_alt_1"
+     ],
+     "escalation": {
+      "ground_packet": true,
+      "observations": [
+       "pvt_lapses",
+       "sleep_duration",
+       "resting_hr",
+       "skin_temp",
+       "mood"
+      ]
+     },
+     "step_ids": [
+      "step_1",
+      "step_2",
+      "step_3"
+     ],
+     "trigger_ids": [
+      "pvt_lapses",
+      "sleep_duration"
+     ],
+     "tripwire": {
+      "condition": {
+       "at_least": 2,
+       "of_last_n": 3,
+       "op": "ge",
+       "unit": "count",
+       "value": 4,
+       "variable": "pvt_lapses"
+      },
+      "reassess_after_s": 259200
+     }
+    },
+    "status": "escalated",
+    "steps_done": [
+     {
+      "input": null,
+      "step_id": "step_1",
+      "t": 35648520
+     },
+     {
+      "input": {
+       "unit": "h",
+       "value": 6.5,
+       "variable": "sleep_duration"
+      },
+      "step_id": "step_2",
+      "t": 35648580
+     }
+    ],
+    "tripwire_obs": [
+     {
+      "t": 35691900,
+      "value": 6
+     },
+     {
+      "t": 35735100,
+      "value": 3
+     },
+     {
+      "t": 35778300,
+      "value": 5
+     }
+    ],
+    "tripwire_result": {
+     "at_least": 2,
+     "considered": 3,
+     "hits": 2,
+     "of_last_n": 3,
+     "tripped": true
+    },
+    "updated_at": 35907900,
+    "watch_started_at": 35648700
+   },
+   "consent": {
+    "mood": false
+   },
+   "env_id": "mars_surface",
+   "mission_epoch": "2035-01-01T00:00:00Z",
+   "observations": [
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "app",
+     "t": 35691900,
+     "unit": "count",
+     "value": 6,
+     "variable": "pvt_lapses"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "band",
+     "t": 35691400,
+     "unit": "bpm",
+     "value": 58,
+     "variable": "resting_hr"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "app",
+     "t": 35691400,
+     "unit": "score_1_5",
+     "value": 2,
+     "variable": "mood"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "band",
+     "t": 35691400,
+     "unit": "°C",
+     "value": 33.2,
+     "variable": "skin_temp"
+    },
+    {
+     "crew_id": "CM-2",
+     "t": 35691400,
+     "unit": "bpm",
+     "value": 61,
+     "variable": "resting_hr"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 35691400,
+     "unit": "mL",
+     "value": 1480,
+     "variable": "urine_volume_24h"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 36512400,
+     "unit": "count",
+     "value": 7,
+     "variable": "pvt_lapses"
+    }
+   ],
+   "t": 35821200
+  },
+  "expect": {
+   "entry": [
+    {
+     "resource": {
+      "category": [
+       {
+        "coding": [
+         {
+          "code": "vital-signs",
+          "display": "Vital Signs",
+          "system": "http://terminology.hl7.org/CodeSystem/observation-category"
+         }
+        ],
+        "text": "Vital Signs"
+       }
+      ],
+      "code": {
+       "coding": [
+        {
+         "code": "8867-4",
+         "display": "Heart rate",
+         "system": "http://loinc.org"
+        }
+       ],
+       "text": "Heart rate"
+      },
+      "effectiveDateTime": "2036-02-18T02:16:40Z",
+      "id": "CM-1-resting-hr-35691400",
+      "meta": {
+       "profile": [
+        "http://hl7.org/fhir/StructureDefinition/vitalsigns"
+       ],
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-band",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "/min",
+       "system": "http://unitsofmeasure.org",
+       "unit": "beats/minute",
+       "value": 58
+      }
+     }
+    },
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "skin_temp",
+         "display": "Skin temperature",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "Skin temperature"
+      },
+      "effectiveDateTime": "2036-02-18T02:16:40Z",
+      "id": "CM-1-skin-temp-35691400",
+      "meta": {
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-band",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "Cel",
+       "system": "http://unitsofmeasure.org",
+       "unit": "°C",
+       "value": 33.2
+      }
+     }
+    },
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "pvt_lapses",
+         "display": "PVT-B lapses",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "PVT-B lapses"
+      },
+      "effectiveDateTime": "2036-02-18T02:25:00Z",
+      "id": "CM-1-pvt-lapses-35691900",
+      "meta": {
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-app",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "{count}",
+       "system": "http://unitsofmeasure.org",
+       "unit": "count",
+       "value": 6
+      }
+     }
+    }
+   ],
+   "id": "landfall-sleep-circadian-CM-1-35821200",
+   "meta": {
+    "tag": [
+     {
+      "code": "ground-packet",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "case-sleep_circadian",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "case-status-escalated",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "environment-mars_surface",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     }
+    ]
+   },
+   "resourceType": "Bundle",
+   "timestamp": "2036-02-19T14:20:00Z",
+   "type": "collection"
+  },
+  "fn": "build_ground_packet",
+  "name": "mood_false_excluded"
+ },
+ {
+  "args": {
+   "case_state": {
+    "case_id": "sleep_circadian",
+    "closed_at": 35907900,
+    "countermeasure_id": "cm_primary",
+    "crew_id": "CM-1",
+    "dismiss_reason": null,
+    "finding": {
+     "action_id": null,
+     "approach_at": null,
+     "case_id": "sleep_circadian",
+     "category": "PERSONAL",
+     "chip": "literature",
+     "direction": "increase",
+     "env_id": null,
+     "limit": 3.240788695654045,
+     "margin": -4.759211304345955,
+     "op": null,
+     "private": false,
+     "rci": {
+      "critical_z": 3.29,
+      "mean": 1.7857142857142858,
+      "n": 14,
+      "r": 0.8,
+      "r_chip": "design choice",
+      "r_source": {
+       "kind": "design_choice",
+       "rationale": "fixture"
+      },
+      "rc": 14.050827820445576,
+      "reason": null,
+      "reliable": true,
+      "s_diff": 0.44227185712454686,
+      "sd": 0.6992932067530679,
+      "sem": 0.31273342930073494
+     },
+     "role": "alert",
+     "rule_id": "pvt_lapses",
+     "severity": "caution",
+     "source": {
+      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "kind": "literature"
+     },
+     "status": "reliable_change",
+     "t": 35648400,
+     "tier": "B",
+     "unit": "count",
+     "value": 8,
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "worse": "increase"
+    },
+    "log": [
+     {
+      "detail": "opened by pvt_lapses (reliable_change, caution)",
+      "error": null,
+      "event": "OPEN",
+      "from": "idle",
+      "t": 35648400,
+      "to": "detected"
+     },
+     {
+      "detail": "selected cm_primary (primary)",
+      "error": null,
+      "event": "SELECT",
+      "from": "detected",
+      "t": 35648460,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_1 done (1 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648520,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 done (2 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648580,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 already done",
+      "error": "duplicate_step",
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648600,
+      "to": "acting"
+     },
+     {
+      "detail": "outcome recorded; reassess at 35907900 (2 of 3 steps done)",
+      "error": null,
+      "event": "OUTCOME",
+      "from": "acting",
+      "t": 35648700,
+      "to": "watch"
+     },
+     {
+      "detail": "1 new observation(s): 1 of last 1 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35691900,
+      "to": "watch"
+     },
+     {
+      "detail": "2 new observation(s): 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35778300,
+      "to": "watch"
+     },
+     {
+      "detail": "reassessed: tripwire 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); queued for flight-surgeon review",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35907900,
+      "to": "escalated"
+     }
+    ],
+    "opened_at": 35648400,
+    "outcome": {
+     "t": 35648700,
+     "text": "Shifted light schedule; nap taken."
+    },
+    "reassess_at": 35907900,
+    "schema": "landfall.case_state/1",
+    "spec": {
+     "case_id": "sleep_circadian",
+     "countermeasure_ids": [
+      "cm_primary",
+      "cm_alt_1"
+     ],
+     "escalation": {
+      "ground_packet": true,
+      "observations": [
+       "pvt_lapses",
+       "sleep_duration",
+       "resting_hr",
+       "skin_temp",
+       "mood"
+      ]
+     },
+     "step_ids": [
+      "step_1",
+      "step_2",
+      "step_3"
+     ],
+     "trigger_ids": [
+      "pvt_lapses",
+      "sleep_duration"
+     ],
+     "tripwire": {
+      "condition": {
+       "at_least": 2,
+       "of_last_n": 3,
+       "op": "ge",
+       "unit": "count",
+       "value": 4,
+       "variable": "pvt_lapses"
+      },
+      "reassess_after_s": 259200
+     }
+    },
+    "status": "escalated",
+    "steps_done": [
+     {
+      "input": null,
+      "step_id": "step_1",
+      "t": 35648520
+     },
+     {
+      "input": {
+       "unit": "h",
+       "value": 6.5,
+       "variable": "sleep_duration"
+      },
+      "step_id": "step_2",
+      "t": 35648580
+     }
+    ],
+    "tripwire_obs": [
+     {
+      "t": 35691900,
+      "value": 6
+     },
+     {
+      "t": 35735100,
+      "value": 3
+     },
+     {
+      "t": 35778300,
+      "value": 5
+     }
+    ],
+    "tripwire_result": {
+     "at_least": 2,
+     "considered": 3,
+     "hits": 2,
+     "of_last_n": 3,
+     "tripped": true
+    },
+    "updated_at": 35907900,
+    "watch_started_at": 35648700
+   },
+   "consent": {
+    "mood": true
+   },
+   "env_id": "mars_surface",
+   "mission_epoch": "2035-01-01T00:00:00Z",
+   "observations": [
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "app",
+     "t": 35691900,
+     "unit": "count",
+     "value": 6,
+     "variable": "pvt_lapses"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "band",
+     "t": 35691400,
+     "unit": "bpm",
+     "value": 58,
+     "variable": "resting_hr"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "app",
+     "t": 35691400,
+     "unit": "score_1_5",
+     "value": 2,
+     "variable": "mood"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "band",
+     "t": 35691400,
+     "unit": "°C",
+     "value": 33.2,
+     "variable": "skin_temp"
+    },
+    {
+     "crew_id": "CM-2",
+     "t": 35691400,
+     "unit": "bpm",
+     "value": 61,
+     "variable": "resting_hr"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 35691400,
+     "unit": "mL",
+     "value": 1480,
+     "variable": "urine_volume_24h"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 36512400,
+     "unit": "count",
+     "value": 7,
+     "variable": "pvt_lapses"
+    }
+   ],
+   "t": 35821200
+  },
+  "expect": {
+   "entry": [
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "mood",
+         "display": "Mood self-rating (1-5)",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "Mood self-rating (1-5)"
+      },
+      "effectiveDateTime": "2036-02-18T02:16:40Z",
+      "id": "CM-1-mood-35691400",
+      "meta": {
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-app",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "{score}",
+       "system": "http://unitsofmeasure.org",
+       "unit": "score_1_5",
+       "value": 2
+      }
+     }
+    },
+    {
+     "resource": {
+      "category": [
+       {
+        "coding": [
+         {
+          "code": "vital-signs",
+          "display": "Vital Signs",
+          "system": "http://terminology.hl7.org/CodeSystem/observation-category"
+         }
+        ],
+        "text": "Vital Signs"
+       }
+      ],
+      "code": {
+       "coding": [
+        {
+         "code": "8867-4",
+         "display": "Heart rate",
+         "system": "http://loinc.org"
+        }
+       ],
+       "text": "Heart rate"
+      },
+      "effectiveDateTime": "2036-02-18T02:16:40Z",
+      "id": "CM-1-resting-hr-35691400",
+      "meta": {
+       "profile": [
+        "http://hl7.org/fhir/StructureDefinition/vitalsigns"
+       ],
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-band",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "/min",
+       "system": "http://unitsofmeasure.org",
+       "unit": "beats/minute",
+       "value": 58
+      }
+     }
+    },
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "skin_temp",
+         "display": "Skin temperature",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "Skin temperature"
+      },
+      "effectiveDateTime": "2036-02-18T02:16:40Z",
+      "id": "CM-1-skin-temp-35691400",
+      "meta": {
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-band",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "Cel",
+       "system": "http://unitsofmeasure.org",
+       "unit": "°C",
+       "value": 33.2
+      }
+     }
+    },
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "pvt_lapses",
+         "display": "PVT-B lapses",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "PVT-B lapses"
+      },
+      "effectiveDateTime": "2036-02-18T02:25:00Z",
+      "id": "CM-1-pvt-lapses-35691900",
+      "meta": {
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-app",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "{count}",
+       "system": "http://unitsofmeasure.org",
+       "unit": "count",
+       "value": 6
+      }
+     }
+    }
+   ],
+   "id": "landfall-sleep-circadian-CM-1-35821200",
+   "meta": {
+    "tag": [
+     {
+      "code": "ground-packet",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "case-sleep_circadian",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "case-status-escalated",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "environment-mars_surface",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     }
+    ]
+   },
+   "resourceType": "Bundle",
+   "timestamp": "2036-02-19T14:20:00Z",
+   "type": "collection"
+  },
+  "fn": "build_ground_packet",
+  "name": "mood_true_included"
+ },
+ {
+  "args": {
+   "case_state": {
+    "case_id": "sleep_circadian",
+    "closed_at": 35907900,
+    "countermeasure_id": "cm_primary",
+    "crew_id": "CM-1",
+    "dismiss_reason": null,
+    "finding": {
+     "action_id": null,
+     "approach_at": null,
+     "case_id": "sleep_circadian",
+     "category": "PERSONAL",
+     "chip": "literature",
+     "direction": "increase",
+     "env_id": null,
+     "limit": 3.240788695654045,
+     "margin": -4.759211304345955,
+     "op": null,
+     "private": false,
+     "rci": {
+      "critical_z": 3.29,
+      "mean": 1.7857142857142858,
+      "n": 14,
+      "r": 0.8,
+      "r_chip": "design choice",
+      "r_source": {
+       "kind": "design_choice",
+       "rationale": "fixture"
+      },
+      "rc": 14.050827820445576,
+      "reason": null,
+      "reliable": true,
+      "s_diff": 0.44227185712454686,
+      "sd": 0.6992932067530679,
+      "sem": 0.31273342930073494
+     },
+     "role": "alert",
+     "rule_id": "pvt_lapses",
+     "severity": "caution",
+     "source": {
+      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "kind": "literature"
+     },
+     "status": "reliable_change",
+     "t": 35648400,
+     "tier": "B",
+     "unit": "count",
+     "value": 8,
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "worse": "increase"
+    },
+    "log": [
+     {
+      "detail": "opened by pvt_lapses (reliable_change, caution)",
+      "error": null,
+      "event": "OPEN",
+      "from": "idle",
+      "t": 35648400,
+      "to": "detected"
+     },
+     {
+      "detail": "selected cm_primary (primary)",
+      "error": null,
+      "event": "SELECT",
+      "from": "detected",
+      "t": 35648460,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_1 done (1 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648520,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 done (2 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648580,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 already done",
+      "error": "duplicate_step",
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648600,
+      "to": "acting"
+     },
+     {
+      "detail": "outcome recorded; reassess at 35907900 (2 of 3 steps done)",
+      "error": null,
+      "event": "OUTCOME",
+      "from": "acting",
+      "t": 35648700,
+      "to": "watch"
+     },
+     {
+      "detail": "1 new observation(s): 1 of last 1 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35691900,
+      "to": "watch"
+     },
+     {
+      "detail": "2 new observation(s): 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35778300,
+      "to": "watch"
+     },
+     {
+      "detail": "reassessed: tripwire 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); queued for flight-surgeon review",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35907900,
+      "to": "escalated"
+     }
+    ],
+    "opened_at": 35648400,
+    "outcome": {
+     "t": 35648700,
+     "text": "Shifted light schedule; nap taken."
+    },
+    "reassess_at": 35907900,
+    "schema": "landfall.case_state/1",
+    "spec": {
+     "case_id": "sleep_circadian",
+     "countermeasure_ids": [
+      "cm_primary",
+      "cm_alt_1"
+     ],
+     "escalation": {
+      "ground_packet": true,
+      "observations": [
+       "pvt_lapses",
+       "sleep_duration",
+       "resting_hr",
+       "skin_temp",
+       "mood"
+      ]
+     },
+     "step_ids": [
+      "step_1",
+      "step_2",
+      "step_3"
+     ],
+     "trigger_ids": [
+      "pvt_lapses",
+      "sleep_duration"
+     ],
+     "tripwire": {
+      "condition": {
+       "at_least": 2,
+       "of_last_n": 3,
+       "op": "ge",
+       "unit": "count",
+       "value": 4,
+       "variable": "pvt_lapses"
+      },
+      "reassess_after_s": 259200
+     }
+    },
+    "status": "escalated",
+    "steps_done": [
+     {
+      "input": null,
+      "step_id": "step_1",
+      "t": 35648520
+     },
+     {
+      "input": {
+       "unit": "h",
+       "value": 6.5,
+       "variable": "sleep_duration"
+      },
+      "step_id": "step_2",
+      "t": 35648580
+     }
+    ],
+    "tripwire_obs": [
+     {
+      "t": 35691900,
+      "value": 6
+     },
+     {
+      "t": 35735100,
+      "value": 3
+     },
+     {
+      "t": 35778300,
+      "value": 5
+     }
+    ],
+    "tripwire_result": {
+     "at_least": 2,
+     "considered": 3,
+     "hits": 2,
+     "of_last_n": 3,
+     "tripped": true
+    },
+    "updated_at": 35907900,
+    "watch_started_at": 35648700
+   },
+   "consent": {
+    "resting_hr": false
+   },
+   "env_id": "mars_surface",
+   "mission_epoch": "2035-01-01T00:00:00Z",
+   "observations": [
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "app",
+     "t": 35691900,
+     "unit": "count",
+     "value": 6,
+     "variable": "pvt_lapses"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "band",
+     "t": 35691400,
+     "unit": "bpm",
+     "value": 58,
+     "variable": "resting_hr"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "app",
+     "t": 35691400,
+     "unit": "score_1_5",
+     "value": 2,
+     "variable": "mood"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "band",
+     "t": 35691400,
+     "unit": "°C",
+     "value": 33.2,
+     "variable": "skin_temp"
+    },
+    {
+     "crew_id": "CM-2",
+     "t": 35691400,
+     "unit": "bpm",
+     "value": 61,
+     "variable": "resting_hr"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 35691400,
+     "unit": "mL",
+     "value": 1480,
+     "variable": "urine_volume_24h"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 36512400,
+     "unit": "count",
+     "value": 7,
+     "variable": "pvt_lapses"
+    }
+   ],
+   "t": 35821200
+  },
+  "expect": {
+   "entry": [
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "skin_temp",
+         "display": "Skin temperature",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "Skin temperature"
+      },
+      "effectiveDateTime": "2036-02-18T02:16:40Z",
+      "id": "CM-1-skin-temp-35691400",
+      "meta": {
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-band",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "Cel",
+       "system": "http://unitsofmeasure.org",
+       "unit": "°C",
+       "value": 33.2
+      }
+     }
+    },
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "pvt_lapses",
+         "display": "PVT-B lapses",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "PVT-B lapses"
+      },
+      "effectiveDateTime": "2036-02-18T02:25:00Z",
+      "id": "CM-1-pvt-lapses-35691900",
+      "meta": {
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-app",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "{count}",
+       "system": "http://unitsofmeasure.org",
+       "unit": "count",
+       "value": 6
+      }
+     }
+    }
+   ],
+   "id": "landfall-sleep-circadian-CM-1-35821200",
+   "meta": {
+    "tag": [
+     {
+      "code": "ground-packet",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "case-sleep_circadian",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "case-status-escalated",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "environment-mars_surface",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     }
+    ]
+   },
+   "resourceType": "Bundle",
+   "timestamp": "2036-02-19T14:20:00Z",
+   "type": "collection"
+  },
+  "fn": "build_ground_packet",
+  "name": "variable_withheld"
+ },
+ {
+  "args": {
+   "case_state": {
+    "case_id": "sleep_circadian",
+    "closed_at": 35907900,
+    "countermeasure_id": "cm_primary",
+    "crew_id": "CM-1",
+    "dismiss_reason": null,
+    "finding": {
+     "action_id": null,
+     "approach_at": null,
+     "case_id": "sleep_circadian",
+     "category": "PERSONAL",
+     "chip": "literature",
+     "direction": "increase",
+     "env_id": null,
+     "limit": 3.240788695654045,
+     "margin": -4.759211304345955,
+     "op": null,
+     "private": false,
+     "rci": {
+      "critical_z": 3.29,
+      "mean": 1.7857142857142858,
+      "n": 14,
+      "r": 0.8,
+      "r_chip": "design choice",
+      "r_source": {
+       "kind": "design_choice",
+       "rationale": "fixture"
+      },
+      "rc": 14.050827820445576,
+      "reason": null,
+      "reliable": true,
+      "s_diff": 0.44227185712454686,
+      "sd": 0.6992932067530679,
+      "sem": 0.31273342930073494
+     },
+     "role": "alert",
+     "rule_id": "pvt_lapses",
+     "severity": "caution",
+     "source": {
+      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "kind": "literature"
+     },
+     "status": "reliable_change",
+     "t": 35648400,
+     "tier": "B",
+     "unit": "count",
+     "value": 8,
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "worse": "increase"
+    },
+    "log": [
+     {
+      "detail": "opened by pvt_lapses (reliable_change, caution)",
+      "error": null,
+      "event": "OPEN",
+      "from": "idle",
+      "t": 35648400,
+      "to": "detected"
+     },
+     {
+      "detail": "selected cm_primary (primary)",
+      "error": null,
+      "event": "SELECT",
+      "from": "detected",
+      "t": 35648460,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_1 done (1 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648520,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 done (2 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648580,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 already done",
+      "error": "duplicate_step",
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648600,
+      "to": "acting"
+     },
+     {
+      "detail": "outcome recorded; reassess at 35907900 (2 of 3 steps done)",
+      "error": null,
+      "event": "OUTCOME",
+      "from": "acting",
+      "t": 35648700,
+      "to": "watch"
+     },
+     {
+      "detail": "1 new observation(s): 1 of last 1 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35691900,
+      "to": "watch"
+     },
+     {
+      "detail": "2 new observation(s): 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35778300,
+      "to": "watch"
+     },
+     {
+      "detail": "reassessed: tripwire 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); queued for flight-surgeon review",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35907900,
+      "to": "escalated"
+     }
+    ],
+    "opened_at": 35648400,
+    "outcome": {
+     "t": 35648700,
+     "text": "Shifted light schedule; nap taken."
+    },
+    "reassess_at": 35907900,
+    "schema": "landfall.case_state/1",
+    "spec": {
+     "case_id": "sleep_circadian",
+     "countermeasure_ids": [
+      "cm_primary",
+      "cm_alt_1"
+     ],
+     "escalation": {
+      "ground_packet": true,
+      "observations": [
+       "pvt_lapses",
+       "sleep_duration",
+       "resting_hr",
+       "skin_temp",
+       "mood"
+      ]
+     },
+     "step_ids": [
+      "step_1",
+      "step_2",
+      "step_3"
+     ],
+     "trigger_ids": [
+      "pvt_lapses",
+      "sleep_duration"
+     ],
+     "tripwire": {
+      "condition": {
+       "at_least": 2,
+       "of_last_n": 3,
+       "op": "ge",
+       "unit": "count",
+       "value": 4,
+       "variable": "pvt_lapses"
+      },
+      "reassess_after_s": 259200
+     }
+    },
+    "status": "escalated",
+    "steps_done": [
+     {
+      "input": null,
+      "step_id": "step_1",
+      "t": 35648520
+     },
+     {
+      "input": {
+       "unit": "h",
+       "value": 6.5,
+       "variable": "sleep_duration"
+      },
+      "step_id": "step_2",
+      "t": 35648580
+     }
+    ],
+    "tripwire_obs": [
+     {
+      "t": 35691900,
+      "value": 6
+     },
+     {
+      "t": 35735100,
+      "value": 3
+     },
+     {
+      "t": 35778300,
+      "value": 5
+     }
+    ],
+    "tripwire_result": {
+     "at_least": 2,
+     "considered": 3,
+     "hits": 2,
+     "of_last_n": 3,
+     "tripped": true
+    },
+    "updated_at": 35907900,
+    "watch_started_at": 35648700
+   },
+   "consent": {
+    "mood": "yes"
+   },
+   "env_id": "mars_surface",
+   "mission_epoch": "2035-01-01T00:00:00Z",
+   "observations": [
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "app",
+     "t": 35691900,
+     "unit": "count",
+     "value": 6,
+     "variable": "pvt_lapses"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "band",
+     "t": 35691400,
+     "unit": "bpm",
+     "value": 58,
+     "variable": "resting_hr"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "app",
+     "t": 35691400,
+     "unit": "score_1_5",
+     "value": 2,
+     "variable": "mood"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "band",
+     "t": 35691400,
+     "unit": "°C",
+     "value": 33.2,
+     "variable": "skin_temp"
+    },
+    {
+     "crew_id": "CM-2",
+     "t": 35691400,
+     "unit": "bpm",
+     "value": 61,
+     "variable": "resting_hr"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 35691400,
+     "unit": "mL",
+     "value": 1480,
+     "variable": "urine_volume_24h"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 36512400,
+     "unit": "count",
+     "value": 7,
+     "variable": "pvt_lapses"
+    }
+   ],
+   "t": 35821200
+  },
+  "expect": {
+   "entry": [
+    {
+     "resource": {
+      "category": [
+       {
+        "coding": [
+         {
+          "code": "vital-signs",
+          "display": "Vital Signs",
+          "system": "http://terminology.hl7.org/CodeSystem/observation-category"
+         }
+        ],
+        "text": "Vital Signs"
+       }
+      ],
+      "code": {
+       "coding": [
+        {
+         "code": "8867-4",
+         "display": "Heart rate",
+         "system": "http://loinc.org"
+        }
+       ],
+       "text": "Heart rate"
+      },
+      "effectiveDateTime": "2036-02-18T02:16:40Z",
+      "id": "CM-1-resting-hr-35691400",
+      "meta": {
+       "profile": [
+        "http://hl7.org/fhir/StructureDefinition/vitalsigns"
+       ],
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-band",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "/min",
+       "system": "http://unitsofmeasure.org",
+       "unit": "beats/minute",
+       "value": 58
+      }
+     }
+    },
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "skin_temp",
+         "display": "Skin temperature",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "Skin temperature"
+      },
+      "effectiveDateTime": "2036-02-18T02:16:40Z",
+      "id": "CM-1-skin-temp-35691400",
+      "meta": {
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-band",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "Cel",
+       "system": "http://unitsofmeasure.org",
+       "unit": "°C",
+       "value": 33.2
+      }
+     }
+    },
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "pvt_lapses",
+         "display": "PVT-B lapses",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "PVT-B lapses"
+      },
+      "effectiveDateTime": "2036-02-18T02:25:00Z",
+      "id": "CM-1-pvt-lapses-35691900",
+      "meta": {
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-app",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "{count}",
+       "system": "http://unitsofmeasure.org",
+       "unit": "count",
+       "value": 6
+      }
+     }
+    }
+   ],
+   "id": "landfall-sleep-circadian-CM-1-35821200",
+   "meta": {
+    "tag": [
+     {
+      "code": "ground-packet",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "case-sleep_circadian",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "case-status-escalated",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "environment-mars_surface",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     }
+    ]
+   },
+   "resourceType": "Bundle",
+   "timestamp": "2036-02-19T14:20:00Z",
+   "type": "collection"
+  },
+  "fn": "build_ground_packet",
+  "name": "mood_truthy_string_not_consent"
+ },
+ {
+  "args": {
+   "case_state": {
+    "case_id": "sleep_circadian",
+    "closed_at": 35907900,
+    "countermeasure_id": "cm_primary",
+    "crew_id": "CM-1",
+    "dismiss_reason": null,
+    "finding": {
+     "action_id": null,
+     "approach_at": null,
+     "case_id": "sleep_circadian",
+     "category": "PERSONAL",
+     "chip": "literature",
+     "direction": "increase",
+     "env_id": null,
+     "limit": 3.240788695654045,
+     "margin": -4.759211304345955,
+     "op": null,
+     "private": false,
+     "rci": {
+      "critical_z": 3.29,
+      "mean": 1.7857142857142858,
+      "n": 14,
+      "r": 0.8,
+      "r_chip": "design choice",
+      "r_source": {
+       "kind": "design_choice",
+       "rationale": "fixture"
+      },
+      "rc": 14.050827820445576,
+      "reason": null,
+      "reliable": true,
+      "s_diff": 0.44227185712454686,
+      "sd": 0.6992932067530679,
+      "sem": 0.31273342930073494
+     },
+     "role": "alert",
+     "rule_id": "pvt_lapses",
+     "severity": "caution",
+     "source": {
+      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "kind": "literature"
+     },
+     "status": "reliable_change",
+     "t": 35648400,
+     "tier": "B",
+     "unit": "count",
+     "value": 8,
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "worse": "increase"
+    },
+    "log": [
+     {
+      "detail": "opened by pvt_lapses (reliable_change, caution)",
+      "error": null,
+      "event": "OPEN",
+      "from": "idle",
+      "t": 35648400,
+      "to": "detected"
+     },
+     {
+      "detail": "selected cm_primary (primary)",
+      "error": null,
+      "event": "SELECT",
+      "from": "detected",
+      "t": 35648460,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_1 done (1 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648520,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 done (2 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648580,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 already done",
+      "error": "duplicate_step",
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648600,
+      "to": "acting"
+     },
+     {
+      "detail": "outcome recorded; reassess at 35907900 (2 of 3 steps done)",
+      "error": null,
+      "event": "OUTCOME",
+      "from": "acting",
+      "t": 35648700,
+      "to": "watch"
+     },
+     {
+      "detail": "1 new observation(s): 1 of last 1 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35691900,
+      "to": "watch"
+     },
+     {
+      "detail": "2 new observation(s): 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35778300,
+      "to": "watch"
+     },
+     {
+      "detail": "reassessed: tripwire 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); queued for flight-surgeon review",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35907900,
+      "to": "escalated"
+     }
+    ],
+    "opened_at": 35648400,
+    "outcome": {
+     "t": 35648700,
+     "text": "Shifted light schedule; nap taken."
+    },
+    "reassess_at": 35907900,
+    "schema": "landfall.case_state/1",
+    "spec": {
+     "case_id": "sleep_circadian",
+     "countermeasure_ids": [
+      "cm_primary",
+      "cm_alt_1"
+     ],
+     "escalation": {
+      "ground_packet": true,
+      "observations": [
+       "pvt_lapses",
+       "sleep_duration",
+       "resting_hr",
+       "skin_temp",
+       "mood"
+      ]
+     },
+     "step_ids": [
+      "step_1",
+      "step_2",
+      "step_3"
+     ],
+     "trigger_ids": [
+      "pvt_lapses",
+      "sleep_duration"
+     ],
+     "tripwire": {
+      "condition": {
+       "at_least": 2,
+       "of_last_n": 3,
+       "op": "ge",
+       "unit": "count",
+       "value": 4,
+       "variable": "pvt_lapses"
+      },
+      "reassess_after_s": 259200
+     }
+    },
+    "status": "escalated",
+    "steps_done": [
+     {
+      "input": null,
+      "step_id": "step_1",
+      "t": 35648520
+     },
+     {
+      "input": {
+       "unit": "h",
+       "value": 6.5,
+       "variable": "sleep_duration"
+      },
+      "step_id": "step_2",
+      "t": 35648580
+     }
+    ],
+    "tripwire_obs": [
+     {
+      "t": 35691900,
+      "value": 6
+     },
+     {
+      "t": 35735100,
+      "value": 3
+     },
+     {
+      "t": 35778300,
+      "value": 5
+     }
+    ],
+    "tripwire_result": {
+     "at_least": 2,
+     "considered": 3,
+     "hits": 2,
+     "of_last_n": 3,
+     "tripped": true
+    },
+    "updated_at": 35907900,
+    "watch_started_at": 35648700
+   },
+   "consent": {},
+   "env_id": "mars_surface",
+   "mission_epoch": "2035-01-01T00:00:00Z",
+   "observations": [
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "band",
+     "t": 35691400,
+     "unit": "beats",
+     "value": 58,
+     "variable": "resting_hr"
+    }
+   ],
+   "t": 35821200
+  },
+  "fn": "build_ground_packet",
+  "name": "bad_vital_unit_raises",
+  "raises": "unit_mismatch"
+ },
+ {
+  "args": {
+   "case_state": {
+    "case_id": "sleep_circadian",
+    "closed_at": 35907900,
+    "countermeasure_id": "cm_primary",
+    "crew_id": "CM-1",
+    "dismiss_reason": null,
+    "finding": {
+     "action_id": null,
+     "approach_at": null,
+     "case_id": "sleep_circadian",
+     "category": "PERSONAL",
+     "chip": "literature",
+     "direction": "increase",
+     "env_id": null,
+     "limit": 3.240788695654045,
+     "margin": -4.759211304345955,
+     "op": null,
+     "private": false,
+     "rci": {
+      "critical_z": 3.29,
+      "mean": 1.7857142857142858,
+      "n": 14,
+      "r": 0.8,
+      "r_chip": "design choice",
+      "r_source": {
+       "kind": "design_choice",
+       "rationale": "fixture"
+      },
+      "rc": 14.050827820445576,
+      "reason": null,
+      "reliable": true,
+      "s_diff": 0.44227185712454686,
+      "sd": 0.6992932067530679,
+      "sem": 0.31273342930073494
+     },
+     "role": "alert",
+     "rule_id": "pvt_lapses",
+     "severity": "caution",
+     "source": {
+      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "kind": "literature"
+     },
+     "status": "reliable_change",
+     "t": 35648400,
+     "tier": "B",
+     "unit": "count",
+     "value": 8,
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "worse": "increase"
+    },
+    "log": [
+     {
+      "detail": "opened by pvt_lapses (reliable_change, caution)",
+      "error": null,
+      "event": "OPEN",
+      "from": "idle",
+      "t": 35648400,
+      "to": "detected"
+     },
+     {
+      "detail": "selected cm_primary (primary)",
+      "error": null,
+      "event": "SELECT",
+      "from": "detected",
+      "t": 35648460,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_1 done (1 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648520,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 done (2 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648580,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 already done",
+      "error": "duplicate_step",
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648600,
+      "to": "acting"
+     },
+     {
+      "detail": "outcome recorded; reassess at 35907900 (2 of 3 steps done)",
+      "error": null,
+      "event": "OUTCOME",
+      "from": "acting",
+      "t": 35648700,
+      "to": "watch"
+     },
+     {
+      "detail": "1 new observation(s): 1 of last 1 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35691900,
+      "to": "watch"
+     },
+     {
+      "detail": "2 new observation(s): 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35778300,
+      "to": "watch"
+     },
+     {
+      "detail": "reassessed: tripwire 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); queued for flight-surgeon review",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35907900,
+      "to": "escalated"
+     }
+    ],
+    "opened_at": 35648400,
+    "outcome": {
+     "t": 35648700,
+     "text": "Shifted light schedule; nap taken."
+    },
+    "reassess_at": 35907900,
+    "schema": "landfall.case_state/1",
+    "spec": {
+     "case_id": "sleep_circadian",
+     "countermeasure_ids": [
+      "cm_primary",
+      "cm_alt_1"
+     ],
+     "escalation": {
+      "ground_packet": true,
+      "observations": [
+       "pvt_lapses",
+       "sleep_duration",
+       "resting_hr",
+       "skin_temp",
+       "mood"
+      ]
+     },
+     "step_ids": [
+      "step_1",
+      "step_2",
+      "step_3"
+     ],
+     "trigger_ids": [
+      "pvt_lapses",
+      "sleep_duration"
+     ],
+     "tripwire": {
+      "condition": {
+       "at_least": 2,
+       "of_last_n": 3,
+       "op": "ge",
+       "unit": "count",
+       "value": 4,
+       "variable": "pvt_lapses"
+      },
+      "reassess_after_s": 259200
+     }
+    },
+    "status": "escalated",
+    "steps_done": [
+     {
+      "input": null,
+      "step_id": "step_1",
+      "t": 35648520
+     },
+     {
+      "input": {
+       "unit": "h",
+       "value": 6.5,
+       "variable": "sleep_duration"
+      },
+      "step_id": "step_2",
+      "t": 35648580
+     }
+    ],
+    "tripwire_obs": [
+     {
+      "t": 35691900,
+      "value": 6
+     },
+     {
+      "t": 35735100,
+      "value": 3
+     },
+     {
+      "t": 35778300,
+      "value": 5
+     }
+    ],
+    "tripwire_result": {
+     "at_least": 2,
+     "considered": 3,
+     "hits": 2,
+     "of_last_n": 3,
+     "tripped": true
+    },
+    "updated_at": 35907900,
+    "watch_started_at": 35648700
+   },
+   "consent": {},
+   "env_id": "mars_surface",
+   "mission_epoch": "2035-01-01T00:00:00Z",
+   "observations": [
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "app",
+     "t": 35691900,
+     "unit": "lapses",
+     "value": 6,
+     "variable": "pvt_lapses"
+    }
+   ],
+   "t": 35821200
+  },
+  "fn": "build_ground_packet",
+  "name": "unknown_unit_raises",
+  "raises": "unknown_unit"
+ },
+ {
+  "args": {
+   "case_state": {
+    "case_id": "sleep_circadian",
+    "closed_at": 35907900,
+    "countermeasure_id": "cm_primary",
+    "crew_id": "CM-1",
+    "dismiss_reason": null,
+    "finding": {
+     "action_id": null,
+     "approach_at": null,
+     "case_id": "sleep_circadian",
+     "category": "PERSONAL",
+     "chip": "literature",
+     "direction": "increase",
+     "env_id": null,
+     "limit": 3.240788695654045,
+     "margin": -4.759211304345955,
+     "op": null,
+     "private": false,
+     "rci": {
+      "critical_z": 3.29,
+      "mean": 1.7857142857142858,
+      "n": 14,
+      "r": 0.8,
+      "r_chip": "design choice",
+      "r_source": {
+       "kind": "design_choice",
+       "rationale": "fixture"
+      },
+      "rc": 14.050827820445576,
+      "reason": null,
+      "reliable": true,
+      "s_diff": 0.44227185712454686,
+      "sd": 0.6992932067530679,
+      "sem": 0.31273342930073494
+     },
+     "role": "alert",
+     "rule_id": "pvt_lapses",
+     "severity": "caution",
+     "source": {
+      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "kind": "literature"
+     },
+     "status": "reliable_change",
+     "t": 35648400,
+     "tier": "B",
+     "unit": "count",
+     "value": 8,
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "worse": "increase"
+    },
+    "log": [
+     {
+      "detail": "opened by pvt_lapses (reliable_change, caution)",
+      "error": null,
+      "event": "OPEN",
+      "from": "idle",
+      "t": 35648400,
+      "to": "detected"
+     },
+     {
+      "detail": "selected cm_primary (primary)",
+      "error": null,
+      "event": "SELECT",
+      "from": "detected",
+      "t": 35648460,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_1 done (1 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648520,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 done (2 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648580,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 already done",
+      "error": "duplicate_step",
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648600,
+      "to": "acting"
+     },
+     {
+      "detail": "outcome recorded; reassess at 35907900 (2 of 3 steps done)",
+      "error": null,
+      "event": "OUTCOME",
+      "from": "acting",
+      "t": 35648700,
+      "to": "watch"
+     },
+     {
+      "detail": "1 new observation(s): 1 of last 1 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35691900,
+      "to": "watch"
+     },
+     {
+      "detail": "2 new observation(s): 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35778300,
+      "to": "watch"
+     },
+     {
+      "detail": "reassessed: tripwire 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); queued for flight-surgeon review",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35907900,
+      "to": "escalated"
+     }
+    ],
+    "opened_at": 35648400,
+    "outcome": {
+     "t": 35648700,
+     "text": "Shifted light schedule; nap taken."
+    },
+    "reassess_at": 35907900,
+    "schema": "landfall.case_state/1",
+    "spec": {
+     "case_id": "sleep_circadian",
+     "countermeasure_ids": [
+      "cm_primary",
+      "cm_alt_1"
+     ],
+     "escalation": {
+      "ground_packet": true,
+      "observations": [
+       "pvt_lapses",
+       "sleep_duration",
+       "resting_hr",
+       "skin_temp",
+       "mood"
+      ]
+     },
+     "step_ids": [
+      "step_1",
+      "step_2",
+      "step_3"
+     ],
+     "trigger_ids": [
+      "pvt_lapses",
+      "sleep_duration"
+     ],
+     "tripwire": {
+      "condition": {
+       "at_least": 2,
+       "of_last_n": 3,
+       "op": "ge",
+       "unit": "count",
+       "value": 4,
+       "variable": "pvt_lapses"
+      },
+      "reassess_after_s": 259200
+     }
+    },
+    "status": "escalated",
+    "steps_done": [
+     {
+      "input": null,
+      "step_id": "step_1",
+      "t": 35648520
+     },
+     {
+      "input": {
+       "unit": "h",
+       "value": 6.5,
+       "variable": "sleep_duration"
+      },
+      "step_id": "step_2",
+      "t": 35648580
+     }
+    ],
+    "tripwire_obs": [
+     {
+      "t": 35691900,
+      "value": 6
+     },
+     {
+      "t": 35735100,
+      "value": 3
+     },
+     {
+      "t": 35778300,
+      "value": 5
+     }
+    ],
+    "tripwire_result": {
+     "at_least": 2,
+     "considered": 3,
+     "hits": 2,
+     "of_last_n": 3,
+     "tripped": true
+    },
+    "updated_at": 35907900,
+    "watch_started_at": 35648700
+   },
+   "consent": {},
+   "env_id": "mars_surface",
+   "mission_epoch": "2035-01-01",
+   "observations": [
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "app",
+     "t": 35691900,
+     "unit": "count",
+     "value": 6,
+     "variable": "pvt_lapses"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "band",
+     "t": 35691400,
+     "unit": "bpm",
+     "value": 58,
+     "variable": "resting_hr"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "app",
+     "t": 35691400,
+     "unit": "score_1_5",
+     "value": 2,
+     "variable": "mood"
+    },
+    {
+     "crew_id": "CM-1",
+     "provenance": "simulated",
+     "source": "band",
+     "t": 35691400,
+     "unit": "°C",
+     "value": 33.2,
+     "variable": "skin_temp"
+    },
+    {
+     "crew_id": "CM-2",
+     "t": 35691400,
+     "unit": "bpm",
+     "value": 61,
+     "variable": "resting_hr"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 35691400,
+     "unit": "mL",
+     "value": 1480,
+     "variable": "urine_volume_24h"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 36512400,
+     "unit": "count",
+     "value": 7,
+     "variable": "pvt_lapses"
+    }
+   ],
+   "t": 35821200
+  },
+  "fn": "build_ground_packet",
+  "name": "bad_epoch_raises",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "case_state": {
+    "case_id": "sleep_circadian",
+    "closed_at": 35907900,
+    "countermeasure_id": "cm_primary",
+    "crew_id": "CM-1",
+    "dismiss_reason": null,
+    "finding": {
+     "action_id": null,
+     "approach_at": null,
+     "case_id": "sleep_circadian",
+     "category": "PERSONAL",
+     "chip": "literature",
+     "direction": "increase",
+     "env_id": null,
+     "limit": 3.240788695654045,
+     "margin": -4.759211304345955,
+     "op": null,
+     "private": false,
+     "rci": {
+      "critical_z": 3.29,
+      "mean": 1.7857142857142858,
+      "n": 14,
+      "r": 0.8,
+      "r_chip": "design choice",
+      "r_source": {
+       "kind": "design_choice",
+       "rationale": "fixture"
+      },
+      "rc": 14.050827820445576,
+      "reason": null,
+      "reliable": true,
+      "s_diff": 0.44227185712454686,
+      "sd": 0.6992932067530679,
+      "sem": 0.31273342930073494
+     },
+     "role": "alert",
+     "rule_id": "pvt_lapses",
+     "severity": "caution",
+     "source": {
+      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "kind": "literature"
+     },
+     "status": "reliable_change",
+     "t": 35648400,
+     "tier": "B",
+     "unit": "count",
+     "value": 8,
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "worse": "increase"
+    },
+    "log": [
+     {
+      "detail": "opened by pvt_lapses (reliable_change, caution)",
+      "error": null,
+      "event": "OPEN",
+      "from": "idle",
+      "t": 35648400,
+      "to": "detected"
+     },
+     {
+      "detail": "selected cm_primary (primary)",
+      "error": null,
+      "event": "SELECT",
+      "from": "detected",
+      "t": 35648460,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_1 done (1 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648520,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 done (2 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648580,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 already done",
+      "error": "duplicate_step",
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648600,
+      "to": "acting"
+     },
+     {
+      "detail": "outcome recorded; reassess at 35907900 (2 of 3 steps done)",
+      "error": null,
+      "event": "OUTCOME",
+      "from": "acting",
+      "t": 35648700,
+      "to": "watch"
+     },
+     {
+      "detail": "1 new observation(s): 1 of last 1 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35691900,
+      "to": "watch"
+     },
+     {
+      "detail": "2 new observation(s): 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35778300,
+      "to": "watch"
+     },
+     {
+      "detail": "reassessed: tripwire 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); queued for flight-surgeon review",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35907900,
+      "to": "escalated"
+     }
+    ],
+    "opened_at": 35648400,
+    "outcome": {
+     "t": 35648700,
+     "text": "Shifted light schedule; nap taken."
+    },
+    "reassess_at": 35907900,
+    "schema": "landfall.case_state/1",
+    "spec": {
+     "case_id": "sleep_circadian",
+     "countermeasure_ids": [
+      "cm_primary",
+      "cm_alt_1"
+     ],
+     "escalation": {
+      "ground_packet": true,
+      "observations": [
+       "renal_symptoms",
+       "shelter_entry",
+       "dose_bfo"
+      ]
+     },
+     "step_ids": [
+      "step_1",
+      "step_2",
+      "step_3"
+     ],
+     "trigger_ids": [
+      "pvt_lapses",
+      "sleep_duration"
+     ],
+     "tripwire": {
+      "condition": {
+       "at_least": 2,
+       "of_last_n": 3,
+       "op": "ge",
+       "unit": "count",
+       "value": 4,
+       "variable": "pvt_lapses"
+      },
+      "reassess_after_s": 259200
+     }
+    },
+    "status": "escalated",
+    "steps_done": [
+     {
+      "input": null,
+      "step_id": "step_1",
+      "t": 35648520
+     },
+     {
+      "input": {
+       "unit": "h",
+       "value": 6.5,
+       "variable": "sleep_duration"
+      },
+      "step_id": "step_2",
+      "t": 35648580
+     }
+    ],
+    "tripwire_obs": [
+     {
+      "t": 35691900,
+      "value": 6
+     },
+     {
+      "t": 35735100,
+      "value": 3
+     },
+     {
+      "t": 35778300,
+      "value": 5
+     }
+    ],
+    "tripwire_result": {
+     "at_least": 2,
+     "considered": 3,
+     "hits": 2,
+     "of_last_n": 3,
+     "tripped": true
+    },
+    "updated_at": 35907900,
+    "watch_started_at": 35648700
+   },
+   "consent": {},
+   "env_id": "mars_surface",
+   "mission_epoch": "2035-01-01T00:00:00Z",
+   "observations": [
+    {
+     "crew_id": "CM-1",
+     "t": 35648500,
+     "unit": "yes/no",
+     "value": false,
+     "variable": "renal_symptoms"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 35648600,
+     "unit": "yes/no",
+     "value": 1,
+     "variable": "renal_symptoms"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 35648560,
+     "unit": "MET",
+     "value": 35648550,
+     "variable": "shelter_entry"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 35648570,
+     "unit": "mGy-Eq",
+     "value": 12.5,
+     "variable": "dose_bfo"
+    }
+   ],
+   "t": 35821200
+  },
+  "expect": {
+   "entry": [
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "renal_symptoms",
+         "display": "Renal symptoms reported (yes/no)",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "Renal symptoms reported (yes/no)"
+      },
+      "effectiveDateTime": "2036-02-17T14:21:40Z",
+      "id": "CM-1-renal-symptoms-35648500",
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueBoolean": false
+     }
+    },
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "shelter_entry",
+         "display": "Storm shelter entry time",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "Storm shelter entry time"
+      },
+      "effectiveDateTime": "2036-02-17T14:22:40Z",
+      "id": "CM-1-shelter-entry-35648560",
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueDateTime": "2036-02-17T14:22:30Z"
+     }
+    },
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "dose_bfo",
+         "display": "Blood-forming organs dose",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "Blood-forming organs dose"
+      },
+      "effectiveDateTime": "2036-02-17T14:22:50Z",
+      "id": "CM-1-dose-bfo-35648570",
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "mGy{Eq}",
+       "system": "http://unitsofmeasure.org",
+       "unit": "mGy-Eq",
+       "value": 12.5
+      }
+     }
+    },
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "renal_symptoms",
+         "display": "Renal symptoms reported (yes/no)",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "Renal symptoms reported (yes/no)"
+      },
+      "effectiveDateTime": "2036-02-17T14:23:20Z",
+      "id": "CM-1-renal-symptoms-35648600",
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueBoolean": true
+     }
+    }
+   ],
+   "id": "landfall-sleep-circadian-CM-1-35821200",
+   "meta": {
+    "tag": [
+     {
+      "code": "ground-packet",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "case-sleep_circadian",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "case-status-escalated",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "environment-mars_surface",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     }
+    ]
+   },
+   "resourceType": "Bundle",
+   "timestamp": "2036-02-19T14:20:00Z",
+   "type": "collection"
+  },
+  "fn": "build_ground_packet",
+  "name": "boolean_met_and_mgy_eq_values"
+ },
+ {
+  "args": {
+   "case_state": {
+    "case_id": "sleep_circadian",
+    "closed_at": 35907900,
+    "countermeasure_id": "cm_primary",
+    "crew_id": "CM-1",
+    "dismiss_reason": null,
+    "finding": {
+     "action_id": null,
+     "approach_at": null,
+     "case_id": "sleep_circadian",
+     "category": "PERSONAL",
+     "chip": "literature",
+     "direction": "increase",
+     "env_id": null,
+     "limit": 3.240788695654045,
+     "margin": -4.759211304345955,
+     "op": null,
+     "private": false,
+     "rci": {
+      "critical_z": 3.29,
+      "mean": 1.7857142857142858,
+      "n": 14,
+      "r": 0.8,
+      "r_chip": "design choice",
+      "r_source": {
+       "kind": "design_choice",
+       "rationale": "fixture"
+      },
+      "rc": 14.050827820445576,
+      "reason": null,
+      "reliable": true,
+      "s_diff": 0.44227185712454686,
+      "sd": 0.6992932067530679,
+      "sem": 0.31273342930073494
+     },
+     "role": "alert",
+     "rule_id": "pvt_lapses",
+     "severity": "caution",
+     "source": {
+      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "kind": "literature"
+     },
+     "status": "reliable_change",
+     "t": 35648400,
+     "tier": "B",
+     "unit": "count",
+     "value": 8,
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "worse": "increase"
+    },
+    "log": [
+     {
+      "detail": "opened by pvt_lapses (reliable_change, caution)",
+      "error": null,
+      "event": "OPEN",
+      "from": "idle",
+      "t": 35648400,
+      "to": "detected"
+     },
+     {
+      "detail": "selected cm_primary (primary)",
+      "error": null,
+      "event": "SELECT",
+      "from": "detected",
+      "t": 35648460,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_1 done (1 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648520,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 done (2 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648580,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 already done",
+      "error": "duplicate_step",
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648600,
+      "to": "acting"
+     },
+     {
+      "detail": "outcome recorded; reassess at 35907900 (2 of 3 steps done)",
+      "error": null,
+      "event": "OUTCOME",
+      "from": "acting",
+      "t": 35648700,
+      "to": "watch"
+     },
+     {
+      "detail": "1 new observation(s): 1 of last 1 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35691900,
+      "to": "watch"
+     },
+     {
+      "detail": "2 new observation(s): 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35778300,
+      "to": "watch"
+     },
+     {
+      "detail": "reassessed: tripwire 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); queued for flight-surgeon review",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35907900,
+      "to": "escalated"
+     }
+    ],
+    "opened_at": 35648400,
+    "outcome": {
+     "t": 35648700,
+     "text": "Shifted light schedule; nap taken."
+    },
+    "reassess_at": 35907900,
+    "schema": "landfall.case_state/1",
+    "spec": {
+     "case_id": "sleep_circadian",
+     "countermeasure_ids": [
+      "cm_primary",
+      "cm_alt_1"
+     ],
+     "escalation": {
+      "ground_packet": true,
+      "observations": [
+       "renal_symptoms",
+       "shelter_entry",
+       "dose_bfo"
+      ]
+     },
+     "step_ids": [
+      "step_1",
+      "step_2",
+      "step_3"
+     ],
+     "trigger_ids": [
+      "pvt_lapses",
+      "sleep_duration"
+     ],
+     "tripwire": {
+      "condition": {
+       "at_least": 2,
+       "of_last_n": 3,
+       "op": "ge",
+       "unit": "count",
+       "value": 4,
+       "variable": "pvt_lapses"
+      },
+      "reassess_after_s": 259200
+     }
+    },
+    "status": "escalated",
+    "steps_done": [
+     {
+      "input": null,
+      "step_id": "step_1",
+      "t": 35648520
+     },
+     {
+      "input": {
+       "unit": "h",
+       "value": 6.5,
+       "variable": "sleep_duration"
+      },
+      "step_id": "step_2",
+      "t": 35648580
+     }
+    ],
+    "tripwire_obs": [
+     {
+      "t": 35691900,
+      "value": 6
+     },
+     {
+      "t": 35735100,
+      "value": 3
+     },
+     {
+      "t": 35778300,
+      "value": 5
+     }
+    ],
+    "tripwire_result": {
+     "at_least": 2,
+     "considered": 3,
+     "hits": 2,
+     "of_last_n": 3,
+     "tripped": true
+    },
+    "updated_at": 35907900,
+    "watch_started_at": 35648700
+   },
+   "consent": {},
+   "env_id": "mars_surface",
+   "mission_epoch": "2035-01-01T00:00:00Z",
+   "observations": [
+    {
+     "crew_id": "CM-1",
+     "t": 35648500,
+     "unit": "yes/no",
+     "value": 2,
+     "variable": "renal_symptoms"
+    }
+   ],
+   "t": 35821200
+  },
+  "fn": "build_ground_packet",
+  "name": "yes_no_rejects_other_numbers",
+  "raises": "invalid_argument"
+ },
+ {
+  "args": {
+   "case_state": {
+    "case_id": "sleep_circadian",
+    "closed_at": 35907900,
+    "countermeasure_id": "cm_primary",
+    "crew_id": "CM-1",
+    "dismiss_reason": null,
+    "finding": {
+     "action_id": null,
+     "approach_at": null,
+     "case_id": "sleep_circadian",
+     "category": "PERSONAL",
+     "chip": "literature",
+     "direction": "increase",
+     "env_id": null,
+     "limit": 3.240788695654045,
+     "margin": -4.759211304345955,
+     "op": null,
+     "private": false,
+     "rci": {
+      "critical_z": 3.29,
+      "mean": 1.7857142857142858,
+      "n": 14,
+      "r": 0.8,
+      "r_chip": "design choice",
+      "r_source": {
+       "kind": "design_choice",
+       "rationale": "fixture"
+      },
+      "rc": 14.050827820445576,
+      "reason": null,
+      "reliable": true,
+      "s_diff": 0.44227185712454686,
+      "sd": 0.6992932067530679,
+      "sem": 0.31273342930073494
+     },
+     "role": "alert",
+     "rule_id": "pvt_lapses",
+     "severity": "caution",
+     "source": {
+      "citation": "Jacobson NS, Truax P. J Consult Clin Psychol 1991;59(1):12-19.",
+      "kind": "literature"
+     },
+     "status": "reliable_change",
+     "t": 35648400,
+     "tier": "B",
+     "unit": "count",
+     "value": 8,
+     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); RC 14.051, critical 3.29; reliable change in the worse direction. Basis: literature.",
+     "worse": "increase"
+    },
+    "log": [
+     {
+      "detail": "opened by pvt_lapses (reliable_change, caution)",
+      "error": null,
+      "event": "OPEN",
+      "from": "idle",
+      "t": 35648400,
+      "to": "detected"
+     },
+     {
+      "detail": "selected cm_primary (primary)",
+      "error": null,
+      "event": "SELECT",
+      "from": "detected",
+      "t": 35648460,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_1 done (1 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648520,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 done (2 of 3)",
+      "error": null,
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648580,
+      "to": "acting"
+     },
+     {
+      "detail": "step step_2 already done",
+      "error": "duplicate_step",
+      "event": "STEP",
+      "from": "acting",
+      "t": 35648600,
+      "to": "acting"
+     },
+     {
+      "detail": "outcome recorded; reassess at 35907900 (2 of 3 steps done)",
+      "error": null,
+      "event": "OUTCOME",
+      "from": "acting",
+      "t": 35648700,
+      "to": "watch"
+     },
+     {
+      "detail": "1 new observation(s): 1 of last 1 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35691900,
+      "to": "watch"
+     },
+     {
+      "detail": "2 new observation(s): 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); judged at reassessment (35907900)",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35778300,
+      "to": "watch"
+     },
+     {
+      "detail": "reassessed: tripwire 2 of last 3 pvt_lapses >= 4 (escalate at 2 of 3); queued for flight-surgeon review",
+      "error": null,
+      "event": "TICK",
+      "from": "watch",
+      "t": 35907900,
+      "to": "escalated"
+     }
+    ],
+    "opened_at": 35648400,
+    "outcome": {
+     "t": 35648700,
+     "text": "Shifted light schedule; nap taken."
+    },
+    "reassess_at": 35907900,
+    "schema": "landfall.case_state/1",
+    "spec": {
+     "case_id": "sleep_circadian",
+     "countermeasure_ids": [
+      "cm_primary",
+      "cm_alt_1"
+     ],
+     "escalation": {
+      "ground_packet": true,
+      "observations": [
+       "proton_flux_10mev",
+       "pvt_lapses"
+      ]
+     },
+     "step_ids": [
+      "step_1",
+      "step_2",
+      "step_3"
+     ],
+     "trigger_ids": [
+      "pvt_lapses",
+      "sleep_duration"
+     ],
+     "tripwire": {
+      "condition": {
+       "at_least": 2,
+       "of_last_n": 3,
+       "op": "ge",
+       "unit": "count",
+       "value": 4,
+       "variable": "pvt_lapses"
+      },
+      "reassess_after_s": 259200
+     }
+    },
+    "status": "escalated",
+    "steps_done": [
+     {
+      "input": null,
+      "step_id": "step_1",
+      "t": 35648520
+     },
+     {
+      "input": {
+       "unit": "h",
+       "value": 6.5,
+       "variable": "sleep_duration"
+      },
+      "step_id": "step_2",
+      "t": 35648580
+     }
+    ],
+    "tripwire_obs": [
+     {
+      "t": 35691900,
+      "value": 6
+     },
+     {
+      "t": 35735100,
+      "value": 3
+     },
+     {
+      "t": 35778300,
+      "value": 5
+     }
+    ],
+    "tripwire_result": {
+     "at_least": 2,
+     "considered": 3,
+     "hits": 2,
+     "of_last_n": 3,
+     "tripped": true
+    },
+    "updated_at": 35907900,
+    "watch_started_at": 35648700
+   },
+   "consent": {},
+   "env_id": "mars_surface",
+   "mission_epoch": "2035-01-01T00:00:00Z",
+   "observations": [
+    {
+     "crew_id": null,
+     "provenance": "simulated",
+     "source": "replay",
+     "t": 35648500,
+     "unit": "pfu",
+     "value": 1100.0,
+     "variable": "proton_flux_10mev"
+    },
+    {
+     "crew_id": "CM-2",
+     "t": 35648500,
+     "unit": "count",
+     "value": 9,
+     "variable": "pvt_lapses"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 35648500,
+     "unit": "count",
+     "value": 6,
+     "variable": "pvt_lapses"
+    },
+    {
+     "crew_id": "CM-1",
+     "t": 35648500,
+     "unit": "count",
+     "value": 5,
+     "variable": "pvt_lapses"
+    }
+   ],
+   "t": 35821200
+  },
+  "expect": {
+   "entry": [
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "proton_flux_10mev",
+         "display": "Proton flux >=10 MeV",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "Proton flux >=10 MeV"
+      },
+      "effectiveDateTime": "2036-02-17T14:21:40Z",
+      "id": "CM-1-proton-flux-10mev-35648500",
+      "meta": {
+       "tag": [
+        {
+         "code": "provenance-simulated",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "source-replay",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        },
+        {
+         "code": "scope-vehicle",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ]
+      },
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "cm-2.s-1.sr-1",
+       "system": "http://unitsofmeasure.org",
+       "unit": "pfu",
+       "value": 1100.0
+      }
+     }
+    },
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "pvt_lapses",
+         "display": "PVT-B lapses",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "PVT-B lapses"
+      },
+      "effectiveDateTime": "2036-02-17T14:21:40Z",
+      "id": "CM-1-pvt-lapses-35648500",
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "{count}",
+       "system": "http://unitsofmeasure.org",
+       "unit": "count",
+       "value": 6
+      }
+     }
+    },
+    {
+     "resource": {
+      "code": {
+       "coding": [
+        {
+         "code": "pvt_lapses",
+         "display": "PVT-B lapses",
+         "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+        }
+       ],
+       "text": "PVT-B lapses"
+      },
+      "effectiveDateTime": "2036-02-17T14:21:40Z",
+      "id": "CM-1-pvt-lapses-35648500-2",
+      "resourceType": "Observation",
+      "status": "final",
+      "subject": {
+       "display": "CM-1",
+       "identifier": {
+        "system": "https://landfall.dev/fhir/NamingSystem/crew-id",
+        "value": "CM-1"
+       },
+       "type": "Patient"
+      },
+      "valueQuantity": {
+       "code": "{count}",
+       "system": "http://unitsofmeasure.org",
+       "unit": "count",
+       "value": 5
+      }
+     }
+    }
+   ],
+   "id": "landfall-sleep-circadian-CM-1-35821200",
+   "meta": {
+    "tag": [
+     {
+      "code": "ground-packet",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "case-sleep_circadian",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "case-status-escalated",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     },
+     {
+      "code": "environment-mars_surface",
+      "system": "https://landfall.dev/fhir/CodeSystem/landfall"
+     }
+    ]
+   },
+   "resourceType": "Bundle",
+   "timestamp": "2036-02-19T14:20:00Z",
+   "type": "collection"
+  },
+  "fn": "build_ground_packet",
+  "name": "vehicle_obs_included_and_ids_unique"
+ }
+]

@@ -1,0 +1,2723 @@
+[
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": 100
+  },
+  "expect": {
+   "action_id": "radiation_dose_review",
+   "approach_at": 480,
+   "case_id": "spe_shelter",
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 600,
+   "margin": 500,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "pel_career_effective_dose",
+   "severity": "nominal",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4030",
+    "section": "4.8.2",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "within",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mSv",
+   "value": 100,
+   "why": "Career effective dose: 100 mSv; compliant when < 600 mSv; within. Basis: NASA-published [V1 4030]."
+  },
+  "fn": "evaluate_rule",
+  "name": "ceiling_lt_600_value_100"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": 479.9
+  },
+  "expect": {
+   "action_id": "radiation_dose_review",
+   "approach_at": 480,
+   "case_id": "spe_shelter",
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 600,
+   "margin": 120.10000000000002,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "pel_career_effective_dose",
+   "severity": "nominal",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4030",
+    "section": "4.8.2",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "within",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mSv",
+   "value": 479.9,
+   "why": "Career effective dose: 479.9 mSv; compliant when < 600 mSv; within. Basis: NASA-published [V1 4030]."
+  },
+  "fn": "evaluate_rule",
+  "name": "ceiling_lt_600_value_479.9"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": 480
+  },
+  "expect": {
+   "action_id": "radiation_dose_review",
+   "approach_at": 480,
+   "case_id": "spe_shelter",
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 600,
+   "margin": 120,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "pel_career_effective_dose",
+   "severity": "caution",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4030",
+    "section": "4.8.2",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "approaching",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mSv",
+   "value": 480,
+   "why": "Career effective dose: 480 mSv; compliant when < 600 mSv; approaching (watch level 480 mSv). Basis: NASA-published [V1 4030]."
+  },
+  "fn": "evaluate_rule",
+  "name": "ceiling_lt_600_value_480"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": 599.9
+  },
+  "expect": {
+   "action_id": "radiation_dose_review",
+   "approach_at": 480,
+   "case_id": "spe_shelter",
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 600,
+   "margin": 0.10000000000002274,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "pel_career_effective_dose",
+   "severity": "caution",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4030",
+    "section": "4.8.2",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "approaching",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mSv",
+   "value": 599.9,
+   "why": "Career effective dose: 599.9 mSv; compliant when < 600 mSv; approaching (watch level 480 mSv). Basis: NASA-published [V1 4030]."
+  },
+  "fn": "evaluate_rule",
+  "name": "ceiling_lt_600_value_599.9"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": 600
+  },
+  "expect": {
+   "action_id": "radiation_dose_review",
+   "approach_at": 480,
+   "case_id": "spe_shelter",
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 600,
+   "margin": 0,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "pel_career_effective_dose",
+   "severity": "warning",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4030",
+    "section": "4.8.2",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mSv",
+   "value": 600,
+   "why": "Career effective dose: 600 mSv; compliant when < 600 mSv; outside. Basis: NASA-published [V1 4030]."
+  },
+  "fn": "evaluate_rule",
+  "name": "ceiling_lt_600_value_600"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": 750
+  },
+  "expect": {
+   "action_id": "radiation_dose_review",
+   "approach_at": 480,
+   "case_id": "spe_shelter",
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 600,
+   "margin": -150,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "pel_career_effective_dose",
+   "severity": "warning",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4030",
+    "section": "4.8.2",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mSv",
+   "value": 750,
+   "why": "Career effective dose: 750 mSv; compliant when < 600 mSv; outside. Basis: NASA-published [V1 4030]."
+  },
+  "fn": "evaluate_rule",
+  "name": "ceiling_lt_600_value_750"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 2.7
+    },
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_cabin_ppco2_1h",
+    "label": "Cabin ppCO2, 1-hour mean",
+    "limit": 3,
+    "op": "le",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+     "kind": "nasa_standard",
+     "requirement_id": "V2 6004",
+     "snapshot": "std_vol2_requirements",
+     "url": "https://www.nasa.gov/ochmo/human-spaceflight-and-aviation-standards/"
+    },
+    "stale_after": {
+     "chip": "design choice",
+     "seconds": 7200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: two 1-hour windows"
+     }
+    },
+    "tier": "A",
+    "unit": "mmHg",
+    "variable": "cabin_ppco2_1h_mean",
+    "window": {
+     "duration": "PT1H",
+     "kind": "rolling_mean"
+    }
+   },
+   "t": 35648400,
+   "value": 2.0
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 2.7,
+   "case_id": null,
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 3,
+   "margin": 1.0,
+   "op": "le",
+   "role": "alert",
+   "rule_id": "pel_cabin_ppco2_1h",
+   "severity": "nominal",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+    "kind": "nasa_standard",
+    "requirement_id": "V2 6004",
+    "snapshot": "std_vol2_requirements",
+    "url": "https://www.nasa.gov/ochmo/human-spaceflight-and-aviation-standards/"
+   },
+   "status": "within",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mmHg",
+   "value": 2.0,
+   "why": "Cabin ppCO2, 1-hour mean: 2 mmHg; compliant when <= 3 mmHg; within. Basis: NASA-published [V2 6004]."
+  },
+  "fn": "evaluate_rule",
+  "name": "ceiling_le_3_value_2.0"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 2.7
+    },
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_cabin_ppco2_1h",
+    "label": "Cabin ppCO2, 1-hour mean",
+    "limit": 3,
+    "op": "le",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+     "kind": "nasa_standard",
+     "requirement_id": "V2 6004",
+     "snapshot": "std_vol2_requirements",
+     "url": "https://www.nasa.gov/ochmo/human-spaceflight-and-aviation-standards/"
+    },
+    "stale_after": {
+     "chip": "design choice",
+     "seconds": 7200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: two 1-hour windows"
+     }
+    },
+    "tier": "A",
+    "unit": "mmHg",
+    "variable": "cabin_ppco2_1h_mean",
+    "window": {
+     "duration": "PT1H",
+     "kind": "rolling_mean"
+    }
+   },
+   "t": 35648400,
+   "value": 2.7
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 2.7,
+   "case_id": null,
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 3,
+   "margin": 0.2999999999999998,
+   "op": "le",
+   "role": "alert",
+   "rule_id": "pel_cabin_ppco2_1h",
+   "severity": "caution",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+    "kind": "nasa_standard",
+    "requirement_id": "V2 6004",
+    "snapshot": "std_vol2_requirements",
+    "url": "https://www.nasa.gov/ochmo/human-spaceflight-and-aviation-standards/"
+   },
+   "status": "approaching",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mmHg",
+   "value": 2.7,
+   "why": "Cabin ppCO2, 1-hour mean: 2.7 mmHg; compliant when <= 3 mmHg; approaching (watch level 2.7 mmHg). Basis: NASA-published [V2 6004]."
+  },
+  "fn": "evaluate_rule",
+  "name": "ceiling_le_3_value_2.7"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 2.7
+    },
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_cabin_ppco2_1h",
+    "label": "Cabin ppCO2, 1-hour mean",
+    "limit": 3,
+    "op": "le",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+     "kind": "nasa_standard",
+     "requirement_id": "V2 6004",
+     "snapshot": "std_vol2_requirements",
+     "url": "https://www.nasa.gov/ochmo/human-spaceflight-and-aviation-standards/"
+    },
+    "stale_after": {
+     "chip": "design choice",
+     "seconds": 7200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: two 1-hour windows"
+     }
+    },
+    "tier": "A",
+    "unit": "mmHg",
+    "variable": "cabin_ppco2_1h_mean",
+    "window": {
+     "duration": "PT1H",
+     "kind": "rolling_mean"
+    }
+   },
+   "t": 35648400,
+   "value": 3.0
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 2.7,
+   "case_id": null,
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 3,
+   "margin": 0.0,
+   "op": "le",
+   "role": "alert",
+   "rule_id": "pel_cabin_ppco2_1h",
+   "severity": "caution",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+    "kind": "nasa_standard",
+    "requirement_id": "V2 6004",
+    "snapshot": "std_vol2_requirements",
+    "url": "https://www.nasa.gov/ochmo/human-spaceflight-and-aviation-standards/"
+   },
+   "status": "approaching",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mmHg",
+   "value": 3.0,
+   "why": "Cabin ppCO2, 1-hour mean: 3 mmHg; compliant when <= 3 mmHg; approaching (watch level 2.7 mmHg). Basis: NASA-published [V2 6004]."
+  },
+  "fn": "evaluate_rule",
+  "name": "ceiling_le_3_value_3.0"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 2.7
+    },
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_cabin_ppco2_1h",
+    "label": "Cabin ppCO2, 1-hour mean",
+    "limit": 3,
+    "op": "le",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+     "kind": "nasa_standard",
+     "requirement_id": "V2 6004",
+     "snapshot": "std_vol2_requirements",
+     "url": "https://www.nasa.gov/ochmo/human-spaceflight-and-aviation-standards/"
+    },
+    "stale_after": {
+     "chip": "design choice",
+     "seconds": 7200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: two 1-hour windows"
+     }
+    },
+    "tier": "A",
+    "unit": "mmHg",
+    "variable": "cabin_ppco2_1h_mean",
+    "window": {
+     "duration": "PT1H",
+     "kind": "rolling_mean"
+    }
+   },
+   "t": 35648400,
+   "value": 3.01
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 2.7,
+   "case_id": null,
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 3,
+   "margin": -0.009999999999999787,
+   "op": "le",
+   "role": "alert",
+   "rule_id": "pel_cabin_ppco2_1h",
+   "severity": "warning",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+    "kind": "nasa_standard",
+    "requirement_id": "V2 6004",
+    "snapshot": "std_vol2_requirements",
+    "url": "https://www.nasa.gov/ochmo/human-spaceflight-and-aviation-standards/"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mmHg",
+   "value": 3.01,
+   "why": "Cabin ppCO2, 1-hour mean: 3.01 mmHg; compliant when <= 3 mmHg; outside. Basis: NASA-published [V2 6004]."
+  },
+  "fn": "evaluate_rule",
+  "name": "ceiling_le_3_value_3.01"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "iss",
+     "cislunar"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 34.0
+    },
+    "category": "FFD",
+    "chip": "NASA-published",
+    "id": "ffd_vo2max_microgravity_eva",
+    "label": "VO2max, microgravity EVA",
+    "limit": 32.9,
+    "op": "ge",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4001",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "ml/min/kg",
+    "variable": "vo2max",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 40.0
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 34.0,
+   "case_id": null,
+   "category": "FFD",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 32.9,
+   "margin": 7.100000000000001,
+   "op": "ge",
+   "role": "alert",
+   "rule_id": "ffd_vo2max_microgravity_eva",
+   "severity": "nominal",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4001",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "within",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "ml/min/kg",
+   "value": 40.0,
+   "why": "VO2max, microgravity EVA: 40 ml/min/kg; compliant when >= 32.9 ml/min/kg; within. Basis: NASA-published [V1 4001]."
+  },
+  "fn": "evaluate_rule",
+  "name": "floor_ge_32_9_value_40.0"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "iss",
+     "cislunar"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 34.0
+    },
+    "category": "FFD",
+    "chip": "NASA-published",
+    "id": "ffd_vo2max_microgravity_eva",
+    "label": "VO2max, microgravity EVA",
+    "limit": 32.9,
+    "op": "ge",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4001",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "ml/min/kg",
+    "variable": "vo2max",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 34.0
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 34.0,
+   "case_id": null,
+   "category": "FFD",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 32.9,
+   "margin": 1.1000000000000014,
+   "op": "ge",
+   "role": "alert",
+   "rule_id": "ffd_vo2max_microgravity_eva",
+   "severity": "caution",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4001",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "approaching",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "ml/min/kg",
+   "value": 34.0,
+   "why": "VO2max, microgravity EVA: 34 ml/min/kg; compliant when >= 32.9 ml/min/kg; approaching (watch level 34 ml/min/kg). Basis: NASA-published [V1 4001]."
+  },
+  "fn": "evaluate_rule",
+  "name": "floor_ge_32_9_value_34.0"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "iss",
+     "cislunar"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 34.0
+    },
+    "category": "FFD",
+    "chip": "NASA-published",
+    "id": "ffd_vo2max_microgravity_eva",
+    "label": "VO2max, microgravity EVA",
+    "limit": 32.9,
+    "op": "ge",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4001",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "ml/min/kg",
+    "variable": "vo2max",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 32.9
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 34.0,
+   "case_id": null,
+   "category": "FFD",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 32.9,
+   "margin": 0.0,
+   "op": "ge",
+   "role": "alert",
+   "rule_id": "ffd_vo2max_microgravity_eva",
+   "severity": "caution",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4001",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "approaching",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "ml/min/kg",
+   "value": 32.9,
+   "why": "VO2max, microgravity EVA: 32.9 ml/min/kg; compliant when >= 32.9 ml/min/kg; approaching (watch level 34 ml/min/kg). Basis: NASA-published [V1 4001]."
+  },
+  "fn": "evaluate_rule",
+  "name": "floor_ge_32_9_value_32.9"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "iss",
+     "cislunar"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 34.0
+    },
+    "category": "FFD",
+    "chip": "NASA-published",
+    "id": "ffd_vo2max_microgravity_eva",
+    "label": "VO2max, microgravity EVA",
+    "limit": 32.9,
+    "op": "ge",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4001",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "ml/min/kg",
+    "variable": "vo2max",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 32.8
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 34.0,
+   "case_id": null,
+   "category": "FFD",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 32.9,
+   "margin": -0.10000000000000142,
+   "op": "ge",
+   "role": "alert",
+   "rule_id": "ffd_vo2max_microgravity_eva",
+   "severity": "warning",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4001",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "ml/min/kg",
+   "value": 32.8,
+   "why": "VO2max, microgravity EVA: 32.8 ml/min/kg; compliant when >= 32.9 ml/min/kg; outside. Basis: NASA-published [V1 4001]."
+  },
+  "fn": "evaluate_rule",
+  "name": "floor_ge_32_9_value_32.8"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "iss",
+     "cislunar"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 34.0
+    },
+    "category": "FFD",
+    "chip": "NASA-published",
+    "id": "ffd_vo2max_microgravity_eva",
+    "label": "VO2max, microgravity EVA",
+    "limit": 32.9,
+    "op": "ge",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4001",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "ml/min/kg",
+    "variable": "vo2max",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 35.1
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 34.0,
+   "case_id": null,
+   "category": "FFD",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 32.9,
+   "margin": 2.200000000000003,
+   "op": "ge",
+   "role": "alert",
+   "rule_id": "ffd_vo2max_microgravity_eva",
+   "severity": "nominal",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4001",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "within",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "ml/min/kg",
+   "value": 35.1,
+   "why": "VO2max, microgravity EVA: 35.1 ml/min/kg; compliant when >= 32.9 ml/min/kg; within. Basis: NASA-published [V1 4001]."
+  },
+  "fn": "evaluate_rule",
+  "name": "ffd_demo_cm2_microgravity_within"
+ },
+ {
+  "args": {
+   "env_id": "mars_surface",
+   "rule": {
+    "applies_to": [
+     "lunar_surface",
+     "mars_surface"
+    ],
+    "category": "FFD",
+    "chip": "NASA-published",
+    "id": "ffd_vo2max_surface_eva",
+    "label": "VO2max, surface EVA",
+    "limit": 36.5,
+    "op": "ge",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4002",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "ml/min/kg",
+    "variable": "vo2max",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 35.1
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": null,
+   "case_id": null,
+   "category": "FFD",
+   "chip": "NASA-published",
+   "env_id": "mars_surface",
+   "limit": 36.5,
+   "margin": -1.3999999999999986,
+   "op": "ge",
+   "role": "alert",
+   "rule_id": "ffd_vo2max_surface_eva",
+   "severity": "warning",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4002",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "ml/min/kg",
+   "value": 35.1,
+   "why": "VO2max, surface EVA: 35.1 ml/min/kg; compliant when >= 36.5 ml/min/kg; outside. Basis: NASA-published [V1 4002]."
+  },
+  "fn": "evaluate_rule",
+  "name": "ffd_demo_cm2_surface_outside"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "lunar_surface",
+     "mars_surface"
+    ],
+    "category": "FFD",
+    "chip": "NASA-published",
+    "id": "ffd_vo2max_surface_eva",
+    "label": "VO2max, surface EVA",
+    "limit": 36.5,
+    "op": "ge",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4002",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "ml/min/kg",
+    "variable": "vo2max",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 35.1
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": null,
+   "case_id": null,
+   "category": "FFD",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 36.5,
+   "margin": null,
+   "op": "ge",
+   "role": "alert",
+   "rule_id": "ffd_vo2max_surface_eva",
+   "severity": "nominal",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4002",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "not_applicable",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "ml/min/kg",
+   "value": 35.1,
+   "why": "VO2max, surface EVA: not applicable in iss (applies to lunar_surface, mars_surface). Basis: NASA-published [V1 4002]."
+  },
+  "fn": "evaluate_rule",
+  "name": "ffd_surface_not_applicable_on_iss"
+ },
+ {
+  "args": {
+   "env_id": "mars_surface",
+   "rule": {
+    "applies_to": [
+     "lunar_surface",
+     "mars_surface"
+    ],
+    "category": "FFD",
+    "chip": "NASA-published",
+    "id": "ffd_vo2max_surface_eva",
+    "label": "VO2max, surface EVA",
+    "limit": 36.5,
+    "op": "ge",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4002",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "ml/min/kg",
+    "variable": "vo2max",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": {
+    "crew_id": "CM-2",
+    "t": 35644800,
+    "unit": "ml/min/kg",
+    "value": 35.1,
+    "variable": "vo2max"
+   }
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": null,
+   "case_id": null,
+   "category": "FFD",
+   "chip": "NASA-published",
+   "env_id": "mars_surface",
+   "limit": 36.5,
+   "margin": -1.3999999999999986,
+   "op": "ge",
+   "role": "alert",
+   "rule_id": "ffd_vo2max_surface_eva",
+   "severity": "warning",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4002",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "ml/min/kg",
+   "value": 35.1,
+   "why": "VO2max, surface EVA: 35.1 ml/min/kg; compliant when >= 36.5 ml/min/kg; outside. Basis: NASA-published [V1 4002]."
+  },
+  "fn": "evaluate_rule",
+  "name": "observation_dict_matching_unit"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": {
+    "unit": "Sv",
+    "value": 0.6
+   }
+  },
+  "fn": "evaluate_rule",
+  "name": "unit_mismatch_raises",
+  "raises": "unit_mismatch"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": {
+    "value": 100
+   }
+  },
+  "fn": "evaluate_rule",
+  "name": "missing_unit_raises",
+  "raises": "unit_mismatch"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": {
+    "unit": "mSv",
+    "value": 1,
+    "variable": "vo2max"
+   }
+  },
+  "fn": "evaluate_rule",
+  "name": "variable_mismatch_raises",
+  "raises": "variable_mismatch"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": null
+  },
+  "expect": {
+   "action_id": "radiation_dose_review",
+   "approach_at": 480,
+   "case_id": "spe_shelter",
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 600,
+   "margin": null,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "pel_career_effective_dose",
+   "severity": "advisory",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4030",
+    "section": "4.8.2",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "insufficient_data",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mSv",
+   "value": null,
+   "why": "Career effective dose: no value. Basis: NASA-published [V1 4030]."
+  },
+  "fn": "evaluate_rule",
+  "name": "null_value_insufficient"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 2.7
+    },
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_cabin_ppco2_1h",
+    "label": "Cabin ppCO2, 1-hour mean",
+    "limit": 3,
+    "op": "le",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+     "kind": "nasa_standard",
+     "requirement_id": "V2 6004",
+     "snapshot": "std_vol2_requirements",
+     "url": "https://www.nasa.gov/ochmo/human-spaceflight-and-aviation-standards/"
+    },
+    "stale_after": {
+     "chip": "design choice",
+     "seconds": 7200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: two 1-hour windows"
+     }
+    },
+    "tier": "A",
+    "unit": "mmHg",
+    "variable": "cabin_ppco2_1h_mean",
+    "window": {
+     "duration": "PT1H",
+     "kind": "rolling_mean"
+    }
+   },
+   "t": 35648400,
+   "value": {
+    "t": 35641199,
+    "unit": "mmHg",
+    "value": 2.0,
+    "variable": "cabin_ppco2_1h_mean"
+   }
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 2.7,
+   "case_id": null,
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 3,
+   "margin": null,
+   "op": "le",
+   "role": "alert",
+   "rule_id": "pel_cabin_ppco2_1h",
+   "severity": "advisory",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+    "kind": "nasa_standard",
+    "requirement_id": "V2 6004",
+    "snapshot": "std_vol2_requirements",
+    "url": "https://www.nasa.gov/ochmo/human-spaceflight-and-aviation-standards/"
+   },
+   "status": "stale",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mmHg",
+   "value": 2.0,
+   "why": "Cabin ppCO2, 1-hour mean: last value 2 mmHg is 7201 s old (stale after 7200 s). Basis: NASA-published [V2 6004]."
+  },
+  "fn": "evaluate_rule",
+  "name": "stale_observation"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 2.7
+    },
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_cabin_ppco2_1h",
+    "label": "Cabin ppCO2, 1-hour mean",
+    "limit": 3,
+    "op": "le",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+     "kind": "nasa_standard",
+     "requirement_id": "V2 6004",
+     "snapshot": "std_vol2_requirements",
+     "url": "https://www.nasa.gov/ochmo/human-spaceflight-and-aviation-standards/"
+    },
+    "stale_after": {
+     "chip": "design choice",
+     "seconds": 7200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: two 1-hour windows"
+     }
+    },
+    "tier": "A",
+    "unit": "mmHg",
+    "variable": "cabin_ppco2_1h_mean",
+    "window": {
+     "duration": "PT1H",
+     "kind": "rolling_mean"
+    }
+   },
+   "t": 35648400,
+   "value": {
+    "t": 35641200,
+    "unit": "mmHg",
+    "value": 2.0,
+    "variable": "cabin_ppco2_1h_mean"
+   }
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 2.7,
+   "case_id": null,
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 3,
+   "margin": 1.0,
+   "op": "le",
+   "role": "alert",
+   "rule_id": "pel_cabin_ppco2_1h",
+   "severity": "nominal",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+    "kind": "nasa_standard",
+    "requirement_id": "V2 6004",
+    "snapshot": "std_vol2_requirements",
+    "url": "https://www.nasa.gov/ochmo/human-spaceflight-and-aviation-standards/"
+   },
+   "status": "within",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mmHg",
+   "value": 2.0,
+   "why": "Cabin ppCO2, 1-hour mean: 2 mmHg; compliant when <= 3 mmHg; within. Basis: NASA-published [V2 6004]."
+  },
+  "fn": "evaluate_rule",
+  "name": "fresh_at_exact_stale_limit"
+ },
+ {
+  "args": {
+   "env_id": "mars_surface",
+   "rule": {
+    "applies_to": [
+     "*"
+    ],
+    "category": "POL",
+    "chip": "NASA-published",
+    "id": "pol_bmd_hip",
+    "label": "Hip BMD vs preflight",
+    "limit": 95,
+    "op": "ge",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4027",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "% of pre-mission",
+    "variable": "bmd_hip_pct_premission",
+    "window": {
+     "kind": "ratio_to_baseline"
+    }
+   },
+   "t": 35648400,
+   "value": 97
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": null,
+   "case_id": null,
+   "category": "POL",
+   "chip": "NASA-published",
+   "env_id": "mars_surface",
+   "limit": 95,
+   "margin": 2,
+   "op": "ge",
+   "role": "alert",
+   "rule_id": "pol_bmd_hip",
+   "severity": "nominal",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4027",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "within",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "% of pre-mission",
+   "value": 97,
+   "why": "Hip BMD vs preflight: 97 % of pre-mission; compliant when >= 95 % of pre-mission; within. Basis: NASA-published [V1 4027]."
+  },
+  "fn": "evaluate_rule",
+  "name": "pol_percent_value_97"
+ },
+ {
+  "args": {
+   "env_id": "mars_surface",
+   "rule": {
+    "applies_to": [
+     "*"
+    ],
+    "category": "POL",
+    "chip": "NASA-published",
+    "id": "pol_bmd_hip",
+    "label": "Hip BMD vs preflight",
+    "limit": 95,
+    "op": "ge",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4027",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "% of pre-mission",
+    "variable": "bmd_hip_pct_premission",
+    "window": {
+     "kind": "ratio_to_baseline"
+    }
+   },
+   "t": 35648400,
+   "value": 95
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": null,
+   "case_id": null,
+   "category": "POL",
+   "chip": "NASA-published",
+   "env_id": "mars_surface",
+   "limit": 95,
+   "margin": 0,
+   "op": "ge",
+   "role": "alert",
+   "rule_id": "pol_bmd_hip",
+   "severity": "nominal",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4027",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "within",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "% of pre-mission",
+   "value": 95,
+   "why": "Hip BMD vs preflight: 95 % of pre-mission; compliant when >= 95 % of pre-mission; within. Basis: NASA-published [V1 4027]."
+  },
+  "fn": "evaluate_rule",
+  "name": "pol_percent_value_95"
+ },
+ {
+  "args": {
+   "env_id": "mars_surface",
+   "rule": {
+    "applies_to": [
+     "*"
+    ],
+    "category": "POL",
+    "chip": "NASA-published",
+    "id": "pol_bmd_hip",
+    "label": "Hip BMD vs preflight",
+    "limit": 95,
+    "op": "ge",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4027",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "% of pre-mission",
+    "variable": "bmd_hip_pct_premission",
+    "window": {
+     "kind": "ratio_to_baseline"
+    }
+   },
+   "t": 35648400,
+   "value": 94.9
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": null,
+   "case_id": null,
+   "category": "POL",
+   "chip": "NASA-published",
+   "env_id": "mars_surface",
+   "limit": 95,
+   "margin": -0.09999999999999432,
+   "op": "ge",
+   "role": "alert",
+   "rule_id": "pol_bmd_hip",
+   "severity": "warning",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4027",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "% of pre-mission",
+   "value": 94.9,
+   "why": "Hip BMD vs preflight: 94.9 % of pre-mission; compliant when >= 95 % of pre-mission; outside. Basis: NASA-published [V1 4027]."
+  },
+  "fn": "evaluate_rule",
+  "name": "pol_percent_value_94.9"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 200
+    },
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "ctx_reference_spe_design",
+    "label": "Reference SPE protection (vehicle design)",
+    "limit": 250,
+    "op": "lt",
+    "role": "context",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4031",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "reference_spe_effective_dose",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 300
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 200,
+   "case_id": null,
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 250,
+   "margin": -50,
+   "op": "lt",
+   "role": "context",
+   "rule_id": "ctx_reference_spe_design",
+   "severity": "advisory",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4031",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mSv",
+   "value": 300,
+   "why": "Reference SPE protection (vehicle design): 300 mSv; compliant when < 250 mSv; outside. Basis: NASA-published [V1 4031]."
+  },
+  "fn": "evaluate_rule",
+  "name": "context_outside_capped_advisory"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 200
+    },
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "ctx_reference_spe_design",
+    "label": "Reference SPE protection (vehicle design)",
+    "limit": 250,
+    "op": "lt",
+    "role": "context",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4031",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "reference_spe_effective_dose",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 220
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 200,
+   "case_id": null,
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 250,
+   "margin": 30,
+   "op": "lt",
+   "role": "context",
+   "rule_id": "ctx_reference_spe_design",
+   "severity": "advisory",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4031",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "approaching",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mSv",
+   "value": 220,
+   "why": "Reference SPE protection (vehicle design): 220 mSv; compliant when < 250 mSv; approaching (watch level 200 mSv). Basis: NASA-published [V1 4031]."
+  },
+  "fn": "evaluate_rule",
+  "name": "context_approaching_capped_advisory"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "iss",
+     "cislunar",
+     "lunar_surface"
+    ],
+    "case_id": "spe_shelter",
+    "category": "OPS",
+    "chip": "NOAA-published",
+    "id": "ops_noaa_s1",
+    "label": "NOAA S1 (Minor)",
+    "limit": 10,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NOAA Space Weather Scales",
+     "kind": "noaa",
+     "snapshot": "swpc_s_scale",
+     "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+    },
+    "tier": "A",
+    "unit": "pfu",
+    "variable": "proton_flux_10mev",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 50
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": null,
+   "case_id": "spe_shelter",
+   "category": "OPS",
+   "chip": "NOAA-published",
+   "env_id": "iss",
+   "limit": 10,
+   "margin": -40,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "ops_noaa_s1",
+   "severity": "advisory",
+   "source": {
+    "doc": "NOAA Space Weather Scales",
+    "kind": "noaa",
+    "snapshot": "swpc_s_scale",
+    "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "pfu",
+   "value": 50,
+   "why": "NOAA S1 (Minor): 50 pfu; compliant when < 10 pfu; outside. Basis: NOAA-published."
+  },
+  "fn": "evaluate_rule",
+  "name": "ops_s1_outside_advisory"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "iss",
+     "cislunar",
+     "lunar_surface"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 500
+    },
+    "case_id": "spe_shelter",
+    "category": "OPS",
+    "chip": "NOAA-published",
+    "id": "ops_noaa_s3",
+    "label": "NOAA S3 (Strong)",
+    "limit": 1000,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NOAA Space Weather Scales",
+     "kind": "noaa",
+     "snapshot": "swpc_s_scale",
+     "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+    },
+    "tier": "A",
+    "unit": "pfu",
+    "variable": "proton_flux_10mev",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 600
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 500,
+   "case_id": "spe_shelter",
+   "category": "OPS",
+   "chip": "NOAA-published",
+   "env_id": "iss",
+   "limit": 1000,
+   "margin": 400,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "ops_noaa_s3",
+   "severity": "advisory",
+   "source": {
+    "doc": "NOAA Space Weather Scales",
+    "kind": "noaa",
+    "snapshot": "swpc_s_scale",
+    "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+   },
+   "status": "approaching",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "pfu",
+   "value": 600,
+   "why": "NOAA S3 (Strong): 600 pfu; compliant when < 1000 pfu; approaching (watch level 500 pfu). Basis: NOAA-published."
+  },
+  "fn": "evaluate_rule",
+  "name": "ops_s3_approaching_advisory"
+ },
+ {
+  "args": {
+   "env_id": "cislunar",
+   "rule": {
+    "applies_to": [
+     "iss",
+     "cislunar",
+     "lunar_surface"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 500
+    },
+    "case_id": "spe_shelter",
+    "category": "OPS",
+    "chip": "NOAA-published",
+    "id": "ops_noaa_s3",
+    "label": "NOAA S3 (Strong)",
+    "limit": 1000,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NOAA Space Weather Scales",
+     "kind": "noaa",
+     "snapshot": "swpc_s_scale",
+     "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+    },
+    "tier": "A",
+    "unit": "pfu",
+    "variable": "proton_flux_10mev",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 2500
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 500,
+   "case_id": "spe_shelter",
+   "category": "OPS",
+   "chip": "NOAA-published",
+   "env_id": "cislunar",
+   "limit": 1000,
+   "margin": -1500,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "ops_noaa_s3",
+   "severity": "caution",
+   "source": {
+    "doc": "NOAA Space Weather Scales",
+    "kind": "noaa",
+    "snapshot": "swpc_s_scale",
+    "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "pfu",
+   "value": 2500,
+   "why": "NOAA S3 (Strong): 2500 pfu; compliant when < 1000 pfu; outside. Basis: NOAA-published."
+  },
+  "fn": "evaluate_rule",
+  "name": "ops_s3_outside_no_eva_caution"
+ },
+ {
+  "args": {
+   "ctx": {
+    "eva": true
+   },
+   "env_id": "lunar_surface",
+   "rule": {
+    "applies_to": [
+     "iss",
+     "cislunar",
+     "lunar_surface"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 500
+    },
+    "case_id": "spe_shelter",
+    "category": "OPS",
+    "chip": "NOAA-published",
+    "id": "ops_noaa_s3",
+    "label": "NOAA S3 (Strong)",
+    "limit": 1000,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NOAA Space Weather Scales",
+     "kind": "noaa",
+     "snapshot": "swpc_s_scale",
+     "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+    },
+    "tier": "A",
+    "unit": "pfu",
+    "variable": "proton_flux_10mev",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 2500
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 500,
+   "case_id": "spe_shelter",
+   "category": "OPS",
+   "chip": "NOAA-published",
+   "env_id": "lunar_surface",
+   "limit": 1000,
+   "margin": -1500,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "ops_noaa_s3",
+   "severity": "warning",
+   "source": {
+    "doc": "NOAA Space Weather Scales",
+    "kind": "noaa",
+    "snapshot": "swpc_s_scale",
+    "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "pfu",
+   "value": 2500,
+   "why": "NOAA S3 (Strong): 2500 pfu; compliant when < 1000 pfu; outside. Basis: NOAA-published."
+  },
+  "fn": "evaluate_rule",
+  "name": "ops_s3_outside_eva_warning"
+ },
+ {
+  "args": {
+   "env_id": "mars_surface",
+   "rule": {
+    "applies_to": [
+     "iss",
+     "cislunar",
+     "lunar_surface"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "value": 500
+    },
+    "case_id": "spe_shelter",
+    "category": "OPS",
+    "chip": "NOAA-published",
+    "id": "ops_noaa_s3",
+    "label": "NOAA S3 (Strong)",
+    "limit": 1000,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NOAA Space Weather Scales",
+     "kind": "noaa",
+     "snapshot": "swpc_s_scale",
+     "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+    },
+    "tier": "A",
+    "unit": "pfu",
+    "variable": "proton_flux_10mev",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 2500
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": 500,
+   "case_id": "spe_shelter",
+   "category": "OPS",
+   "chip": "NOAA-published",
+   "env_id": "mars_surface",
+   "limit": 1000,
+   "margin": null,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "ops_noaa_s3",
+   "severity": "nominal",
+   "source": {
+    "doc": "NOAA Space Weather Scales",
+    "kind": "noaa",
+    "snapshot": "swpc_s_scale",
+    "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+   },
+   "status": "not_applicable",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "pfu",
+   "value": 2500,
+   "why": "NOAA S3 (Strong): not applicable in mars_surface (applies to cislunar, iss, lunar_surface). Basis: NOAA-published."
+  },
+  "fn": "evaluate_rule",
+  "name": "ops_not_applicable_at_mars"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "TARGET",
+    "chip": "NASA-published",
+    "id": "fixture_target",
+    "label": "Career effective dose",
+    "limit": 600,
+    "max_severity": "caution",
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": 700
+  },
+  "expect": {
+   "action_id": "radiation_dose_review",
+   "approach_at": 480,
+   "case_id": "spe_shelter",
+   "category": "TARGET",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 600,
+   "margin": -100,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "fixture_target",
+   "severity": "caution",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4030",
+    "section": "4.8.2",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mSv",
+   "value": 700,
+   "why": "Career effective dose: 700 mSv; compliant when < 600 mSv; outside. Basis: NASA-published [V1 4030]."
+  },
+  "fn": "evaluate_rule",
+  "name": "target_outside_caution_not_warning"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "TARGET",
+    "chip": "NASA-published",
+    "id": "fixture_target",
+    "label": "Career effective dose",
+    "limit": 600,
+    "max_severity": "caution",
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": 500
+  },
+  "expect": {
+   "action_id": "radiation_dose_review",
+   "approach_at": 480,
+   "case_id": "spe_shelter",
+   "category": "TARGET",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 600,
+   "margin": 100,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "fixture_target",
+   "severity": "advisory",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4030",
+    "section": "4.8.2",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "approaching",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mSv",
+   "value": 500,
+   "why": "Career effective dose: 500 mSv; compliant when < 600 mSv; approaching (watch level 480 mSv). Basis: NASA-published [V1 4030]."
+  },
+  "fn": "evaluate_rule",
+  "name": "target_approaching_advisory"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "max_severity": "advisory",
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": 700
+  },
+  "expect": {
+   "action_id": "radiation_dose_review",
+   "approach_at": 480,
+   "case_id": "spe_shelter",
+   "category": "PEL",
+   "chip": "NASA-published",
+   "env_id": "iss",
+   "limit": 600,
+   "margin": -100,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "pel_career_effective_dose",
+   "severity": "advisory",
+   "source": {
+    "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+    "kind": "nasa_standard",
+    "requirement_id": "V1 4030",
+    "section": "4.8.2",
+    "snapshot": "std_vol1_requirements",
+    "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "mSv",
+   "value": 700,
+   "why": "Career effective dose: 700 mSv; compliant when < 600 mSv; outside. Basis: NASA-published [V1 4030]."
+  },
+  "fn": "evaluate_rule",
+  "name": "max_severity_caps_tier_a"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "applies_to": [
+     "iss",
+     "cislunar",
+     "lunar_surface"
+    ],
+    "case_id": "spe_shelter",
+    "category": "OPS",
+    "chip": "NOAA-published",
+    "id": "ops_noaa_s1",
+    "label": "NOAA S1 (Minor)",
+    "limit": 10,
+    "op": "lt",
+    "role": "alert",
+    "s_level": 3,
+    "source": {
+     "doc": "NOAA Space Weather Scales",
+     "kind": "noaa",
+     "snapshot": "swpc_s_scale",
+     "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+    },
+    "tier": "A",
+    "unit": "pfu",
+    "variable": "proton_flux_10mev",
+    "window": {
+     "kind": "instant"
+    }
+   },
+   "t": 35648400,
+   "value": 50
+  },
+  "expect": {
+   "action_id": null,
+   "approach_at": null,
+   "case_id": "spe_shelter",
+   "category": "OPS",
+   "chip": "NOAA-published",
+   "env_id": "iss",
+   "limit": 10,
+   "margin": -40,
+   "op": "lt",
+   "role": "alert",
+   "rule_id": "ops_noaa_s1",
+   "severity": "caution",
+   "source": {
+    "doc": "NOAA Space Weather Scales",
+    "kind": "noaa",
+    "snapshot": "swpc_s_scale",
+    "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+   },
+   "status": "outside",
+   "t": 35648400,
+   "tier": "A",
+   "unit": "pfu",
+   "value": 50,
+   "why": "NOAA S1 (Minor): 50 pfu; compliant when < 10 pfu; outside. Basis: NOAA-published."
+  },
+  "fn": "evaluate_rule",
+  "name": "ops_explicit_s_level_field"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "op": "eq",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": 1
+  },
+  "fn": "evaluate_rule",
+  "name": "invalid_op_raises",
+  "raises": "invalid_rule"
+ },
+ {
+  "args": {
+   "env_id": "iss",
+   "rule": {
+    "action_id": "radiation_dose_review",
+    "applies_to": [
+     "*"
+    ],
+    "approach_at": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: 80% of limit"
+     },
+     "value": 480
+    },
+    "case_id": "spe_shelter",
+    "category": "PEL",
+    "chip": "NASA-published",
+    "id": "pel_career_effective_dose",
+    "label": "Career effective dose",
+    "limit": 600,
+    "op": "lt",
+    "role": "alert",
+    "source": {
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "kind": "nasa_standard",
+     "requirement_id": "V1 4030",
+     "section": "4.8.2",
+     "snapshot": "std_vol1_requirements",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf"
+    },
+    "tier": "A",
+    "unit": "mSv",
+    "variable": "career_effective_dose",
+    "window": {
+     "kind": "career"
+    }
+   },
+   "t": 35648400,
+   "value": true
+  },
+  "fn": "evaluate_rule",
+  "name": "boolean_value_raises",
+  "raises": "invalid_argument"
+ }
+]

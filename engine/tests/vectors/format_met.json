@@ -1,0 +1,66 @@
+[
+ {
+  "args": {
+   "seconds": 0
+  },
+  "expect": "0000/00:00:00",
+  "fn": "format_met",
+  "name": "zero"
+ },
+ {
+  "args": {
+   "seconds": 35648407
+  },
+  "expect": "0412/14:20:07",
+  "fn": "format_met",
+  "name": "demo_now_plus_7s"
+ },
+ {
+  "args": {
+   "seconds": 35696407
+  },
+  "expect": "0413/03:40:07",
+  "fn": "format_met",
+  "name": "brief_literal_35644800_plus_51607"
+ },
+ {
+  "args": {
+   "seconds": 86399
+  },
+  "expect": "0000/23:59:59",
+  "fn": "format_met",
+  "name": "one_second_before_day_1"
+ },
+ {
+  "args": {
+   "seconds": 864000001
+  },
+  "expect": "10000/00:00:01",
+  "fn": "format_met",
+  "name": "day_10000_not_truncated"
+ },
+ {
+  "args": {
+   "seconds": 59.9
+  },
+  "expect": "0000/00:00:59",
+  "fn": "format_met",
+  "name": "fraction_floored"
+ },
+ {
+  "args": {
+   "seconds": -5
+  },
+  "expect": "-0000/00:00:05",
+  "fn": "format_met",
+  "name": "negative_prelaunch"
+ },
+ {
+  "args": {
+   "seconds": "12"
+  },
+  "fn": "format_met",
+  "name": "rejects_string",
+  "raises": "invalid_argument"
+ }
+]

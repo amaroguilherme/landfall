@@ -1,0 +1,442 @@
+[
+ {
+  "args": {
+   "env": {
+    "comms": {
+     "conjunction": false,
+     "one_way_light_time_s": {
+      "max": 1.0,
+      "min": 0.0
+     }
+    },
+    "id": "iss",
+    "kind": "station",
+    "label": "ISS (fixture)"
+   },
+   "t": 35648400
+  },
+  "expect": {
+   "blocked": false,
+   "earliest_reply_s": 2.0,
+   "light_time_source": "environment_max",
+   "one_way_s": 1.0,
+   "reason": null,
+   "resumes_at": null,
+   "round_trip_s": 2.0
+  },
+  "fn": "comms_eta",
+  "name": "iss_fixed_max"
+ },
+ {
+  "args": {
+   "comms_table": {
+    "conjunction_windows": [
+     {
+      "end": 36000000,
+      "reason": "fixture",
+      "start": 35596800
+     },
+     {
+      "end": 36620400,
+      "reason": "fixture, touching",
+      "start": 36000000
+     }
+    ],
+    "note": "fixture light-time samples and window, MET seconds; not ephemeris output",
+    "samples": [
+     {
+      "one_way_s": 1330.0,
+      "t": 35510400
+     },
+     {
+      "one_way_s": 1334.0,
+      "t": 35683200
+     },
+     {
+      "one_way_s": 1300.0,
+      "t": 36720000
+     }
+    ]
+   },
+   "env": {
+    "comms": {
+     "conjunction": true,
+     "one_way_light_time_s": {
+      "from_snapshot": "horizons_mars_comms"
+     }
+    },
+    "id": "mars_surface",
+    "kind": "surface",
+    "label": "Mars surface (fixture)"
+   },
+   "t": 35553600
+  },
+  "expect": {
+   "blocked": false,
+   "earliest_reply_s": 2662.0,
+   "light_time_source": "table",
+   "one_way_s": 1331.0,
+   "reason": null,
+   "resumes_at": null,
+   "round_trip_s": 2662.0
+  },
+  "fn": "comms_eta",
+  "name": "mars_before_window_interpolated"
+ },
+ {
+  "args": {
+   "comms_table": {
+    "conjunction_windows": [
+     {
+      "end": 36000000,
+      "reason": "fixture",
+      "start": 35596800
+     },
+     {
+      "end": 36620400,
+      "reason": "fixture, touching",
+      "start": 36000000
+     }
+    ],
+    "note": "fixture light-time samples and window, MET seconds; not ephemeris output",
+    "samples": [
+     {
+      "one_way_s": 1330.0,
+      "t": 35510400
+     },
+     {
+      "one_way_s": 1334.0,
+      "t": 35683200
+     },
+     {
+      "one_way_s": 1300.0,
+      "t": 36720000
+     }
+    ]
+   },
+   "env": {
+    "comms": {
+     "conjunction": true,
+     "one_way_light_time_s": {
+      "from_snapshot": "horizons_mars_comms"
+     }
+    },
+    "id": "mars_surface",
+    "kind": "surface",
+    "label": "Mars surface (fixture)"
+   },
+   "t": 35596800
+  },
+  "expect": {
+   "blocked": true,
+   "earliest_reply_s": 1026206.5324074074,
+   "light_time_source": "table",
+   "one_way_s": 1332.0,
+   "reason": "solar_conjunction",
+   "resumes_at": 36620400,
+   "round_trip_s": 2664.0
+  },
+  "fn": "comms_eta",
+  "name": "mars_window_start_blocked"
+ },
+ {
+  "args": {
+   "comms_table": {
+    "conjunction_windows": [
+     {
+      "end": 36000000,
+      "reason": "fixture",
+      "start": 35596800
+     },
+     {
+      "end": 36620400,
+      "reason": "fixture, touching",
+      "start": 36000000
+     }
+    ],
+    "note": "fixture light-time samples and window, MET seconds; not ephemeris output",
+    "samples": [
+     {
+      "one_way_s": 1330.0,
+      "t": 35510400
+     },
+     {
+      "one_way_s": 1334.0,
+      "t": 35683200
+     },
+     {
+      "one_way_s": 1300.0,
+      "t": 36720000
+     }
+    ]
+   },
+   "env": {
+    "comms": {
+     "conjunction": true,
+     "one_way_light_time_s": {
+      "from_snapshot": "horizons_mars_comms"
+     }
+    },
+    "id": "mars_surface",
+    "kind": "surface",
+    "label": "Mars surface (fixture)"
+   },
+   "t": 35648400
+  },
+  "expect": {
+   "blocked": true,
+   "earliest_reply_s": 974606.5324074074,
+   "light_time_source": "table",
+   "one_way_s": 1333.1944444444443,
+   "reason": "solar_conjunction",
+   "resumes_at": 36620400,
+   "round_trip_s": 2666.3888888888887
+  },
+  "fn": "comms_eta",
+  "name": "mars_demo_now_blocked_chained"
+ },
+ {
+  "args": {
+   "comms_table": {
+    "conjunction_windows": [
+     {
+      "end": 36000000,
+      "reason": "fixture",
+      "start": 35596800
+     },
+     {
+      "end": 36620400,
+      "reason": "fixture, touching",
+      "start": 36000000
+     }
+    ],
+    "note": "fixture light-time samples and window, MET seconds; not ephemeris output",
+    "samples": [
+     {
+      "one_way_s": 1330.0,
+      "t": 35510400
+     },
+     {
+      "one_way_s": 1334.0,
+      "t": 35683200
+     },
+     {
+      "one_way_s": 1300.0,
+      "t": 36720000
+     }
+    ]
+   },
+   "env": {
+    "comms": {
+     "conjunction": true,
+     "one_way_light_time_s": {
+      "from_snapshot": "horizons_mars_comms"
+     }
+    },
+    "id": "mars_surface",
+    "kind": "surface",
+    "label": "Mars surface (fixture)"
+   },
+   "t": 36000000
+  },
+  "expect": {
+   "blocked": true,
+   "earliest_reply_s": 623006.5324074074,
+   "light_time_source": "table",
+   "one_way_s": 1323.611111111111,
+   "reason": "solar_conjunction",
+   "resumes_at": 36620400,
+   "round_trip_s": 2647.222222222222
+  },
+  "fn": "comms_eta",
+  "name": "mars_second_window_blocked"
+ },
+ {
+  "args": {
+   "comms_table": {
+    "conjunction_windows": [
+     {
+      "end": 36000000,
+      "reason": "fixture",
+      "start": 35596800
+     },
+     {
+      "end": 36620400,
+      "reason": "fixture, touching",
+      "start": 36000000
+     }
+    ],
+    "note": "fixture light-time samples and window, MET seconds; not ephemeris output",
+    "samples": [
+     {
+      "one_way_s": 1330.0,
+      "t": 35510400
+     },
+     {
+      "one_way_s": 1334.0,
+      "t": 35683200
+     },
+     {
+      "one_way_s": 1300.0,
+      "t": 36720000
+     }
+    ]
+   },
+   "env": {
+    "comms": {
+     "conjunction": true,
+     "one_way_light_time_s": {
+      "from_snapshot": "horizons_mars_comms"
+     }
+    },
+    "id": "mars_surface",
+    "kind": "surface",
+    "label": "Mars surface (fixture)"
+   },
+   "t": 36620400
+  },
+  "expect": {
+   "blocked": false,
+   "earliest_reply_s": 2606.5324074074074,
+   "light_time_source": "table",
+   "one_way_s": 1303.2662037037037,
+   "reason": null,
+   "resumes_at": null,
+   "round_trip_s": 2606.5324074074074
+  },
+  "fn": "comms_eta",
+  "name": "mars_window_end_unblocked"
+ },
+ {
+  "args": {
+   "comms_table": {
+    "conjunction_windows": [
+     {
+      "end": 36000000,
+      "reason": "fixture",
+      "start": 35596800
+     },
+     {
+      "end": 36620400,
+      "reason": "fixture, touching",
+      "start": 36000000
+     }
+    ],
+    "note": "fixture light-time samples and window, MET seconds; not ephemeris output",
+    "samples": [
+     {
+      "one_way_s": 1330.0,
+      "t": 35510400
+     },
+     {
+      "one_way_s": 1334.0,
+      "t": 35683200
+     },
+     {
+      "one_way_s": 1300.0,
+      "t": 36720000
+     }
+    ]
+   },
+   "env": {
+    "comms": {
+     "conjunction": true,
+     "one_way_light_time_s": {
+      "from_snapshot": "horizons_mars_comms"
+     }
+    },
+    "id": "mars_surface",
+    "kind": "surface",
+    "label": "Mars surface (fixture)"
+   },
+   "t": 36806400
+  },
+  "expect": {
+   "blocked": false,
+   "earliest_reply_s": 2600.0,
+   "light_time_source": "table",
+   "one_way_s": 1300.0,
+   "reason": null,
+   "resumes_at": null,
+   "round_trip_s": 2600.0
+  },
+  "fn": "comms_eta",
+  "name": "mars_after_last_sample_clamped"
+ },
+ {
+  "args": {
+   "env": {
+    "comms": {
+     "conjunction": true,
+     "one_way_light_time_s": {
+      "from_snapshot": "horizons_mars_comms"
+     }
+    },
+    "id": "mars_surface",
+    "kind": "surface",
+    "label": "Mars surface (fixture)"
+   },
+   "t": 35648400
+  },
+  "fn": "comms_eta",
+  "name": "mars_without_table_raises",
+  "raises": "missing_comms_table"
+ },
+ {
+  "args": {
+   "comms_table": {
+    "conjunction_windows": [
+     {
+      "end": 36000000,
+      "reason": "fixture",
+      "start": 35596800
+     },
+     {
+      "end": 36620400,
+      "reason": "fixture, touching",
+      "start": 36000000
+     }
+    ],
+    "note": "fixture light-time samples and window, MET seconds; not ephemeris output",
+    "samples": [
+     {
+      "one_way_s": 1330.0,
+      "t": 35510400
+     },
+     {
+      "one_way_s": 1334.0,
+      "t": 35683200
+     },
+     {
+      "one_way_s": 1300.0,
+      "t": 36720000
+     }
+    ]
+   },
+   "env": {
+    "comms": {
+     "conjunction": false,
+     "one_way_light_time_s": {
+      "max": 1.0,
+      "min": 0.0
+     }
+    },
+    "id": "iss",
+    "kind": "station",
+    "label": "ISS (fixture)"
+   },
+   "t": 35648400
+  },
+  "expect": {
+   "blocked": false,
+   "earliest_reply_s": 2.0,
+   "light_time_source": "environment_max",
+   "one_way_s": 1.0,
+   "reason": null,
+   "resumes_at": null,
+   "round_trip_s": 2.0
+  },
+  "fn": "comms_eta",
+  "name": "iss_ignores_windows"
+ }
+]

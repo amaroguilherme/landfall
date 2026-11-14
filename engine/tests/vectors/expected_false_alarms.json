@@ -1,0 +1,83 @@
+[
+ {
+  "args": {
+   "alpha": 0.001,
+   "days": 30,
+   "k_indicators": 10
+  },
+  "expect": {
+   "alpha": 0.001,
+   "days": 30,
+   "every_n_days": 100.0,
+   "expected": 0.3,
+   "k_indicators": 10,
+   "per_day": 0.01,
+   "text": "one false alarm every 100 days"
+  },
+  "fn": "expected_false_alarms",
+  "name": "k10_30d"
+ },
+ {
+  "args": {
+   "days": 30,
+   "k_indicators": 10
+  },
+  "expect": {
+   "alpha": 0.001,
+   "days": 30,
+   "every_n_days": 100.0,
+   "expected": 0.3,
+   "k_indicators": 10,
+   "per_day": 0.01,
+   "text": "one false alarm every 100 days"
+  },
+  "fn": "expected_false_alarms",
+  "name": "k10_30d_default_alpha"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "days": 45,
+   "k_indicators": 3
+  },
+  "expect": {
+   "alpha": 0.001,
+   "days": 45,
+   "every_n_days": 333.3333333333333,
+   "expected": 0.135,
+   "k_indicators": 3,
+   "per_day": 0.003,
+   "text": "one false alarm every 333.3 days"
+  },
+  "fn": "expected_false_alarms",
+  "name": "k3_45d"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "days": 30,
+   "k_indicators": 0
+  },
+  "expect": {
+   "alpha": 0.001,
+   "days": 30,
+   "every_n_days": null,
+   "expected": 0.0,
+   "k_indicators": 0,
+   "per_day": 0.0,
+   "text": "no false alarms expected"
+  },
+  "fn": "expected_false_alarms",
+  "name": "k0"
+ },
+ {
+  "args": {
+   "alpha": 0.001,
+   "days": 30,
+   "k_indicators": -1
+  },
+  "fn": "expected_false_alarms",
+  "name": "negative_rejected",
+  "raises": "invalid_argument"
+ }
+]

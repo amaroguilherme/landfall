@@ -1,0 +1,364 @@
+{
+ "schema": "landfall.personal/1",
+ "rci": {
+  "critical_z": 3.29,
+  "alpha_two_tailed": 0.001,
+  "min_baseline_n": 7,
+  "baseline_window_days": 14,
+  "chip": "literature",
+  "source": {
+   "kind": "literature",
+   "citation": "Jacobson NS, Truax P. Clinical significance: a statistical approach to defining meaningful change in psychotherapy research. J Consult Clin Psychol 1991;59(1):12-19. doi:10.1037//0022-006x.59.1.12. PMID 2002127",
+   "url": "https://pubmed.ncbi.nlm.nih.gov/2002127/"
+  },
+  "method": "RC = (current - baseline mean) / S_diff, S_diff = sqrt(2) x SEM, SEM = SD x sqrt(1 - r), SD = sample SD (n - 1) of the crewmember's own baseline.",
+  "provenance": {
+   "critical_z": {
+    "chip": "derived",
+    "source": {
+     "kind": "derived",
+     "from": [
+      "rci.alpha_two_tailed"
+     ],
+     "arithmetic": "z with 2 x (1 - Phi(z)) = 0.001 gives z = 3.2905, printed as 3.29"
+    }
+   },
+   "alpha_two_tailed": {
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Stricter than the conventional 0.05 (z = 1.96) that Jacobson & Truax used, because LANDFALL tests many indicators every day; the expected false-alarm rate is printed next to every personal finding."
+    }
+   },
+   "min_baseline_n": {
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Seven baseline days is the fewest we accept for a sample SD; below that the finding is insufficient_data."
+    }
+   },
+   "baseline_window_days": {
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Two weeks of the crewmember's own data, long enough to span weekday/weekend schedule differences."
+    }
+   }
+  },
+  "caveat": "The 3.29 criterion is nominally two-tailed p < .001. Jacobson & Truax built S_diff from a reference-group SD and a published test-retest r. LANDFALL uses the crewmember's own baseline SD, which already contains the day-to-day error, so the realized false-alarm rate is higher than the nominal one. Treat the printed rate as a lower bound."
+ },
+ "indicators": [
+  {
+   "id": "pvt_lapses",
+   "label": "PVT-B lapses",
+   "variable": "pvt_lapses",
+   "unit": "count",
+   "worse": "increase",
+   "alerting": true,
+   "private": false,
+   "device": "app",
+   "reliability_r": {
+    "value": 0.8,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Borrowed from the 10-min PVT. Basner, Mollicone & Dinges 2011 write 'The test has high reliability, with intra-class correlations measuring test-retest reliability above 0.8' about the standard 10-min PVT (citing Dorrian, Rogers & Dinges 2005). We found no published test-retest value for the 3-min PVT-B, so applying 0.8, the lower bound, to it is our assumption.",
+     "basis_citation": "Basner M, Mollicone D, Dinges DF. Validity and sensitivity of a brief psychomotor vigilance test (PVT-B) to total and partial sleep deprivation. Acta Astronaut 2011;69(11-12):949-959. doi:10.1016/j.actaastro.2011.07.015. PMID 22025811",
+     "url": "https://pubmed.ncbi.nlm.nih.gov/22025811/"
+    }
+   },
+   "definition": {
+    "text": "lapse = reaction time ≥ 355 ms on the 3-min PVT-B",
+    "chip": "literature",
+    "source": {
+     "kind": "literature",
+     "citation": "Basner M, Mollicone D, Dinges DF. Validity and sensitivity of a brief psychomotor vigilance test (PVT-B) to total and partial sleep deprivation. Acta Astronaut 2011;69(11-12):949-959. doi:10.1016/j.actaastro.2011.07.015. PMID 22025811",
+     "url": "https://pubmed.ncbi.nlm.nih.gov/22025811/",
+     "note": "Basner 2011 generated PVT-B lapses at 355 ms as a sixth outcome variable, alongside lapses at the standard 500 ms; the authors note the 355 ms threshold 'was found post-hoc in the TSD experiment, and may depend on PVT hardware'. No NASA standard or brief adopts 355 ms."
+    }
+   },
+   "case_id": "sleep_circadian"
+  },
+  {
+   "id": "pvt_median_rt",
+   "label": "PVT-B median reaction time",
+   "variable": "pvt_median_rt",
+   "unit": "ms",
+   "worse": "increase",
+   "alerting": true,
+   "private": false,
+   "device": "app",
+   "reliability_r": {
+    "value": 0.8,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Borrowed from the 10-min PVT. Basner, Mollicone & Dinges 2011 write 'The test has high reliability, with intra-class correlations measuring test-retest reliability above 0.8' about the standard 10-min PVT (citing Dorrian, Rogers & Dinges 2005). We found no published test-retest value for the 3-min PVT-B, so applying 0.8, the lower bound, to it is our assumption.",
+     "basis_citation": "Basner M, Mollicone D, Dinges DF. Validity and sensitivity of a brief psychomotor vigilance test (PVT-B) to total and partial sleep deprivation. Acta Astronaut 2011;69(11-12):949-959. doi:10.1016/j.actaastro.2011.07.015. PMID 22025811",
+     "url": "https://pubmed.ncbi.nlm.nih.gov/22025811/"
+    }
+   },
+   "definition": {
+    "text": "median reaction time of valid responses on the 3-min PVT-B",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "The median resists the long lapse tail; Basner 2011 reports mean RT and response speed, so the median is our choice of summary."
+    }
+   },
+   "case_id": "sleep_circadian"
+  },
+  {
+   "id": "sleep_duration",
+   "label": "Sleep duration (actigraphy)",
+   "variable": "sleep_duration",
+   "unit": "h",
+   "worse": "decrease",
+   "alerting": true,
+   "private": false,
+   "device": "band",
+   "reliability_r": {
+    "value": 0.7,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+    }
+   },
+   "definition": {
+    "text": "total sleep time in the main sleep period, estimated from wrist actigraphy",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Actigraphy is how Barger et al. 2014 measured astronaut sleep in flight; the band follows the same approach."
+    }
+   },
+   "context": {
+    "text": "ISS crewmembers obtained 6.09 h (SD 0.67) of sleep per night in flight by actigraphy.",
+    "chip": "literature",
+    "source": {
+     "kind": "literature",
+     "citation": "Barger LK, Flynn-Evans EE, Kubey A, Walsh L, Ronda JM, Wang W, Wright KP Jr, Czeisler CA. Prevalence of sleep deficiency and use of hypnotic drugs in astronauts before, during, and after spaceflight: an observational study. Lancet Neurol 2014;13(9):904-912. doi:10.1016/S1474-4422(14)70122-X. PMID 25127232",
+     "url": "https://pubmed.ncbi.nlm.nih.gov/25127232/"
+    }
+   },
+   "case_id": "sleep_circadian"
+  },
+  {
+   "id": "sleep_midpoint_shift",
+   "label": "Sleep midpoint shift",
+   "variable": "sleep_midpoint_shift",
+   "unit": "h",
+   "worse": "increase",
+   "alerting": true,
+   "private": false,
+   "device": "band",
+   "reliability_r": {
+    "value": 0.7,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+    }
+   },
+   "definition": {
+    "text": "absolute difference, in hours, between the night's sleep midpoint and the median midpoint of the crewmember's baseline window (clock arithmetic across midnight)",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "An absolute shift lets one 'worse' direction (increase) cover both earlier and later drift."
+    }
+   },
+   "case_id": "sleep_circadian"
+  },
+  {
+   "id": "light_exposure_daytime",
+   "label": "Daytime light exposure (wrist)",
+   "variable": "light_exposure_daytime",
+   "unit": "lux",
+   "worse": "decrease",
+   "alerting": false,
+   "private": false,
+   "device": "band",
+   "reliability_r": {
+    "value": 0.7,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+    }
+   },
+   "definition": {
+    "text": "mean photopic illuminance at the wrist during the scheduled wake period",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "[V2 8055] Table 8.7-2 specifies melanopic EDI lux at the cornea; a wrist sensor's photopic lux is not that quantity, so we show it as context and never alert on it."
+    }
+   },
+   "case_id": "sleep_circadian"
+  },
+  {
+   "id": "resting_hr",
+   "label": "Resting heart rate",
+   "variable": "resting_hr",
+   "unit": "bpm",
+   "worse": "increase",
+   "alerting": true,
+   "private": false,
+   "device": "band",
+   "reliability_r": {
+    "value": 0.7,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+    }
+   },
+   "definition": {
+    "text": "lowest stable 5-min heart rate in the main sleep period",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Measured during sleep so posture and activity are comparable from day to day."
+    }
+   },
+   "case_id": null
+  },
+  {
+   "id": "hrv_sdnn",
+   "label": "Heart rate variability (SDNN)",
+   "variable": "hrv_sdnn",
+   "unit": "ms",
+   "worse": "decrease",
+   "alerting": true,
+   "private": false,
+   "device": "band",
+   "reliability_r": {
+    "value": 0.7,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+    }
+   },
+   "definition": {
+    "text": "SDNN of normal-to-normal intervals over 5-min windows in the main sleep period, averaged",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Short windows in sleep keep the recording conditions comparable."
+    }
+   },
+   "case_id": null
+  },
+  {
+   "id": "skin_temp",
+   "label": "Skin temperature",
+   "variable": "skin_temp",
+   "unit": "°C",
+   "worse": "increase",
+   "alerting": false,
+   "private": false,
+   "device": "band",
+   "reliability_r": {
+    "value": 0.7,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+    }
+   },
+   "definition": {
+    "text": "median skin temperature in the main sleep period",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Skin temperature follows cabin temperature and clothing as well as physiology, so it is context only and never alerts."
+    }
+   },
+   "case_id": null
+  },
+  {
+   "id": "urine_volume_24h",
+   "label": "24-h urine output",
+   "variable": "urine_volume_24h",
+   "unit": "mL",
+   "worse": "decrease",
+   "alerting": true,
+   "private": false,
+   "device": "manual",
+   "reliability_r": {
+    "value": 0.7,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+    }
+   },
+   "definition": {
+    "text": "total urine volume over 24 h, entered manually by the crewmember",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "No wearable measures urine volume; manual entry is the hand-off boundary."
+    }
+   },
+   "case_id": "renal_stone"
+  },
+  {
+   "id": "fluid_intake_24h",
+   "label": "24-h fluid intake",
+   "variable": "fluid_intake_24h",
+   "unit": "mL",
+   "worse": "decrease",
+   "alerting": true,
+   "private": false,
+   "device": "manual",
+   "reliability_r": {
+    "value": 0.7,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+    }
+   },
+   "definition": {
+    "text": "total fluid drunk over 24 h (water dispenser and drink pouches), entered manually",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "Manual entry; food water is not counted."
+    }
+   },
+   "case_id": "renal_stone"
+  },
+  {
+   "id": "mood",
+   "label": "Mood (self-rated)",
+   "variable": "mood",
+   "unit": "score_1_5",
+   "worse": "decrease",
+   "alerting": false,
+   "private": true,
+   "device": "app",
+   "reliability_r": {
+    "value": 0.7,
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "No test-retest reliability verified for this measure under mission conditions. r = 0.7 is deliberately conservative: a lower r widens S_diff = SD x sqrt(2) x sqrt(1 - r), so a reliable change needs a larger shift (fewer false alarms than a higher r would give)."
+    }
+   },
+   "definition": {
+    "text": "one self-rated item, 1 (very low) to 5 (very good). Private by default, never alerts, and leaves the device only if the crewmember consents",
+    "chip": "design choice",
+    "source": {
+     "kind": "design_choice",
+     "rationale": "LANDFALL makes no psychiatric alert and embeds no licensed questionnaire."
+    }
+   },
+   "case_id": null
+  }
+ ]
+}

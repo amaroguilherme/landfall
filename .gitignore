@@ -1,0 +1,13 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# Raw HTTP cache for ingest (reproducible via `python -m ingest --all`)
+.cache/
+# Large source documents are referenced by URL + sha256, never committed
+*.pdf
+# OS / editors
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,488 @@
+{
+ "schema": "landfall.manifest/1",
+ "snapshots": [
+  {
+   "id": "hapi_crater_dose",
+   "adapter": "hapi",
+   "title": "Lunar-orbit dose rate, LRO CRaTER (CCMC iSWA)",
+   "file": "hapi_crater_dose.json",
+   "bytes": 27151,
+   "sha256": "45592571b3b8f8f84a140e25ad5b75d7a517921caaaf1ac6024513b586b32068",
+   "retrieved_at": "2026-11-14T13:30:58Z",
+   "provenance": "measured",
+   "freshness": {
+    "kind": "historical",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "2026-07-09T23:32:50Z",
+    "stop": "2026-10-07T23:30:00Z",
+    "cadence": "PT1H"
+   },
+   "publisher": "NASA GSFC Community Coordinated Modeling Center (CCMC), iSWA HAPI server",
+   "url": "https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi/info?id=CRaTER"
+  },
+  {
+   "id": "hapi_iss_tepc",
+   "adapter": "hapi",
+   "title": "ISS measured dose rate, TEPC (NASA SRAG/JSC via CDAWeb)",
+   "file": "hapi_iss_tepc.json",
+   "bytes": 101404,
+   "sha256": "91575756f83d02c3ef2146df05d94d6abe66fc467ed6491afe5e38fe2effce96",
+   "retrieved_at": "2026-11-14T13:30:58Z",
+   "provenance": "measured",
+   "freshness": {
+    "kind": "historical",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "2015-04-02T00:00:00Z",
+    "stop": "2015-06-02T00:00:00Z",
+    "cadence": "PT1M"
+   },
+   "publisher": "NASA Space Radiation Analysis Group (JSC), via NASA GSFC Space Physics Data Facility CDAWeb",
+   "url": "https://cdaweb.gsfc.nasa.gov/misc/NotesI.html#ISS_DOSANL_TEPC"
+  },
+  {
+   "id": "hapi_iss_track",
+   "adapter": "hapi",
+   "title": "ISS predicted track and South Atlantic Anomaly passes (SSCWeb)",
+   "file": "hapi_iss_track.json",
+   "bytes": 98402,
+   "sha256": "f1198f2b6d2155218ac3c4eea829e159d6544c50a780a3d17722796c8d3b038e",
+   "retrieved_at": "2026-11-14T13:30:58Z",
+   "provenance": "predicted",
+   "freshness": {
+    "kind": "prediction",
+    "stale_after": "PT23H"
+   },
+   "coverage": {
+    "start": "2026-11-14T13:00:00Z",
+    "stop": "2026-11-16T12:59:00Z",
+    "cadence": "PT60S"
+   },
+   "publisher": "NASA Goddard Space Flight Center, Space Physics Data Facility (SSCWeb), served via hapi-server.org",
+   "url": "https://sscweb.gsfc.nasa.gov/"
+  },
+  {
+   "id": "hapi_msl_rad_dose",
+   "adapter": "hapi",
+   "title": "Mars-surface dose rate, MSL RAD (CCMC iSWA)",
+   "file": "hapi_msl_rad_dose.json",
+   "bytes": 27894,
+   "sha256": "dfe322f8430b80a885ca8c1efd7b00b6ca6a8b741440bbfa5a06990931b9f0d7",
+   "retrieved_at": "2026-11-14T13:30:58Z",
+   "provenance": "measured",
+   "freshness": {
+    "kind": "historical",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "2026-08-14T16:25:06Z",
+    "stop": "2026-11-12T16:19:14Z",
+    "cadence": null
+   },
+   "publisher": "NASA GSFC Community Coordinated Modeling Center (CCMC), iSWA HAPI server",
+   "url": "https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi/info?id=msl_rad_dosimetry"
+  },
+  {
+   "id": "horizons_mars_comms",
+   "adapter": "horizons",
+   "title": "Earth-Mars light time and solar conjunction windows, 2026-2029 (JPL Horizons)",
+   "file": "horizons_mars_comms.json",
+   "bytes": 109933,
+   "sha256": "3516d257f3024b99370b64395386cdef05026d5c0ef7d53222ad0837e6c553a7",
+   "retrieved_at": "2026-11-14T13:29:44Z",
+   "provenance": "predicted",
+   "freshness": {
+    "kind": "prediction",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "2026-01-01T00:00:00Z",
+    "stop": "2029-12-31T00:00:00Z",
+    "cadence": "P1D"
+   },
+   "publisher": "NASA Jet Propulsion Laboratory, Solar System Dynamics Group",
+   "url": "https://ssd.jpl.nasa.gov/horizons/"
+  },
+  {
+   "id": "horizons_moon_comms",
+   "adapter": "horizons",
+   "title": "Earth-Moon light time, 2026-2029 (JPL Horizons)",
+   "file": "horizons_moon_comms.json",
+   "bytes": 71308,
+   "sha256": "dc07658ddd5fd9ed6d40844e46f7b10e2d6db2f2c6d9c76c99d537c0b414f5d4",
+   "retrieved_at": "2026-11-14T13:29:44Z",
+   "provenance": "predicted",
+   "freshness": {
+    "kind": "prediction",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "2026-01-01T00:00:00Z",
+    "stop": "2029-12-31T00:00:00Z",
+    "cadence": "P1D"
+   },
+   "publisher": "NASA Jet Propulsion Laboratory, Solar System Dynamics Group",
+   "url": "https://ssd.jpl.nasa.gov/horizons/"
+  },
+  {
+   "id": "hrp_csa_radiation",
+   "adapter": "hrp",
+   "title": "CSA - Monitoring radiation for astronaut health",
+   "file": "hrp_csa_radiation.json",
+   "bytes": 3614,
+   "sha256": "9b2901cda833a3544013144cd0648351b8e4835385000f2cfdaa17ec578be668",
+   "retrieved_at": "2026-11-14T13:39:38Z",
+   "provenance": "reference",
+   "freshness": {
+    "kind": "reference",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": null,
+    "stop": null,
+    "cadence": null
+   },
+   "publisher": "Canadian Space Agency",
+   "url": "https://www.asc-csa.gc.ca/eng/news/articles/2026/2026-02-26-monitoring-radiation-astronaut-health.asp"
+  },
+  {
+   "id": "hrp_csa_science",
+   "adapter": "hrp",
+   "title": "CSA - Why do we conduct science experiments in space?",
+   "file": "hrp_csa_science.json",
+   "bytes": 2178,
+   "sha256": "e7a2de104321ad559a4bfac4db387d50f4d316a6f4d7857a45fd207c8ea66fc8",
+   "retrieved_at": "2026-11-14T13:39:38Z",
+   "provenance": "reference",
+   "freshness": {
+    "kind": "reference",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": null,
+    "stop": null,
+    "cadence": null
+   },
+   "publisher": "Canadian Space Agency",
+   "url": "https://www.asc-csa.gc.ca/eng/iss/science/why-do-we-conduct-science-experiments-in-space.asp"
+  },
+  {
+   "id": "hrp_hazards",
+   "adapter": "hrp",
+   "title": "NASA HRP - 5 Hazards of Human Spaceflight",
+   "file": "hrp_hazards.json",
+   "bytes": 7235,
+   "sha256": "824301c802a2270b465df7f22ffa8111dd0cfb88a653548aacac4acba0e5dab9",
+   "retrieved_at": "2026-11-14T13:39:38Z",
+   "provenance": "reference",
+   "freshness": {
+    "kind": "reference",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": null,
+    "stop": null,
+    "cadence": null
+   },
+   "publisher": "NASA Human Research Program",
+   "url": "https://www.nasa.gov/hrp/hazards/"
+  },
+  {
+   "id": "hrp_research",
+   "adapter": "hrp",
+   "title": "NASA HRP - Ongoing HRP Research in Space",
+   "file": "hrp_research.json",
+   "bytes": 29625,
+   "sha256": "7b486047b06686d05ca762049bf185e9730dc1bdaf39c2b77d4882dbd49bf87f",
+   "retrieved_at": "2026-11-14T13:39:38Z",
+   "provenance": "reference",
+   "freshness": {
+    "kind": "reference",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": null,
+    "stop": null,
+    "cadence": null
+   },
+   "publisher": "NASA Human Research Program",
+   "url": "https://www.nasa.gov/hrp/ongoing-hrp-research/"
+  },
+  {
+   "id": "hrp_risks",
+   "adapter": "hrp",
+   "title": "NASA HRP - Risks of Human Spaceflight",
+   "file": "hrp_risks.json",
+   "bytes": 50143,
+   "sha256": "fc452b512eb91d41a298d4f5f41afcc1546144a024a0be52f20c547d6681bf4d",
+   "retrieved_at": "2026-11-14T13:39:38Z",
+   "provenance": "reference",
+   "freshness": {
+    "kind": "reference",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": null,
+    "stop": null,
+    "cadence": null
+   },
+   "publisher": "NASA Human Research Program",
+   "url": "https://www.nasa.gov/hrp/risks/"
+  },
+  {
+   "id": "hrp_roadmap",
+   "adapter": "hrp",
+   "title": "NASA Human Research Roadmap - risks, gaps, status",
+   "file": "hrp_roadmap.json",
+   "bytes": 85340,
+   "sha256": "24dec7b08fac760318af00adcd4978ec5adac90aff2d68a314b4c604f29a389e",
+   "retrieved_at": "2026-11-14T13:39:38Z",
+   "provenance": "reference",
+   "freshness": {
+    "kind": "reference",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": null,
+    "stop": null,
+    "cadence": null
+   },
+   "publisher": "NASA Human Research Program",
+   "url": "https://humanresearchroadmap.nasa.gov/Explore/"
+  },
+  {
+   "id": "osdr_cbc",
+   "adapter": "osdr",
+   "title": "Inspiration4 crew complete blood count (OSD-569), with per-sample lab reference ranges",
+   "file": "osdr_cbc.json",
+   "bytes": 43318,
+   "sha256": "20895130a874560fb50c50cd4e1a0652df0bdac9db919ca9239dc7d188f747dc",
+   "retrieved_at": "2026-11-14T13:26:23Z",
+   "provenance": "measured",
+   "freshness": {
+    "kind": "historical",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "2021-06-16T00:00:00Z",
+    "stop": "2022-03-31T00:00:00Z",
+    "cadence": null
+   },
+   "publisher": "NASA Open Science Data Repository (OSDR)",
+   "url": "https://osdr.nasa.gov/bio/repo/data/studies/OSD-569"
+  },
+  {
+   "id": "osdr_cmp",
+   "adapter": "osdr",
+   "title": "Inspiration4 crew comprehensive metabolic panel (OSD-575), with per-sample lab reference ranges",
+   "file": "osdr_cmp.json",
+   "bytes": 40812,
+   "sha256": "bb99e809df4fdd4cbdcf0f53bf14ce5efa1335776f1d5d75010a10b1b33448a4",
+   "retrieved_at": "2026-11-14T13:26:23Z",
+   "provenance": "measured",
+   "freshness": {
+    "kind": "historical",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "2021-06-16T00:00:00Z",
+    "stop": "2022-03-31T00:00:00Z",
+    "cadence": null
+   },
+   "publisher": "NASA Open Science Data Repository (OSDR)",
+   "url": "https://osdr.nasa.gov/bio/repo/data/studies/OSD-575"
+  },
+  {
+   "id": "osdr_cytokines",
+   "adapter": "osdr",
+   "title": "Inspiration4 crew serum cytokines, Eve HD71 + HDCVD9 (OSD-575)",
+   "file": "osdr_cytokines.json",
+   "bytes": 56621,
+   "sha256": "0614bada03f0ec09e6cf6d30b7a867f8aea6a67e6a195855b00c5d28c7cec258",
+   "retrieved_at": "2026-11-14T13:26:23Z",
+   "provenance": "measured",
+   "freshness": {
+    "kind": "historical",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "2021-06-16T00:00:00Z",
+    "stop": "2022-03-31T00:00:00Z",
+    "cadence": null
+   },
+   "publisher": "NASA Open Science Data Repository (OSDR)",
+   "url": "https://osdr.nasa.gov/bio/repo/data/studies/OSD-575"
+  },
+  {
+   "id": "osdr_urine",
+   "adapter": "osdr",
+   "title": "Inspiration4 crew urine inflammation proteins, NULISA-seq (OSD-656) - no urine chemistry",
+   "file": "osdr_urine.json",
+   "bytes": 142745,
+   "sha256": "8194d0d4c8339c21e798473d78bd284fedfe46db3fbd5834bf26e918fb9dcf93",
+   "retrieved_at": "2026-11-14T13:26:23Z",
+   "provenance": "measured",
+   "freshness": {
+    "kind": "historical",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "2021-06-16T00:00:00Z",
+    "stop": "2021-12-09T00:00:00Z",
+    "cadence": null
+   },
+   "publisher": "NASA Open Science Data Repository (OSDR)",
+   "url": "https://osdr.nasa.gov/bio/repo/data/studies/OSD-656"
+  },
+  {
+   "id": "sim_crew",
+   "adapter": "sim",
+   "title": "Simulated crew scenario: 4 fictional crewmembers, MET days 368-412 (seeded, labelled)",
+   "file": "sim_crew.json",
+   "bytes": 91769,
+   "sha256": "cfc54bfb5e799cd8176ebe6010a4c2c6c4f446f8cbd3c0e744bd19a25a72a882",
+   "retrieved_at": "2026-11-14T13:46:24Z",
+   "provenance": "simulated",
+   "freshness": {
+    "kind": "historical",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "2028-02-03T02:40:00Z",
+    "stop": "2028-03-18T17:00:00Z",
+    "cadence": null
+   },
+   "publisher": "LANDFALL project (simulated scenario generator)",
+   "url": "https://github.com/amaroguilherme/landfall/blob/main/ingest/sim_crew.py"
+  },
+  {
+   "id": "std_vol1_requirements",
+   "adapter": "std_vol1",
+   "title": "NASA-STD-3001 Vol 1 Rev C: verbatim requirements, FFD/PEL/POL glossary, Table 4.8-1",
+   "file": "std_vol1_requirements.json",
+   "bytes": 71618,
+   "sha256": "7fbc971b0041c49bf830c2b1ba59086644b6dbe21981c99a010728604a18bd61",
+   "retrieved_at": "2026-11-14T13:39:06Z",
+   "provenance": "reference",
+   "freshness": {
+    "kind": "reference",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": null,
+    "stop": null,
+    "cadence": null
+   },
+   "publisher": "NASA Office of the Chief Health and Medical Officer (OCHMO)",
+   "url": "https://www.nasa.gov/ochmo/human-spaceflight-and-aviation-standards/"
+  },
+  {
+   "id": "std_vol2_requirements",
+   "adapter": "std_vol2",
+   "title": "NASA-STD-3001 Vol 2 Rev F: requirements, tables, Appendix F colours and verified negatives",
+   "file": "std_vol2_requirements.json",
+   "bytes": 85513,
+   "sha256": "a63b453f33ca72b64c90717b604f638e9d0b94cc3d030bc70a6de58b5c8367a0",
+   "retrieved_at": "2026-11-14T14:47:34Z",
+   "provenance": "reference",
+   "freshness": {
+    "kind": "reference",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": null,
+    "stop": null,
+    "cadence": null
+   },
+   "publisher": "NASA Office of the Chief Health and Medical Officer (OCHMO)",
+   "url": "https://www.nasa.gov/reference/nasa-std-3001v2/"
+  },
+  {
+   "id": "swpc_protons_live",
+   "adapter": "swpc",
+   "title": "GOES >=10 MeV proton flux and current NOAA S level (build-time freeze)",
+   "file": "swpc_protons_live.json",
+   "bytes": 7583,
+   "sha256": "c5aa1a94a65f8a7286d9fa6be3d3ee28f9c759581c1a717937e76119f3b00d8e",
+   "retrieved_at": "2026-11-14T13:44:37Z",
+   "provenance": "measured",
+   "freshness": {
+    "kind": "live",
+    "stale_after": "PT15M"
+   },
+   "coverage": {
+    "start": "2026-11-07T13:45:00Z",
+    "stop": "2026-11-14T13:35:00Z",
+    "cadence": "PT5M"
+   },
+   "publisher": "NOAA Space Weather Prediction Center (SWPC)",
+   "url": "https://www.swpc.noaa.gov/products/goes-proton-flux"
+  },
+  {
+   "id": "swpc_s_scale",
+   "adapter": "swpc",
+   "title": "NOAA Space Weather Scale for Solar Radiation Storms (S1-S5)",
+   "file": "swpc_s_scale.json",
+   "bytes": 6577,
+   "sha256": "e7ff5390457d2d70b63e7d4c9cff212dbfde1344ef9c3cb4c89d835bdbf22f99",
+   "retrieved_at": "2026-11-14T13:44:37Z",
+   "provenance": "reference",
+   "freshness": {
+    "kind": "reference",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": null,
+    "stop": null,
+    "cadence": null
+   },
+   "publisher": "NOAA Space Weather Prediction Center (SWPC)",
+   "url": "https://www.swpc.noaa.gov/noaa-scales-explanation"
+  },
+  {
+   "id": "swpc_spe_list",
+   "adapter": "swpc",
+   "title": "NOAA list: Solar Proton Events Affecting the Earth Environment (1976 - Sep 2017)",
+   "file": "swpc_spe_list.json",
+   "bytes": 60514,
+   "sha256": "b96bc580a747931f4051ddb54a859a0de95d1bbb2a2d1e04471f744a211463b3",
+   "retrieved_at": "2026-11-14T13:44:37Z",
+   "provenance": "reference",
+   "freshness": {
+    "kind": "historical",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "1976-04-30T21:20:00Z",
+    "stop": "2017-09-10T16:45:00Z",
+    "cadence": null
+   },
+   "publisher": "NOAA Space Weather Prediction Center (formerly SESC); mirrored by NASA GSFC Solar Data Analysis Center",
+   "url": "https://umbra.nascom.nasa.gov/SEP/"
+  },
+  {
+   "id": "swpc_spe_replay",
+   "adapter": "swpc",
+   "title": "Historical replay: October 1989 solar proton event, GOES-7 >10 MeV flux (peak S4)",
+   "file": "swpc_spe_replay.json",
+   "bytes": 53394,
+   "sha256": "c8993e347a4024dc6270f56db79ca20aa73c0942867456320462dad97b612041",
+   "retrieved_at": "2026-11-14T13:44:37Z",
+   "provenance": "measured",
+   "freshness": {
+    "kind": "historical",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "1989-10-18T00:00:00Z",
+    "stop": "1989-10-31T23:55:00Z",
+    "cadence": "PT5M"
+   },
+   "publisher": "NOAA National Centers for Environmental Information (NCEI)",
+   "url": "https://www.ncei.noaa.gov/data/goes-space-environment-monitor/access/avg/1989/10/goes07/csv/"
+  }
+ ]
+}

@@ -35,16 +35,6 @@
   color: var(--lf-text-2);
 }
 .lfc-crew-switch a[aria-current='page'] { border-color: var(--lf-text); color: var(--lf-text); box-shadow: inset 0 -3px 0 var(--lf-text); }
-.lfc-status {
-  display: grid;
-  gap: 0.35em;
-  padding: var(--lf-space-2);
-  background: var(--lf-surface-1);
-  border: 1px solid var(--lf-border-subtle);
-  border-radius: var(--lf-radius);
-  justify-items: start;
-}
-.lfc-next { font-size: var(--lf-text-lg); font-weight: 600; margin: 0; max-width: none; }
 .lfc-tminus { font-weight: 500; }
 
 .lfc-stepper {
@@ -75,7 +65,7 @@
 .lfc-stepper li[data-state='current'] button { color: var(--lf-text); border-color: var(--lf-text); border-top-width: 3px; background: var(--lf-surface-2); }
 .lfc-stepper li[data-state='skipped'] button { color: var(--lf-data-unavailable); border-top-style: dashed; }
 .lfc-stepper-n { font-size: var(--lf-text-xs); }
-.lfc-stepper-label { font-weight: 600; font-size: var(--lf-text-sm); }
+.lfc-stepper-label { font-weight: 600; font-size: var(--lf-text-sm); hyphens: manual; overflow-wrap: anywhere; }
 .lfc-stepper-note { font-family: var(--lf-font-mono); }
 @media (max-width: 760px) {
   .lfc-stepper { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -109,8 +99,10 @@
 .lfc-cites { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--lf-space-1); }
 .lfc-interp { font-size: var(--lf-text-md); color: var(--lf-text); max-width: 80ch; }
 
-.lfc-grid2 { display: grid; gap: var(--lf-space-3); }
-@media (min-width: 900px) { .lfc-grid2 { grid-template-columns: 1fr 1fr; } }
+/* minmax(0, 1fr): a track never grows to a child's min-content width (the HRR ratings table is 347 px
+   wide), so a wide table scrolls inside its .lfc-table-wrap instead of pushing the page past 360 px. */
+.lfc-grid2 { display: grid; gap: var(--lf-space-3); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) { .lfc-grid2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 .lfc-hazards, .lfc-nm, .lfc-refusals { margin: 0; padding-left: 1.1em; display: grid; gap: 0.5em; }
 .lfc-hrr { margin-top: var(--lf-space-1); }
 
@@ -131,11 +123,12 @@
 .lfc-proc { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--lf-space-1); counter-reset: none; }
 .lfc-step {
   display: grid;
-  grid-template-columns: 2.25em 1fr;
+  grid-template-columns: 2.25em minmax(0, 1fr);
   gap: var(--lf-space-1-5);
   padding: var(--lf-space-1-5);
   border: 1px solid var(--lf-border-subtle);
   border-left: 4px solid var(--lf-procedure);
+  min-width: 0;
   border-radius: var(--lf-radius);
   background: var(--lf-surface-1);
 }
@@ -152,6 +145,10 @@
 }
 .lfc-step[data-done] .lfc-step-n { background: var(--lf-procedure); color: var(--lf-bg); }
 .lfc-step-text { margin: 0 0 0.4em; color: var(--lf-text); max-width: 80ch; }
+.lfc-step-body { min-width: 0; }
+.lfc-step[data-declined] { border-left-style: dashed; }
+.lfc-step[data-current] { border-color: var(--lf-procedure); border-left-width: 6px; }
+.lfc-declined { font-size: var(--lf-text-sm); color: var(--lf-text); margin: 0.25em 0; padding-left: 0.5em; border-left: 2px dashed var(--lf-border-strong); }
 .lfc-check { display: flex; gap: 0.5em; align-items: flex-start; margin-bottom: var(--lf-space-1-5); font-size: var(--lf-text-sm); }
 .lfc-check input { margin-top: 0.25em; }
 
@@ -167,7 +164,9 @@
   color: var(--lf-text);
   font-family: var(--lf-font-mono);
 }
-.lfc-entry input { width: 9em; }
+.lfc-entry input { width: 9em; max-width: 100%; }
+.lfc-entry-note { flex-basis: 100%; }
+.lfc-entry-wrap { min-width: 0; }
 .lfc-outcome textarea, .lfc-outcome input { flex: 1 1 22em; font-family: var(--lf-font-ui); }
 .lfc-entry-actions { display: flex; flex-wrap: wrap; gap: 0.5em; margin: 0.35em 0; }
 .lfc-yn { display: inline-flex; gap: 1em; border: 0; padding: 0; margin: 0; }
@@ -196,26 +195,6 @@
 .lfc-packet[data-queued] { border-color: var(--lf-text); }
 
 /* ---- case detail panels ---- */
-.lfc-proj-grid { display: grid; gap: var(--lf-space-2); }
-@media (min-width: 900px) { .lfc-proj-grid { grid-template-columns: 1fr 1fr; } }
-.lfc-proj {
-  padding: var(--lf-space-2);
-  border: 2px dashed var(--lf-border-strong);
-  border-radius: var(--lf-radius);
-  background: repeating-linear-gradient(135deg, transparent 0 8px, rgb(255 255 255 / 0.03) 8px 10px);
-}
-.lfc-proj-tag {
-  display: inline-block;
-  margin: 0 0 0.4em;
-  padding: 0.1em 0.5em;
-  border: 1px dashed var(--lf-border-strong);
-  font: 500 var(--lf-text-xs)/1.4 var(--lf-font-mono);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.lfc-proj-label { font-weight: 600; margin: 0 0 0.25em; }
-.lfc-proj-value { font-size: var(--lf-text-lg); margin: 0 0 0.25em; }
-.lfc-proj-caveat { font-size: var(--lf-text-sm); color: var(--lf-text-2); }
 .lfc-spe-now { display: grid; gap: var(--lf-space-2); margin-bottom: var(--lf-space-2); }
 @media (min-width: 760px) { .lfc-spe-now { grid-template-columns: 1fr 1fr; } }
 .lfc-slevel { margin-left: 0.4em; padding: 0 0.35em; border: 1px solid var(--lf-border-strong); border-radius: var(--lf-radius); font-size: 0.7em; vertical-align: middle; }
@@ -275,3 +254,116 @@
   border-radius: var(--lf-radius);
   text-decoration: none;
 }
+
+/* ---- status card: the one next action (top of #/case/:id) ---- */
+.lfc-now {
+  display: grid;
+  gap: 0.55em;
+  margin: var(--lf-space-2) 0 0;
+  padding: var(--lf-space-2);
+  background: var(--lf-surface-1);
+  border: 1px solid var(--lf-border-subtle);
+  border-left: 4px solid var(--lf-border);
+  border-radius: var(--lf-radius);
+  min-width: 0;
+}
+.lfc-now[data-severity='caution'] { border-left-color: var(--lf-sev-caution); }
+.lfc-now[data-severity='warning'],
+.lfc-now[data-severity='emergency'] { border-left-color: var(--lf-sev-warning); }
+.lfc-now[data-severity='advisory'] { border-left-color: var(--lf-sev-advisory); }
+.lfc-now-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.4em 0.75em; }
+.lfc-now-badge .lfc-k { margin: 0; }
+.lfc-now-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5em 1em; }
+.lfc-now-title { font-size: var(--lf-text-lg); margin: 0; line-height: 1.3; }
+.lfc-now-step {
+  padding: var(--lf-space-1-5);
+  border: 1px solid var(--lf-border-subtle);
+  border-left: 4px solid var(--lf-procedure);
+  border-radius: var(--lf-radius);
+  background: var(--lf-surface-2);
+  min-width: 0;
+}
+.lfc-now-step[data-preview] { border-left-style: dashed; }
+.lfc-now-step-text { font-size: var(--lf-text-md); color: var(--lf-text); margin: 0 0 0.4em; max-width: 80ch; }
+.lfc-now-opened, .lfc-now-link { margin: 0; max-width: 80ch; }
+.lfc-now .lfc-entry-actions { margin: 0.2em 0 0; align-items: center; }
+.lfc-now-progress { margin: 0; }
+.lfc-now-links { margin: 0; }
+.lfc-now-links .lf-btn { padding-left: 0; padding-right: 1em; min-height: 32px; }
+.lfc-verdict { margin: 0; font-size: var(--lf-text-md); color: var(--lf-text); }
+
+/* ---- step tags (magenta: procedure attributes, Table F.5-2; never red, which is Warning) ---- */
+.lfc-step-tags { display: flex; flex-wrap: wrap; gap: 0.35em; margin: 0 0 0.4em; }
+.lfc-tag {
+  display: inline-block;
+  padding: 0 0.45em;
+  border: 1px solid var(--lf-procedure);
+  border-radius: var(--lf-radius);
+  color: var(--lf-procedure);
+  font: 500 var(--lf-text-xs)/1.6 var(--lf-font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.lfc-tag[data-kind='red-flag'] { background: var(--lf-procedure); color: var(--lf-bg); }
+.lfc-tag[data-kind='red-flag']::before { content: '⚑ '; }
+.lfc-tag[data-kind='packet'] { border-color: var(--lf-border-strong); color: var(--lf-text-2); }
+.lfc-redflags { margin: 0 0 0.5em; padding-left: 1.2em; font-size: var(--lf-text-sm); color: var(--lf-text); display: grid; gap: 0.1em; }
+.lfc-redflag { margin: 0.35em 0; padding: 0.5em 0.75em; border: 1px solid var(--lf-border-strong); border-left-width: 4px; border-radius: var(--lf-radius); background: var(--lf-surface-3); }
+.lfc-redflag p { margin: 0; color: var(--lf-text); font-size: var(--lf-text-sm); }
+.lfc-decline { margin-top: 0.4em; }
+.lfc-decline-open { padding-left: 0; padding-right: 0; min-height: 32px; font-weight: 400; justify-content: flex-start; text-align: left; }
+
+/* ---- outcome gate ---- */
+.lfc-blocked { flex-basis: 100%; padding: 0.5em 0.75em; border: 1px solid var(--lf-border-strong); border-left: 4px solid var(--lf-procedure); border-radius: var(--lf-radius); background: var(--lf-surface-2); }
+.lfc-blocked p { margin: 0.2em 0; font-size: var(--lf-text-sm); color: var(--lf-text); }
+.lfc-outcome textarea:disabled { opacity: 0.6; }
+
+/* ---- manual entry: held for undo, confirm on an outlier ---- */
+.lfc-held, .lfc-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em 0.75em;
+  margin: 0.35em 0;
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--lf-border-strong);
+  border-radius: var(--lf-radius);
+  background: var(--lf-surface-2);
+}
+.lfc-held-text, .lfc-confirm-q { margin: 0; color: var(--lf-text); font-size: var(--lf-text-sm); flex: 1 1 16em; }
+.lfc-confirm > .lfc-fine { flex-basis: 100%; margin: 0; }
+.lfc-held-bar { flex-basis: 100%; height: 3px; background: var(--lf-text-muted); transform-origin: left center; animation: lfc-hold 5s linear forwards; order: 3; }
+@keyframes lfc-hold { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .lfc-held-bar { animation: none; } }
+
+/* ---- escalation tiers (D4): the onboard Crew Medical Officer first ---- */
+.lfc-tiers-wrap { display: grid; gap: 0.4em; min-width: 0; }
+.lfc-tiers { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--lf-space-1); }
+.lfc-tiers > li { display: grid; grid-template-columns: 2.25em minmax(0, 1fr); gap: var(--lf-space-1-5); padding: var(--lf-space-1-5); border: 1px solid var(--lf-border); border-radius: var(--lf-radius); background: var(--lf-surface-2); }
+.lfc-tiers > li[data-tier='1'] { border-color: var(--lf-text); border-width: 2px; }
+.lfc-tiers p { margin: 0 0 0.25em; }
+.lfc-tier-n { display: inline-grid; place-items: center; width: 2em; height: 2em; border: 2px solid var(--lf-text); border-radius: 50%; font-weight: 500; }
+.lfc-tier-act { font-size: var(--lf-text-md); font-weight: 600; color: var(--lf-text); }
+
+/* ---- chance flags of the simulator's realistic noise (hatched: simulated, never an alert colour) ---- */
+.lfc-chance { margin-top: var(--lf-space-1-5); padding: var(--lf-space-1-5); border: 1px dashed var(--lf-border-strong); border-radius: var(--lf-radius); }
+.lfc-chance p { margin: 0 0 0.3em; font-size: var(--lf-text-sm); }
+.lfc-chance-tag {
+  display: inline-block;
+  padding: 0 0.35em;
+  border: 1px dashed var(--lf-border-strong);
+  background: repeating-linear-gradient(135deg, var(--lf-sim-stripe-a) 0 4px, var(--lf-sim-stripe-b) 4px 8px);
+  color: var(--lf-text);
+  font: 500 0.625rem/1.5 var(--lf-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ---- HRR ratings: both columns ---- */
+.lfc-hrr-table th[scope='row'] { color: var(--lf-text-2); font-weight: 400; font-size: var(--lf-text-sm); }
+
+/* ---- findings without a deep case ---- */
+.lfc-action-text { margin: 0.3em 0; color: var(--lf-text); font-size: var(--lf-text-sm); max-width: 80ch; }
+.lfc-action-all { margin: 0; padding-left: 1.1em; display: grid; gap: 0.25em; font-size: var(--lf-text-sm); }
+.lfc-list + .lf-panel { margin-top: var(--lf-space-3); }

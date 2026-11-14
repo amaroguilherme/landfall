@@ -1,7 +1,7 @@
 // Building blocks of the case views: the "Why this fired" expander (rule and personal findings),
 // a source block that quotes the frozen standards / NOAA / HRP text verbatim, a small SVG series
 // chart (single series, reserved severity colours only on the engine's own flagged points), the
-// mission-clock countdown, and the event log.
+// mission-clock countdown, the partial-record badge (D15) and the event log in plain words.
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { RULES, expectedFalseAlarms, formatMet } from '../../app/engine'
@@ -10,10 +10,12 @@ import type { CaseOrigin } from '../../app/caseTimeline'
 import type { SnapshotState } from '../../app/data'
 import type { Aggregate } from '../../app/evaluate'
 import { useMetNow } from '../../app/mission'
-import { CategoryBadge, Chip, Citation, Expander, FindingBadge, MetTime, Num, ReqId, SeverityIcon } from '../../ui'
-import type { Severity } from '../../app/vocab'
-import { OP_TEXT, OP_WORDS, chipForKind, findRequirement, findTableCell, formatTMinus, metDayOf, prettyDetail } from './model'
+import { CategoryBadge, Chip, Citation, Expander, FindingBadge, MetTime, Num, ReqId, SeverityBadge, SeverityIcon, UnknownIcon } from '../../ui'
+import type { Severity, Status } from '../../app/vocab'
+import { OP_TEXT, OP_WORDS, alertingEitherCount, chipForKind, findRequirement, findTableCell, formatTMinus, metDayOf, plainDetail } from './model'
 import type { StdData } from './model'
+import { rejectionWords } from './helpers'
+import type { CaseDefFull } from './types'
 
 // ---- snapshot context ------------------------------------------------------------------------------
 
@@ -189,26 +191,37 @@ export function RuleWhy({ rule, finding, input, open = false }: { rule: Rule; fi
   )
 }
 
-interface RciLike {
-  method?: unknown
-  n?: unknown
-  df?: unknown
-  mean?: unknown
-  /** Crawford & Howell single-case t-test: the critical t at the configured alpha. */
-  critical?: unknown
-  /** Older Reliable Change Index output. */
-  critical_z?: unknown
-  r?: unknown
-  r_chip?: unknown
-  r_source?: unknown
-}
-
 const num = (x: unknown): number | null => (typeof x === 'number' && Number.isFinite(x) ? x : null)
 
 /**
+ * The smallest change a personal band can flag (D10): the engine's rci.mdc = critical x SD x sqrt(1 + 1/n),
+ * read from the finding, never recomputed. Null when the baseline is too short or has no spread.
+ */
+export function MdcText({ finding }: { finding: PersonalFinding }) {
+  const r = finding.rci
+  const mdc = num(r?.mdc)
+  if (mdc === null) return null
+  return (
+    <>
+      ±<Num value={mdc} unit={finding.unit === 'count' ? undefined : finding.unit} digits={mdc < 10 ? 2 : 0} />
+    </>
+  )
+}
+
+/**
+ * Badge of a Tier B (personal) finding. A personal band is not a limit, so "within" reads "No reliable change",
+ * never "Within limit" (the same words as Body and Trends); data-quality states stay cyan.
+ */
+export function PersonalBadge({ finding }: { finding: { status: Status; severity: Severity; category?: string | null } }) {
+  if (finding.status === 'reliable_change') return <SeverityBadge severity={finding.severity} label="Reliable change" />
+  if (finding.status === 'within') return <SeverityBadge severity="nominal" label="No reliable change" />
+  return <FindingBadge finding={finding} />
+}
+
+/**
  * "Why this fired" for a Tier B personal finding. Everything is READ from the engine's
- * PersonalFinding (value, band edge, baseline mean / n, critical value, df when the method has one);
- * nothing is recomputed, so it follows the engine's statistic (Crawford & Howell or RCI) unchanged.
+ * PersonalFinding (value, band edge, baseline mean / SD / n, critical value, df, minimum detectable
+ * change); nothing is recomputed.
  */
 export function PersonalWhy({
   indicator,
@@ -224,16 +237,16 @@ export function PersonalWhy({
   open?: boolean
 }) {
   const fired = FIRING.includes(finding.severity)
-  const r = (finding.rci ?? {}) as RciLike
+  const r = finding.rci
   const cfg = (RULES.personal?.rci ?? null) as { alpha_two_tailed?: unknown } | null
   const alpha = num(cfg?.alpha_two_tailed)
-  const fa = alertingIndicators > 0 ? (expectedFalseAlarms(alertingIndicators, 1, alpha ?? undefined) as { text: string; caution_text?: unknown }) : null
-  const faText = fa ? (typeof fa.caution_text === 'string' ? fa.caution_text : fa.text) : null
-  const critical = num(r.critical) ?? num(r.critical_z)
-  const df = num(r.df)
-  const rel = indicator.reliability_r as ({ value?: unknown; used_by_engine?: unknown; chip?: string; source?: Source } | undefined)
-  const rValue = num(r.r) ?? (rel?.used_by_engine === false ? null : num(rel?.value))
-  const rSource = (r.r_source ?? rel?.source ?? null) as Source | null
+  const kEither = Math.min(alertingEitherCount(), alertingIndicators)
+  const fa = alertingIndicators > 0 ? expectedFalseAlarms(alertingIndicators, 1, alpha ?? undefined, kEither) : null
+  const critical = num(r?.critical)
+  const df = num(r?.df)
+  const sd = num(r?.sd)
+  const n = num(r?.n)
+  const mdc = num(r?.mdc)
   const def = indicator.definition
   return (
     <Expander summary={fired ? 'Why this fired' : 'How this is judged'} defaultOpen={open}>
@@ -250,7 +263,7 @@ export function PersonalWhy({
           </dd>
         </div>
         <div>
-          <dt>Edge of your personal band (worse side)</dt>
+          <dt>Edge of your personal band ({indicator.worse === 'either' ? 'the side the value moved' : 'worse side'})</dt>
           <dd>
             <Num value={finding.limit} unit={finding.unit} />
           </dd>
@@ -260,7 +273,7 @@ export function PersonalWhy({
             Your baseline (MET days <Num value={baselineDays[0]} />–<Num value={baselineDays[1]} />)
           </dt>
           <dd>
-            mean <Num value={num(r.mean)} unit={finding.unit} digits={2} />, <Num value={num(r.n)} /> values
+            mean <Num value={num(r?.mean)} unit={finding.unit} digits={2} />, SD <Num value={sd} digits={2} />, <Num value={n} /> values
           </dd>
         </div>
         <div>
@@ -273,34 +286,39 @@ export function PersonalWhy({
                 (df <Num value={df} />)
               </>
             ) : null}
-            {typeof r.method === 'string' ? <span className="lfc-fine"> {r.method.replace(/_/g, ' ')}</span> : null}
           </dd>
         </div>
-        {rValue !== null ? (
-          <div>
-            <dt>Test-retest reliability r</dt>
-            <dd>
-              <Num value={rValue} /> <Chip kind={typeof r.r_chip === 'string' ? r.r_chip : rel?.chip} />
-            </dd>
-          </div>
-        ) : null}
+        <div>
+          <dt>Smallest change this band can flag</dt>
+          <dd>
+            {mdc !== null ? (
+              <>
+                <MdcText finding={finding} /> <Chip kind="derived" />
+              </>
+            ) : (
+              <Num value={null} />
+            )}
+          </dd>
+        </div>
       </dl>
+      {mdc !== null && critical !== null && sd !== null && n !== null ? (
+        <p className="lfc-fine">
+          The smallest one-day change from your baseline mean that this test can flag is critical × SD × √(1 + 1/n) ={' '}
+          <Num value={critical} digits={3} /> × <Num value={sd} digits={3} /> × √(1 + 1/<Num value={n} />) = <MdcText finding={finding} />, whatever
+          that change means clinically. A real change smaller than that is not flagged.
+        </p>
+      ) : null}
       <p className="lfc-badges">
-        <CategoryBadge category="PERSONAL" long /> <FindingBadge finding={finding} />
-        {faText ? (
+        <CategoryBadge category="PERSONAL" long /> <PersonalBadge finding={finding} />
+        {fa ? (
           <span className="lfc-fa">
-            Expected false alarms across the <Num value={alertingIndicators} /> alerting indicators: {faText}.
+            Chance alone, across the <Num value={alertingIndicators} /> alerting indicators: {fa.caution_text}. It assumes {fa.assumes}.
           </span>
         ) : null}
       </p>
       {def?.text ? (
         <p className="lfc-fine">
           Definition: {def.text} <Chip kind={def.chip} /> {def.source ? <Citation source={def.source} /> : null}
-        </p>
-      ) : null}
-      {rValue !== null && rSource && (rSource as Record<string, unknown>).kind === 'design_choice' ? (
-        <p className="lfc-fine">
-          Why r = <Num value={rValue} />: {String((rSource as Record<string, unknown>).rationale ?? '')}
         </p>
       ) : null}
       <p className="lfc-fine">Method:</p>
@@ -494,17 +512,32 @@ export function SeriesChart({
   )
 }
 
+// ---- partial dose record (D15) ------------------------------------------------------------------------
+
+/**
+ * Cyan "partial record" tag (Appendix F Table F.5-1: missing or stale data): the dose reports start after
+ * the window opens, so the logged sum is a lower bound and "within limit" cannot be said.
+ */
+export function PartialBadge() {
+  return (
+    <span className="lf-dq" data-tone="stale">
+      <UnknownIcon size={14} />
+      <span>Partial record</span>
+    </span>
+  )
+}
+
 // ---- event log ------------------------------------------------------------------------------------
 
 const ORIGIN_LABEL: Record<CaseOrigin, string> = {
-  auto: 'LANDFALL, from the data',
+  auto: 'Automatic, from the data',
   scenario: 'Simulated crew action',
   user: 'You, in this session',
   tick: 'Tripwire check',
 }
 
 /** The case's engine log (state.log) with MET timestamps and who did what; rejected events are kept, with the reason. */
-export function EventLog({ log, origins }: { log: readonly CaseLogEntry[]; origins: readonly CaseOrigin[] }) {
+export function EventLog({ log, origins, def }: { log: readonly CaseLogEntry[]; origins: readonly CaseOrigin[]; def: CaseDefFull }) {
   if (!log.length) return <p className="lfc-fine">No events yet.</p>
   return (
     <div className="lfc-table-wrap">
@@ -526,7 +559,12 @@ export function EventLog({ log, origins }: { log: readonly CaseLogEntry[]; origi
               <td className="lf-mono">{e.event ?? '—'}</td>
               <td className="lf-mono">{e.from === e.to ? e.to : `${e.from} → ${e.to}`}</td>
               <td>
-                {e.error ? <span className="lfc-rejected">Rejected: {e.error}</span> : null} {prettyDetail(e.detail)}
+                {e.error ? (
+                  <span className="lfc-rejected" title={`engine code: ${e.error}`}>
+                    Rejected: {rejectionWords(e.error)}
+                  </span>
+                ) : null}{' '}
+                {plainDetail(e.detail, def)}
               </td>
               <td>
                 {origins[i] === 'scenario' ? <span className="lfc-sim-tag">SIMULATED</span> : null} {ORIGIN_LABEL[origins[i]] ?? origins[i]}

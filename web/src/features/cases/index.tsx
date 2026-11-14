@@ -1,52 +1,67 @@
-// #/case and #/case/:id - the ACT loop, LANDFALL's differentiator:
+// #/case and #/case/:id - the ACT loop:
 //   detect -> interpret -> ONE primary countermeasure (alternatives collapsed) -> guided procedure
-//   (magenta) -> log outcome -> tripwire armed (countdown on the mission clock) -> resolved | escalated
-//   (escalation queues the ground packet for the flight surgeon: #/downlink).
+//   (magenta; required steps must be done or declined with a reason; a red-flag "yes" escalates at once)
+//   -> outcome -> tripwire armed (countdown on the mission clock) -> resolved | escalated (tier 1, the
+//   onboard Crew Medical Officer, now; tier 2, the flight surgeon, through the ground packet: #/downlink).
 // Every state is the engine's caseReduce fold (useCases); this view only reads it and dispatches
-// SELECT / STEP / OUTCOME / DISMISS. Every number is from the rules JSON, a snapshot or the engine.
-import { useMemo, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+// SELECT / STEP / DECLINE / OUTCOME / DISMISS. Every number is from the rules JSON, a snapshot or the engine.
+// LANDFALL runs three deep cases; other findings show their limit and one action (D11), listed on #/case.
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { RULES, getIndicator, getRule } from '../../app/engine'
-import type { CaseState } from '../../app/engine'
+import type { CaseState, Finding, FindingAction } from '../../app/engine'
 import { CASE_DEFS } from '../../app/caseTimeline'
 import type { CaseView } from '../../app/caseTimeline'
-import { formatCountdown, formatEarliestReply, useComms } from '../../app/comms'
+import { useComms } from '../../app/comms'
 import { useSnapshot } from '../../app/data'
 import type { CrewEvaluation, MissionEvaluation, PersonalEvaluation, RuleEvaluation } from '../../app/evaluate'
 import { metClock, useMetClock, useMission } from '../../app/mission'
-import { useCases, useEvaluation, useGroundPacket, useScenario } from '../../app/model'
+import { useCases, useEvaluation, useScenario } from '../../app/model'
 import type { CaseEventInput } from '../../app/model'
 import type { FeatureProps } from '../../app/router'
 import { environment } from '../../app/scenario'
 import { observationsFor } from '../../app/scenarioData'
 import type { ScenarioIndex, SimCrewData } from '../../app/scenarioData'
-import { CREW_IDS, crewMember } from '../../app/vocab'
+import { CREW_IDS, SEVERITY_RANK, crewMember } from '../../app/vocab'
 import type { CrewId, EnvId, Observation, Severity } from '../../app/vocab'
-import {
-  Button,
-  ButtonLink,
-  CategoryBadge,
-  Chip,
-  EmptyState,
-  Expander,
-  FindingBadge,
-  FreshnessChip,
-  MetTime,
-  Num,
-  Panel,
-  ReqId,
-  SeverityBadge,
-  SimulatedMarker,
-} from '../../ui'
+import { Button, CategoryBadge, Chip, EmptyState, Expander, FindingBadge, FreshnessChip, MetTime, Num, Panel, ReqId, SimulatedMarker } from '../../ui'
 import './cases.css'
-import { HRR_MISSION_TYPE, OP_TEXT, STATUS_WORD, findRequirement, formatSpan, humanize, isOpen, lastN, latestAtOrBefore, pickCrew, stagesOf } from './model'
+import { ClosePanel, TripwirePanel } from './closing'
+import { PendingEntries } from './entry'
+import {
+  HRR_MISSION_TYPE,
+  OP_TEXT,
+  OP_WORDS,
+  STATUS_WORD,
+  chanceOpening,
+  findRequirement,
+  hrrIdsOf,
+  hrrRows,
+  humanize,
+  isOpen,
+  lastN,
+  latestAtOrBefore,
+  nextOpenStep,
+  pendingRequired,
+  pickCrew,
+  refLabel,
+  sortByUrgency,
+  stagesOf,
+  stepState,
+  tripwireJumpTarget,
+} from './model'
 import type { Stage, StdData } from './model'
 import { RenalPanel, RuleRow, SleepPanel, SpePanel } from './panels'
-import { EventLog, KindChip, PersonalWhy, RefsProvider, RuleWhy, SourceBlock, TMinus } from './parts'
+import { jumpTo, openingNote, rejectionWords } from './helpers'
+import { EventLog, KindChip, MdcText, PersonalBadge, PersonalWhy, RefsProvider, RuleWhy, SourceBlock } from './parts'
 import type { CaseRefs } from './parts'
-import type { CaseDefFull, CmDef, HrpHazard, HrpRisk, HrrRisk, MetaHazard, StepDef } from './types'
+import { OutcomePanel, ProcedurePanel } from './procedure'
+import type { ActCtx, OutcomeDraft, StepInput } from './procedure'
+import { CaseStatusBadge, NowCard } from './status'
+import type { CaseDefFull, CmDef, HrpHazard, HrpRisk, HrrRisk, MetaHazard, SimSelfCheck, StepDef } from './types'
 
 const defOf = (v: CaseView) => v.def as unknown as CaseDefFull
+
+type SimWithCheck = SimCrewData & { self_check?: SimSelfCheck; variables?: Record<string, { label?: string } | undefined> }
 
 // =============================================================================================
 // Route
@@ -74,7 +89,13 @@ export default function Cases({ params, query }: FeatureProps) {
       </EmptyState>
     )
   }
-  if (!params.id) return <CaseList views={cases.cases} storeCrew={state.crewId} />
+  if (!params.id) {
+    return (
+      <RefsProvider value={refs}>
+        <CaseList views={cases.cases} storeCrew={state.crewId} />
+      </RefsProvider>
+    )
+  }
   const def = CASE_DEFS.find((c) => c.id === params.id)
   if (!def) {
     return (
@@ -97,50 +118,43 @@ export default function Cases({ params, query }: FeatureProps) {
   if (!view) return null
   return (
     <RefsProvider value={refs}>
-      <CaseDetail key={view.key} view={view} all={cases.cases} t={cases.t} dispatch={cases.dispatch} />
+      <PendingEntries key={view.key}>
+        <CaseDetail view={view} all={cases.cases} t={cases.t} dispatch={cases.dispatch} />
+      </PendingEntries>
     </RefsProvider>
   )
 }
 
 // =============================================================================================
-// Status badge
-// =============================================================================================
-
-function openingSeverity(v: CaseView): Severity {
-  return ((v.state.finding?.severity ?? v.opening?.finding.severity ?? 'caution') as Severity) || 'caution'
-}
-
-function CaseStatusBadge({ view, size = 'md' }: { view: CaseView; size?: 'sm' | 'md' | 'lg' }) {
-  const s = view.state.status
-  if (s === 'idle' || s === 'resolved' || s === 'dismissed') return <SeverityBadge severity="nominal" label={STATUS_WORD[s]} size={size} />
-  return <SeverityBadge severity={openingSeverity(view)} label={STATUS_WORD[s]} size={size} solid={s !== 'escalated'} />
-}
-
-// =============================================================================================
-// #/case: the three cases x four crewmembers
+// #/case: the three deep cases x four crewmembers, most urgent first; then the findings without a case
 // =============================================================================================
 
 function CaseList({ views, storeCrew }: { views: CaseView[]; storeCrew: CrewId }) {
+  const sim = useSnapshot<SimWithCheck>('sim_crew')
+  const { evaluation } = useEvaluation()
+  const defs = sortByUrgency(CASE_DEFS as unknown as CaseDefFull[], views)
   return (
     <div className="lfc">
       <header className="lfc-head">
         <p className="lf-eyebrow">Act</p>
         <h1>Cases</h1>
         <p className="lfc-lede">
-          Every finding that reaches caution becomes a case: detect, interpret in plain words, one primary countermeasure, a
-          guided procedure, an outcome, then a tripwire that either closes the case or queues it for the flight surgeon. No
-          diagnosis, no drug doses.
+          LANDFALL runs three deep cases. Each opens when one of its triggers reaches caution: detect, interpret in plain words, one primary countermeasure,
+          a guided procedure whose required steps must be done or declined with a reason, an outcome, then a tripwire that resolves the case or escalates
+          it: first to the onboard Crew Medical Officer, then to the flight surgeon through the ground packet. Other findings show their limit and one
+          action (listed below the cases). No diagnosis, no medication advice.
         </p>
         <SimulatedMarker variant="banner">Crew values and crew actions are simulated. The rules, limits and NASA/NOAA text are real.</SimulatedMarker>
       </header>
+      <p className="lfc-fine">Most urgent first: a warning before a caution, then a case still waiting for its start, then crew-wide cases.</p>
       <ul className="lfc-list">
-        {CASE_DEFS.map((raw) => {
-          const def = raw as unknown as CaseDefFull
+        {defs.map((def) => {
           const mine = CREW_IDS.map((c) => views.find((v) => v.caseId === def.id && v.crewId === c)!).filter(Boolean)
           const lead = mine.find((v) => v.crewId === pickCrew(def.id, views, undefined, storeCrew)) ?? mine[0]
+          const wide = (def.triggers ?? []).some((x) => x.kind === 'ops')
           return (
             <li key={def.id} className="lfc-list-item">
-              <article className="lf-card" data-severity={lead && isOpen(lead.state.status) ? openingSeverity(lead) : undefined}>
+              <article className="lf-card" data-severity={lead && (isOpen(lead.state.status) || lead.state.status === 'escalated') ? severityOf(lead) : undefined}>
                 <header className="lfc-list-head">
                   <h2 className="lfc-list-title">
                     <a href={`#/case/${def.id}?crew=${lead?.crewId ?? storeCrew}`}>{def.title}</a>
@@ -149,29 +163,141 @@ function CaseList({ views, storeCrew }: { views: CaseView[]; storeCrew: CrewId }
                 </header>
                 <p>{def.one_line}</p>
                 <p className="lfc-fine">
-                  NASA HRP risk: <a href={def.hrp_risk?.url} target="_blank" rel="noopener noreferrer">{def.hrp_risk?.title}</a>
+                  {wide ? 'Crew-wide: one reading opens it for every crewmember. ' : null}NASA HRP risk:{' '}
+                  <a href={def.hrp_risk?.url} target="_blank" rel="noopener noreferrer">
+                    {def.hrp_risk?.title}
+                  </a>
                 </p>
                 <ul className="lfc-crew-row" aria-label={`${def.title}: status per crewmember`}>
-                  {mine.map((v) => (
-                    <li key={v.key}>
-                      <a href={`#/case/${def.id}?crew=${v.crewId}`} className="lfc-crew-link">
-                        <span className="lf-mono">{v.crewId}</span>
-                        <CaseStatusBadge view={v} size="sm" />
-                        {v.state.opened_at !== null ? (
-                          <span className="lfc-fine">
-                            opened <MetTime t={v.state.opened_at} />
-                          </span>
-                        ) : null}
-                      </a>
-                    </li>
-                  ))}
+                  {mine.map((v) => {
+                    const chance = chanceOpening(sim.data?.self_check, v.crewId, v.caseId, v.state.opened_at)
+                    return (
+                      <li key={v.key}>
+                        <a href={`#/case/${def.id}?crew=${v.crewId}`} className="lfc-crew-link">
+                          <span className="lf-mono">{v.crewId}</span>
+                          <CaseStatusBadge view={v} size="sm" />
+                          {v.state.opened_at !== null ? (
+                            <span className="lfc-fine">
+                              opened <MetTime t={v.state.opened_at} />
+                            </span>
+                          ) : null}
+                          {chance ? <span className="lfc-chance-tag">chance flag</span> : null}
+                        </a>
+                      </li>
+                    )
+                  })}
                 </ul>
               </article>
             </li>
           )
         })}
       </ul>
+      <FindingsWithoutCase evaluation={evaluation} />
     </div>
+  )
+}
+
+const severityOf = (v: CaseView): Severity => ((v.state.finding?.severity ?? v.opening?.finding.severity ?? 'caution') as Severity) || 'caution'
+
+interface ActionItem {
+  key: string
+  crewId: CrewId
+  label: string
+  action: FindingAction
+  finding: Finding
+  unit: string
+  op: string | null
+  limit: number | null
+  sourceId: string
+  rule?: RuleEvaluation
+  personal?: PersonalEvaluation
+}
+
+/** The action text without a leading repeat of its own label ("EVA assignment not cleared: ..."). */
+const actionBody = (a: FindingAction) => {
+  const head = `${a.label}:`
+  const rest = a.text.startsWith(head) ? a.text.slice(head.length).trim() : a.text
+  return rest.charAt(0).toUpperCase() + rest.slice(1)
+}
+
+const atCaution = (f: Finding) => SEVERITY_RANK[f.severity as Severity] >= SEVERITY_RANK.caution
+
+function actionItems(evaluation: MissionEvaluation | null): ActionItem[] {
+  if (!evaluation) return []
+  const out: ActionItem[] = []
+  for (const crewId of CREW_IDS) {
+    const ce: CrewEvaluation = evaluation.crew[crewId]
+    for (const r of ce.tierA) {
+      if (!r.rule.action || !atCaution(r.finding)) continue
+      out.push({ key: `${crewId}:${r.rule.id}`, crewId, label: r.rule.label ?? r.rule.id, action: r.rule.action, finding: r.finding, unit: r.rule.unit, op: r.rule.op, limit: r.rule.limit, sourceId: r.rule.id, rule: r })
+    }
+    for (const p of ce.tierB) {
+      if (!p.indicator.action || !atCaution(p.finding)) continue
+      out.push({ key: `${crewId}:${p.indicator.id}`, crewId, label: p.indicator.label ?? p.indicator.id, action: p.indicator.action, finding: p.finding, unit: p.indicator.unit, op: null, limit: p.finding.limit, sourceId: p.indicator.id, personal: p })
+    }
+  }
+  return out.sort((a, b) => SEVERITY_RANK[b.finding.severity as Severity] - SEVERITY_RANK[a.finding.severity as Severity] || a.crewId.localeCompare(b.crewId))
+}
+
+/** Every alerting rule and indicator that ends in one action rather than a deep case (D11). */
+function allActionSources(): Array<{ id: string; label: string; action: string; kind: 'rule' | 'indicator' }> {
+  const rules = (RULES.thresholds?.rules ?? []).filter((r) => r.action).map((r) => ({ id: r.id, label: r.label ?? r.id, action: r.action!.label, kind: 'rule' as const }))
+  const inds = (RULES.personal?.indicators ?? []).filter((i) => i.action).map((i) => ({ id: i.id, label: i.label ?? i.id, action: i.action!.label, kind: 'indicator' as const }))
+  return [...rules, ...inds]
+}
+
+function FindingsWithoutCase({ evaluation }: { evaluation: MissionEvaluation | null }) {
+  const items = useMemo(() => actionItems(evaluation), [evaluation])
+  const all = useMemo(() => allActionSources(), [])
+  return (
+    <Panel title="Findings without a deep case" eyebrow="Limit and one action" id="cases-other">
+      <p>
+        These findings have no guided case. Each shows its limit, one action and who decides; none is a diagnosis. Listed at caution or above, for every
+        crewmember, at the mission clock.
+      </p>
+      {items.length ? (
+        <ul className="lfc-rows">
+          {items.map((x) => (
+            <li key={x.key} className="lfc-row lfc-action-row">
+              <div className="lfc-row-head">
+                <span className="lfc-row-label">
+                  <span className="lf-mono">{x.crewId}</span> {x.action.label}
+                </span>
+                <span className="lfc-row-val">
+                  {x.label}: <Num value={x.finding.value} unit={x.unit} /> <span className="lfc-vs">{x.personal ? 'band edge' : 'vs'}</span>{' '}
+                  {x.op ? <span className="lf-num">{OP_TEXT[x.op as keyof typeof OP_TEXT]}</span> : null} <Num value={x.limit} unit={x.unit} />
+                </span>
+                <FindingBadge finding={x.finding} />
+              </div>
+              <p className="lfc-action-text">
+                {actionBody(x.action)} <Chip kind={x.action.chip} />
+              </p>
+              <p className="lfc-fine">
+                <CategoryBadge category={x.finding.category} /> <Chip kind={x.finding.chip} />{' '}
+                {x.personal && typeof x.personal.finding.rci?.mdc === 'number' ? (
+                  <>
+                    Smallest change this band can flag: <MdcText finding={x.personal.finding} />.{' '}
+                  </>
+                ) : null}
+                <a href={`#/provenance?id=${encodeURIComponent(x.sourceId)}`}>Limit, source and provenance</a> ·{' '}
+                <a href={`#/trends?crew=${x.crewId}`}>Trends for {x.crewId}</a>
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="lfc-fine">{evaluation ? 'None at caution or above for any crewmember at the mission clock.' : 'Evaluating…'}</p>
+      )}
+      <Expander summary={`Every rule and indicator that ends in one action (${all.length})`}>
+        <ul className="lfc-action-all">
+          {all.map((a) => (
+            <li key={a.id}>
+              {a.label} → <strong>{a.action}</strong>
+            </li>
+          ))}
+        </ul>
+      </Expander>
+    </Panel>
   )
 }
 
@@ -188,36 +314,8 @@ interface DetailProps {
   dispatch: Dispatch
 }
 
-function nextAction(view: CaseView, def: CaseDefFull): ReactNode {
-  const s = view.state
-  switch (s.status) {
-    case 'idle':
-      return <>Nothing to do for {view.crewId}: no trigger of this case has reached caution.</>
-    case 'detected':
-      return <>Start the countermeasure: {def.countermeasure?.primary.title}.</>
-    case 'acting':
-      return (
-        <>
-          Work through the procedure (<Num value={s.steps_done.length} /> of <Num value={s.spec.step_ids.length} /> steps done),
-          then log the outcome.
-        </>
-      )
-    case 'watch':
-      return s.reassess_at !== null ? (
-        <>
-          Tripwire armed. Reassess at <MetTime t={s.reassess_at} label /> (<TMinus target={s.reassess_at} />
-          ).
-        </>
-      ) : (
-        <>Tripwire armed.</>
-      )
-    case 'resolved':
-      return <>Resolved at the reassessment. Keep logging as usual.</>
-    case 'escalated':
-      return <>Escalated: queued for flight-surgeon review. Keep following the procedure.</>
-    case 'dismissed':
-      return <>Dismissed: {s.dismiss_reason}</>
-  }
+const PLAIN_ERROR_LEAD: Record<string, string> = {
+  required_steps_pending: 'Outcome not logged: required steps are still open.',
 }
 
 function CaseDetail({ view, all, t, dispatch }: DetailProps) {
@@ -225,6 +323,8 @@ function CaseDetail({ view, all, t, dispatch }: DetailProps) {
   const { state: mission, addObservations } = useMission()
   const scenario = useScenario()
   const { evaluation } = useEvaluation()
+  const comms = useComms()
+  const clock = useMetClock()
   const envId = mission.envId
   const env = environment(envId)
   const crew = crewMember(view.crewId)
@@ -234,35 +334,97 @@ function CaseDetail({ view, all, t, dispatch }: DetailProps) {
   const runtime = mission.observations
   const shared = (def.triggers ?? []).some((x) => x.kind === 'ops')
   const [allCrew, setAllCrew] = useState(true)
-  const sim = useSnapshot<SimCrewData>('sim_crew')
+  // where the tripwire demo jump was clicked (the status card or the tripwire panel); read once the fold catches up
+  const jump = useRef<null | 'banner' | 'panel'>(null)
+  const [outcomeText, setOutcomeText] = useState('')
+  const sim = useSnapshot<SimWithCheck>('sim_crew')
   const replay = useSnapshot('swpc_spe_replay')
   const vol2 = useSnapshot<StdData>('std_vol2_requirements')
 
   const peers = all.filter((v) => v.caseId === view.caseId)
+  const sharedAll = shared && allCrew
   const crews = (status: CaseState['status'], extra?: (v: CaseView) => boolean): CrewId[] =>
-    shared && allCrew ? peers.filter((v) => v.state.status === status && (!extra || extra(v))).map((v) => v.crewId) : [view.crewId]
+    sharedAll ? peers.filter((v) => v.state.status === status && (!extra || extra(v))).map((v) => v.crewId) : [view.crewId]
 
   const send = (event: CaseEventInput, targets: CrewId[]) => {
     const tt = metClock.get().metNow
     for (const c of targets) dispatch(view.caseId, { ...event, t: tt } as CaseEventInput, c)
   }
 
-  const latest = (variable: string): Observation | null => {
-    if (!index) return null
-    return latestAtOrBefore(observationsFor(index, runtime, view.crewId, variable), t, view.crewId)
-  }
+  const latest = (variable: string): Observation | null => (index ? latestAtOrBefore(observationsFor(index, runtime, view.crewId, variable), t, view.crewId) : null)
   const recent = (variable: string, n: number): Observation[] => (index ? lastN(observationsFor(index, runtime, view.crewId, variable), t, n, view.crewId) : [])
 
   /** A value typed or confirmed by the crew: stamped at the clock minute so evaluation and tripwire see it at once. */
-  const logObservation = (variable: string, value: number, unit: string, crewIds: CrewId[] = [view.crewId], vehicle = false): number => {
+  const logObservation = (variable: string, value: number, unit: string, crewIds: CrewId[] = [view.crewId]): number => {
     const tt = Math.floor(metClock.get().metNow / 60) * 60
-    const obs: Observation[] = (vehicle ? [null] : crewIds).map((c) => ({ crew_id: c, variable, value, unit, t: tt, source: 'manual', provenance: 'manual' }))
-    addObservations(obs)
+    addObservations(crewIds.map((c) => ({ crew_id: c, variable, value, unit, t: tt, source: 'manual', provenance: 'manual' })))
     return tt
   }
 
+  const c: ActCtx = {
+    def,
+    state: s,
+    crewId: view.crewId,
+    sharedAll,
+    sharedCount: sharedAll ? peers.filter((v) => v.state.status === 'acting').length : 1,
+    comms,
+    t,
+    latest,
+    recent,
+    onStep: (step: StepDef, input?: StepInput, record?: number) => {
+      // crew-wide: a step with no input, a vehicle-sensor reading, a shelter-entry time; a personal value stays personal
+      const fromVehicle = !!input && record === undefined && latest(input.variable)?.crew_id === null
+      const crewWide = !input || fromVehicle || input.unit === 'MET'
+      const targets = crewWide ? crews('acting', (v) => stepState(v.state, step.id) !== 'done') : [view.crewId]
+      let inp = input
+      if (input && record !== undefined) inp = { ...input, t: logObservation(input.variable, record, input.unit, crewWide ? targets : [view.crewId]) }
+      send({ type: 'STEP', step_id: step.id, ...(inp ? { input: inp } : {}) }, targets)
+    },
+    onDecline: (step: StepDef, reason: string) => {
+      send({ type: 'DECLINE', step_id: step.id, reason }, crews('acting', (v) => stepState(v.state, step.id) === 'open'))
+    },
+  }
+
+  // shared case: an outcome goes to every acting crewmember whose required steps are settled
+  const actingPeers = sharedAll ? peers.filter((v) => v.state.status === 'acting') : peers.filter((v) => v.crewId === view.crewId && v.state.status === 'acting')
+  const readyPeers = actingPeers.filter((v) => pendingRequired(v.state).length === 0).map((v) => v.crewId)
+  const blockedPeers = actingPeers.filter((v) => v.crewId !== view.crewId && pendingRequired(v.state).length > 0).map((v) => v.crewId)
+  const outcome: OutcomeDraft = { text: outcomeText, setText: setOutcomeText, submit: (text) => send({ type: 'OUTCOME', text }, readyPeers), readyPeers, blockedPeers }
+
+  const doJump = (origin: 'banner' | 'panel') => {
+    if (s.reassess_at === null) return
+    jump.current = origin
+    clock.set(tripwireJumpTarget(s.reassess_at))
+  }
+  // After the demo jump: once the fold has reached the reassessment, scroll to the verdict (or to "due").
+  useEffect(() => {
+    const origin = jump.current
+    if (!origin) return
+    const judged = s.status !== 'watch'
+    const due = s.reassess_at !== null && t >= s.reassess_at
+    if (!judged && !due) return
+    jump.current = null
+    const id = judged ? `lfc-verdict-${origin}` : `lfc-due-${origin}`
+    requestAnimationFrame(() => {
+      const el = document.getElementById(id)
+      if (!el) return
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' })
+      el.focus({ preventScroll: true })
+    })
+  }, [s.status, s.reassess_at, t])
+
   const stages = stagesOf(s)
   const ctxProps = index && crewEval && evaluation ? { def, crewId: view.crewId, envId, t, index, runtime, crew: crewEval, evaluation } : null
+  const chance = chanceOpening(sim.data?.self_check, view.crewId, view.caseId, s.opened_at)
+  const lastLog = s.log.length ? s.log[s.log.length - 1] : null
+  const sharedNote = shared ? (
+    <p className="lfc-fine">
+      {sharedAll
+        ? `Shared steps go to every crewmember with this case open (set at the top of the page); personal readings stay personal.`
+        : `Steps go to ${view.crewId} only (set at the top of the page).`}
+    </p>
+  ) : null
 
   return (
     <article className="lfc" aria-labelledby="lfc-title">
@@ -284,65 +446,59 @@ function CaseDetail({ view, all, t, dispatch }: DetailProps) {
             </a>
           ))}
         </nav>
-        <div className="lfc-status" data-status={s.status}>
-          <CaseStatusBadge view={view} size="lg" />
-          <p className="lfc-next">{nextAction(view, def)}</p>
-          {s.opened_at !== null ? (
-            <p className="lfc-fine">
-              Opened <MetTime t={s.opened_at} label /> by <code>{s.finding?.rule_id}</code>. Mission clock <MetTime t={t} label />.
-            </p>
-          ) : null}
-        </div>
+        <NowCard
+          view={view}
+          def={def}
+          c={c}
+          onSelect={(id) => send({ type: 'SELECT', countermeasure_id: id }, crews('detected'))}
+          startCount={sharedAll ? peers.filter((v) => v.state.status === 'detected').length : 1}
+          shared={shared}
+          allCrew={allCrew}
+          setAllCrew={setAllCrew}
+          onJump={() => doJump('banner')}
+          chance={chance}
+          outcome={outcome}
+        />
         <p className="sr-only" aria-live="polite">
           {`${crew.id} ${def.title}: ${STATUS_WORD[s.status]}.`}
-          {s.log.length && s.log[s.log.length - 1].error ? ` Last action rejected: ${s.log[s.log.length - 1].error}.` : ''}
+          {lastLog?.error ? ` ${PLAIN_ERROR_LEAD[lastLog.error] ?? `Last action rejected: ${rejectionWords(lastLog.error)}.`}` : ''}
         </p>
         <LoopStepper stages={stages} />
       </header>
 
-      <DetectPanel view={view} crewEval={crewEval} evaluation={evaluation} index={index} />
-      <InterpretPanel def={def} envId={envId} />
-      <CountermeasurePanel def={def} state={s} onSelect={(id) => send({ type: 'SELECT', countermeasure_id: id }, crews('detected'))} sharedNote={shared && allCrew ? peers.filter((v) => v.state.status === 'detected').length : 0} />
-      <ProcedurePanel
+      <DetectPanel view={view} crewEval={crewEval} evaluation={evaluation} index={index} chance={chance} />
+      <InterpretPanel key={s.status === 'detected' || s.status === 'idle' ? 'collapsed' : 'open'} def={def} envId={envId} collapsed={s.status === 'detected' || s.status === 'idle'} />
+      <CountermeasurePanel
         def={def}
         state={s}
-        crewId={view.crewId}
-        shared={shared}
-        allCrew={allCrew}
-        setAllCrew={setAllCrew}
-        latest={latest}
-        recent={recent}
-        onStep={(step, input) => {
-          const vehicle = !!input && latest(input.variable)?.crew_id === null
-          const targets = !input || vehicle || input.unit === 'MET' ? crews('acting', (v) => !v.state.steps_done.some((d) => d.step_id === step.id)) : [view.crewId]
-          send({ type: 'STEP', step_id: step.id, ...(input ? { input } : {}) }, targets)
+        onSelect={(id) => send({ type: 'SELECT', countermeasure_id: id }, crews('detected'))}
+        sharedNote={sharedAll ? peers.filter((v) => v.state.status === 'detected').length : 0}
+      />
+      <ProcedurePanel c={c} sharedNote={sharedNote} current={s.status === 'acting' ? nextOpenStep(s) : null} />
+      <OutcomePanel c={c} draft={outcome} />
+      <TripwirePanel
+        c={c}
+        def={def}
+        view={view}
+        onJump={() => doJump('panel')}
+        logReading={(v) => {
+          const cond = s.spec.tripwire.condition
+          logObservation(cond.variable, v, cond.unit)
         }}
-        logObservation={logObservation}
       />
-      <OutcomePanel
-        def={def}
-        state={s}
-        onOutcome={(text) => send({ type: 'OUTCOME', text }, crews('acting'))}
-        peersActing={shared && allCrew ? peers.filter((v) => v.state.status === 'acting').length : 0}
-      />
-      <TripwirePanel def={def} view={view} t={t} latest={latest} logObservation={logObservation} />
-      <ClosePanel def={def} view={view} t={t} onDismiss={(reason) => send({ type: 'DISMISS', reason }, [view.crewId])} />
+      <ClosePanel c={c} def={def} view={view} onDismiss={(reason) => send({ type: 'DISMISS', reason }, [view.crewId])} />
 
       {ctxProps && def.id === 'renal_stone' ? <RenalPanel {...ctxProps} /> : null}
       {ctxProps && def.id === 'sleep_circadian' ? <SleepPanel {...ctxProps} vol2={vol2} /> : null}
       {ctxProps && def.id === 'spe_shelter' ? <SpePanel {...ctxProps} sim={sim} replay={replay} /> : null}
 
       <BoundaryPanel def={def} />
-      <Panel
-        title="Event log"
-        eyebrow="Engine record"
-        id="case-log"
-        footer={<FreshnessChip meta={sim.snapshot} status={sim.status} id="sim_crew" />}
-      >
+      <Panel title="Event log" eyebrow="Engine record" id="case-log" footer={<FreshnessChip meta={sim.snapshot} status={sim.status} id="sim_crew" />}>
         <p className="lfc-fine">
-          Every line is an engine transition (<code>caseReduce</code>), with MET. Rejected actions stay in the record with the reason.
+          Every line is an engine transition, with MET. Rule, step and countermeasure names replace their IDs (the IDs are on Provenance and under “Why this
+          fired”). Rejected actions stay in the record with the reason.
         </p>
-        <EventLog log={s.log} origins={view.logOrigins} />
+        <EventLog log={s.log} origins={view.logOrigins} def={def} />
       </Panel>
     </article>
   )
@@ -362,24 +518,12 @@ const STAGE_TARGET: Record<Stage['id'], string> = {
   close: 'case-close',
 }
 
-function jump(id: string) {
-  const el = document.getElementById(id)
-  if (!el) return
-  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
-  const h = el.querySelector('h2')
-  if (h instanceof HTMLElement) {
-    h.tabIndex = -1
-    h.focus({ preventScroll: true })
-  }
-}
-
 function LoopStepper({ stages }: { stages: Stage[] }) {
   return (
     <ol className="lfc-stepper" aria-label="Case loop">
       {stages.map((st, i) => (
         <li key={st.id} data-state={st.state}>
-          <button type="button" onClick={() => jump(STAGE_TARGET[st.id])} aria-current={st.state === 'current' ? 'step' : undefined}>
+          <button type="button" onClick={() => jumpTo(STAGE_TARGET[st.id])} aria-current={st.state === 'current' ? 'step' : undefined}>
             <span className="lfc-stepper-n lf-num">{i + 1}</span>
             <span className="lfc-stepper-label">{st.label}</span>
             <span className="lfc-stepper-note">
@@ -402,11 +546,13 @@ function DetectPanel({
   crewEval,
   evaluation,
   index,
+  chance,
 }: {
   view: CaseView
   crewEval: CrewEvaluation | null
   evaluation: MissionEvaluation | null
   index: ScenarioIndex | null
+  chance: ReturnType<typeof chanceOpening>
 }) {
   const def = defOf(view)
   const s = view.state
@@ -421,26 +567,63 @@ function DetectPanel({
   })
   const openingRule = opening && opening.tier !== 'B' ? (() => { try { return getRule(RULES, opening.rule_id) } catch { return null } })() : null
   const openingInd = opening && opening.tier === 'B' ? (() => { try { return getIndicator(RULES, opening.rule_id) } catch { return null } })() : null
+  const unit = opening?.unit === 'count' ? undefined : opening?.unit
   return (
-    <Panel title="1. Detect: what LANDFALL saw" eyebrow="Detect" id="case-detect">
+    <Panel title="1. Detect" eyebrow="Detect" id="case-detect">
       {opening ? (
         <div className="lfc-opening">
           <p>
-            Opened <MetTime t={s.opened_at ?? 0} label /> because{' '}
-            <strong>{openingRule?.label ?? openingInd?.label ?? opening.rule_id}</strong> read{' '}
-            <Num value={opening.value} unit={opening.unit} arrow={opening.limit !== null && opening.value !== null ? (opening.value > opening.limit ? 'up' : 'down') : undefined} severity={opening.severity as Severity} />{' '}
-            against {opening.tier === 'B' ? 'your personal band edge' : opening.category === 'TARGET' ? 'the target' : 'the limit'}{' '}
-            {opening.op ? <span className="lf-num">{OP_TEXT[opening.op]}</span> : null} <Num value={opening.limit} unit={opening.unit} />.{' '}
+            Opened <MetTime t={s.opened_at ?? 0} label />: <strong>{openingRule?.label ?? openingInd?.label ?? refLabel(opening.rule_id)}</strong> read{' '}
+            <Num value={opening.value} unit={unit} arrow={opening.limit !== null && opening.value !== null ? (opening.value > opening.limit ? 'up' : 'down') : undefined} severity={opening.severity as Severity} />
+            {opening.tier === 'B' ? (
+              <>
+                , past the edge of your personal band at <Num value={opening.limit} unit={unit} digits={2} />.
+              </>
+            ) : opening.op ? (
+              <>
+                ; {opening.category === 'TARGET' ? 'the target' : 'the limit'} is met only {OP_WORDS[opening.op]} <Num value={opening.limit} unit={unit} />.
+              </>
+            ) : (
+              '.'
+            )}{' '}
             <CategoryBadge category={opening.category} /> <Chip kind={opening.chip} /> <FindingBadge finding={opening} />
           </p>
           {openingRule ? <RuleWhy rule={openingRule} finding={opening} /> : null}
           {openingInd && index && evaluation ? (
             <PersonalWhy indicator={openingInd} finding={opening as never} baselineDays={index.baselineDays} alertingIndicators={evaluation.tierBAlertingIndicators} />
           ) : null}
+          {chance ? (
+            <div className="lfc-chance" role="note">
+              <p className="lfc-k">
+                <span className="lfc-chance-tag">chance flag</span> Simulated data
+              </p>
+              <p>
+                The simulator’s own check records this opening as a chance flag, not a scripted episode:{' '}
+                {chance.scripted_opening_day !== null ? (
+                  <>
+                    the scripted change for {view.crewId} starts on MET day <Num value={chance.scripted_opening_day} />, and this reading on MET day{' '}
+                    <Num value={chance.day} /> came first
+                  </>
+                ) : (
+                  <>nothing is scripted for {view.crewId} in this case</>
+                )}
+                . Realistic day-to-day noise makes such flags; the test’s expected chance rate is under “Why this fired”, and the case is handled like any
+                other.
+              </p>
+            </div>
+          ) : null}
         </div>
       ) : (
         <p>
-          Not open for {view.crewId}. {view.opening ? <>The data opens it at <MetTime t={view.opening.t} label />, after the mission clock.</> : 'No trigger has reached caution in the data.'}
+          Not open for {view.crewId}.{' '}
+          {view.opening ? (
+            <>
+              The data opens it at <MetTime t={view.opening.t} label />
+              {openingNote(view.opening.t)}
+            </>
+          ) : (
+            'No trigger has reached caution in the data.'
+          )}
         </p>
       )}
       <h3 className="lfc-h3">Every trigger of this case, now</h3>
@@ -453,16 +636,22 @@ function DetectPanel({
               <div className="lfc-row-head">
                 <span className="lfc-row-label">{personal.indicator.label ?? personal.indicator.id}</span>
                 <span className="lfc-row-val">
-                  <Num value={personal.finding.value} unit={personal.indicator.unit} /> <span className="lfc-vs">band edge</span>{' '}
-                  <Num value={personal.finding.limit} unit={personal.indicator.unit} digits={2} />
+                  <Num value={personal.finding.value} unit={personal.indicator.unit === 'count' ? undefined : personal.indicator.unit} />{' '}
+                  <span className="lfc-vs">band edge</span> <Num value={personal.finding.limit} unit={personal.indicator.unit === 'count' ? undefined : personal.indicator.unit} digits={2} />
+                  {typeof personal.finding.rci?.mdc === 'number' ? (
+                    <>
+                      {' '}
+                      <span className="lfc-vs">smallest flaggable change</span> <MdcText finding={personal.finding} />
+                    </>
+                  ) : null}
                 </span>
-                <FindingBadge finding={personal.finding} />
+                <PersonalBadge finding={personal.finding} />
               </div>
               <PersonalWhy indicator={personal.indicator} finding={personal.finding} baselineDays={index.baselineDays} alertingIndicators={evaluation.tierBAlertingIndicators} />
             </li>
           ) : (
             <li key={tr.rule_id ?? tr.indicator_id} className="lfc-row">
-              <span className="lf-mono">{tr.rule_id ?? tr.indicator_id}</span> <span className="lfc-fine">not evaluated yet</span>
+              {refLabel(tr.rule_id ?? tr.indicator_id)} <span className="lfc-fine">not evaluated yet</span>
             </li>
           ),
         )}
@@ -472,7 +661,7 @@ function DetectPanel({
 }
 
 // =============================================================================================
-// 2. Interpret
+// 2. Interpret (collapsed while the case is only detected: act first, read after)
 // =============================================================================================
 
 function useHrp() {
@@ -482,26 +671,24 @@ function useHrp() {
   return { risks, roadmap, hazards }
 }
 
-function InterpretPanel({ def, envId }: { def: CaseDefFull; envId: EnvId }) {
+function Rating({ r }: { r?: { lxc: string; disposition: string } }) {
+  if (!r) return <Num value={null} />
+  return (
+    <>
+      <span className="lf-mono">{r.lxc}</span> {r.disposition}
+    </>
+  )
+}
+
+function InterpretPanel({ def, envId, collapsed }: { def: CaseDefFull; envId: EnvId; collapsed: boolean }) {
   const { risks, roadmap, hazards } = useHrp()
   const risk = risks.data?.risks?.find((r) => r.url === def.hrp_risk?.url || r.detail?.canonical_url === def.hrp_risk?.url || r.name === def.hrp_risk?.title) ?? null
-  const term = def.id.replace(/_/g, ' ').toLowerCase()
-  const hrr = (roadmap.data?.risks ?? []).filter((r) => r.hrr_id === risk?.detail?.hrr_risk_id || r.title.toLowerCase().includes(term))
+  const ids = hrrIdsOf(def, risk?.detail?.hrr_risk_id)
+  const hrr = ids.map((id) => (roadmap.data?.risks ?? []).find((r) => r.hrr_id === id)).filter((r): r is HrrRisk => !!r)
   const metaHazards = ((RULES.meta as { hazards?: MetaHazard[] } | null)?.hazards ?? []) as MetaHazard[]
   const missionType = HRR_MISSION_TYPE[envId]
-  return (
-    <Panel
-      title="2. Interpret: what it means, in plain words"
-      eyebrow="Interpret"
-      id="case-interpret"
-      footer={
-        <>
-          <FreshnessChip meta={risks.snapshot} status={risks.status} id="hrp_risks" source={risks.snapshot?.source} compact />
-          <FreshnessChip meta={roadmap.snapshot} status={roadmap.status} id="hrp_roadmap" source={roadmap.snapshot?.source} compact />
-          <FreshnessChip meta={hazards.snapshot} status={hazards.status} id="hrp_hazards" source={hazards.snapshot?.source} compact />
-        </>
-      }
-    >
+  const content = (
+    <>
       <p className="lfc-interp">{def.interpretation?.text}</p>
       {def.interpretation?.citations?.length ? (
         <Expander summary={`Sources quoted above (${def.interpretation.citations.length})`}>
@@ -535,11 +722,14 @@ function InterpretPanel({ def, envId }: { def: CaseDefFull; envId: EnvId }) {
           ) : null}
           {def.hrp_risk?.why_here ? <p className="lfc-fine">{def.hrp_risk.why_here}</p> : null}
           {hrr.map((r) => {
-            const rows = r.detail?.ratings?.filter((x) => x.mission_type === missionType) ?? []
+            const rows = hrrRows(r, missionType)
             return (
               <div key={r.hrr_id} className="lfc-hrr">
                 <p>
-                  Human Research Roadmap: <a href={r.url} target="_blank" rel="noopener noreferrer">{r.title}</a>{' '}
+                  Human Research Roadmap:{' '}
+                  <a href={r.url} target="_blank" rel="noopener noreferrer">
+                    {r.title}
+                  </a>{' '}
                   <span className="lfc-fine">
                     (HRR risk <Num value={r.hrr_id} />
                     {r.detail?.hrp_risk_status ? `, ${r.detail.hrp_risk_status}` : ''})
@@ -552,17 +742,35 @@ function InterpretPanel({ def, envId }: { def: CaseDefFull; envId: EnvId }) {
                   </figure>
                 ) : null}
                 {rows.length ? (
-                  <p className="lfc-fine">
-                    Rated for {missionType}:{' '}
-                    {rows.map((x, i) => (
-                      <span key={x.duration}>
-                        {i ? '; ' : ''}
-                        {x.duration}: operations <span className="lf-mono">{x.operations?.lxc}</span> {x.operations?.disposition}
-                      </span>
-                    ))}
-                    . {r.detail?.ratings_note}
-                  </p>
+                  <div className="lfc-table-wrap">
+                    <table className="lfc-table lfc-hrr-table">
+                      <caption>
+                        NASA’s rating of this risk for {missionType} missions, both columns as published (LxC: likelihood × consequence).
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">Mission duration</th>
+                          <th scope="col">In-mission (operations)</th>
+                          <th scope="col">Long-term health</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((x) => (
+                          <tr key={x.duration}>
+                            <th scope="row">{x.duration}</th>
+                            <td>
+                              <Rating r={x.operations} />
+                            </td>
+                            <td>
+                              <Rating r={x.long_term_health} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 ) : null}
+                {rows.length && r.detail?.ratings_note ? <p className="lfc-fine">{r.detail.ratings_note}</p> : null}
               </div>
             )
           })}
@@ -577,14 +785,22 @@ function InterpretPanel({ def, envId }: { def: CaseDefFull; envId: EnvId }) {
               const snap = hazards.data?.hazards?.find((x) => x.id === (m?.hrp_snapshot_id ?? h))
               return (
                 <li key={h}>
-                  <strong>{snap ? <a href={snap.url} target="_blank" rel="noopener noreferrer">{m?.label ?? snap.name}</a> : m?.label ?? humanize(h)}</strong>
+                  <strong>
+                    {snap ? (
+                      <a href={snap.url} target="_blank" rel="noopener noreferrer">
+                        {m?.label ?? snap.name}
+                      </a>
+                    ) : (
+                      (m?.label ?? humanize(h))
+                    )}
+                  </strong>
                   {snap?.summary ? <span className="lfc-fine"> “{snap.summary}”</span> : null}
                 </li>
               )
             })}
           </ul>
           <p className="lfc-fine">
-            Body:{' '}
+            Hazard footprint on the body map (where this hazard can act; drawn hatched, not a finding):{' '}
             {(def.body_regions ?? []).map((r, i) => (
               <span key={r}>
                 {i ? ' · ' : ''}
@@ -594,6 +810,30 @@ function InterpretPanel({ def, envId }: { def: CaseDefFull; envId: EnvId }) {
           </p>
         </section>
       </div>
+    </>
+  )
+  return (
+    <Panel
+      title="2. Interpret"
+      eyebrow="Interpret"
+      id="case-interpret"
+      footer={
+        <>
+          {/* Each chip names its snapshot (the source's own name): three bare, identical date chips read as one glitch. */}
+          {[
+            { s: risks, id: 'hrp_risks' },
+            { s: roadmap, id: 'hrp_roadmap' },
+            { s: hazards, id: 'hrp_hazards' },
+          ].map(({ s, id }) => (
+            <span key={id} className="lfc-fresh-item">
+              {s.snapshot?.source?.name ? <span className="lfc-fine">{s.snapshot.source.name}</span> : null}{' '}
+              <FreshnessChip meta={s.snapshot} status={s.status} id={id} source={s.snapshot?.source} compact />{' '}
+            </span>
+          ))}
+        </>
+      }
+    >
+      {collapsed ? <Expander summary="What this means, in plain words (act first: start the countermeasure above, read this after)">{content}</Expander> : content}
     </Panel>
   )
 }
@@ -610,6 +850,15 @@ function CmBody({ cm }: { cm: CmDef }) {
         <Chip kind={cm.chip} />
       </p>
       <SourceBlock source={cm.source} compact />
+      {cm.citations?.length ? (
+        <ul className="lfc-cites">
+          {cm.citations.map((x, i) => (
+            <li key={i}>
+              <KindChip kind={x.kind} /> <SourceBlock source={x as never} compact />
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </>
   )
 }
@@ -622,7 +871,7 @@ function CountermeasurePanel({ def, state, onSelect, sharedNote }: { def: CaseDe
   const selectLog = state.log.find((e) => e.event === 'SELECT' && e.error === null)
   const alts = cm.alternatives ?? []
   return (
-    <Panel title="3. Act: one countermeasure" eyebrow="Countermeasure" id="case-act">
+    <Panel title="3. Countermeasure" eyebrow="Act" id="case-act">
       <div className="lfc-cm" data-chosen={chosen === cm.primary.id || undefined}>
         <p className="lfc-k">Primary countermeasure</p>
         <h3 className="lfc-cm-title">{cm.primary.title}</h3>
@@ -634,8 +883,14 @@ function CountermeasurePanel({ def, state, onSelect, sharedNote }: { def: CaseDe
           </Button>
         ) : chosen ? (
           <p className="lfc-done">
-            Selected{selectLog?.t !== null && selectLog?.t !== undefined ? <> at <MetTime t={selectLog.t} label /></> : null}:{' '}
-            {chosen === cm.primary.id ? 'the primary countermeasure' : `alternative “${alts.find((a) => a.id === chosen)?.title ?? chosen}”`}.
+            Selected
+            {selectLog?.t !== null && selectLog?.t !== undefined ? (
+              <>
+                {' '}
+                at <MetTime t={selectLog.t} label />
+              </>
+            ) : null}
+            : {chosen === cm.primary.id ? 'the primary countermeasure' : `alternative “${alts.find((a) => a.id === chosen)?.title ?? chosen}”`}.
           </p>
         ) : state.status === 'idle' ? (
           <p className="lfc-fine">Available once the case opens.</p>
@@ -663,433 +918,6 @@ function CountermeasurePanel({ def, state, onSelect, sharedNote }: { def: CaseDe
 }
 
 // =============================================================================================
-// 4. Guided procedure (magenta = electronic procedure, Appendix F Table F.5-2)
-// =============================================================================================
-
-interface ProcedureProps {
-  def: CaseDefFull
-  state: CaseState
-  crewId: CrewId
-  shared: boolean
-  allCrew: boolean
-  setAllCrew: (v: boolean) => void
-  latest: (variable: string) => Observation | null
-  recent: (variable: string, n: number) => Observation[]
-  onStep: (step: StepDef, input?: { variable: string; value: number; unit: string; t: number }) => void
-  logObservation: (variable: string, value: number, unit: string, crewIds?: CrewId[], vehicle?: boolean) => number
-}
-
-function ProcedurePanel(p: ProcedureProps) {
-  const steps = p.def.procedure ?? []
-  const acting = p.state.status === 'acting'
-  return (
-    <Panel title="4. Guided procedure" eyebrow="Procedure" id="case-procedure" className="lfc-proc-panel">
-      {!acting && p.state.status !== 'idle' && !p.state.countermeasure_id ? (
-        <p className="lfc-fine">The steps unlock when you start the countermeasure above.</p>
-      ) : null}
-      {p.shared ? (
-        <label className="lfc-check">
-          <input type="checkbox" checked={p.allCrew} onChange={(e) => p.setAllCrew(e.target.checked)} />
-          Apply shared steps to every crewmember with this case open (the shelter is crew-wide). Personal readings stay personal.
-        </label>
-      ) : null}
-      <ol className="lfc-proc">
-        {steps.map((st, i) => {
-          const done = p.state.steps_done.find((d) => d.step_id === st.id) ?? null
-          return (
-            <li key={st.id} className="lfc-step" data-done={done ? 'true' : undefined}>
-              <span className="lfc-step-n lf-num" aria-hidden="true">
-                {i + 1}
-              </span>
-              <div className="lfc-step-body">
-                <p className="lfc-step-text">
-                  <span className="sr-only">Step {i + 1}{done ? ', done' : ''}: </span>
-                  {st.text}
-                </p>
-                {done ? (
-                  <p className="lfc-done">
-                    ✓ Done <MetTime t={done.t} label />
-                    {done.input && typeof done.input === 'object' && 'value' in (done.input as object) ? (
-                      <>
-                        {' '}
-                        with <Num value={(done.input as { value: number }).value} unit={(done.input as { unit?: string }).unit} />
-                      </>
-                    ) : null}
-                  </p>
-                ) : acting ? (
-                  <StepAction step={st} {...p} />
-                ) : null}
-              </div>
-            </li>
-          )
-        })}
-      </ol>
-    </Panel>
-  )
-}
-
-function NumberEntry({ label, unit, onSubmit, submitLabel }: { label: string; unit: string; onSubmit: (v: number) => void; submitLabel: string }) {
-  const [raw, setRaw] = useState('')
-  const [err, setErr] = useState<string | null>(null)
-  const id = `lfc-in-${label.replace(/\W+/g, '-')}`
-  const submit = (e: FormEvent) => {
-    e.preventDefault()
-    const v = Number(raw)
-    if (raw.trim() === '' || !Number.isFinite(v) || v < 0) {
-      setErr('Enter a number of zero or more.')
-      return
-    }
-    setErr(null)
-    setRaw('')
-    onSubmit(v)
-  }
-  return (
-    <form className="lfc-entry" onSubmit={submit}>
-      <label htmlFor={id}>{label}</label>
-      <span className="lfc-entry-field">
-        <input id={id} inputMode="decimal" value={raw} onChange={(e) => setRaw(e.target.value)} aria-invalid={err ? true : undefined} aria-describedby={err ? `${id}-err` : undefined} />
-        <span className="lf-mono">{unit}</span>
-      </span>
-      <Button type="submit" variant="secondary">
-        {submitLabel}
-      </Button>
-      {err ? (
-        <span id={`${id}-err`} className="lfc-err" role="alert">
-          {err}
-        </span>
-      ) : null}
-    </form>
-  )
-}
-
-function StepAction({ step, ...p }: ProcedureProps & { step: StepDef }) {
-  const [answer, setAnswer] = useState<'yes' | 'no' | null>(null)
-  const inp = step.input
-  if (!inp) {
-    return (
-      <Button variant="secondary" onClick={() => p.onStep(step)}>
-        Mark step done
-      </Button>
-    )
-  }
-  const last = p.latest(inp.variable)
-  const asInput = (o: Observation) => ({ variable: o.variable, value: o.value, unit: o.unit, t: o.t })
-  const logAndStep = (v: number) => {
-    const tt = p.logObservation(inp.variable, v, inp.unit)
-    p.onStep(step, { variable: inp.variable, value: v, unit: inp.unit, t: tt })
-  }
-  if (inp.unit === 'yes/no') {
-    return (
-      <div className="lfc-entry">
-        <fieldset className="lfc-yn">
-          <legend>Answer</legend>
-          <label>
-            <input type="radio" name={`yn-${step.id}`} checked={answer === 'no'} onChange={() => setAnswer('no')} /> No
-          </label>
-          <label>
-            <input type="radio" name={`yn-${step.id}`} checked={answer === 'yes'} onChange={() => setAnswer('yes')} /> Yes
-          </label>
-        </fieldset>
-        <Button variant="secondary" disabled={!answer} onClick={() => answer && logAndStep(answer === 'yes' ? 1 : 0)}>
-          Log answer
-        </Button>
-        {answer === 'yes' ? (
-          <p className="lfc-fine">
-            Then this needs a flight surgeon: <a href={`#/downlink?case=${p.def.id}&crew=${p.crewId}`}>open the ground packet</a>.
-          </p>
-        ) : null}
-      </div>
-    )
-  }
-  if (inp.unit === 'MET') {
-    return (
-      <Button variant="secondary" onClick={() => logAndStep(metClock.get().metNow)}>
-        Log the time now (MET)
-      </Button>
-    )
-  }
-  const lastLine = last ? (
-    <p className="lfc-fine">
-      Latest {inp.variable}: <Num value={last.value} unit={last.unit} /> at <MetTime t={last.t} label /> ({last.crew_id === null ? 'vehicle sensor' : last.source})
-    </p>
-  ) : (
-    <p className="lfc-missing">No {inp.variable} reading yet. Shown as missing, not as zero.</p>
-  )
-  if (inp.source === 'app' || inp.source === 'band' || inp.source === 'vehicle') {
-    return (
-      <div className="lfc-entry-wrap">
-        {lastLine}
-        <div className="lfc-entry-actions">
-          {last ? (
-            <Button variant="secondary" onClick={() => p.onStep(step, asInput(last))}>
-              Use this reading
-            </Button>
-          ) : null}
-          {inp.source === 'app' ? <ButtonLink variant="ghost" href="#/noon-sight">Take the test now in Noon Sight</ButtonLink> : null}
-        </div>
-        {inp.source === 'vehicle' && !last ? (
-          <NumberEntry label={`Value the vehicle reports (${inp.variable})`} unit={inp.unit} submitLabel="Log value" onSubmit={logAndStep} />
-        ) : null}
-      </div>
-    )
-  }
-  const lastThree = p.recent(inp.variable, 3)
-  return (
-    <div className="lfc-entry-wrap">
-      {lastThree.length ? (
-        <p className="lfc-fine">
-          Last entries:{' '}
-          {lastThree.map((o, i) => (
-            <span key={o.t}>
-              {i ? ' · ' : ''}
-              <Num value={o.value} unit={o.unit} /> (<MetTime t={o.t} />)
-            </span>
-          ))}
-        </p>
-      ) : (
-        lastLine
-      )}
-      <div className="lfc-entry-actions">
-        {last ? (
-          <Button variant="secondary" onClick={() => p.onStep(step, asInput(last))}>
-            Confirm the latest
-          </Button>
-        ) : null}
-      </div>
-      <NumberEntry label={`Enter ${inp.variable}`} unit={inp.unit} submitLabel="Log value and mark done" onSubmit={logAndStep} />
-    </div>
-  )
-}
-
-// =============================================================================================
-// 5. Outcome
-// =============================================================================================
-
-function OutcomePanel({ def, state, onOutcome, peersActing }: { def: CaseDefFull; state: CaseState; onOutcome: (text: string) => void; peersActing: number }) {
-  const [text, setText] = useState('')
-  const n = state.spec.step_ids.length
-  const reassess = def.tripwire?.reassess_after_s ?? state.spec.tripwire.reassess_after_s
-  return (
-    <Panel title="5. Log the outcome" eyebrow="Outcome" id="case-outcome">
-      {state.outcome ? (
-        <p className="lfc-done">
-          ✓ Logged <MetTime t={state.outcome.t} label />: “{state.outcome.text}”
-        </p>
-      ) : state.status === 'acting' ? (
-        <form
-          className="lfc-outcome"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (text.trim()) onOutcome(text.trim())
-            setText('')
-          }}
-        >
-          <label htmlFor="lfc-outcome-text">What happened? Plain words are fine.</label>
-          <textarea id="lfc-outcome-text" rows={2} value={text} onChange={(e) => setText(e.target.value)} />
-          <p className="lfc-fine">
-            <Num value={state.steps_done.length} /> of <Num value={n} /> steps done. Logging the outcome arms the tripwire: LANDFALL
-            reassesses <span className="lf-num">{formatSpan(reassess)}</span> later.
-          </p>
-          <Button type="submit" disabled={!text.trim()}>
-            Log outcome and arm the tripwire{peersActing > 1 ? ` (all ${peersActing} crewmembers)` : ''}
-          </Button>
-        </form>
-      ) : (
-        <p className="lfc-fine">Logged after the procedure. The tripwire arms when the outcome is logged.</p>
-      )}
-    </Panel>
-  )
-}
-
-// =============================================================================================
-// 6. Tripwire
-// =============================================================================================
-
-function TripwirePanel({
-  def,
-  view,
-  t,
-  latest,
-  logObservation,
-}: {
-  def: CaseDefFull
-  view: CaseView
-  t: number
-  latest: (variable: string) => Observation | null
-  logObservation: (variable: string, value: number, unit: string, crewIds?: CrewId[], vehicle?: boolean) => number
-}) {
-  const clock = useMetClock()
-  const s = view.state
-  const tw = def.tripwire
-  const cond = s.spec.tripwire.condition
-  const stepFor = (def.procedure ?? []).find((x) => x.input?.variable === cond.variable)
-  const src = stepFor?.input?.source ?? null
-  const last = latest(cond.variable)
-  const res = s.tripwire_result
-  const due = s.status === 'watch' && s.reassess_at !== null && t >= s.reassess_at
-  return (
-    <Panel title="6. Tripwire" eyebrow="Watch" id="case-tripwire">
-      <figure className="lfc-quote lfc-trip-text">
-        <figcaption className="lfc-quote-label">
-          The condition, as written in the case <Chip kind={tw?.chip} />
-        </figcaption>
-        <blockquote>{tw?.text}</blockquote>
-      </figure>
-      <p className="lfc-cond lf-mono">
-        {cond.variable} {OP_TEXT[cond.op]} <Num value={cond.value} unit={cond.unit} /> on at least <Num value={cond.at_least} /> of the last{' '}
-        <Num value={cond.of_last_n} /> readings, judged <Num value={s.spec.tripwire.reassess_after_s / 3600} unit="h" /> after the outcome
-      </p>
-      {tw?.source ? <SourceBlock source={tw.source} compact /> : null}
-      {s.status === 'watch' && s.reassess_at !== null ? (
-        <div className="lfc-armed">
-          <p className="lfc-k">Armed</p>
-          <p className="lfc-big">
-            <TMinus target={s.reassess_at} />
-          </p>
-          <p>
-            Reassess at <MetTime t={s.reassess_at} label /> on the mission clock{due ? ': due now, waiting for enough readings.' : '.'}
-          </p>
-          <div className="lfc-entry-actions">
-            {!due ? (
-              <Button variant="secondary" onClick={() => clock.set(s.reassess_at!)}>
-                Move the mission clock to the reassessment (demo)
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      ) : res ? null : (
-        <p className="lfc-fine">Not armed yet: it arms when the outcome is logged.</p>
-      )}
-      {s.tripwire_obs.length || s.status === 'watch' ? (
-        <>
-          <h3 className="lfc-h3">Readings collected since the outcome</h3>
-          {s.tripwire_obs.length ? (
-            <ul className="lfc-trip-obs">
-              {s.tripwire_obs.map((o) => {
-                const hit = cond.op === 'lt' ? o.value < cond.value : cond.op === 'le' ? o.value <= cond.value : cond.op === 'gt' ? o.value > cond.value : o.value >= cond.value
-                return (
-                  <li key={o.t} data-hit={hit || undefined}>
-                    <MetTime t={o.t} /> <Num value={o.value} unit={cond.unit} /> {hit ? <SeverityBadge severity="caution" label="meets the condition" size="sm" /> : <span className="lfc-fine">does not meet it</span>}
-                  </li>
-                )
-              })}
-            </ul>
-          ) : (
-            <p className="lfc-missing">No readings since the outcome yet.</p>
-          )}
-          {s.status === 'watch' ? (
-            src === 'manual' ? (
-              <NumberEntry label={`Log a new ${cond.variable}`} unit={cond.unit} submitLabel="Log reading" onSubmit={(v) => logObservation(cond.variable, v, cond.unit)} />
-            ) : src === 'app' ? (
-              <p className="lfc-fine">
-                New results come from the test: <a href="#/noon-sight">take it in Noon Sight</a>.
-              </p>
-            ) : (
-              <p className="lfc-fine">
-                New readings arrive from the {last?.crew_id === null ? 'vehicle sensor' : src ?? 'band'} automatically as the mission clock runs.
-              </p>
-            )
-          ) : null}
-        </>
-      ) : null}
-      {res ? (
-        <p className="lfc-done">
-          Judged <MetTime t={s.closed_at ?? t} label />: <Num value={res.hits} /> of the last <Num value={res.considered} /> readings met the condition (escalate at{' '}
-          <Num value={res.at_least} />) → <strong>{res.tripped ? 'tripped: escalated' : 'clear: resolved'}</strong>.
-        </p>
-      ) : null}
-    </Panel>
-  )
-}
-
-// =============================================================================================
-// 7. Resolved | escalated, and the ground packet
-// =============================================================================================
-
-function ClosePanel({ def, view, t, onDismiss }: { def: CaseDefFull; view: CaseView; t: number; onDismiss: (reason: string) => void }) {
-  const s = view.state
-  const packet = useGroundPacket(view.caseId, view.crewId)
-  const comms = useComms()
-  const [reason, setReason] = useState('')
-  const n = packet.bundle?.entry.length ?? null
-  const escalated = s.status === 'escalated'
-  const href = `#/downlink?case=${view.caseId}&crew=${view.crewId}`
-  return (
-    <Panel title="7. Resolve or escalate" eyebrow="Close" id="case-close">
-      {s.status === 'resolved' ? (
-        <p className="lfc-done">
-          <SeverityBadge severity="nominal" label="Resolved" /> at <MetTime t={s.closed_at ?? t} label />. The tripwire stayed clear.
-        </p>
-      ) : s.status === 'dismissed' ? (
-        <p className="lfc-done">
-          Dismissed <MetTime t={s.closed_at ?? t} label />: {s.dismiss_reason}
-        </p>
-      ) : escalated ? (
-        <div className="lfc-escalated">
-          <SeverityBadge severity={openingSeverity(view)} label="Escalated: queued for flight-surgeon review" size="lg" />
-          <p>
-            The tripwire tripped at <MetTime t={s.closed_at ?? t} label />. The ground packet is queued and sends itself when a link exists. You do not need to wait for
-            an answer to keep following the procedure.
-          </p>
-        </div>
-      ) : (
-        <p className="lfc-fine">Not closed. The tripwire decides: clear → resolved; tripped → escalated to the flight surgeon with the ground packet.</p>
-      )}
-      {s.status !== 'idle' ? (
-        <div className="lfc-packet" data-queued={escalated || undefined}>
-          <p className="lfc-k">Ground packet (FHIR R4, delay-tolerant)</p>
-          <p>
-            {escalated ? 'Queued: ' : 'Prepared, not queued: '}
-            {n !== null ? (
-              <>
-                <Num value={n} /> observations of {view.crewId}
-              </>
-            ) : (
-              <span className="lfc-missing">packet unavailable ({packet.error ?? packet.status})</span>
-            )}
-            {def.escalation?.observations?.length ? <span className="lfc-fine"> ({def.escalation.observations.join(', ')})</span> : null}.
-            {packet.withheld.length ? <span className="lfc-fine"> Withheld by consent: {packet.withheld.join(', ')}.</span> : null}
-          </p>
-          <p className="lfc-fine">
-            Houston: {comms.blocked ? (
-              <>
-                no link (solar conjunction); link back in <span className="lf-num">{comms.resumes_at !== null ? formatCountdown(comms.resumes_at - t) : '—'}</span>, earliest
-                reply <span className="lf-num">{formatEarliestReply(comms)}</span>.
-              </>
-            ) : (
-              <>
-                link up; earliest reply <span className="lf-num">{formatEarliestReply(comms)}</span>.
-              </>
-            )}
-          </p>
-          <ButtonLink href={href} variant={escalated ? 'primary' : 'secondary'}>
-            Open the ground packet
-          </ButtonLink>
-        </div>
-      ) : null}
-      {isOpen(s.status) ? (
-        <Expander summary="Dismiss this case (with a reason)">
-          <form
-            className="lfc-outcome"
-            onSubmit={(e) => {
-              e.preventDefault()
-              if (reason.trim()) onDismiss(reason.trim())
-              setReason('')
-            }}
-          >
-            <label htmlFor="lfc-dismiss">Why is this case not needed?</label>
-            <input id="lfc-dismiss" value={reason} onChange={(e) => setReason(e.target.value)} />
-            <Button type="submit" variant="secondary" disabled={!reason.trim()}>
-              Dismiss for {view.crewId}
-            </Button>
-          </form>
-        </Expander>
-      ) : null}
-    </Panel>
-  )
-}
-
-// =============================================================================================
 // Boundary + refusals
 // =============================================================================================
 
@@ -1097,7 +925,7 @@ function BoundaryPanel({ def }: { def: CaseDefFull }) {
   const vol1 = useSnapshot<StdData>('std_vol1_requirements')
   const vol2 = useSnapshot<StdData>('std_vol2_requirements')
   return (
-    <Panel title="What LANDFALL cannot see here, and will not do" eyebrow="Boundary" id="case-boundary">
+    <Panel title="Boundary: not measurable here, and refusals" eyebrow="Boundary" id="case-boundary">
       <div className="lfc-grid2">
         <section aria-labelledby="lfc-nm-h">
           <h3 id="lfc-nm-h" className="lfc-h3">
@@ -1115,6 +943,7 @@ function BoundaryPanel({ def }: { def: CaseDefFull }) {
                       <ReqId id={x.requirement_id} />
                     </>
                   ) : null}
+                  {x.note ? <span className="lfc-fine"> {x.note}</span> : null}
                   {req?.text ? (
                     <Expander summary="Requirement text (verbatim)">
                       <p>{req.text}</p>
@@ -1139,3 +968,4 @@ function BoundaryPanel({ def }: { def: CaseDefFull }) {
     </Panel>
   )
 }
+

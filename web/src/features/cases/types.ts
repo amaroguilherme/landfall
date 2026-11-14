@@ -1,5 +1,7 @@
-// Local reading of engine/rules/cases.json (SPEC 3.4) and of the HRP snapshots the case views quote.
+// Local reading of engine/rules/cases.json (SPEC 3.4), meta.json and the HRP snapshots the case views quote.
 // The engine's CaseDef keeps unknown fields open; these interfaces name the ones the UI renders.
+// Deliberately absent: escalation.flight_surgeon_note. It is written for the flight surgeon and is shown
+// only with the ground packet (#/downlink), never in crew-facing case text (D12).
 import type { Source, TripwireCondition } from '../../app/engine'
 
 export interface Cite {
@@ -24,6 +26,8 @@ export interface CmDef {
   rationale?: string
   chip?: string
   source?: Source
+  /** Further sources of the countermeasure (quoted verbatim, kept out of the title and rationale). */
+  citations?: Cite[]
 }
 
 export interface StepInputDef {
@@ -32,20 +36,26 @@ export interface StepInputDef {
   source: 'manual' | 'band' | 'vehicle' | 'app' | string
 }
 
+/** The citation of a step, kept out of the crew-facing step text (D7). */
+export interface StepBasis {
+  note?: string
+  chip?: string
+  source?: Source
+}
+
 export interface StepDef {
   id: string
   text?: string
   input?: StepInputDef
-}
-
-export interface Projection {
-  id: string
-  label: string
-  value: number | { min: number; max: number }
-  unit: string
-  chip?: string
-  source?: Source
-  caveat?: { text: string; chip?: string; source?: Source }
+  /** OUTCOME waits until this step is done or declined with a reason (D5). */
+  required?: boolean
+  /** A required yes/no question; "yes" escalates the case at once (D4, D5). */
+  red_flag?: boolean
+  /** Doing the step queues the ground packet (crew release). */
+  releases_packet?: boolean
+  /** The symptoms a red-flag question asks about, in plain language. */
+  red_flags?: string[]
+  basis?: StepBasis
 }
 
 export interface CaseDefFull {
@@ -61,10 +71,34 @@ export interface CaseDefFull {
   procedure?: StepDef[]
   tripwire?: { reassess_after_s: number; condition: TripwireCondition; text?: string; chip?: string; source?: Source }
   escalation?: { ground_packet?: boolean; observations?: string[] } | null
-  projections?: Projection[]
-  not_measurable_here?: Array<{ what: string; via: string; requirement_id?: string }>
+  not_measurable_here?: Array<{ what: string; via: string; requirement_id?: string; note?: string }>
   refusals?: string[]
 }
+
+// ---- meta.json: escalation tiers (D4) and packet states ------------------------------------------------
+
+export interface EscalationTierDef {
+  tier: number
+  id: 'crew_medical_officer' | 'flight_surgeon' | string
+  label: string
+  when: string
+}
+
+export interface EscalationMeta {
+  tiers: EscalationTierDef[]
+  autonomy: { AOS?: string; LOS?: string }
+  chip?: string
+  source?: Source
+  citations?: Cite[]
+}
+
+export interface PacketStateDef {
+  id: 'prepared' | 'queued' | string
+  label: string
+  when?: string
+}
+
+// ---- snapshots ----------------------------------------------------------------------------------------
 
 export interface HrpRisk {
   name: string
@@ -80,6 +114,13 @@ export interface HrpRisk {
   }
 }
 
+export interface HrrRating {
+  mission_type: string
+  duration: string
+  operations?: { lxc: string; disposition: string }
+  long_term_health?: { lxc: string; disposition: string }
+}
+
 export interface HrrRisk {
   hrr_id: number
   title: string
@@ -89,12 +130,7 @@ export interface HrrRisk {
     hrp_risk_status?: string
     last_published?: string
     risk_statement?: string | null
-    ratings?: Array<{
-      mission_type: string
-      duration: string
-      operations?: { lxc: string; disposition: string }
-      long_term_health?: { lxc: string; disposition: string }
-    }>
+    ratings?: HrrRating[]
     ratings_note?: string
   }
 }
@@ -110,4 +146,21 @@ export interface MetaHazard {
   id: string
   label: string
   hrp_snapshot_id?: string
+}
+
+/** sim_crew data.self_check: what the generator's own Tier B check says about chance flags. */
+export interface UnscriptedOpening {
+  crew_id: string
+  case_id: string
+  /** MET day of the chance flag that opens the case. */
+  day: number
+  indicator_id: string
+  /** The single-case t statistic of that flag. */
+  t: number
+  /** MET day the scripted episode starts, or null when nothing is scripted for this crewmember. */
+  scripted_opening_day: number | null
+}
+
+export interface SimSelfCheck {
+  unscripted_case_openings?: UnscriptedOpening[]
 }

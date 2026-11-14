@@ -1,0 +1,264 @@
+// 6. Tripwire and 7. Resolve or escalate, with the ground packet in ONE state wording everywhere:
+// "Prepared (held on board)" until the crew releases it or the case escalates, then "Queued"
+// (meta.json packet_states; state.packet_queued_at). The demo jump lands on the first whole minute at
+// or after the reassessment (cases fold on the minute clock), and the page then scrolls to the verdict.
+import { useState } from 'react'
+import { useGroundPacket } from '../../app/model'
+import type { CaseView } from '../../app/caseTimeline'
+import { Button, ButtonLink, Chip, Expander, MetTime, Num, Panel, SeverityBadge } from '../../ui'
+import { NumberEntry } from './entry'
+import { OP_WORDS, formatSpan, isOpen, meetsCondition, packetLabel, packetStateOf, refLabel, stepList, tripwireProgress, variableLabel } from './model'
+import { SourceBlock, TMinus } from './parts'
+import type { ActCtx } from './procedure'
+import { deliveryText } from './helpers'
+import { EscalationTiers } from './status'
+import type { CaseDefFull } from './types'
+
+const qty = (unit: string) => (unit === 'count' ? undefined : unit)
+
+/** A variable's label inside a sentence: "Resting heart rate" -> "resting heart rate" (acronyms such as PVT-B kept). */
+const midSentence = (variable: string) => {
+  const l = variableLabel(variable)
+  return /^[A-Z][a-z]/.test(l) ? l.charAt(0).toLowerCase() + l.slice(1) : l
+}
+
+// ---- 6. Tripwire ----------------------------------------------------------------------------------------
+
+export function TripwirePanel({
+  c,
+  def,
+  view,
+  onJump,
+  logReading,
+}: {
+  c: ActCtx
+  def: CaseDefFull
+  view: CaseView
+  onJump: () => void
+  /** A crew-typed tripwire reading (manual variables only), stamped at the clock minute. */
+  logReading: (value: number) => void
+}) {
+  const s = view.state
+  const tw = def.tripwire
+  const cond = s.spec.tripwire.condition
+  const label = variableLabel(cond.variable)
+  const ref = refLabel(cond.ref_id)
+  const stepFor = (def.procedure ?? []).find((x) => x.input?.variable === cond.variable)
+  const src = stepFor?.input?.source ?? null
+  const last = c.latest(cond.variable)
+  const res = s.tripwire_result
+  const watch = s.status === 'watch' && s.reassess_at !== null
+  const due = watch && c.t >= s.reassess_at!
+  const prog = tripwireProgress(s)
+  const obs = s.tripwire_obs
+  const shown = obs.slice(-cond.of_last_n)
+  const earlier = obs.slice(0, Math.max(0, obs.length - cond.of_last_n))
+  // A reading that meets the condition carries the class of the finding that opened the case (D1): the SPE
+  // tripwire watches the S3 level, a Warning; the renal and sleep conditions are Caution-level.
+  const hitSeverity = s.finding?.severity === 'warning' ? 'warning' : 'caution'
+  const row = (o: { t: number; value: number }) => {
+    const hit = meetsCondition(o.value, cond.op, cond.value)
+    return (
+      <li key={o.t} data-hit={hit || undefined}>
+        <MetTime t={o.t} /> <Num value={o.value} unit={qty(cond.unit)} />{' '}
+        {hit ? <SeverityBadge severity={hitSeverity} label="meets the condition" size="sm" /> : <span className="lfc-fine">does not meet it</span>}
+      </li>
+    )
+  }
+  return (
+    <Panel title="6. Tripwire" eyebrow="Watch" id="case-tripwire">
+      <figure className="lfc-quote lfc-trip-text">
+        <figcaption className="lfc-quote-label">
+          The condition, as written in the case <Chip kind={tw?.chip} />
+        </figcaption>
+        <blockquote>{tw?.text}</blockquote>
+      </figure>
+      <p className="lfc-cond">
+        Escalates when at least <Num value={cond.at_least} /> of the last <Num value={cond.of_last_n} /> readings of {midSentence(cond.variable)} are{' '}
+        {OP_WORDS[cond.op]} <Num value={cond.value} unit={qty(cond.unit)} />, judged <span className="lf-num">{formatSpan(s.spec.tripwire.reassess_after_s)}</span> after the outcome
+        {ref ? <span className="lfc-fine"> (watched here: {ref})</span> : null}.
+      </p>
+      {tw?.source ? (
+        <Expander summary="Basis of these numbers">
+          <SourceBlock source={tw.source} compact />
+        </Expander>
+      ) : null}
+      {watch ? (
+        <div className="lfc-armed">
+          <p className="lfc-k">Armed</p>
+          <p className="lfc-big">
+            <TMinus target={s.reassess_at!} />
+          </p>
+          <p>
+            Reassess at <MetTime t={s.reassess_at!} label /> on the mission clock.
+          </p>
+          {due ? (
+            <p className="lfc-missing" id="lfc-due-panel" tabIndex={-1}>
+              Due now, and more readings are needed to decide: <Num value={prog.considered} /> of the last <Num value={cond.of_last_n} /> are in hand.
+              {src === 'manual' ? ' Log new readings below.' : src === 'app' ? ' New results come from the test in Noon Sight.' : ' They arrive as the mission clock runs.'}
+            </p>
+          ) : (
+            <>
+              <p className="lfc-entry-actions">
+                <Button variant="secondary" onClick={onJump}>
+                  Move the mission clock to the reassessment (demo)
+                </Button>
+              </p>
+              <p className="lfc-fine">
+                The demo jump moves the mission clock to the first whole minute at or after the reassessment, where the readings in hand are judged.
+              </p>
+            </>
+          )}
+        </div>
+      ) : res ? null : s.escalation?.reason === 'red_flag' ? (
+        <p className="lfc-fine">Not needed: a red-flag answer escalated the case at once.</p>
+      ) : (
+        <p className="lfc-fine">Not armed yet: it arms when the outcome is logged.</p>
+      )}
+      {obs.length || watch ? (
+        <>
+          <h3 className="lfc-h3">Readings since the outcome</h3>
+          {obs.length ? (
+            <>
+              <p className="lfc-fine">
+                The last <Num value={Math.min(cond.of_last_n, obs.length)} /> of <Num value={obs.length} /> reading(s), the ones the tripwire judges:
+              </p>
+              <ul className="lfc-trip-obs">{shown.map(row)}</ul>
+              {earlier.length ? (
+                <Expander summary={`${earlier.length} earlier reading(s) since the outcome`}>
+                  <ul className="lfc-trip-obs">{earlier.map(row)}</ul>
+                </Expander>
+              ) : null}
+            </>
+          ) : (
+            <p className="lfc-missing">No readings since the outcome yet.</p>
+          )}
+          {watch ? (
+            src === 'manual' ? (
+              <NumberEntry
+                label={`Log a new ${label}`}
+                variable={cond.variable}
+                unit={cond.unit}
+                submitLabel="Log reading"
+                pendingKey={`tripwire:${cond.variable}`}
+                idPrefix="tripwire"
+                onCommit={logReading}
+              />
+            ) : src === 'app' ? (
+              <p className="lfc-fine">
+                New results come from the test: <a href="#/noon-sight">take it in Noon Sight</a>.
+              </p>
+            ) : (
+              <p className="lfc-fine">New readings arrive from the {last?.crew_id === null ? 'vehicle sensor' : (src ?? 'band')} as the mission clock runs.</p>
+            )
+          ) : null}
+        </>
+      ) : null}
+      {res ? (
+        <p className="lfc-done lfc-verdict" id="lfc-verdict-panel" tabIndex={-1}>
+          Judged <MetTime t={s.closed_at ?? c.t} label />: <Num value={res.hits} /> of the last <Num value={res.considered} /> readings met the condition
+          (escalates at <Num value={res.at_least} />) → <strong>{res.tripped ? 'tripped: escalated' : 'clear: resolved'}</strong>.
+        </p>
+      ) : null}
+    </Panel>
+  )
+}
+
+// ---- 7. Resolve or escalate, and the ground packet --------------------------------------------------------
+
+export function PacketBlock({ c, def, view, delivery = true }: { c: ActCtx; def: CaseDefFull; view: CaseView; delivery?: boolean }) {
+  const s = view.state
+  const packet = useGroundPacket(view.caseId, view.crewId)
+  const n = packet.bundle?.entry.length ?? null
+  const ps = packetStateOf(s)
+  if (ps === 'none') return null
+  const queued = ps === 'queued'
+  const releaseSteps = s.spec.packet_step_ids
+  return (
+    <div className="lfc-packet" data-queued={queued || undefined}>
+      <p className="lfc-k">Ground packet (FHIR R4, delay-tolerant)</p>
+      <p>
+        <strong>{packetLabel(queued ? 'queued' : 'prepared')}</strong>
+        {queued && s.packet_queued_at !== null ? (
+          <>
+            {' '}
+            since <MetTime t={s.packet_queued_at} label />
+          </>
+        ) : null}
+        :{' '}
+        {n !== null ? (
+          <>
+            <Num value={n} /> observations of {view.crewId}
+          </>
+        ) : (
+          <span className="lfc-missing">packet unavailable ({packet.error ?? packet.status})</span>
+        )}
+        {def.escalation?.observations?.length ? <span className="lfc-fine"> ({def.escalation.observations.map(midSentence).join(', ')})</span> : null}.
+        {packet.withheld.length ? <span className="lfc-fine"> Withheld by consent: {packet.withheld.map(midSentence).join(', ')}.</span> : null}
+      </p>
+      {delivery || !queued ? (
+        <p className="lfc-fine">
+          {queued
+            ? deliveryText(c.comms, c.t, 'it')
+            : isOpen(s.status)
+              ? `Held on board: nothing is sent until ${releaseSteps.length ? `the crew releases it (${stepList(def, releaseSteps)}) or ` : ''}the case escalates.`
+              : 'Held on board: the case closed without escalation, so nothing is sent.'}
+        </p>
+      ) : null}
+      <ButtonLink href={`#/downlink?case=${view.caseId}&crew=${view.crewId}`} variant={queued ? 'primary' : 'secondary'}>
+        Open the ground packet
+      </ButtonLink>
+    </div>
+  )
+}
+
+export function ClosePanel({ c, def, view, onDismiss }: { c: ActCtx; def: CaseDefFull; view: CaseView; onDismiss: (reason: string) => void }) {
+  const s = view.state
+  const [reason, setReason] = useState('')
+  return (
+    <Panel title="7. Resolve or escalate" eyebrow="Close" id="case-close">
+      {s.status === 'resolved' ? (
+        <p className="lfc-done">
+          <SeverityBadge severity="nominal" label="Resolved" /> at <MetTime t={s.closed_at ?? c.t} label />. The tripwire stayed clear.
+        </p>
+      ) : s.status === 'dismissed' ? (
+        <p className="lfc-done">
+          Dismissed <MetTime t={s.closed_at ?? c.t} label />: {s.dismiss_reason}
+        </p>
+      ) : s.status === 'escalated' ? (
+        <div className="lfc-escalated">
+          <p>
+            Escalated <MetTime t={s.closed_at ?? c.t} label />
+            {s.escalation?.reason === 'red_flag' ? ' by a red-flag answer' : ' by the tripwire'}. You do not need to wait for an answer from the ground to keep
+            following the case’s instructions.
+          </p>
+          <EscalationTiers c={c} view={view} idSuffix="close" packetLink={false} />
+        </div>
+      ) : (
+        <p className="lfc-fine">
+          Not closed. The tripwire decides: clear → resolved; tripped → escalated, first to the Crew Medical Officer onboard, then to the flight surgeon
+          through the ground packet. A “yes” to a red-flag question escalates at once.
+        </p>
+      )}
+      <PacketBlock c={c} def={def} view={view} delivery={s.status !== 'escalated'} />
+      {isOpen(s.status) ? (
+        <Expander summary="Dismiss this case (with a reason)">
+          <form
+            className="lfc-outcome"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (reason.trim()) onDismiss(reason.trim())
+              setReason('')
+            }}
+          >
+            <label htmlFor="lfc-dismiss">Why is this case not needed?</label>
+            <input id="lfc-dismiss" value={reason} onChange={(e) => setReason(e.target.value)} autoComplete="off" />
+            <Button type="submit" variant="secondary" disabled={!reason.trim()}>
+              Dismiss for {view.crewId}
+            </Button>
+          </form>
+        </Expander>
+      ) : null}
+    </Panel>
+  )
+}

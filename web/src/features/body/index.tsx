@@ -8,6 +8,7 @@ import { useSnapshot } from '../../app/data'
 import { ENGINE_IS_SHIM, evaluatePersonal, evaluateRule } from '../../app/engine'
 import { hrefFor, navigate } from '../../app/location'
 import { selectAlerts, useMission, useMetNow } from '../../app/mission'
+import { useCases } from '../../app/model'
 import type { FeatureProps } from '../../app/router'
 import { BASELINE_FIRST_DAY, BASELINE_LAST_DAY, environment } from '../../app/scenario'
 import { crewMember } from '../../app/vocab'
@@ -19,7 +20,7 @@ import { REGIONS, casesForRegion, isRegionId, regionDef, rulesForRegion } from '
 import type { RegionId } from './regions'
 import { CASES, PERSONAL_INDICATORS, RCI_CONFIG, THRESHOLD_RULES, indicatorById, ruleById } from './rules'
 import type { CaseDef } from './rules'
-import { STATE_LABEL, alertSignals, caseStatus, defaultRegion, evaluateIndicatorRow, evaluateRuleRow, summarizeRegion } from './status'
+import { ENGINE_REFUSED, STATE_LABEL, alertSignals, caseStatus, defaultRegion, evaluateIndicatorRow, evaluateRuleRow, summarizeRegion } from './status'
 import type { CaseStatus, EvalContext, IndicatorRow, RegionState, RegionSummary, RuleRow, SimCrewData } from './status'
 
 const EVALUATOR = { evaluateRule, evaluatePersonal }
@@ -44,6 +45,9 @@ export default function BodyMap({ query }: FeatureProps) {
   const sim = useSnapshot<SimCrewData>('sim_crew')
   const alerts = useMemo(() => selectAlerts(state), [state])
   const [preview, setPreview] = useState<RegionId | null>(null)
+  // Case states come from the mission model's fold of the engine's caseReduce (useCases), the same
+  // states the case view and the annunciator use; state.cases in the store is deprecated.
+  const { get: getCaseView } = useCases()
   const panelRef = useRef<HTMLDivElement>(null)
 
   const evals = useMemo(() => {
@@ -59,7 +63,7 @@ export default function BodyMap({ query }: FeatureProps) {
     }
     const caseStatuses: Record<string, CaseStatus> = {}
     for (const c of CASES ?? []) {
-      caseStatuses[c.id] = caseStatus(c, ctx, { rule: ruleById, indicator: indicatorById }, state.cases[`${crewId}:${c.id}`] ?? state.cases[c.id])
+      caseStatuses[c.id] = caseStatus(c, ctx, { rule: ruleById, indicator: indicatorById }, getCaseView(c.id, crewId)?.state ?? null)
     }
     const out = {} as Record<RegionId, RegionEval>
     for (const region of REGIONS) {
@@ -76,11 +80,12 @@ export default function BodyMap({ query }: FeatureProps) {
           .map((s) => ({ severity: s.severity!, reason: `Case open: ${CASES?.find((c) => c.id === s.caseId)?.title ?? s.caseId}` })),
         ...alertSignals(alerts, crewId, new Set(cases.map((c) => c.id)), new Set(ruleRows.map((r) => r.rule.id))),
       ]
-      const summary = summarizeRegion([...ruleRows.map((r) => r.finding), ...indicatorRows.map((r) => r.finding)], signals)
+      const findingOf = (r: { finding: RuleRow['finding']; error?: string }) => r.finding ?? (r.error ? ENGINE_REFUSED : null)
+      const summary = summarizeRegion([...ruleRows.map(findingOf), ...indicatorRows.map(findingOf)], signals)
       out[region.id] = { ruleRows, indicatorRows, cases, summary }
     }
     return { regions: out, caseStatuses }
-  }, [sim.data, crewId, envId, tBucket, state.observations, state.cases, alerts])
+  }, [sim.data, crewId, envId, tBucket, state.observations, getCaseView, alerts])
 
   const states = useMemo(() => {
     const s = {} as Record<RegionId, RegionState>
@@ -181,7 +186,6 @@ export default function BodyMap({ query }: FeatureProps) {
             casesMissing={CASES === null}
             envId={envId}
             crewLabel={`${crew.id} ${crew.role}`}
-            rciZ={RCI_CONFIG?.critical_z ?? null}
             engineIsShim={ENGINE_IS_SHIM}
           />
         </div>

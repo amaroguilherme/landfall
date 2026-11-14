@@ -25,8 +25,15 @@ function blockLines(b: Block) {
   const a = b.produces.filter((p) => !p.not_in_spec).map((p) => p.variable)
   const extra = b.produces.filter((p) => p.not_in_spec).map((p) => p.variable)
   const produces = [...a, ...extra].join(' · ')
-  const reqs = b.justified_by.map((r) => reqLabel(r)).join(' · ')
+  const reqs = b.justified_by.map((r) => diagramReqLabel(r)).join(' · ')
   return { part, produces, reqs }
+}
+
+/** Short label for a block line: requirement ids as they are; NASA pages without their qualifier
+ * ("ARCHeR (Artemis II)" -> "ARCHeR", "Standard Measures" -> "Std Measures"). Details keep full names. */
+export function diagramReqLabel(r: Parameters<typeof reqLabel>[0]): string {
+  if (/^V[12] \d/.test(r.id)) return reqLabel(r)
+  return reqLabel({ ...r, id: r.id.replace(/\s*\(.*\)$/, '').replace(/^Standard Measures$/, 'Std Measures') })
 }
 
 /** Numbers inside SVG labels render in DM Mono too (digit runs not glued to letters). */
@@ -157,6 +164,18 @@ export function wrap(text: string, maxChars: number, maxLines = 2): string[] {
   return lines
 }
 
+/** "[V2 6164]", or "[V2 6164–6165]" when the hand-off also cites the next requirement of the same volume. */
+export function handOffReqLabel(h: Pick<HandOff, 'requirement' | 'also'>): string {
+  const refs = [h.requirement, ...(h.also ?? [])].filter((r): r is NonNullable<typeof r> => Boolean(r))
+  if (!refs.length) return ''
+  const m = refs.map((r) => r.id.match(/^(V[12]) (\d+)$/))
+  const consecutive =
+    refs.length > 1 &&
+    m.every((x, i) => x && x[1] === m[0]?.[1] && (i === 0 || Number(x[2]) === Number(m[i - 1]?.[2]) + 1))
+  if (consecutive) return `[${m[0]?.[1]} ${m[0]?.[2]}–${m[m.length - 1]?.[2]}]`
+  return refs.map((r) => reqLabel(r)).join(' ')
+}
+
 function HandOffItem({
   h,
   r,
@@ -168,7 +187,7 @@ function HandOffItem({
   selected: boolean
   onSelect: (s: Selection) => void
 }) {
-  const req = h.requirement ? reqLabel(h.requirement) : ''
+  const req = handOffReqLabel(h)
   const viaChars = Math.floor((r.w - 30) / 6.4)
   return (
     <Hit
@@ -331,6 +350,8 @@ function Wide({ map, selection, onSelect, titleId, descId }: ViewProps) {
   })
 
   const ant = { x: 792, y: flashR.y + flashR.h + 64 }
+  const mcuSpecLines = (mcu?.mfr_spec ?? []).flatMap((s) => wrap(s, 24, 3))
+  const sampY = Math.max(150, 68 + mcuSpecLines.length * 16 + 10)
   const nmhItemsTop = nmh.y + 84
   const itemH = 62
   const itemGap = 6
@@ -419,32 +440,30 @@ function Wide({ map, selection, onSelect, titleId, descId }: ViewProps) {
           <text x={mcuR.x + 12} y={mcuR.y + 44} className="bd-name">
             {mcu.name}
           </text>
-          {mcu.mfr_spec
-            .flatMap((s) => wrap(s, 24))
-            .map((line, i) => (
-              <text key={i} x={mcuR.x + 12} y={mcuR.y + 68 + i * 16} className="bd-spec">
-                {nums(line)}
-              </text>
-            ))}
-          <text x={mcuR.x + 12} y={mcuR.y + 150} className="bd-col">
+          {mcuSpecLines.map((line, i) => (
+            <text key={i} x={mcuR.x + 12} y={mcuR.y + 68 + i * 16} className="bd-spec">
+              {nums(line)}
+            </text>
+          ))}
+          <text x={mcuR.x + 12} y={mcuR.y + sampY} className="bd-col">
             SAMPLING
           </text>
           {sensors.map((b, i) => {
             const r = b.rates[0]
             return r ? (
-              <text key={b.id} x={mcuR.x + 12} y={mcuR.y + 168 + i * 16} className="bd-meta">
+              <text key={b.id} x={mcuR.x + 12} y={mcuR.y + sampY + 18 + i * 16} className="bd-meta">
                 {b.part}: {r.value} {r.unit}
               </text>
             ) : null
           })}
-          <text x={mcuR.x + 12} y={mcuR.y + 168 + sensors.length * 16 + 14} className="bd-spec">
+          <text x={mcuR.x + 12} y={mcuR.y + sampY + 18 + sensors.length * 16 + 14} className="bd-spec">
             one clock → MET stamps
           </text>
-          <text x={mcuR.x + 12} y={mcuR.y + 168 + sensors.length * 16 + 30} className="bd-spec">
+          <text x={mcuR.x + 12} y={mcuR.y + sampY + 18 + sensors.length * 16 + 30} className="bd-spec">
             off-wrist → MISSING, not 0
           </text>
           {mcu.justified_by.map((r, i) => (
-            <text key={r.id} x={mcuR.x + 12} y={mcuR.y + 168 + sensors.length * 16 + 62 + i * 16} className="bd-meta">
+            <text key={r.id} x={mcuR.x + 12} y={mcuR.y + sampY + 18 + sensors.length * 16 + 62 + i * 16} className="bd-meta">
               {i === 0 ? <tspan className="bd-key">c← </tspan> : <tspan className="bd-key">{'   '}</tspan>}
               {reqLabel(r)}
             </text>
@@ -589,7 +608,7 @@ function Narrow({ map, selection, onSelect, titleId, descId }: ViewProps) {
   for (const b of order) {
     const h = b.group === 'sensor' ? SENSOR_H.narrow + 6 : 62
     const r: Rect = { x: inner, y, w: bw, h }
-    const bus = b.group === 'core' ? 'BLE 5' : [busLabel(map, b.interface), b.interface_extra ? busLabel(map, b.interface_extra) : ''].filter(Boolean).join(' + ')
+    const bus = b.group === 'core' ? busLabel(map, 'ble') : [busLabel(map, b.interface), b.interface_extra ? busLabel(map, b.interface_extra) : ''].filter(Boolean).join(' + ')
     items.push(<Block_ key={b.id} b={b} r={r} selected={isSel(selection, 'block', b.id)} onSelect={onSelect} compact={b.group !== 'sensor'} bus={bus} />)
     y += h + 8
   }

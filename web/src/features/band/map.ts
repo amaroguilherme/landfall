@@ -26,6 +26,7 @@ export function referencedSnapshots(map: SensorMap = SENSOR_MAP): string[] {
   for (const b of map.blocks) for (const r of b.justified_by) add(r.snapshot)
   for (const h of map.not_measurable_here) {
     add(h.requirement?.snapshot)
+    for (const r of h.also ?? []) add(r.snapshot)
     for (const e of h.examples ?? []) add(e.snapshot)
   }
   for (const n of map.negatives) add(n.snapshot)

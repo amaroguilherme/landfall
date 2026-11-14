@@ -318,3 +318,7 @@
 .ns-trend-tick { fill: var(--lf-text-muted); font: 400 10px var(--lf-font-mono); }
 .ns-trend-label { fill: var(--lf-text-2); font: 400 10px var(--lf-font-mono); }
 .ns-trend-readout { margin: 4px 0 0; font-size: var(--lf-text-xs); color: var(--lf-text-muted); min-height: 1.5em; }
+
+/* Fluids context: the evidence-report sentence is quoted verbatim from engine/rules */
+.ns-quote { color: var(--lf-text-2); font-style: normal; }
+.ns-block { display: block; margin-top: 0.3em; }

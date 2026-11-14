@@ -24,7 +24,8 @@ export function interfaceLabel(map: SensorMap, block: Block): string {
   if (block.interface === 'power') return 'power domain'
   if (block.group === 'core') {
     const hosted = map.buses.filter((b) => b.id !== 'ble').map((b) => b.label)
-    return `host of ${hosted.join(', ')}; BLE 5 to the LANDFALL app`
+    const ble = map.buses.find((b) => b.id === 'ble')?.label ?? 'BLE'
+    return `host of ${hosted.join(', ')}; ${ble} to the LANDFALL app`
   }
   const ids = [block.interface, block.interface_extra].filter(Boolean) as string[]
   return ids.map((id) => map.buses.find((b) => b.id === id)?.label ?? id).join(' + ')
@@ -51,12 +52,19 @@ function csvField(v: string | number): string {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
-export const BOM_COLUMNS = ['part', 'qty', 'manufacturer', 'function', 'interface', 'block_id', 'case_served'] as const
+export const BOM_COLUMNS = ['part', 'qty', 'manufacturer', 'function', 'interface', 'block_id', 'case_served', 'datasheet_url', 'datasheet_read'] as const
+
+/** "read 2026-11-14", "not retrieved (2026-11-14)" or "no part selected". */
+export function datasheetStatus(block: Block): string {
+  const d = block.datasheet
+  if (!d) return 'no part selected'
+  return d.status === 'read' ? `read ${d.checked}` : `not retrieved (${d.checked})`
+}
 
 export function renderBomCsv(map: SensorMap): string {
   const rows: (string | number)[][] = [[...BOM_COLUMNS]]
   for (const b of map.blocks) {
-    rows.push([b.part, b.qty, b.manufacturer, b.function, interfaceLabel(map, b), b.id, casesServed(b)])
+    rows.push([b.part, b.qty, b.manufacturer, b.function, interfaceLabel(map, b), b.id, casesServed(b), b.datasheet?.url ?? '', datasheetStatus(b)])
   }
   return rows.map((r) => r.map(csvField).join(',')).join('\n') + '\n'
 }
@@ -93,6 +101,8 @@ export function renderMarkdown(map: SensorMap): string {
     '',
     `**${map.subtitle}.** ${map.status.text} ${map.status.why_no_schematic}`,
     '',
+    `**Manufacturer specs.** ${map.mfr_basis}`,
+    '',
     map.principle,
     '',
     `**The gap.** ${map.gap.claim} ${map.gap.detail} Quote: "${map.gap.quote}" (${map.gap.doc}, NTRS ${map.gap.ntrs}, ${map.gap.url}).`,
@@ -117,6 +127,12 @@ export function renderMarkdown(map: SensorMap): string {
     p(`### ${code(b.id)} ${b.name}: ${b.part}${b.qty > 1 ? ` x${b.qty}` : ''} (${b.manufacturer})`, '', b.function, '')
     p(`- Interface: ${interfaceLabel(map, b)}`)
     if (b.mfr_spec.length) p(`- Manufacturer spec (not a LANDFALL constant): ${b.mfr_spec.join('; ')}`)
+    if (b.datasheet) {
+      const d = b.datasheet
+      const what = d.status === "read" ? `read ${d.checked}` : `not retrieved, ${d.checked}`
+      p(`- Datasheet (${what}): ${d.url}${d.product_page ? `; product page ${d.product_page}` : ''}. ${d.note}`)
+      if (d.verified?.length) p(`  - Verified text: ${d.verified.map((v) => `"${v}"`).join('; ')}`)
+    } else p('- Datasheet: none (no part selected)')
     for (const r of b.rates) {
       const basis = r.source.kind === 'derived' ? r.source.arithmetic : r.source.rationale
       p(`- Rate, ${r.what}: ${code(`${r.value} ${r.unit}`)} (chip: ${r.chip}${r.basis ? `, ${r.basis}` : ''}). ${basis}`)
@@ -142,9 +158,18 @@ export function renderMarkdown(map: SensorMap): string {
   p('## NOT MEASURABLE HERE: the hand-off boundary', '', 'What the band does not measure, and the documented path each value takes into LANDFALL instead.', '')
   p('| What | Why not on the band | Arrives via (observation source) | NASA requirement | Feeds |', '|---|---|---|---|---|')
   for (const h of map.not_measurable_here) {
-    const req = h.requirement ? `${code(reqLabel(h.requirement))} ${RELATION_SHORT[h.requirement.relation]}` : ''
+    const reqs = [h.requirement, ...(h.also ?? [])].filter((r): r is ReqRef => Boolean(r))
+    const req = reqs.map((r) => `${code(reqLabel(r))} ${RELATION_SHORT[r.relation]}`).join('; ')
     const ex = h.examples?.length ? ` Examples: ${h.examples.map((e) => `${e.name} (${code(e.snapshot)})`).join('; ')}.` : ''
     p(`| ${md(h.what)} | ${md(h.why)}${md(ex)} | ${md(h.via)} (${code(h.source)}) | ${req} | ${md(h.feeds.map(feedLabel).join('; '))} |`)
+  }
+  p('')
+  for (const h of map.not_measurable_here) {
+    const reqs = [h.requirement, ...(h.also ?? [])].filter((r): r is ReqRef => Boolean(r))
+    if (!reqs.length) continue
+    p(`${h.what}:`)
+    for (const r of reqs) p(reqLine(r))
+    p('')
   }
 
   p('', '## Power and autonomy', '', map.power.summary, '')

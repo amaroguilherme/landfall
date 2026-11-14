@@ -128,7 +128,9 @@
 @media (min-width: 1040px) { .band-two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 .band-anchors { grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 900px) { .band-anchors { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-.band-table-wrap { overflow-x: auto; margin-top: var(--lf-space-1); }
+/* position: relative makes the scroller the containing block of the absolutely positioned .sr-only link
+   labels inside wide tables (BOM); without it they escape the clip and widen the phone page to ~830 px. */
+.band-table-wrap { overflow-x: auto; position: relative; margin-top: var(--lf-space-1); }
 .band-table-wrap:focus-visible { outline: 2px solid var(--lf-focus); }
 .band-table { width: 100%; border-collapse: collapse; font-size: var(--lf-text-sm); }
 .band-table caption { text-align: left; font-size: var(--lf-text-xs); color: var(--lf-text-muted); padding-bottom: 0.4em; caption-side: top; }
@@ -160,3 +162,12 @@
 .band-foot-snaps li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5em; }
 .band-n { font-family: var(--lf-font-mono); font-variant-numeric: tabular-nums; font-size: 0.95em; }
 .bd-n { font-family: var(--lf-font-mono); }
+
+/* datasheet provenance: "not retrieved" is unknown data ([V2 10020]): cyan text + icon, never colour alone */
+.band-ds { margin-top: var(--lf-space-1); border-left: 2px solid var(--lf-border-strong); padding-left: var(--lf-space-1); }
+.band-ds p { margin: 0.2em 0; }
+.band-ds-status { display: inline-flex; align-items: center; gap: 0.3em; font-family: var(--lf-font-mono); font-size: var(--lf-text-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--lf-text); }
+.band-ds[data-status='not_retrieved'] { border-left-color: var(--lf-data-stale); }
+.band-ds[data-status='not_retrieved'] .band-ds-status { color: var(--lf-data-stale); }
+.band-ds-quotes { margin: 0.2em 0 0; padding-left: 1.1em; color: var(--lf-text-2); }
+.band-bom td[data-ds='not_retrieved'] a { color: var(--lf-data-stale); }

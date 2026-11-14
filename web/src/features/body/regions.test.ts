@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import type { Finding, Rule } from '../../app/engine'
 import { capsule } from './Figure'
 import { bandFor, outsideRange } from './RefChart'
-import type { OsdrAnalyte, OsdrTimepoint } from './RefChart'
+import type { OsdrAnalyte, OsdrData, OsdrTimepoint } from './RefChart'
 import {
   REGIONS,
   REGION_IDS,
@@ -291,7 +291,7 @@ function ctxWith(evaluator: Evaluator, envId = 'mars_surface'): EvalContext {
   return { sim: SIM, crewId: 'CM-2', envId, t: 99_999, extra: [], evaluator, rci: null, baselineDays: [368, 381] }
 }
 const stub: Evaluator = {
-  evaluateRule: (rule, value) => ({ rule_id: rule.id, tier: 'A', category: rule.category, status: 'insufficient_data', severity: 'advisory', value, unit: rule.unit, limit: rule.limit, margin: null, chip: rule.chip, source: rule.source, why: [] }),
+  evaluateRule: (rule, value) => ({ rule_id: rule.id, tier: 'A', category: rule.category, status: 'insufficient_data', severity: 'advisory', value, unit: rule.unit, limit: rule.limit, margin: null, chip: rule.chip, source: rule.source, why: '', role: rule.role, op: rule.op, approach_at: null, env_id: null, t: null, case_id: null, action_id: null }),
   evaluatePersonal: () => {
     throw new Error('not used')
   },
@@ -401,5 +401,61 @@ describe('defaultRegion', () => {
   it('opens on the worst region otherwise', () => {
     expect(defaultRegion({ ...all('nominal'), kidneys: 'caution' })).toBe('kidneys')
     expect(defaultRegion({ ...all('no_data'), brain: 'caution', skin: 'warning' })).toBe('skin')
+  })
+})
+
+describe('Inspiration4 data is read per sample and labelled exactly', () => {
+  const cmp = snapshot<{ data: OsdrData }>('osdr_cmp')
+  it.skipIf(!cmp)('draws, for every subject and timepoint, the range the lab printed for that very sample', () => {
+    const data = cmp!.data
+    let checked = 0
+    for (const a of data.analytes) {
+      if (!a.ranges) continue
+      for (const s of data.subjects) {
+        const band = bandFor(a, s, data.timepoints)
+        data.timepoints.forEach((tp, i) => {
+          expect(band.ranges[i] ?? null, `${a.key} ${s} ${tp.label}`).toEqual(a.ranges?.[s]?.[tp.label] ?? null)
+          checked += 1
+        })
+      }
+    }
+    expect(checked).toBeGreaterThan(100)
+    // C003: male-pattern creatinine range before flight, female after (recorded as F): never collapsed.
+    const creat = data.analytes.find((x) => x.key === 'creatinine')!
+    const b = bandFor(creat, 'C003', data.timepoints)
+    const at = (label: string) => b.ranges[data.timepoints.findIndex((tp) => tp.label === label)]
+    expect(at('L-92')).not.toEqual(at('R+1'))
+    expect(at('L-92')).toEqual(creat.ranges?.C003?.['L-92'])
+    expect(at('R+1')).toEqual(creat.ranges?.C003?.['R+1'])
+  })
+
+  it('labels OSD-656 as a urine inflammation proteomics panel, never as urine chemistry or stone risk', () => {
+    const note = regionDef('kidneys').osdrNote ?? ''
+    expect(note).toContain('urine inflammation proteomics panel (NULISA-seq, NPQ units), not urine chemistry')
+    for (const r of REGIONS) {
+      for (const p of r.osdr) expect(p.snapshot, `${r.id} plots no OSD-656 analyte`).not.toBe('osdr_urine' as never)
+    }
+  })
+})
+
+describe('an engine refusal never blanks the body map', () => {
+  it('turns a thrown contract error into a no-data row that the summary counts as missing', async () => {
+    const { evaluateIndicatorRow, ENGINE_REFUSED } = await import('./status')
+    const ind = (PERSONAL_INDICATORS ?? [])[0]
+    if (!ind) return
+    const boom = () => {
+      throw Object.assign(new Error('indicator x: reliability_r.value must be a number'), { code: 'invalid_rule' })
+    }
+    const ctx = {
+      sim: null, crewId: 'CM-1', envId: 'mars_surface', t: 0, extra: [], rci: { min_baseline_n: 7 } as never,
+      baselineDays: [368, 381] as [number, number],
+      evaluator: { evaluateRule: boom, evaluatePersonal: boom } as unknown as Evaluator,
+    } as EvalContext
+    const row = evaluateIndicatorRow(ind, ctx)
+    expect(row.finding).toBeNull()
+    expect(row.error).toMatch(/^invalid_rule: /)
+    const s = summarizeRegion([row.finding ?? ENGINE_REFUSED])
+    expect(s.state).toBe('no_data')
+    expect(s.missing).toBe(1)
   })
 })

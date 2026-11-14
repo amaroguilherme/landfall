@@ -5,6 +5,8 @@
 
 **Wearable sensing concept: annotated block diagram and reference bill of materials.** Block-level concept. No schematic capture, no PCB, never built, never bench-tested. Every current, rate and size here is a design estimate unless its chip says otherwise. KiCad was not available during the hackathon, so the plan's pre-agreed fallback (annotated block diagram plus BOM) is the deliverable.
 
+**Manufacturer specs.** Manufacturer specs are quoted only where the manufacturer's own page or datasheet was read for this build (2026-11-14); each block names its source and says whether it was read. analog.com and st.com did not answer automated requests from the build machine, so the MAX30003, MAX86141, MAX30208, MAX17048 and LSM6DSOX claims written in preparation were removed, not kept from memory. Their datasheet URLs are listed so a reviewer can check them.
+
 The band measures what a wearable can measure. Everything else reaches LANDFALL through a documented interface, drawn as NOT MEASURABLE HERE. It is the same discipline as the software: no number without a source, no measurement without a sensor.
 
 **The gap.** NASA publishes no minimum sensor set for exploration missions. The ExMC medical system concept of operations for Mars assumes the crew wears biosensors and defines a Crew Health and Performance Data System, but gives no sensor list, no sampling rates and no specifications. Seven distinct NTRS API queries found nothing that does. The band is one concrete, citable answer to a question NASA has left open. Quote: "All crewmembers are wearing biosensors" (NASA Exploration Medical Capability. Medical System Concept of Operations for Mars Exploration Mission-11, NTRS 20200001715, https://ntrs.nasa.gov/citations/20200001715).
@@ -16,10 +18,10 @@ Every block carries three labels: (a) the indicator it produces, (b) the LANDFAL
 | Block | Part | (a) Indicator produced | (b) LANDFALL rule / baseline / case fed | (c) NASA requirement |
 |---|---|---|---|---|
 | `ecg` ECG AFE | MAX30003 | `resting_hr`, `hrv_sdnn` | indicator resting_hr (reliable change vs own baseline); indicator hrv_sdnn (reliable change vs own baseline); case sleep_circadian (ground packet); case renal_stone (ground packet (resting HR)) | `[V1 3004](h)` requires; `[V2 11023]` pattern borrowed; `[V2 9023]` constrains |
-| `ppg` PPG / SpO2 AFE | MAX86141 | `spo2`, `resting_hr` | indicator resting_hr (backup source only); no rule: NASA publishes no in-flight SpO2 limit, and LANDFALL does not invent one | `[V1 3004](h)` requires; `[V2 9103]` constrains |
-| `light` Spectral light sensor | AS7341 | `light_exposure_daytime` | indicator light_exposure_daytime (context only, never alerts); case sleep_circadian (ground packet; closes the loop from sensor to the lighting countermeasure) | `Standard Measures` NASA names it; `[V2 8055]` pattern borrowed |
+| `ppg` PPG / SpO2 AFE | MAX86141 | `spo2`, `resting_hr` | indicator resting_hr (backup source only); no rule: NASA publishes no in-flight SpO2 limit, and LANDFALL does not invent one | `[V1 3004](h)` requires; `[V2 9023]` constrains; `[V2 9103]` constrains |
+| `light` Spectral light sensor | AS7341 | `light_exposure_daytime` | indicator light_exposure_daytime (context only, never alerts); case sleep_circadian (ground packet; closes the loop from sensor to the lighting countermeasure) | `[V2 8055]` pattern borrowed; `ARCHeR (Artemis II)` NASA names it; `Standard Measures` NASA names it |
 | `temp` Skin temperature, 2 sites | MAX30208 x2 | `skin_temp` | indicator skin_temp (context only, never alerts); case renal_stone (ground packet) | `[V1 3004](h)` requires; `[V2 9102]` constrains |
-| `imu` IMU (actigraphy) | LSM6DSOX | `sleep_duration`, `sleep_midpoint_shift` | indicator sleep_duration (reliable change vs own baseline); indicator sleep_midpoint_shift (reliable change vs own baseline); case sleep_circadian (trigger (2 of its 4 triggers)) | `Standard Measures` NASA names it; `[V1 3004](h)` requires |
+| `imu` IMU (actigraphy) | LSM6DSOX | `sleep_duration`, `sleep_midpoint_shift` | indicator sleep_duration (reliable change vs own baseline); indicator sleep_midpoint_shift (reliable change vs own baseline); case sleep_circadian (trigger (2 of its 4 triggers)) | `ARCHeR (Artemis II)` NASA names it; `Standard Measures` NASA names it; `[V1 3004](h)` requires |
 | `mcu` MCU + BLE radio | nRF52840 | (none: see notes) | app landfall_app (every band observation (source: band)) | `[V2 10125]` requires; `[V2 10130]` requires |
 | `flash` Local log, 16 MiB | W25Q128JV | (none: see notes) | indicator all personal indicators (keeps one whole 14-day RCI baseline window on the band) | `[V2 10129]` requires; `[V2 6001]` pattern borrowed |
 | `battery` LiPo cell 200 mAh | LiPo cell, 1S, 200 mAh | (none: see notes) | (none) | `JSC-20793 Rev D` constrains |
@@ -32,10 +34,10 @@ Relations: **requires** = requires this function; **constrains** = limits how th
 
 ### `ecg` ECG AFE: MAX30003 (Analog Devices (Maxim Integrated))
 
-Single-lead ECG biopotential front end with an on-chip R-to-R interval detector, read over two dry electrodes on the inner face of the band.
+Single-lead ECG front end, read over two dry electrodes on the inner face of the band. The band keeps R-R intervals, not waveforms.
 
 - Interface: SPI
-- Manufacturer spec (not a LANDFALL constant): Single-lead biopotential AFE; Built-in R-to-R detection; 18-bit ECG samples
+- Datasheet (not retrieved, 2026-11-14): https://www.analog.com/media/en/technical-documentation/data-sheets/max30003.pdf; product page https://www.analog.com/en/products/max30003.html. analog.com did not answer automated requests from the build machine. Sample width, on-chip R-R detection and the 256 sps setting are unverified, so none is claimed here.
 - Rate, ECG: `256 sps` (chip: derived, flown hardware). Bio-Monitor ECG 256 Hz, kept at 256 sps
 - Rate, HRV window: `300 s` (chip: derived, flown hardware). Bio-Monitor HRV over 300 s, kept at 300 s (5-min windows)
 
@@ -52,20 +54,21 @@ Single-lead ECG biopotential front end with an on-chip R-to-R interval detector,
 (c) Justified or constrained by:
 - `[V1 3004](h)` (requires; frozen in `std_vol1_requirements`): "Assessing, recording, monitoring, and trending vital signs and additional physiological and behavioral health signs."
 - `[V2 11023]` (pattern borrowed; frozen in `std_vol2_requirements`): "Derived body core temperature and heart rhythm (real-time) are desired for microgravity operations" From the rationale; written for suits.
-- `[V2 9023]` (constrains; frozen in `std_vol2_requirements`): "For equipment such as bioinstrumentation and medical devices, that are specifically designed to contact the human body, electrical leakage currents caused by contact with exposed surfaces (including in worst-case fault scenarios) shall be kept below the levels specified in Table 9.3-11"
-  - Leakage, external contact, DC to 1 kHz, normal: `0.1 mA` (chip: NASA-published, Table 9.3-11)
-  - Leakage, external contact, DC to 1 kHz, single fault: `0.5 mA` (chip: NASA-published, Table 9.3-11)
+- `[V2 9023]` (constrains; frozen in `std_vol2_requirements`): "For equipment such as bioinstrumentation and medical devices, that are specifically designed to contact the human body, electrical leakage currents caused by contact with exposed surfaces (including in worst-case fault scenarios) shall be kept below the levels specified in Table 9.3-11" Table 9.3-11 splits body contact into External and Internal. The electrodes touch intact skin only, so LANDFALL reads the External rows (our reading: the table does not name wrist devices). Isolated and non-isolated equipment share the External values, and the rationale says the sum of all leakage currents is what counts. General body-current limits for any equipment are [V2 9019] to [V2 9021] (see Safety constraints).
+  - Leakage, External body contact, DC to 1 kHz, normal condition: `0.1 mA` (chip: NASA-published, Table 9.3-11)
+  - Leakage, External body contact, DC to 1 kHz, single fault: `0.5 mA` (chip: NASA-published, Table 9.3-11)
 
 Design notes:
 - R-R intervals, not waveforms, are logged: the whole flash would hold only about 6 h of raw ECG (see the log arithmetic).
+- Worn around the clock, so the Table 9.3-11 footnote applies: "*For DC, there is a small risk of heating and tissue necrosis for prolonged duration of contact." Any DC lead-bias or lead-off current must be checked against it (open item).
 - The band does not estimate blood pressure from ECG-to-PPG transit time (see the Bio-Monitor pitfalls).
 
 ### `ppg` PPG / SpO2 AFE: MAX86141 (Analog Devices (Maxim Integrated))
 
-Optical front end: drives red and infrared LEDs and reads the photodiode for pulse and SpO2 spot windows.
+Optical front end for pulse and SpO2 spot windows: red and infrared LEDs and a photodiode under a window on the inner face.
 
 - Interface: SPI
-- Manufacturer spec (not a LANDFALL constant): Optical pulse-oximetry and heart-rate AFE; LED drivers and photodiode readout on chip
+- Datasheet (not retrieved, 2026-11-14): https://www.analog.com/media/en/technical-documentation/data-sheets/max86140-max86141.pdf; product page https://www.analog.com/en/products/max86141.html. analog.com did not answer automated requests from the build machine. The number of optical channels and LED drivers is unverified, so none is claimed here.
 - Rate, PPG while active: `64 Hz` (chip: derived, flown hardware). Bio-Monitor PPG 64 Hz, kept at 64 Hz
 - Rate, SpO2 output: `1 Hz` (chip: derived, flown hardware). Bio-Monitor SpO2 1 Hz, kept at 1 Hz
 - Rate, Spot window: `60 s every 10 min` (chip: design choice). LED current dominates the power budget; ECG already gives heart rate, so the optical channel runs in windows (10 % duty).
@@ -80,6 +83,7 @@ Optical front end: drives red and infrared LEDs and reads the photodiode for pul
 
 (c) Justified or constrained by:
 - `[V1 3004](h)` (requires; frozen in `std_vol1_requirements`): "Assessing, recording, monitoring, and trending vital signs and additional physiological and behavioral health signs."
+- `[V2 9023]` (constrains; frozen in `std_vol2_requirements`): "For equipment such as bioinstrumentation and medical devices, that are specifically designed to contact the human body, electrical leakage currents caused by contact with exposed surfaces (including in worst-case fault scenarios) shall be kept below the levels specified in Table 9.3-11" The optical window is not an electrode, but the band as a whole is bioinstrumentation on intact skin, so its total leakage is held to the External rows of Table 9.3-11 (see the ECG block).
 - `[V2 9103]` (constrains; frozen in `std_vol2_requirements`): "Any surface to which the bare skin of the crew is exposed shall not cause skin temperature to enter the range for pain/injury in Table 9.3-5"
   - Pain range starts at: `43 °C` (chip: NASA-published, Table 9.3-5)
   - LED cut-off at skin-side sensor: `41 °C` (chip: design choice) 2 °C below the start of the Table 9.3-5 pain range; read from the skin temperature sensors.
@@ -89,11 +93,13 @@ Design notes:
 
 ### `light` Spectral light sensor: AS7341 (ams OSRAM)
 
-11-channel spectral sensor on the outer face: synthesises photopic lux plus red, green and blue bands for daytime light exposure.
+11-channel spectral sensor on the outer face: daytime light exposure at the wrist, as photopic lux computed from its visible channels.
 
 - Interface: I2C-A
-- Manufacturer spec (not a LANDFALL constant): 11 channels: 8 visible bands, clear, near-IR, flicker
-- Rate, Reading: `60 s epoch` (chip: design choice). One reading per 1-min epoch, the epoch length of research wrist actigraphs (Actiwatch Spectrum, per the project plan).
+- Manufacturer spec (not a LANDFALL constant): 11 channels: 8 optical channels over the visible range, plus Clear, Flicker and NIR; Serial I2C interface
+- Datasheet (read 2026-11-14): https://look.ams-osram.com/m/24266a3e584de4db/original/AS7341-DS000504.pdf; product page https://ams-osram.com/products/sensor-solutions/ambient-light-color-spectral-proximity-sensors/ams-as7341-11-channel-spectral-color-sensor. Read on the ams OSRAM product page, which links the DS000504 datasheet.
+  - Verified text: "8 optical channels distributed over the visible range"; "3 extra channels: Clear, Flicker and NIR channel"; "Control and Spectral data access is implemented through a serial I²C interface."
+- Rate, Reading: `60 s epoch` (chip: design choice). One reading per 1-min epoch, the same epoch as the activity record.
 
 (a) Produces:
 - `light_exposure_daytime` Daytime light exposure (wrist) [lux]: mean photopic illuminance at the wrist during the scheduled wake period
@@ -103,20 +109,24 @@ Design notes:
 - case sleep_circadian (ground packet; closes the loop from sensor to the lighting countermeasure)
 
 (c) Justified or constrained by:
-- `Standard Measures` (NASA names it; frozen in `hrp_research`): "measurements of activity and light exposure (gathered through a wrist sensor)"
-- `[V2 8055]` (pattern borrowed; frozen in `std_vol2_requirements`): "The system shall provide the levels of light to support the physiological effects of light in accordance with Table 8.7-2" Table 8.7-2 is specified as melanopic EDI at the cornea, for the lighting system. A wrist reading is not that quantity, so it is context and never a compliance check.
+- `[V2 8055]` (pattern borrowed; frozen in `std_vol2_requirements`): "The system shall provide the levels of light to support the physiological effects of light in accordance with Table 8.7-2" Written for the lighting system: Table 8.7-2 specifies melanopic EDI and melanopic DER at the cornea, in the vertical plane. A wrist reading is not that quantity, so it is context and never a compliance check.
   - General ambient, melanopic EDI at cornea: `250 lux (min)` (chip: NASA-published, Table 8.7-2)
+  - General ambient, melanopic DER: `0.7 (min)` (chip: NASA-published, Table 8.7-2)
   - Crew pre-sleep, melanopic EDI at cornea: `8 ± 2 lux` (chip: NASA-published, Table 8.7-2)
+  - Crew pre-sleep, melanopic DER: `0.3 (max)` (chip: NASA-published, Table 8.7-2)
+- `ARCHeR (Artemis II)` (NASA names it; frozen in `hrp_research`): "The actigraphy device that select Artemis II astronauts will wear on their wrists during their mission around the Moon. The device will measure the crew members' motion, sleep patterns, and exposure to light." Flown precedent beyond low Earth orbit. The quote is the image caption (page metadata); the body text says only actigraphy.
+- `Standard Measures` (NASA names it; frozen in `hrp_research`): "measurements of activity and light exposure (gathered through a wrist sensor)"
 
 Design notes:
-- Nobody else puts a spectral sensor on a crew wearable; it is the band's most defensible part, because the circadian countermeasure is a lighting prescription.
+- Light at the wrist closes the loop from sensor to countermeasure: the circadian countermeasure is a lighting prescription, and NASA's own wrist devices record light exposure (ARCHeR on Artemis II, Standard Measures on the ISS).
+- The visible channels also allow a melanopic-weighted estimate. Table 8.7-2 is specified at the cornea, so a wrist estimate stays context.
 
 ### `temp` Skin temperature, 2 sites: MAX30208 x2 (Analog Devices (Maxim Integrated))
 
 Two digital skin-temperature sensors on the inner face. They also act as the skin-side safety monitor for the LEDs and the cell.
 
 - Interface: I2C-A + I2C-B
-- Manufacturer spec (not a LANDFALL constant): ±0.1 °C accuracy from +30 to +50 °C
+- Datasheet (not retrieved, 2026-11-14): https://www.analog.com/media/en/technical-documentation/data-sheets/max30208.pdf; product page https://www.analog.com/en/products/max30208.html. analog.com did not answer automated requests from the build machine. Accuracy, range and I2C addressing are unverified, so none is claimed here.
 - Rate, Each sensor: `1 Hz` (chip: derived, flown hardware). Bio-Monitor skin temperature, 2 channels at 1 Hz, kept at 2 × 1 Hz
 
 (a) Produces:
@@ -138,11 +148,11 @@ Design notes:
 
 ### `imu` IMU (actigraphy): LSM6DSOX (STMicroelectronics)
 
-6-axis IMU. Only the accelerometer runs, for actigraphy (sleep and wake scoring) and off-wrist detection.
+IMU. Only its accelerometer is used, for actigraphy (sleep and wake scoring) and off-wrist detection.
 
 - Interface: I2C-A
-- Manufacturer spec (not a LANDFALL constant): 3-axis accelerometer + 3-axis gyroscope; Hardware FIFO
-- Rate, Accelerometer: `52 Hz` (chip: design choice). Between the 32 Hz of research wrist actigraphs (per the project plan) and the 64 Hz of the flown Bio-Monitor accelerometer; 52 Hz is a native output rate of the part.
+- Datasheet (not retrieved, 2026-11-14): https://www.st.com/resource/en/datasheet/lsm6dsox.pdf; product page https://www.st.com/en/mems-and-sensors/lsm6dsox.html. st.com did not answer automated requests from the build machine. Axis count, FIFO and output data rates are unverified, so none is claimed here.
+- Rate, Accelerometer: `52 Hz` (chip: design choice). Near the 64 Hz of the flown Bio-Monitor accelerometer. That the part offers exactly 52 Hz is not verified in this build (open item).
 - Rate, Activity epoch: `60 s` (chip: design choice). 1-min epochs, as in research actigraphy; the same epoch as the light sensor.
 
 (a) Produces:
@@ -155,6 +165,7 @@ Design notes:
 - case sleep_circadian (trigger (2 of its 4 triggers))
 
 (c) Justified or constrained by:
+- `ARCHeR (Artemis II)` (NASA names it; frozen in `hrp_research`): "The actigraphy device that select Artemis II astronauts will wear on their wrists during their mission around the Moon. The device will measure the crew members' motion, sleep patterns, and exposure to light." Flown precedent beyond low Earth orbit. The quote is the image caption (page metadata); the body text says only actigraphy.
 - `Standard Measures` (NASA names it; frozen in `hrp_research`): "measurements of activity and light exposure (gathered through a wrist sensor)"
 - `[V1 3004](h)` (requires; frozen in `std_vol1_requirements`): "Assessing, recording, monitoring, and trending vital signs and additional physiological and behavioral health signs."
 
@@ -166,8 +177,10 @@ Design notes:
 
 Reads every sensor, timestamps every sample on one clock, writes the local log and syncs it to the LANDFALL app over an encrypted BLE link when the tablet is in range.
 
-- Interface: host of SPI, I2C-A, I2C-B, QSPI; BLE 5 to the LANDFALL app
-- Manufacturer spec (not a LANDFALL constant): Arm Cortex-M4F, 64 MHz; Bluetooth 5 LE radio; QSPI, SPI and two I2C controllers
+- Interface: host of SPI, I2C-A, I2C-B, QSPI; BLE to the LANDFALL app
+- Manufacturer spec (not a LANDFALL constant): 64 MHz Cortex-M4 with FPU; Bluetooth Low Energy radio; UART, SPI, TWI, PDM, I2S, QSPI
+- Datasheet (read 2026-11-14): https://docs.nordicsemi.com/bundle/ps_nrf52840/page/keyfeatures_html5.html; product page https://www.nordicsemi.com/Products/nRF52840. Read on the Nordic product page. The product specification needs a browser with JavaScript and was not read, so the number of TWI (I2C) instances is unverified.
+  - Verified text: "64 MHz Cortex-M4 with FPU"; "1 MB Flash, 256 KB RAM"; "Bluetooth Low Energy, Bluetooth mesh"; "UART, SPI, TWI, PDM, I2S, QSPI"
 
 (a) Produces:
 - No indicator of its own. It turns raw samples into timestamped epoch records; the LANDFALL app computes the nightly indicators, so one engine evaluates every source the same way.
@@ -187,7 +200,9 @@ Design notes:
 128 Mbit serial NOR flash: the band's own log. The no-comms thesis applied to the device itself: nothing is lost when the tablet is out of range or down.
 
 - Interface: QSPI
-- Manufacturer spec (not a LANDFALL constant): 128 Mbit (16 MiB) serial NOR flash; Quad SPI
+- Manufacturer spec (not a LANDFALL constant): 128M-bit / 16M-byte serial flash; Standard, Dual and Quad SPI
+- Datasheet (read 2026-11-14): https://www.winbond.com/resource-files/W25Q128JV%20RevI%2008232021%20Plus.pdf; product page https://www.winbond.com/hq/product/code-storage-flash-memory/serial-nor-flash/?__locale=en&partNo=W25Q128JV. Read in the Winbond datasheet, Revision I (publication release date August 23, 2021).
+  - Verified text: "W25Q128JV: 128M-bit / 16M-byte"; "3V 128M-BIT SERIAL FLASH MEMORY WITH DUAL/QUAD SPI"
 
 (a) Produces:
 - Stores, does not measure. Depth arithmetic below.
@@ -204,10 +219,10 @@ Design notes:
 
 ### `battery` LiPo cell 200 mAh: LiPo cell, 1S, 200 mAh (Generic (part not selected))
 
-Single lithium-polymer cell, 3.7 V nominal, sized to sit far inside the JSC-20793 Non-Critical battery class.
+Single lithium-polymer cell, 3.7 V nominal (design value: no cell is selected), sized to sit far inside the JSC-20793 Non-Critical battery class.
 
 - Interface: power domain
-- Manufacturer spec (not a LANDFALL constant): 3.7 V nominal, 3.0-4.2 V
+- Datasheet: none (no part selected)
 
 (a) Produces:
 - nothing directly
@@ -225,7 +240,9 @@ Single lithium-polymer cell, 3.7 V nominal, sized to sit far inside the JSC-2079
 Single-cell linear Li-ion/LiPo charge controller, fed from the 5 V charging dock.
 
 - Interface: power domain
-- Manufacturer spec (not a LANDFALL constant): Single-cell linear charge management controller
+- Manufacturer spec (not a LANDFALL constant): Linear charge management controller for single-cell Li-Ion and Li-Polymer; Pins: VDD, VBAT, STAT, VSS, PROG: no thermistor input; Thermal regulation acts on the die temperature
+- Datasheet (read 2026-11-14): https://ww1.microchip.com/downloads/en/DeviceDoc/MCP73831-Family-Data-Sheet-DS20001984H.pdf; product page https://www.microchip.com/en-us/product/mcp73831. Read in the Microchip datasheet DS20001984H.
+  - Verified text: "Miniature Single-Cell, Fully Integrated Li-Ion, Li-Polymer Charge Management Controllers"; "Linear Charge Management Controller"; "limit the charge current based on die temperature"; "pin table: VDD, VBAT, STAT, VSS, PROG (NC and exposed pad on the DFN); the word 'thermistor' does not occur in the datasheet"
 
 (a) Produces:
 - nothing directly
@@ -234,14 +251,14 @@ Single-cell linear Li-ion/LiPo charge controller, fed from the 5 V charging dock
 - nothing directly (power domain)
 
 (c) Justified or constrained by:
-- `JSC-20793 Rev D` (constrains; not frozen in this build): "Section 4.4.3 asks for monitoring of battery voltage, current and temperature." This part has no thermistor input, so charging is not temperature-qualified: an open item.
+- `JSC-20793 Rev D` (constrains; not frozen in this build): "Section 4.4.3 asks for monitoring of battery voltage, current and temperature." Verified on the datasheet: the part has no thermistor input, and its thermal regulation follows the die, not the cell. Charging is not cell-temperature-qualified: an open item.
 
 ### `gauge` Fuel gauge: MAX17048 (Analog Devices (Maxim Integrated))
 
-Cell voltage and state of charge over I2C, so LANDFALL can show band battery and warn before the band stops recording.
+Fuel gauge for the cell, read over I2C, so LANDFALL can show band battery and warn before the band stops recording.
 
 - Interface: I2C-A
-- Manufacturer spec (not a LANDFALL constant): ModelGauge state of charge from cell voltage, no sense resistor
+- Datasheet (not retrieved, 2026-11-14): https://www.analog.com/media/en/technical-documentation/data-sheets/max17048-max17049.pdf; product page https://www.analog.com/en/products/max17048.html. analog.com did not answer automated requests from the build machine. What the gauge measures (voltage, current, temperature) is unverified, so none is claimed here.
 
 (a) Produces:
 - `band_battery_soc` Band state of charge [%]: device health, not crew health (not a SPEC 3.3 indicator)
@@ -250,7 +267,7 @@ Cell voltage and state of charge over I2C, so LANDFALL can show band battery and
 - nothing directly (power domain)
 
 (c) Justified or constrained by:
-- `JSC-20793 Rev D` (constrains; not frozen in this build): "Section 4.4.3 asks for monitoring of battery voltage, current and temperature." This gauge measures voltage only; it measures neither current nor temperature. Closing 4.4.3 needs a coulomb-counting gauge with a thermistor input: an open item.
+- `JSC-20793 Rev D` (constrains; not frozen in this build): "Section 4.4.3 asks for monitoring of battery voltage, current and temperature." Whether this gauge measures current or cell temperature is not verified in this build, so section 4.4.3 is treated as not met. Closing it needs a gauge whose datasheet shows current and temperature measurement: an open item.
 
 ## NOT MEASURABLE HERE: the hand-off boundary
 
@@ -259,7 +276,7 @@ What the band does not measure, and the documented path each value takes into LA
 | What | Why not on the band | Arrives via (observation source) | NASA requirement | Feeds |
 |---|---|---|---|---|
 | Urine output and fluid intake (24 h) | No wearable measures urine volume or what a crewmember drinks. | Manual entry in LANDFALL (`manual`) |  | indicator urine_volume_24h; indicator fluid_intake_24h; rule target_urine_output_24h; case renal_stone (trigger) |
-| Radiation dose and dose rate | Alerting on exposure rates is assigned to the vehicle's radiation monitoring system, and organ dose in mGy-Eq needs that system's detectors and models. LANDFALL does not duplicate it with a wrist sensor. Examples: ISS TEPC (NASA SRAG, JSC) (`hapi_iss_tepc`); CSA CANS (`hrp_csa_radiation`). | Vehicle radiation monitoring system (`vehicle`) | `[V2 6164]` assigns elsewhere | rule ops_onboard_proton_s3; rule pel_t481_bfo_30d; rule pel_career_effective_dose; case spe_shelter (trigger) |
+| Radiation dose and dose rate | Alerting on exposure rates is assigned to the vehicle's radiation monitoring system, and monitoring of the external space weather to the program. Organ dose in mGy-Eq needs those detectors and models. LANDFALL does not duplicate them with a wrist sensor. Examples: ISS TEPC (NASA SRAG, JSC) (`hapi_iss_tepc`); CSA CANS (`hrp_csa_radiation`). | Vehicle radiation monitoring system and external space weather monitors (`vehicle`) | `[V2 6164]` assigns elsewhere; `[V2 6165]` assigns elsewhere | rule ops_onboard_proton_s3; rule pel_t481_bfo_30d; rule pel_career_effective_dose; case spe_shelter (trigger) |
 | Blood chemistry and urinary calcium | Needs a blood draw or a urine sample and an analyser. Examples: OSDR Inspiration4 panels (`osdr_cmp`). | Laboratory: ground analysis of returned samples (`lab`) |  | case renal_stone (interpretation and ground follow-up) |
 | Blood pressure (cuff) | Wrist transit-time methods give systolic only and need per-subject calibration (see the Bio-Monitor pitfalls). Examples: Tempus Pro (NASA HRP) (`hrp_research`). | Vehicle medical kit (`vehicle`) |  | no rule: NASA publishes no in-flight blood pressure limit |
 | VO2max | Needs a graded exercise test, with gas exchange or a validated indirect protocol. | Exercise and metabolic system (`vehicle`) | `[V1 4002]` assigns elsewhere | rule ffd_vo2max_microgravity_eva; rule ffd_vo2max_surface_eva |
@@ -267,14 +284,31 @@ What the band does not measure, and the documented path each value takes into LA
 | Cabin ppCO2 | An atmosphere measurement, not a body one. | Vehicle atmosphere monitoring (`vehicle`) | `[V2 6022]` assigns elsewhere | rule pel_cabin_ppco2_1h |
 | Circadian phase and light at the eye | Phase needs melatonin or core temperature; Table 8.7-2 specifies light at the cornea, not at the wrist. | Research protocol; vehicle lighting system or a corneal light meter (`vehicle`) | `[V2 8055]` assigns elsewhere | case sleep_circadian (context) |
 
+Radiation dose and dose rate:
+- `[V2 6164]` (assigns elsewhere; frozen in `std_vol2_requirements`): "The radiation monitoring system shall alert the crew and operations teams when radiation exposure rates exceed predefined thresholds."
+- `[V2 6165]` (assigns elsewhere; frozen in `std_vol2_requirements`): "The program shall monitor the in-situ extravehicular space weather environment including the external exposure rates, electron flux spectra, and proton flux spectra." Its rationale names the storms LANDFALL's scenario draws on: "Historically significant space weather storming includes the August 1972 and October 1989 events." The SPE case replays the real GOES-7 record of October 1989.
+
+VO2max:
+- `[V1 4002]` (assigns elsewhere; frozen in `std_vol1_requirements`): "Crewmembers shall maintain an in-mission VO2max at or above 36.5 ml⁄min/kg for missions with extraterrestrial surface EVAs as determined by either direct or indirect measures."
+
+Bone mineral density:
+- `[V1 4027]` (assigns elsewhere; frozen in `std_vol1_requirements`): "Countermeasures shall maintain bone mineral density of the hip and spine at or above 95% of pre-mission values and at or above 90% for the femoral neck."
+
+Cabin ppCO2:
+- `[V2 6022]` (assigns elsewhere; frozen in `std_vol2_requirements`): "The system shall alert the crew locally and remotely when atmospheric parameters, including atmospheric pressure, humidity, temperature, ppO2, and ppCO2 are outside safe limits."
+
+Circadian phase and light at the eye:
+- `[V2 8055]` (assigns elsewhere; frozen in `std_vol2_requirements`): "The system shall provide the levels of light to support the physiological effects of light in accordance with Table 8.7-2"
+
+
 ## Power and autonomy
 
-Average-current budget and autonomy. Every current is an estimate from typical datasheet figures, never measured on a bench, so the budget carries a 2× margin.
+Average-current budget and autonomy. Every current is the author's estimate of typical datasheet figures, not re-checked against the datasheets in this build and never measured on a bench, so the budget carries a 2× margin.
 
 | Block | Estimated average current |
 |---|---|
 | nRF52840: CPU duty, BLE sync, clock | `250 uA` |
-| MAX30003: ECG and R-R detection | `100 uA` |
+| MAX30003: ECG front end | `100 uA` |
 | MAX86141 and LEDs at 10 % duty | `60 uA` |
 | LSM6DSOX: accelerometer only | `25 uA` |
 | MAX17048: active | `25 uA` |
@@ -283,7 +317,7 @@ Average-current budget and autonomy. Every current is an estimate from typical d
 | AS7341: one reading per minute | `5 uA` |
 | Regulators and leakage | `20 uA` |
 
-Budget chip: design choice. Typical datasheet figures for these duty cycles; to be replaced by bench measurement.
+Budget chip: design choice. Estimates for these duty cycles, not re-checked against the datasheets in this build; to be replaced by bench measurement.
 
 | Step | Value | Chip | Arithmetic or rationale |
 |---|---|---|---|
@@ -316,7 +350,7 @@ What 16 MiB holds. NASA publishes no storage or log-duration requirement for wea
 | Indicator log per day | `334080 B/day` | derived | 288,000 + 46,080 = 334,080 B/day |
 | Log depth without a sync | `34.5 days` | derived | 11,534,336 / 334,080 = 34.5 days |
 | Log depth target | `14 days (min)` | design choice | One whole RCI baseline window: personal.json rci.baseline_window_days = 14. A lost tablet does not cost anyone their baseline. |
-| Raw ECG rate | `768 B/s` | derived | 256 samples/s × 3 B (18-bit sample in 3 bytes) = 768 B/s |
+| Raw ECG rate | `768 B/s` | derived | 256 samples/s × 3 B per stored sample = 768 B/s (3 B per sample is a design choice; the front end's sample width is not verified in this build) |
 | Raw ECG in the event ring | `91 min` | derived | 4,194,304 B / 768 B/s = 5,461 s = 91 min |
 | Raw ECG if the whole flash held it | `6.1 h` | derived | 16,777,216 B / 768 B/s = 21,845 s = 6.1 h. This is why the band logs R-R intervals, not waveforms. |
 
@@ -364,8 +398,8 @@ Basis: Vol 2 Rev F items are frozen in std_vol2_requirements. JSC-20793 and NASA
 
 | Topic | Reference | Constraint | Chip |
 |---|---|---|---|
-| Leakage current, body-contact bioinstrumentation | `V2 9023`, `Table 9.3-11` | External contact, DC to 1 kHz: 0.1 mA normal, 0.5 mA single fault. The electrodes are the band's only conductive skin contact. | NASA-published |
-| Current through the crewmember, any equipment | `V2 9019`, `V2 9020`, `V2 9021` | Nominal: 0.4 mA DC, 0.2 mA peak AC. Startle: 2 mA DC, 0.5 mA AC. Catastrophic: 40 mA DC, 8 mA peak AC. | NASA-published |
+| Leakage current, medical and bioinstrumentation equipment | `V2 9023`, `Table 9.3-11` | The band touches intact skin, read as External body contact: DC to 1 kHz, 0.1 mA normal and 0.5 mA single fault, the sum of all leakage currents. Footnote: prolonged DC contact carries a small risk of heating and tissue necrosis. The electrodes are the band's only conductive skin contact. | NASA-published |
+| Current through the crewmember, general limits for any equipment | `V2 9019`, `V2 9020`, `V2 9021` | Nominal contact with conductive housing: 0.4 mA DC, 0.2 mA peak AC. Startle reaction, during critical operations: 2 mA DC, 0.5 mA AC. Catastrophic, all circumstances: 40 mA DC, 8 mA peak AC. For bioinstrumentation the stricter [V2 9023] applies. | NASA-published |
 | Crew control of power | `V2 9017`, `V2 9018` | The crew must be able to interrupt power and see the de-energized status. The band has no switch or status light in this BOM: an open item. | NASA-published |
 | Touch temperature | `V2 9102`, `V2 9103` | Tissue damage at 49 °C or above (Table 9.3-4); pain range 43 to 49 °C (Table 9.3-5). The LEDs stop at 41 °C at the skin-side sensor (design choice). | NASA-published |
 | RF exposure | `V2 6102` | The BLE radio must keep crew RF exposure within Table 6.8-2. This is the only electromagnetic requirement in Vol 2. | NASA-published |
@@ -376,7 +410,10 @@ Basis: Vol 2 Rev F items are frozen in std_vol2_requirements. JSC-20793 and NASA
 
 - No schematic capture or PCB: block level only (KiCad not available).
 - Every current in the power budget is a datasheet-typical estimate; bench measurement replaces it.
-- Battery monitoring: the MCP73831 has no thermistor input and the MAX17048 measures neither current nor temperature, so JSC-20793 section 4.4.3 is not met yet. Fix: a coulomb-counting gauge with a thermistor input.
+- Battery monitoring: the MCP73831 has no thermistor input (verified on its datasheet) and the MAX17048's current and temperature measurement is not verified, so JSC-20793 section 4.4.3 is treated as not met. Fix: a gauge whose datasheet shows current and temperature measurement.
+- Five datasheets were not read in this build (MAX30003, MAX86141, MAX30208, MAX17048, LSM6DSOX): confirm each part offers what the design assumes (256 sps ECG, an accelerometer rate of 52 Hz, skin-range accuracy, I2C addressing) before selection.
+- Confirm two TWI (I2C) instances on the nRF52840 beside SPI and QSPI in its product specification: the design uses two I2C buses.
+- Prolonged DC contact: check every DC lead-bias and lead-off current of the ECG front end against Table 9.3-11 and its footnote.
 - No power switch or status light for [V2 9017] / [V2 9018].
 - Power tree (1.8 V AFE rail, LED supply) not designed.
 - Electrode material, strap and housing materials not selected: NASA-STD-6001B testing or a Material Usage Agreement is needed.

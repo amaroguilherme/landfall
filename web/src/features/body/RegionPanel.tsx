@@ -33,7 +33,7 @@ import { SmallMultiples, SmallMultiplesLegend, bandKindOf } from './RefChart'
 import type { OsdrData } from './RefChart'
 import { HAZARD_SNAPSHOT_ID, HOW_LABEL, MEASURED_HERE, opWords, sentencesMatching, windowWords } from './regions'
 import type { HazardId, Measure, RegionDef } from './regions'
-import { HAZARDS_META, RCI_Z_CHIP } from './rules'
+import { HAZARDS_META } from './rules'
 import type { CaseDef } from './rules'
 import type { CaseStatus, IndicatorRow, RegionState, RegionSummary, RuleRow } from './status'
 import { STATE_LABEL } from './status'
@@ -373,25 +373,28 @@ function RuleItem({ row, region }: { row: RuleRow; region: RegionDef }) {
           Applies to {rule.applies_to.map((e) => environment(e as EnvId)?.label ?? e).join(', ')}.
         </p>
       )}
+      {row.error ? <p className="lf-limit-now lf-nodata">The engine did not evaluate it ({row.error}), so it shows as no data.</p> : null}
       {note ? <p className="lf-limit-note">{note}</p> : null}
       {finding?.why?.length ? (
         <Expander summary="How the engine read it">
           <ul className="lf-why">
-            {finding.why.map((w) => (
+            {[finding.why].map((w) => (
               <li key={w}>
                 <MonoDigits text={w} />
               </li>
             ))}
           </ul>
+          <p className="lf-body-fine">
+            <a href={`#/provenance?id=${encodeURIComponent(rule.id)}`}>Provenance of {rule.id}</a>
+          </p>
         </Expander>
       ) : null}
     </li>
   )
 }
 
-function IndicatorItem({ row, rciZ, rciZChip }: { row: IndicatorRow; rciZ: number | null; rciZChip: string | null }) {
+function IndicatorItem({ row }: { row: IndicatorRow }) {
   const ind = row.indicator
-  const r = ind.reliability_r
   return (
     <li className="lf-limit" data-applicable>
       <div className="lf-limit-head">
@@ -402,19 +405,9 @@ function IndicatorItem({ row, rciZ, rciZChip }: { row: IndicatorRow; rciZ: numbe
       <p className="lf-limit-rule">
         Flags a reliable change {ind.worse === 'increase' ? 'upward' : ind.worse === 'decrease' ? 'downward' : 'either way'} against
         your own baseline (MET days <span className="lf-mono">{BASELINE_FIRST_DAY}</span>–<span className="lf-mono">{BASELINE_LAST_DAY}</span>,{' '}
-        <Num value={row.baselineN} /> readings){rciZ !== null ? (
-          <>
-            {' '}
-            when |RC| ≥ <Num value={rciZ} /> {rciZChip ? <Chip kind={rciZChip} /> : null}
-          </>
-        ) : null}
-        . Not a limit.
+        <Num value={row.baselineN} /> readings): a change bigger than your own day-to-day noise. Not a limit.{' '}
+        <Link to="/method">How the test works</Link>
       </p>
-      {r ? (
-        <p className="lf-limit-sub">
-          Test–retest reliability r = <Num value={r.value} /> <Chip kind={r.chip} />
-        </p>
-      ) : null}
       <p className="lf-limit-now">
         {row.point ? (
           <>
@@ -423,8 +416,19 @@ function IndicatorItem({ row, rciZ, rciZChip }: { row: IndicatorRow; rciZ: numbe
         ) : (
           <span className="lf-nodata">No reading in this scenario.</span>
         )}
-        {ind.alerting === false ? <span className="lf-limit-win"> · context only: never raises above Advisory</span> : null}
+        {row.error ? <span className="lf-nodata lf-block"> The engine did not evaluate it ({row.error}), so it shows as no data.</span> : null}
+        {ind.alerting === false ? <span className="lf-limit-win"> · context only: shown, never an alert</span> : null}
       </p>
+      {row.finding?.why ? (
+        <Expander summary="How the engine read it">
+          <p className="lf-body-fine">
+            <MonoDigits text={row.finding.why} />
+          </p>
+          <p className="lf-body-fine">
+            <a href={`#/provenance?id=${encodeURIComponent(ind.id)}`}>Provenance of {ind.id}</a>
+          </p>
+        </Expander>
+      ) : null}
     </li>
   )
 }
@@ -435,14 +439,12 @@ function Limits({
   indicatorRows,
   rulesMissing,
   envId,
-  rciZ,
 }: {
   region: RegionDef
   ruleRows: RuleRow[]
   indicatorRows: IndicatorRow[]
   rulesMissing: boolean
   envId: EnvId
-  rciZ: number | null
 }) {
   const here = ruleRows.filter((r) => r.applicable)
   const elsewhere = ruleRows.filter((r) => !r.applicable)
@@ -488,7 +490,7 @@ function Limits({
           <h4 className="lf-body-h4">Change against your own baseline</h4>
           <ul className="lf-limits">
             {indicatorRows.map((row) => (
-              <IndicatorItem key={row.indicator.id} row={row} rciZ={rciZ} rciZChip={RCI_Z_CHIP} />
+              <IndicatorItem key={row.indicator.id} row={row} />
             ))}
           </ul>
         </>
@@ -649,7 +651,6 @@ export function RegionPanel({
   casesMissing,
   envId,
   crewLabel,
-  rciZ,
   engineIsShim,
 }: {
   region: RegionDef
@@ -662,7 +663,6 @@ export function RegionPanel({
   casesMissing: boolean
   envId: EnvId
   crewLabel: string
-  rciZ: number | null
   engineIsShim: boolean
 }) {
   return (
@@ -707,7 +707,7 @@ export function RegionPanel({
       </header>
       <HowItIsAffected region={region} />
       <Measurements region={region} />
-      <Limits region={region} ruleRows={ruleRows} indicatorRows={indicatorRows} rulesMissing={rulesMissing} envId={envId} rciZ={rciZ} />
+      <Limits region={region} ruleRows={ruleRows} indicatorRows={indicatorRows} rulesMissing={rulesMissing} envId={envId} />
       <ReferenceData region={region} />
       <GroundSection region={region} cases={cases} statuses={caseStatuses} casesMissing={casesMissing} />
     </article>

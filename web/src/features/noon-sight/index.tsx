@@ -12,7 +12,7 @@ import type { LoadStatus, Snapshot } from '../../app/data'
 import { metClock, useMetNow, useMission } from '../../app/mission'
 import { crewMember } from '../../app/vocab'
 import type { ChipKind, CrewId, Observation } from '../../app/vocab'
-import { BASELINE_FIRST_DAY, BASELINE_LAST_DAY } from '../../app/scenario'
+import { BASELINE_FIRST_DAY, BASELINE_LAST_DAY, SIM_FIRST_DAY } from '../../app/scenario'
 import {
   Button,
   ButtonLink,
@@ -53,6 +53,7 @@ import {
   weekCompleteness,
 } from './record'
 import type { NoonAnswers, SimCrewData, SimCrewMember, SymptomId } from './record'
+import { POTABLE_WATER_CONSTANT_ID, minBaseline, ruleConstant, urineTarget } from './renal'
 import './noon-sight.css'
 
 type StepId = 'pvt' | 'sleep' | 'mood' | 'fluids' | 'symptoms' | 'done'
@@ -82,11 +83,28 @@ const MOOD_OPTIONS = [
   { value: 5, label: 'Very good' },
 ]
 
-const RENAL_REPORT = {
-  kind: 'literature' as const,
-  citation:
-    'Stratton E, Lumpkins S, Antonsen E. Evidence Report: Risk of Renal Stone Formation. NASA Human Research Program, 2024. NTRS 20240012429, p. 13',
-  url: 'https://ntrs.nasa.gov/citations/20240012429',
+// Read once from engine/rules/thresholds.json and personal.json: no renal, hydration or baseline
+// number is typed in this file.
+const URINE_TARGET = urineTarget()
+const POTABLE_WATER = ruleConstant(POTABLE_WATER_CONSTANT_ID)
+const MIN_BASELINE = minBaseline()
+
+/** Digits inside quoted text render in DM Mono, like every other number. */
+function Digits({ text }: { text: string }) {
+  const parts = text.split(/(\d[\d.,]*)/g)
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <span key={i} className="lf-mono">
+            {part}
+          </span>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  )
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -386,17 +404,43 @@ function NoonSightView({ crewId, initialStep }: { crewId: CrewId; initialStep: S
               <div className="ns-context">
                 <p className="ns-context-title">For context, not an alarm</p>
                 <ul>
-                  <li>
-                    NASA’s renal-stone evidence report: stone risk rises when urine output drops below{' '}
-                    <Num value={1.5} unit="L/day" digits={1} />; good hydration produces <Num value={2.5} digits={1} />–
-                    <Num value={3} unit="L/day" digits={0} /> of urine. <Chip kind="literature" />{' '}
-                    <Citation source={RENAL_REPORT} />
-                  </li>
-                  <li>
-                    The vehicle must supply at least <Num value={2.5} unit="L" digits={1} /> of drinking water per crewmember
-                    per day <ReqId id="V2 6109" /> (Table 6.3-1). That is a supply requirement, not a drinking target.{' '}
-                    <Chip kind="NASA-published" />
-                  </li>
+                  {URINE_TARGET ? (
+                    <li>
+                      NASA’s renal-stone evidence report (a NASA HRP report, not a standard)
+                      {URINE_TARGET.verbatim ? (
+                        <>
+                          : <q className="ns-quote"><Digits text={URINE_TARGET.verbatim} /></q>
+                        </>
+                      ) : null}{' '}
+                      <Chip kind={URINE_TARGET.rule.chip} /> <Citation source={URINE_TARGET.rule.source} />
+                      <span className="ns-block">
+                        The renal case reads it as: below <Num value={URINE_TARGET.limit} unit={URINE_TARGET.unit} /> in 24 hours is
+                        outside the target
+                        {URINE_TARGET.approach !== null ? (
+                          <>
+                            , and below <Num value={URINE_TARGET.approach} unit={URINE_TARGET.unit} /> is short of it
+                          </>
+                        ) : null}
+                        . At most a Caution, never a warning.
+                      </span>
+                    </li>
+                  ) : (
+                    <li className="ns-muted">The renal case target is not in this build’s rules, so no number is shown.</li>
+                  )}
+                  {POTABLE_WATER && typeof POTABLE_WATER.value === 'number' ? (
+                    <li>
+                      The vehicle must supply at least <Num value={POTABLE_WATER.value} unit={POTABLE_WATER.unit} /> of potable water
+                      for hydration
+                      {POTABLE_WATER.source.requirement_id ? (
+                        <>
+                          {' '}
+                          <ReqId id={POTABLE_WATER.source.requirement_id} />
+                        </>
+                      ) : null}
+                      {POTABLE_WATER.source.table ? <> ({POTABLE_WATER.source.table})</> : null}. That is a supply requirement on
+                      the vehicle, not a drinking target. <Chip kind={POTABLE_WATER.chip} />
+                    </li>
+                  ) : null}
                 </ul>
               </div>
               <StepNav
@@ -463,7 +507,12 @@ function NoonSightView({ crewId, initialStep }: { crewId: CrewId; initialStep: S
             <h2 className="ns-card-title">Why a streak</h2>
             <p className="ns-small">
               One number, no points, no leaderboard. The value is an unbroken record: LANDFALL compares you with your own recent
-              days (at least <Num value={7} /> baseline days <Chip kind="design choice" />), and every gap weakens that comparison. Mood is never counted, so
+              days{MIN_BASELINE ? (
+                <>
+                  {' '}
+                  (at least <Num value={MIN_BASELINE.n} /> baseline days {MIN_BASELINE.chip ? <Chip kind={MIN_BASELINE.chip} /> : null})
+                </>
+              ) : null}, and every gap weakens that comparison. Mood is never counted, so
               keeping it private costs nothing.
             </p>
             <FreshnessChip meta={sim.snapshot} status={sim.status} id="sim_crew" compact />
@@ -665,7 +714,10 @@ function PvtChoose({ note, onStart, onSkip }: { note: string | null; onStart: (m
         shown but never recorded as a PVT-B result.
       </p>
       <p className="ns-small">
-        <strong>Lapse = reaction time of 355 ms or more.</strong> That definition comes from Basner, Mollicone &amp; Dinges
+        <strong>
+          Lapse = reaction time of <Num value={PVT_B.lapseMs} unit="ms" /> or more.
+        </strong>{' '}
+        That definition comes from Basner, Mollicone &amp; Dinges
         (2011), not from a NASA requirement: no NASA standard adopts it. <Chip kind="literature" />
       </p>
       <Expander summary="Where these numbers come from">
@@ -744,7 +796,7 @@ function PvtResult({
         </p>
       ) : null}
       <dl className="ns-stats">
-        <Stat label="Lapses (≥ 355 ms)" chip="literature">
+        <Stat label={`Lapses (≥ ${PVT_B.lapseMs} ms)`} chip="literature">
           <Num value={score.lapses} />
         </Stat>
         <Stat label="Median reaction time" chip="design choice">
@@ -884,7 +936,7 @@ function StreakCard({ streak, simStatus }: { streak: ReturnType<typeof computeSt
       {streak.firstDay !== null && streak.lastDay !== null ? (
         <p className="ns-small ns-muted">
           One per MET day, days <span className="lf-num">{streak.firstDay}</span>–<span className="lf-num">{streak.lastDay}</span>
-          {streak.firstDay <= 368 ? ', counted from the start of the simulated record' : ''}.
+          {streak.firstDay <= SIM_FIRST_DAY ? ', counted from the start of the simulated record' : ''}.
         </p>
       ) : null}
       <p className="ns-small">

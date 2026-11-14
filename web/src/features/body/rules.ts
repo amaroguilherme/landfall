@@ -94,8 +94,8 @@ export const PERSONAL_INDICATORS: readonly PersonalIndicatorDef[] | null = Array
   ? personal.indicators
   : null
 export const RCI_CONFIG: PersonalFile['rci'] | null = personal?.rci ?? null
-/** Chip of the RCI critical value (derived from alpha in personal.json), else the block's chip. */
-export const RCI_Z_CHIP: string | null = RCI_CONFIG?.provenance?.critical_z?.chip ?? RCI_CONFIG?.chip ?? null
+/** Chip of the Tier B single-case test: its critical value is derived from alpha and the baseline length. */
+export const RCI_Z_CHIP: string | null = RCI_CONFIG ? 'derived' : null
 export const CASES: readonly CaseDef[] | null = Array.isArray(cases?.cases) ? cases.cases : null
 export const HAZARDS_META: readonly HazardMeta[] | null = Array.isArray(meta?.hazards) ? meta.hazards : null
 export const META_BODY_REGIONS: readonly string[] | null = Array.isArray(meta?.body_regions) ? meta.body_regions : null

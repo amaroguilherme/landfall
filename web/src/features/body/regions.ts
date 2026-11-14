@@ -284,7 +284,7 @@ export const REGIONS: readonly RegionDef[] = [
       { variable: 'urine_volume_24h', label: '24-h urine output', how: 'manual', via: 'measured by the crewmember and typed in once a day' },
       { variable: 'fluid_intake_24h', label: '24-h fluid intake', how: 'manual', via: 'water dispenser and drink pouches, typed in once a day' },
       { variable: null, label: 'Urine chemistry (calcium, oxalate, citrate, pH)', how: 'ground', via: 'ground laboratory on returned 24-h urine samples' },
-      { variable: null, label: 'Kidney stone imaging', how: 'vehicle', via: 'vehicle medical kit ultrasound, with ground guidance', requirement_ids: ['V1 3004'] },
+      { variable: null, label: 'Kidney stone imaging', how: 'vehicle', via: "the vehicle's in-mission imaging (ultrasound, if one is carried), with ground guidance; [V1 3004](i) requires in-mission imaging but names neither the kidney nor ultrasound", requirement_ids: ['V1 3004'] },
       { variable: null, label: 'Blood kidney markers (creatinine, BUN)', how: 'lab', via: 'blood chemistry panel' },
     ],
     osdr: [
@@ -292,7 +292,7 @@ export const REGIONS: readonly RegionDef[] = [
       { snapshot: 'osdr_cmp', key: 'urea_nitrogen_bun', why: 'cleared from the blood by the kidneys' },
     ],
     osdrNote:
-      'The Inspiration4 urine file (OSD-656) is an inflammation-protein panel in relative units, not a urinalysis: it has no urine volume, calcium or pH, so it cannot feed the hydration case. That case uses crew-entered 24-h urine output instead.',
+      'The Inspiration4 urine study (OSD-656) is a urine inflammation proteomics panel (NULISA-seq, NPQ units), not urine chemistry, so it is not plotted here and cannot feed the hydration case. That case uses crew-entered 24-h urine output instead.',
   },
   {
     id: 'skeleton',

@@ -7,12 +7,12 @@ import type { FeatureProps } from '../../app/router'
 import { Link } from '../../app/location'
 import { useManifest } from '../../app/data'
 import type { ManifestEntry } from '../../app/data'
-import { Chip, Expander, FreshnessChip, Num, ReqId } from '../../ui'
+import { Chip, Expander, FreshnessChip, Num, ReqId, UnknownIcon } from '../../ui'
 import { BandDiagram } from './Diagram'
 import type { Selection } from './Diagram'
 import { BLOCKS, HAND_OFFS, SENSOR_MAP, blockById, handOffById, referencedSnapshots } from './map'
-import { RELATION_SHORT, casesServed, interfaceLabel } from './render'
-import type { Block, FeedRef, HandOff, Limit, Rate, ReqRef, Step } from './types'
+import { RELATION_SHORT, casesServed, datasheetStatus, interfaceLabel } from './render'
+import type { Block, Datasheet, FeedRef, HandOff, Limit, Rate, ReqRef, Step } from './types'
 import './band.css'
 
 const MAP = SENSOR_MAP
@@ -188,6 +188,45 @@ function RateRow({ r }: { r: Rate }) {
   )
 }
 
+/** Where the part's claims come from: read on the manufacturer's page, or not retrieved (cyan, [V2 10020]). */
+function DatasheetNote({ d }: { d: Datasheet | null }) {
+  if (!d) return <p className="band-small band-muted">No part selected, so there is no datasheet yet.</p>
+  const read = d.status === 'read'
+  return (
+    <div className="band-ds" data-status={d.status}>
+      <p className="band-small">
+        <span className="band-kind">Datasheet</span>{' '}
+        <span className="band-ds-status">
+          {read ? null : <UnknownIcon size={13} />}
+          {read ? 'read' : 'not retrieved'}
+        </span> <span className="band-n">{d.checked}</span> ·{' '}
+        <a href={d.url} target="_blank" rel="noopener noreferrer">
+          manufacturer document<span className="sr-only"> (opens in a new tab)</span>
+        </a>
+        {d.product_page ? (
+          <>
+            {' '}
+            ·{' '}
+            <a href={d.product_page} target="_blank" rel="noopener noreferrer">
+              product page<span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          </>
+        ) : null}
+      </p>
+      <p className="band-small band-muted"><Prose text={d.note} /></p>
+      {d.verified?.length ? (
+        <ul className="band-ds-quotes">
+          {d.verified.map((v) => (
+            <li key={v} className="band-small">
+              <q><Prose text={v} /></q>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  )
+}
+
 // ---- detail panels -------------------------------------------------------------------------------
 
 function BlockDetail({ b, meta }: { b: Block; meta: ReturnType<typeof useSnapshotMeta> }) {
@@ -273,13 +312,22 @@ function BlockDetail({ b, meta }: { b: Block; meta: ReturnType<typeof useSnapsho
           </table>
         </div>
       ) : null}
-      {b.mfr_spec.length || b.design.length ? (
+      <div className="band-notes">
+        {b.mfr_spec.length ? (
+          <p className="band-small">
+            <span className="band-kind">Manufacturer spec</span> (the part's own claim, read on its datasheet or product page; not a
+            LANDFALL constant): <Prose text={b.mfr_spec.join('; ')} />.
+          </p>
+        ) : b.datasheet ? (
+          <p className="band-small">
+            <span className="band-kind">Manufacturer spec</span> none claimed: the manufacturer's page could not be read for this
+            build, so nothing about the part is stated from memory.
+          </p>
+        ) : null}
+        <DatasheetNote d={b.datasheet} />
+      </div>
+      {b.design.length ? (
         <div className="band-notes">
-          {b.mfr_spec.length ? (
-            <p className="band-small">
-              <span className="band-kind">Manufacturer spec</span> (the part's own claim, not a LANDFALL constant): <Prose text={b.mfr_spec.join('; ')} />.
-            </p>
-          ) : null}
           {b.design.map((d) => (
             <p key={d} className="band-small">
               <span className="band-kind">Design note</span> <Prose text={d} />
@@ -319,6 +367,9 @@ function HandOffDetail({ h, meta }: { h: HandOff; meta: ReturnType<typeof useSna
           <h3 className="band-label-h">NASA requirement and real examples</h3>
           <ul className="band-list">
             {h.requirement ? <ReqCard r={h.requirement} meta={meta} /> : null}
+            {(h.also ?? []).map((r) => (
+              <ReqCard key={r.id} r={r} meta={meta} />
+            ))}
             {(h.examples ?? []).map((e) => {
               const s = meta(e.snapshot)
               return (
@@ -651,7 +702,7 @@ export default function Band({ query }: FeatureProps) {
           Bill of materials
         </h2>
         <p className="band-small band-muted">
-          Also in <code>hardware/BOM.csv</code>, generated from the same JSON.
+          Also in <code>hardware/BOM.csv</code>, generated from the same JSON. <Prose text={MAP.mfr_basis} />
         </p>
         <div className="band-table-wrap" tabIndex={0} role="region" aria-label="Bill of materials, scrollable">
           <table className="band-table band-bom">
@@ -663,6 +714,7 @@ export default function Band({ query }: FeatureProps) {
                 <th scope="col">Function</th>
                 <th scope="col">Interface</th>
                 <th scope="col">Case served</th>
+                <th scope="col">Datasheet</th>
               </tr>
             </thead>
             <tbody>
@@ -680,6 +732,16 @@ export default function Band({ query }: FeatureProps) {
                   <td className="band-small"><Prose text={b.function} /></td>
                   <td className="band-small">{interfaceLabel(MAP, b)}</td>
                   <td className="band-small">{casesServed(b)}</td>
+                  <td className="band-small" data-ds={b.datasheet?.status ?? 'none'}>
+                    {b.datasheet ? (
+                      <a href={b.datasheet.url} target="_blank" rel="noopener noreferrer">
+                        <Prose text={datasheetStatus(b)} />
+                        <span className="sr-only"> (manufacturer document, opens in a new tab)</span>
+                      </a>
+                    ) : (
+                      datasheetStatus(b)
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

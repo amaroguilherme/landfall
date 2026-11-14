@@ -120,6 +120,14 @@ export interface RuleRow {
   unitMismatch: boolean
   /** null when not applicable in this environment (shown grey, not evaluated). */
   finding: Finding | null
+  /** The engine refused this rule (contract error code + message): shown as no data, never guessed. */
+  error?: string
+}
+
+function engineMessage(e: unknown): string {
+  const code = (e as { code?: unknown })?.code
+  const msg = e instanceof Error ? e.message : String(e)
+  return typeof code === 'string' && !msg.startsWith(code) ? `${code}: ${msg}` : msg
 }
 
 export function evaluateRuleRow(rule: Rule, ctx: EvalContext): RuleRow {
@@ -128,7 +136,11 @@ export function evaluateRuleRow(rule: Rule, ctx: EvalContext): RuleRow {
   const unitMismatch = point !== null && point.unit !== rule.unit
   if (!applicable) return { rule, applicable, point, unitMismatch, finding: null }
   const value = point && !unitMismatch ? point.value : null
-  return { rule, applicable, point, unitMismatch, finding: ctx.evaluator.evaluateRule(rule, value, ctx.envId, ctx.t) }
+  try {
+    return { rule, applicable, point, unitMismatch, finding: ctx.evaluator.evaluateRule(rule, value, ctx.envId, ctx.t) }
+  } catch (e) {
+    return { rule, applicable, point, unitMismatch, finding: null, error: engineMessage(e) }
+  }
 }
 
 export interface IndicatorRow {
@@ -136,6 +148,8 @@ export interface IndicatorRow {
   point: Point | null
   baselineN: number
   finding: Finding | null
+  /** The engine refused this indicator (contract error code + message): shown as no data. */
+  error?: string
 }
 
 export function evaluateIndicatorRow(indicator: PersonalIndicatorDef, ctx: EvalContext): IndicatorRow {
@@ -143,13 +157,15 @@ export function evaluateIndicatorRow(indicator: PersonalIndicatorDef, ctx: EvalC
   const baseline = baselineValues(ctx.sim, ctx.crewId, indicator.variable, ctx.baselineDays[0], ctx.baselineDays[1])
   if (!ctx.rci) return { indicator, point, baselineN: baseline.length, finding: null }
   const current = point && point.unit === indicator.unit ? point.value : null
-  return {
-    indicator,
-    point,
-    baselineN: baseline.length,
-    finding: ctx.evaluator.evaluatePersonal(indicator, baseline, current, ctx.rci),
+  try {
+    return { indicator, point, baselineN: baseline.length, finding: ctx.evaluator.evaluatePersonal(indicator, baseline, current, ctx.rci) }
+  } catch (e) {
+    return { indicator, point, baselineN: baseline.length, finding: null, error: engineMessage(e) }
   }
 }
+
+/** A row the engine refused counts as missing data in the region summary ([V2 10020]), never as nominal. */
+export const ENGINE_REFUSED: Pick<Finding, 'status' | 'severity'> = { status: 'insufficient_data', severity: 'advisory' }
 
 // ---------------------------------------------------------------------------------------------
 // Cases: open when any trigger reports severity >= caution (SPEC 3.4)
@@ -189,7 +205,7 @@ export function caseStatus(
     if ((trig.kind === 'rule' || trig.kind === 'ops') && trig.rule_id) {
       const rule = lookups.rule(trig.rule_id)
       if (!rule) continue
-      label = rule.label
+      label = rule.label ?? rule.id
       finding = evaluateRuleRow(rule, ctx).finding
     } else if (trig.kind === 'personal' && trig.indicator_id) {
       const ind = lookups.indicator(trig.indicator_id)

@@ -1,9 +1,13 @@
 """Environment inputs of the simulated scenario: SPE replay, MSL RAD baseline, Mars conjunction.
 
 Reads (never edits) frozen snapshots written by other adapters:
-  swpc_spe_replay      REAL GOES-7 >10 MeV proton flux, October 1989 (NOAA NCEI)  -> event SHAPE
-  hapi_msl_rad_dose    REAL MSL RAD dose rate on the Mars surface (NASA CCMC iSWA) -> quiet BASELINE
-  horizons_mars_comms  REAL Mars solar-conjunction windows (JPL Horizons)          -> calendar mapping
+  swpc_spe_replay      REAL GOES-7 >10 MeV proton flux, October 1989 (NOAA NCEI)  -> event SHAPE, used as the
+                       reading of an external space-weather monitor above the Martian atmosphere (relayed
+                       locally), with no radial-distance or atmospheric correction (scenario assumption)
+  hapi_msl_rad_dose    REAL MSL RAD dose rate on the Mars surface (NASA CCMC iSWA) -> quiet BASELINE of the
+                       SIMULATED habitat dose rate (a confirmation signal under an assumed scaling)
+  horizons_mars_comms  Mars solar-conjunction windows MODELLED from JPL Horizons geometry (edges fitted to
+                       NASA's published command moratoria)                         -> calendar mapping
 Each input degrades independently to a documented fallback; the caller turns every
 fallback into a caveat. Re-running `python -m ingest --all` picks the real files up.
 """
@@ -24,13 +28,13 @@ from ingest.common import to_iso_z, validate_snapshot
 S3_PFU = 1000.0                      # NOAA S3 threshold, >=10 MeV (swpc_s_scale)
 S1_PFU = 10.0
 SPE_ANCHOR_MET_S = met_s(412, 14.25)  # first S3-level replay sample lands at MET 0412/14:15:00
-DOSE_MULTIPLE_AT_S3 = 10.0           # design choice: S3-level flux <-> 10x the RAD quiet baseline
+DOSE_MULTIPLE_AT_S3 = 10.0           # design choice (assumed 10x scaling): S3-level flux <-> 10x the RAD quiet rate
 CONTINUATION_S = 36 * 3600           # replay continuation after "now", for a scenario player
 STEP_S = 300
 FALLBACK_BASELINE_UGY_DAY = 200.0    # design-choice placeholder, used only without hapi_msl_rad_dose
 FALLBACK_BASELINE_SD = 5.0
-CONJ_REFERENCE_DATE = datetime(2026, 11, 14)   # hackathon date: take the first real window after it
-TARGET_REMAINING_S = 11 * DAY_S + 6 * 3600     # blackout left at "now" (the plan's '11d 06h' hero)
+CONJ_REFERENCE_DATE = datetime(2026, 11, 14)   # hackathon date: take the first modelled window after it
+TARGET_REMAINING_S = 11 * DAY_S + 6 * 3600     # blackout left at "now" (the hero's 11 d 06 h countdown)
 MIN_REMAINING_S = 10 * DAY_S
 
 
@@ -108,7 +112,11 @@ def _rad_fallback(err: str | None) -> dict:
 
 # ------------------------------------------------------------------ proton event shape
 def replay_shape(snap: dict | None) -> dict:
-    """Return a flux(met_s) sampler built from the REAL replay, or a documented synthetic fallback."""
+    """Return a flux(met_s) sampler built from the REAL replay, or a documented synthetic fallback.
+
+    The flux is used as the reading of an external space-weather monitor above the Martian atmosphere,
+    unchanged: no radial-distance or atmospheric correction (a labelled scenario assumption).
+    """
     if snap is not None:
         try:
             d = snap["data"]
@@ -208,16 +216,19 @@ def build_spe_day(replay: dict | None, rad: dict | None) -> dict:
                                "k = (10 - 1) * RAD_baseline / (1000 pfu - F_pre)",
                     "chip": "design choice",
                     "source": {"kind": "design_choice",
-                               "rationale": "Stand-in for shielding, heliocentric distance and atmospheric transport, "
-                                            "which LANDFALL does not model: the NOAA S3 flux level is mapped to 10x the "
-                                            "measured Mars-surface quiet rate. Not a radiation-transport calculation; "
-                                            "no effective dose (mSv) is derived from it."}},
+                               "rationale": "Assumed 10x scaling: the simulated habitat dose rate (a confirmation "
+                                            "signal, not the alarm) maps the NOAA S3 flux level to 10x the measured "
+                                            "Mars-surface quiet rate. It stands in for shielding, heliocentric distance "
+                                            "and atmospheric transport, which LANDFALL does not model. Not a "
+                                            "radiation-transport calculation and not a measurement; no effective dose "
+                                            "(mSv) is derived from it."}},
         "series": {"start_t": start, "step_s": STEP_S, "v": dose[:n_obs], "n": n_obs,
                    "source_flux_pfu": src[:n_obs]},
         "after_now": {"start_t": times[n_obs], "step_s": STEP_S, "v": dose[n_obs:], "n": len(times) - n_obs,
                       "source_flux_pfu": src[n_obs:],
-                      "note": "Replay continuation AFTER 'now' for a scenario player. At the scenario clock these "
-                              "samples have not happened; never feed them to the engine as observations at 'now'."},
+                      "note": "Replay continuation AFTER 'now' for a scenario player (provenance 'replay' for the "
+                              "flux, 'simulated' for the dose rate). At the scenario clock these samples have not "
+                              "happened; never feed them to the engine as observations at 'now'."},
         "crossings": crossings,
         "value_at_now": dose[n_obs - 1],
         "multiple_of_baseline_at_now": None if dose[n_obs - 1] is None else round(dose[n_obs - 1] / b, 2),
@@ -305,7 +316,7 @@ def build_calendar(hz: dict | None) -> dict:
                 "blackout_elapsed_at_now_s": 3 * DAY_S, "blackout_remaining_at_now_s": TARGET_REMAINING_S,
                 "chip": "design choice",
                 "source": {"kind": "design_choice",
-                           "rationale": "PLACEHOLDER: no real conjunction window was available; MET-only window, "
+                           "rationale": "PLACEHOLDER: no modelled conjunction window was available; MET-only window, "
                                         "no calendar date is claimed."}}
     dur = int((w["stop"] - w["start"]).total_seconds())
     if dur >= TARGET_REMAINING_S + DAY_S:
@@ -328,8 +339,10 @@ def build_calendar(hz: dict | None) -> dict:
             "window_met": {"start_met_s": s_met, "stop_met_s": e_met,
                            "start": format_met(s_met), "stop": format_met(e_met)},
             "blackout_elapsed_at_now_s": NOW_MET_S - s_met, "blackout_remaining_at_now_s": e_met - NOW_MET_S,
-            "selection": f"first real window starting on/after {CONJ_REFERENCE_DATE.date()} that is >= 10 d 06 h "
+            "selection": f"first modelled window starting on/after {CONJ_REFERENCE_DATE.date()} that is >= 10 d 06 h "
                          f"long (else the latest long-enough one, else the longest); {rule}",
+            "window_basis": "modelled from JPL Horizons geometry (Sun-Earth-Mars elongation below a threshold whose "
+                            "edges are fitted to NASA's published command moratoria); not an operational window",
             "windows_available": len(windows),
             "comms_at_now": comms,
             "chip": "derived",

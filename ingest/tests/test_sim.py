@@ -1,39 +1,50 @@
 """Known-answer tests for the simulated scenario (engine/SPEC.md section 7).
 
 Tier B's single-case t (Crawford & Howell 1998) is recomputed here from the SPEC section 5 formula,
-independently of the generator and of the engine: sd = sample SD (n-1),
-t = (x - mean) / (sd * sqrt(1 + 1/n)), df = n - 1, reliable when |t| > 4.221, the two-tailed
-alpha 0.001 critical value at df 13 in published t tables (e.g. Purdue STAT 503, MedCalc).
+independently of the generator: sd = sample SD (n-1), t = (x - mean) / (sd * sqrt(1 + 1/n)),
+df = n - 1, reliable when |t| > the two-tailed alpha 0.001 critical value at df 13 (published t tables
+print 4.221; one test cross-checks the generator's constant against the engine's own t_critical).
+
+The noise is realistic, so these tests do NOT assume that Tier B detects the scripted episodes. They
+check what must hold whatever the noise does (the Tier A renal crossing, the SPE hero, D9's absolute
+midpoint, the manual vitals, the labels) and that data.self_check reports Tier B's verdicts truthfully.
 """
 
 from __future__ import annotations
 
 import json
 import math
+import re
 import shutil
 import statistics
 
 import pytest
 
+from ingest import _sim_model as model
 from ingest import sim_crew
 from ingest.common import DEFAULT_OUT_DIR, REPO_ROOT, validate_snapshot
 
 T_CRIT_DF13 = 4.221                          # published t tables, two-tailed alpha 0.001, df 13
-T_ROBUST = 6.0 / math.sqrt(1 + 1 / 14)       # 6 baseline SDs on a 14-day baseline: |t| >= 5.797
 NOW = 412 * 86400 + 14 * 3600 + 20 * 60
 DAY = 86400
-SPEC_UNITS = {  # SPEC 3.3 plus the four extra variables named in the brief
+SPEC_UNITS = {  # SPEC 3.3, the extra scenario variables, and lead decision D8 (manual vitals)
     "pvt_lapses": "count", "pvt_median_rt": "ms", "sleep_duration": "h", "sleep_midpoint_shift": "h",
     "light_exposure_daytime": "lux", "resting_hr": "bpm", "hrv_sdnn": "ms", "skin_temp": "°C",
     "urine_volume_24h": "mL", "fluid_intake_24h": "mL", "mood": "score_1_5",
     "vo2max": "ml/min/kg", "career_effective_dose": "mSv",
+    "bp_systolic": "mmHg", "bp_diastolic": "mmHg", "glucose": "mg/dL",
 }
-ALERTING = [v for v in SPEC_UNITS if v not in ("mood", "vo2max", "career_effective_dose")]
+TIER_B = [v for v in SPEC_UNITS if v not in ("mood", "vo2max", "career_effective_dose")]
+VITALS = ("bp_systolic", "bp_diastolic", "glucose")
 
 
-def spec_t(baseline: list[float], x: float) -> float:
+def spec_t(baseline: list[float], x: float) -> float | None:
     m, sd = statistics.fmean(baseline), statistics.stdev(baseline)
-    return (x - m) / (sd * math.sqrt(1 + 1 / len(baseline)))
+    return None if sd == 0 else (x - m) / (sd * math.sqrt(1 + 1 / len(baseline)))
+
+
+def mday(t: int) -> int:  # the day an observation belongs to: the day its window ENDED
+    return (t - 1) // DAY
 
 
 @pytest.fixture(scope="module")
@@ -50,17 +61,17 @@ def crew(snap, cid):
     return next(c for c in snap["data"]["crew"] if c["crew_id"] == cid)
 
 
-def by_day(series: dict, day_of=lambda t: t // DAY) -> dict[int, float]:
-    return {day_of(t): v for t, v in zip(series["t"], series["v"])}
+def by_mday(series: dict) -> dict[int, float]:
+    return {mday(t): v for t, v in zip(series["t"], series["v"])}
 
 
-def collection_day(t: int) -> int:  # 24-h urine / fluid are stamped at the END of their MET day
-    return t // DAY - 1
+def baseline_values(series: dict) -> list[float]:
+    d = by_mday(series)
+    return [d[k] for k in range(368, 382) if k in d]
 
 
-def baseline_values(series: dict, day_of=lambda t: t // DAY) -> list[float]:
-    d = by_day(series, day_of)
-    return [d[k] for k in range(368, 382)]
+def all_text(obj) -> str:
+    return json.dumps(obj, ensure_ascii=False)
 
 
 def test_contract_and_labels(snap, snap_fallback):
@@ -69,7 +80,16 @@ def test_contract_and_labels(snap, snap_fallback):
         assert s["id"] == "sim_crew" and s["adapter"] == "sim" and s["provenance"] == "simulated"
         text = " ".join(s["caveats"])
         assert "no public time series of real crew wearable data exists" in text
-        assert "Barger" in text and "Basner" in text and "Bio-Monitor" in text
+        for name in ("Barger", "Basner", "Flynn-Evans", "Quer", "Nayan", "Selvin"):
+            assert name in text, name
+        assert "nothing trimmed or rejection-sampled" in text
+
+
+def test_judge_facing_text_is_clean(snap):
+    text = all_text(snap)
+    for banned in ("project plan", "PLANO", "build machine", "from memory", "REAL Mars solar-conjunction",
+                   "first real window", "NASA publishes no", "deliberately low", "QUIET"):
+        assert banned not in text, banned
 
 
 def test_units_and_sources_exact(snap):
@@ -78,96 +98,185 @@ def test_units_and_sources_exact(snap):
         for var, ser in c["series"].items():
             assert ser["unit"] == SPEC_UNITS[var], var
             assert ser["source"] in {"band", "manual", "vehicle", "lab", "app", "replay"}
+        for var in VITALS:
+            assert c["series"][var]["source"] == "manual"
         assert c["intraday"]["heart_rate"]["unit"] == "bpm"
     veh = snap["data"]["vehicle"]["series"]
     assert veh["cabin_ppco2"]["unit"] == "mmHg"
     assert veh["onboard_dose_rate"]["unit"] == "uGy/day"
     assert veh["proton_flux_10mev"]["unit"] == "pfu"
     assert veh["proton_flux_10mev"]["source"] in {"replay", "vehicle"}
-    for var, meta in snap["data"]["variables"].items():
+    variables = snap["data"]["variables"]
+    assert variables["bp_systolic"]["device"] == variables["bp_diastolic"]["device"] == "vehicle medical kit cuff"
+    assert "glucometer" in variables["glucose"]["device"]
+    for var, meta in variables.items():
         assert meta["calibration"], f"{var} has no calibration entry"
         for cal in meta["calibration"]:
-            assert cal["chip"] in {"literature", "derived", "design choice", "NASA-published"}
+            assert cal["chip"] in {"literature", "derived", "design choice", "NASA-published"}, (var, cal["item"])
             assert cal["source"]["kind"] in {"literature", "derived", "design_choice", "nasa_standard"}
+            if cal["chip"] == "literature":
+                assert re.match(r"https://pubmed\.ncbi\.nlm\.nih\.gov/\d+/$", cal["source"]["url"]), cal["source"]
+                assert "PMID " in cal["source"]["citation"]
 
 
 def test_crew_window_and_now(snap):
     assert [c["crew_id"] for c in snap["data"]["crew"]] == ["CM-1", "CM-2", "CM-3", "CM-4"]
-    assert snap["data"]["met"]["now"] == "0412/14:20:00" and snap["data"]["met"]["now_met_s"] == NOW
+    assert snap["data"]["met"]["now"] == "412/14:20:00" and snap["data"]["met"]["now_met_s"] == NOW  # F.6.1 f
+    assert model.format_met(5 * DAY + 61) == "5/00:01:01" and model.format_met(0) == "0/00:00:00"
     for c in snap["data"]["crew"]:
         for var, ser in c["series"].items():
             assert ser["t"] == sorted(ser["t"])
             assert all(368 * DAY <= t <= NOW for t in ser["t"]), var
-        assert by_day(c["series"]["sleep_duration"]).keys() == set(range(368, 413))
-        # day 412 is incomplete at 'now': no 24-h urine/fluid, no daytime light for it
-        assert max(collection_day(t) for t in c["series"]["urine_volume_24h"]["t"]) == 411
+        assert by_mday(c["series"]["sleep_duration"]).keys() == set(range(368, 413))
+        # day 412 is incomplete at 'now': no 24-h urine/fluid for it
+        assert max(mday(t) for t in c["series"]["urine_volume_24h"]["t"]) == 411
 
 
-def test_renal_episode_cm3(snap):
-    for var in ("urine_volume_24h", "fluid_intake_24h"):
-        ser = crew(snap, "CM-3")["series"][var]
-        d = by_day(ser, collection_day)
-        base = baseline_values(ser, collection_day)
-        assert len(base) == 14
-        for day in range(398, 402):
-            assert spec_t(base, d[day]) <= -T_ROBUST, (var, day)
-    urine = {cid: by_day(crew(snap, cid)["series"]["urine_volume_24h"], collection_day)
-             for cid in ("CM-1", "CM-2", "CM-3", "CM-4")}
-    assert all(urine["CM-3"][d] < 1500 for d in range(398, 402))               # below the 1,500 mL/day level
-    assert all(urine["CM-3"][d] > 2500 for d in range(368, 382))               # baseline above the 2,500 approach
-    for cid, u in urine.items():                                                # nobody else, no other day
-        assert all(v > 2500 for day, v in u.items() if not (cid == "CM-3" and 398 <= day <= 401)), cid
-
-
-def test_sleep_episode_cm1(snap):
-    s = crew(snap, "CM-1")["series"]
-    lapses, base = by_day(s["pvt_lapses"]), baseline_values(s["pvt_lapses"])
-    for day in range(407, 413):
-        assert spec_t(base, lapses[day]) >= T_ROBUST, day
-    first = next(d for d in range(382, 413) if spec_t(base, lapses[d]) > T_CRIT_DF13)
-    assert 404 <= first <= 407, first                            # reliable change BY day 407, not before 404
-    for var, sign in (("sleep_duration", -1), ("sleep_midpoint_shift", 1), ("pvt_median_rt", 1)):
-        d, b = by_day(s[var]), baseline_values(s[var])
-        days = range(404, 413) if var != "pvt_median_rt" else range(407, 413)
-        for day in days:
-            assert sign * spec_t(b, d[day]) >= T_ROBUST, (var, day)
-    assert all(by_day(s["sleep_duration"])[d] < 5.0 for d in range(404, 413))
-
-
-def test_no_unintended_reliable_change(snap):
-    scripted = {("CM-3", "urine_volume_24h"): range(398, 402), ("CM-3", "fluid_intake_24h"): range(398, 402),
-                ("CM-1", "sleep_duration"): range(404, 413), ("CM-1", "sleep_midpoint_shift"): range(404, 413),
-                ("CM-1", "pvt_lapses"): range(404, 413), ("CM-1", "pvt_median_rt"): range(404, 413)}
+def test_noise_is_calibrated_not_trimmed(snap):
+    """Baseline SDs scatter around the cited values (no rejection sampling), and some ordinary days sit
+    well outside the old 1.4-SD trimming bound."""
+    cited = {"sleep_duration": 1.2, "resting_hr": 3.0, "urine_volume_24h": model.URINE_MEAN_ABS_DIFF_ML
+             * math.sqrt(math.pi) / 2, "pvt_median_rt": 14.0, "bp_systolic": 6.0, "bp_diastolic": 5.0}
+    assert abs(cited["urine_volume_24h"] - 341.6) < 0.05           # Nayan 2012: 385.4 mL mean |difference|
+    assert abs(100 * model.GLUCOSE_CV - math.sqrt(5.7 ** 2 + 3.0 ** 2)) < 1e-9   # Selvin 2007 5.7% + meter 3%
+    beyond = 0
     for c in snap["data"]["crew"]:
-        for var in ALERTING:
-            day_of = collection_day if var in ("urine_volume_24h", "fluid_intake_24h") else (lambda t: t // DAY)
-            if var == "light_exposure_daytime":
-                day_of = None
+        for var, sigma in cited.items():
+            base = baseline_values(c["series"][var])
+            ratio = statistics.stdev(base) / sigma
+            assert 0.45 < ratio < 1.75, (c["crew_id"], var, ratio)     # chi distribution, df 13: very wide margin
+        for var in ("sleep_duration", "resting_hr", "hrv_sdnn", "pvt_median_rt"):
+            base = baseline_values(c["series"][var])
+            m, s = statistics.fmean(base), statistics.stdev(base)
+            beyond += sum(abs(v - m) > 1.4 * s for v in base)
+    assert beyond >= 5, beyond
+
+
+def test_renal_tier_a_crossing_cm3(snap):
+    urine = {c["crew_id"]: by_mday(c["series"]["urine_volume_24h"]) for c in snap["data"]["crew"]}
+    assert all(urine["CM-3"][d] < 1500 for d in range(398, 402))              # the scripted Tier A crossing
+    for cid, u in urine.items():                                               # nobody else, no other day
+        assert all(v >= 1500 for d, v in u.items() if not (cid == "CM-3" and 398 <= d <= 401)), cid
+    fluid = by_mday(crew(snap, "CM-3")["series"]["fluid_intake_24h"])
+    base = baseline_values(crew(snap, "CM-3")["series"]["fluid_intake_24h"])
+    assert all(fluid[d] < statistics.fmean(base) - 1000 for d in range(398, 402))  # intake falls with output
+
+
+def test_sleep_episode_cm1_values(snap):
+    s = crew(snap, "CM-1")["series"]
+    dur, mid, lapses = by_mday(s["sleep_duration"]), by_mday(s["sleep_midpoint_shift"]), by_mday(s["pvt_lapses"])
+    assert all(dur[d] < 5.0 for d in range(404, 413))
+    assert all(mid[d] >= 2.0 for d in range(404, 413))
+    assert [lapses[d] for d in range(404, 413)] == [2, 3, 3, 4, 5, 4, 5, 6, 5]
+    ep = next(e for e in snap["data"]["episodes"] if e["id"] == "sleep_shift")
+    for var, vals in ep["scripted_values"].items():
+        emitted = by_mday(s[var])
+        for d, x in vals.items():
+            assert emitted[int(d)] == x, (var, d)
+
+
+def test_sleep_midpoint_shift_is_absolute_from_baseline_median(snap):
+    """D9: |midpoint - median of the baseline nights' midpoints|, recomputed from the sleep episodes."""
+    for c in snap["data"]["crew"]:
+        eps = c["sleep_episodes"]["v"]
+        days = range(c["sleep_episodes"]["days"][0], c["sleep_episodes"]["days"][1] + 1)
+        mids = {d: ((on + off) / 2 - d * DAY) / 3600 - 2.0 for d, (on, off) in zip(days, eps)}
+        med = statistics.median(mids[d] for d in range(368, 382))
+        emitted = by_mday(c["series"]["sleep_midpoint_shift"])
+        assert all(v >= 0 for v in emitted.values())
+        for d, v in emitted.items():
+            assert abs(v - abs(mids[d] - med)) < 0.011, (c["crew_id"], d, v)
+    assert snap["data"]["variables"]["sleep_midpoint_shift"]["definition"].startswith("Absolute difference")
+
+
+def test_manual_vitals_cadence_and_values(snap):
+    days = model.manual_vitals_days()
+    assert days[:14] == list(range(368, 382))                                  # daily baseline fortnight
+    later = [d for d in days if d > 381]
+    assert later == [382, 385, 389, 392, 396, 399, 403, 406, 410]              # then twice a week
+    for c in snap["data"]["crew"]:
+        eps = dict(zip(range(368, 413), c["sleep_episodes"]["v"]))
+        for var, lo, hi in (("bp_systolic", 85, 150), ("bp_diastolic", 50, 100), ("glucose", 60, 130)):
             ser = c["series"][var]
-            vals = ser["v"] if day_of is None else None
-            if day_of is None:  # stamped at the next sleep onset: index i is MET day 368 + i
-                d = dict(zip(range(368, 368 + len(vals)), vals))
-            else:
-                d = by_day(ser, day_of)
-            base = [d[k] for k in range(368, 382)]
-            skip = scripted.get((c["crew_id"], var), ())
-            for day, v in d.items():
-                if day in skip:
-                    continue
-                t = spec_t(base, v)
-                assert abs(t) < T_CRIT_DF13 and abs(t) <= 1.36, (c["crew_id"], var, day, t)
+            assert sorted(by_mday(ser)) == days, (c["crew_id"], var)
+            assert all(lo <= v <= hi and isinstance(v, int) for v in ser["v"]), (c["crew_id"], var)
+            assert all(t == eps[mday(t)][1] + 1800 for t in ser["t"])          # 30 min after wake
+            assert len(baseline_values(ser)) == 14
+    for var in VITALS:
+        meta = snap["data"]["variables"][var]
+        assert meta["nasa_limit"].startswith("NASA-STD-3001 publishes no numeric in-flight alert thresholds")
+    gl = all_text(snap["data"]["variables"]["glucose"]["calibration"])
+    if (DEFAULT_OUT_DIR / "osdr_cmp.json").exists():
+        assert "Inspiration4 lab reference range" in gl and "Context only" in gl
 
 
-def test_self_check_reports_the_single_case_t(snap):
+def test_self_check_matches_an_independent_recomputation(snap):
     sc = snap["data"]["self_check"]
-    assert sc["method"].startswith("SPEC section 5 single-case t (Crawford & Howell 1998)")
-    assert sc["non_episode_max_abs_t"] == 1.35 and sc["non_episode_bound_sd"] == 1.4
-    for ev in sc["episodes"]:
-        assert ev["df"] == 13 and ev["critical_t"] == T_CRIT_DF13 and ev["min_abs_t"] > T_CRIT_DF13
-        assert abs(ev["min_abs_t"] - ev["min_abs_z"] / math.sqrt(1 + 1 / 14)) < 0.01   # both rounded to 2 dp
+    assert sc["critical_t"] == round(model.CRITICAL_T, 4) and sc["df"] == 13 and round(model.CRITICAL_T, 3) == T_CRIT_DF13
+    try:
+        from engine import t_critical
+    except ImportError:  # pragma: no cover - the engine ships in the same repo
+        pytest.skip("engine not importable")
+    assert abs(t_critical(0.001, 13) - model.CRITICAL_T) < 1e-9
+    worse = {i["variable"]: i["worse"] for i in sc["indicators"]}
+    scripted = {(e["crew_id"], var): {int(d) for d in vals} for e in snap["data"]["episodes"]
+                for var, vals in e["scripted_values"].items()}
+    expect_hits, expect_chance = set(), set()
+    for c in snap["data"]["crew"]:
+        for var in TIER_B:
+            ser = c["series"][var]
+            base = baseline_values(ser)
+            for t, v in zip(ser["t"], ser["v"]):
+                d = mday(t)
+                if d <= 381:
+                    continue
+                tt = spec_t(base, v)
+                if tt is None or abs(tt) <= model.CRITICAL_T:
+                    continue
+                key = (c["crew_id"], var, d)
+                if d in scripted.get((c["crew_id"], var), set()):
+                    w = worse[var]
+                    if w == "either" or (tt > 0) == (w == "increase"):
+                        expect_hits.add(key)
+                else:
+                    expect_chance.add(key)
+    got_hits = {(e["crew_id"], e["variable"], d) for e in sc["tier_b"]["episodes"] for d in e["tier_b_flagged_days"]}
+    got_chance = {(c["crew_id"], c["variable"], c["day"]) for c in sc["tier_b"]["chance_flags"]}
+    assert got_hits == expect_hits
+    assert got_chance == expect_chance
+
+
+def test_detection_report_is_complete_and_honest(snap):
+    sc = snap["data"]["self_check"]
+    eps = {(e["episode_id"], e["variable"]): e for e in sc["tier_b"]["episodes"]}
+    for key in (("renal_hydration", "urine_volume_24h"), ("renal_hydration", "fluid_intake_24h"),
+                ("sleep_shift", "sleep_duration"), ("sleep_shift", "sleep_midpoint_shift"),
+                ("sleep_shift", "pvt_lapses"), ("sleep_shift", "pvt_median_rt")):
+        e = eps[key]
+        assert all(0.0 <= p <= 1.0 for p in e["tier_b_detection_probability"].values())
+        assert set(e["tier_b_flagged_days"]) <= {int(d) for d in e["values"]}
+    assert eps[("renal_hydration", "urine_volume_24h")]["tier_a"]["outside_days"] == [398, 399, 400, 401]
+    assert "tier_b_detection_probability_at_alt_sd" in eps[("sleep_shift", "sleep_midpoint_shift")]
+    # Under real-size noise a 1-2 h shorter night cannot be a reliable change on its own.
+    assert max(eps[("sleep_shift", "sleep_duration")]["tier_b_detection_probability"].values()) < 0.05
     text = " ".join(snap["caveats"])
-    assert "at the printed false-alarm rate" not in text and "for any r in" not in text
+    assert "What Tier B finds in this data" in text and "Tier A target_urine_output_24h is outside" in text
     assert "only if day-to-day noise were normal and independent" in text
+    rates = sc["chance_rates"]["per_indicator"]
+    assert rates["sleep_duration"]["ratio_to_nominal"] == 1.0
+    assert rates["pvt_lapses"]["ratio_to_nominal"] > 3 and rates["sleep_midpoint_shift"]["ratio_to_nominal"] > 3
+    for o in sc["unscripted_case_openings"]:
+        assert (o["crew_id"], o["indicator_id"], o["day"]) in {(c["crew_id"], c["indicator_id"], c["day"])
+                                                              for c in sc["tier_b"]["chance_flags"]}
+
+
+def test_mdc_is_critical_times_sd(snap):
+    for cid, pc in snap["data"]["self_check"]["tier_b"]["per_crew"].items():
+        for r in pc["indicators"]:
+            if r.get("mdc") is None:
+                continue
+            assert abs(r["mdc"] - model.CRITICAL_T * r["baseline_sd"] * math.sqrt(1 + 1 / r["baseline_n"])) < 1e-3
+            assert abs(r["mdc_at_model_sd"] - model.CRITICAL_T * r["model_sd"] * math.sqrt(1 + 1 / 14)) < 1e-3
 
 
 def test_ffd_demo_cm2(snap):
@@ -209,6 +318,7 @@ def test_spe_day_real_inputs(snap):
     assert dose["step_s"] == 300 and dose["start_t"] == 412 * DAY
     assert dose["start_t"] + (dose["n"] - 1) * 300 == NOW
     assert dose["after_now"]["start_t"] == NOW + 300
+    assert dose["provenance"] == "simulated" and "simulated confirmation" in dose["label"]
     b = spe["baseline"]["value"]
     pre = [v for v in dose["v"][: 8 * 12] if v is not None]          # 00:00-08:00, before the onset
     assert all(abs(v - b) < 0.2 * b for v in pre)
@@ -216,10 +326,13 @@ def test_spe_day_real_inputs(snap):
     assert spe["crossings"]["10x_baseline"]["relative_to_now_s"] == -300
     assert spe["shape"]["mode"] == ("real" if replay else "fallback")
     assert spe["baseline"]["mode"] == ("real" if rad else "fallback")
+    text = " ".join(snap["caveats"])
+    assert "LANDFALL is not the radiation alarm" in text and "[V2 6164]" in text
     if replay:
         assert spe["shape"]["mapping"]["replay_utc_of_first_s3_sample"] == "1989-10-19T18:55:00Z"
-        text = " ".join(snap["caveats"])
-        assert "TIME PROFILE is REAL" in text and "assumed flux-to-dose scaling" in text
+        for phrase in ("TIME PROFILE is REAL", "EXTERNAL space-weather monitor", "NO radial-distance",
+                       "NO atmospheric correction", "[V2 6165]"):
+            assert phrase in text, phrase
     if rad:
         rad_snap = json.loads((DEFAULT_OUT_DIR / "hapi_msl_rad_dose.json").read_text())
         param = rad_snap["data"]["headline_parameter"]
@@ -232,17 +345,27 @@ def test_proton_flux_series(snap, snap_fallback):
     assert (pf["start_t"], pf["step_s"], pf["n"]) == (dose["start_t"], dose["step_s"], dose["n"])
     assert pf["v"] == dose["source_flux_pfu"] and pf["after_now"]["v"] == dose["after_now"]["source_flux_pfu"]
     first = next(i for i, v in enumerate(pf["v"]) if v is not None and v >= 1000)
-    assert pf["start_t"] + first * 300 == NOW - 300                   # first S3-level sample at 0412/14:15:00
+    assert pf["start_t"] + first * 300 == NOW - 300                   # first S3-level sample at 412/14:15:00
     assert pf["v"][-1] >= 1000                                        # still at S3 level at 'now'
+    meta = snap["data"]["variables"]["proton_flux_10mev"]
+    assert meta["label"].startswith("External space-weather monitor") and "above the atmosphere" in meta["label"]
+    v2 = next(c for c in meta["calibration"] if c["chip"] == "NASA-published")
+    std = json.loads((DEFAULT_OUT_DIR / "std_vol2_requirements.json").read_text()) \
+        if (DEFAULT_OUT_DIR / "std_vol2_requirements.json").exists() else None
+    if std:                                                           # [V2 6165] quoted verbatim
+        req = next(r for r in std["data"]["requirements"] if r["id"] == "[V2 6165]")
+        assert v2["source"]["verbatim"] == req["text"]
     if (DEFAULT_OUT_DIR / "swpc_spe_replay.json").exists():
-        assert pf["source"] == "replay"
+        assert pf["source"] == "replay" and pf["provenance"] == "replay" and pf["after_now"]["provenance"] == "replay"
+        assert meta["provenance"] == "replay"
         replay = json.loads((DEFAULT_OUT_DIR / "swpc_spe_replay.json").read_text())["data"]["series_ge10mev"]
         vals = replay["values"]
         i_s3 = next(i for i, v in enumerate(vals) if v is not None and v >= 1000)
         for j, v in enumerate(pf["v"] + pf["after_now"]["v"]):           # time shift only, values untouched
             k = i_s3 + j - first
             assert v == (vals[k] if 0 <= k < len(vals) else None), j
-    assert snap_fallback["data"]["vehicle"]["series"]["proton_flux_10mev"]["source"] == "vehicle"
+    fb = snap_fallback["data"]["vehicle"]["series"]["proton_flux_10mev"]
+    assert fb["source"] == "vehicle" and fb["provenance"] == "simulated"
 
 
 def _compliant(op: str, value: float, limit: float) -> bool:
@@ -266,21 +389,18 @@ def test_scenario_matches_rules_file(snap):
     for r in rules:
         by_var.setdefault(r["variable"], []).append(r)
     data = snap["data"]
-    for r in by_var.get("urine_volume_24h", []):                     # renal: only CM-3 days 398-401 fire
+    for r in by_var.get("urine_volume_24h", []):                     # renal: only CM-3 days 398-401 are outside
         for c in data["crew"]:
             ser = c["series"]["urine_volume_24h"]
             assert ser["unit"] == r["unit"]
-            for day, v in by_day(ser, collection_day).items():
+            for day, v in by_mday(ser).items():
                 episode = c["crew_id"] == "CM-3" and 398 <= day <= 401
-                if episode:
-                    assert not _compliant(r["op"], v, r["limit"]), (r["id"], day, v)
-                else:
-                    assert _compliant(r["op"], v, r["limit"]) and not _approaching(r, v), (r["id"], c["crew_id"], day, v)
+                assert _compliant(r["op"], v, r["limit"]) != episode, (r["id"], c["crew_id"], day, v)
     for r in by_var.get("cabin_ppco2", []):                          # habitat CO2 never competes
         p = data["vehicle"]["series"]["cabin_ppco2"]
         assert p["unit"] == r["unit"]
         assert all(_compliant(r["op"], v, r["limit"]) and not _approaching(r, v) for v in p["v"]), r["id"]
-    for r in by_var.get("career_effective_dose", []):                # SPE case is driven by the rate, not the career
+    for r in by_var.get("career_effective_dose", []):                # SPE case is driven by the event, not the career
         for c in data["crew"]:
             v = c["series"]["career_effective_dose"]["v"][0]
             assert _compliant(r["op"], v, r["limit"]) and not _approaching(r, v), (r["id"], c["crew_id"])
@@ -307,12 +427,15 @@ def test_scenario_matches_rules_file(snap):
 
 def test_conjunction_mapping(snap):
     cal = snap["data"]["calendar"]
+    text = " ".join(snap["caveats"])
     if (DEFAULT_OUT_DIR / "horizons_mars_comms.json").exists():
         assert cal["mode"] == "horizons"
         w = cal["window_met"]
         assert w["start_met_s"] <= NOW < w["stop_met_s"]
         assert cal["blackout_remaining_at_now_s"] >= 10 * DAY
         assert snap["coverage"]["stop"] == cal["now_utc"]
+        assert "MODELLED from JPL Horizons geometry" in text and "command moratoria" in text
+        assert cal["selection"].startswith("first modelled window")
     else:
         assert cal["mode"] == "placeholder" and cal["met_epoch_utc"] is None
 
@@ -342,4 +465,15 @@ def test_deterministic_and_small(snap):
     a.pop("retrieved_at"), b.pop("retrieved_at")
     assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
     size = len(json.dumps(snap, ensure_ascii=False, separators=(",", ":")).encode())
-    assert size < 400_000, size
+    assert size < 450_000, size
+
+
+def test_shipped_file_is_the_current_build(snap):
+    """web/public/data/sim_crew.json must equal a fresh build (re-run `uv run python -m ingest sim`)."""
+    path = DEFAULT_OUT_DIR / "sim_crew.json"
+    if not path.exists():
+        pytest.skip("sim_crew.json not built yet")
+    shipped = json.loads(path.read_text(encoding="utf-8"))
+    fresh = json.loads(json.dumps(snap, ensure_ascii=False))
+    shipped.pop("retrieved_at"), fresh.pop("retrieved_at")
+    assert shipped == fresh

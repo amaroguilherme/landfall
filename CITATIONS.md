@@ -59,8 +59,21 @@ Requirement text is extracted verbatim with a ToUnicode-aware PDF parser and che
 
 ## Wearable reference hardware
 
-- Canadian Space Agency Bio-Monitor (Hexoskin Astroskin), flown on the ISS: product documentation of channels and
-  rates, transcribed during preparation and marked "not re-verified in this build" on `#/band`.
+- Canadian Space Agency Bio-Monitor (Hexoskin Astroskin), flown on the ISS: the channel rates, pitfalls and recorder
+  facts shown on `#/band` were read on 2026-11-14 in these public sources (not frozen in this build):
+  NASA, ISS Daily Summary Report, 2019-02-28 (Bio-Monitor),
+  https://blogs.nasa.gov/stationreport/2019/02/28/iss-daily-summary-report-2-28-2019/ ·
+  Toscano W, Cowings P, Sullivan P, et al. Wearable Biosensor Monitor to Support Autonomous Crew Health and Readiness
+  to Perform. NASA HRP Investigators' Workshop, 2017. NTRS 20190001996, https://ntrs.nasa.gov/citations/20190001996 ·
+  Hexoskin, Astroskin Device (product page), https://hexoskin.com/products/astroskin-device ·
+  Hexoskin API documentation, https://api.hexoskin.com/docs/ (datatype registry:
+  https://api.hexoskin.com/docs/resource/datatype/; data resource: https://api.hexoskin.com/docs/resource/data/).
+- Schäfer A, Vagedes J. How accurate is pulse rate variability as an estimate of heart rate variability? A review on
+  studies comparing photoplethysmographic technology with an electrocardiogram. *Int J Cardiol* 2013;166(1):15-29.
+  doi:10.1016/j.ijcard.2012.03.119. PMID 22809539 (the band's PPG-derived heart rate and pulse-rate variability).
+- US Food and Drug Administration. De Novo classification request for ECG App (DEN180044), Apple Inc., De Novo date
+  August 14, 2018: decision summary. https://www.accessdata.fda.gov/cdrh_docs/reviews/DEN180044.pdf (the band's
+  wrist-and-finger spot ECG).
 - Part datasheets and product pages are cited per part in `hardware/sensor-map.json`.
 
 ## Interoperability standards
@@ -105,7 +118,7 @@ runs in the product's decision path.
 
 **LANDFALL project (simulated scenario generator)**
 
-- LANDFALL simulated crew scenario (seed 20261114), ingest/sim_crew.py, https://github.com/amaroguilherme/landfall. Calibrated against Barger et al. 2014 (PMID 25127232) and Basner et al. 2011 (PMID 22025811); SPE shape from NOAA NCEI GOES-07 EPS (October 1989); Mars-surface baseline from NASA CCMC iSWA MSL RAD; conjunction window from JPL Horizons when present. *(snapshots: `sim_crew`)*
+- LANDFALL simulated crew scenario (seed 20261114), ingest/sim_crew.py, https://github.com/amaroguilherme/landfall. Means calibrated against Barger et al. 2014 (PMID 25127232) and Basner et al. 2011 (PMID 22025811); day-to-day SDs from Flynn-Evans et al. 2016 (PMID 28725719), Quer et al. 2020 (PMID 32023264), Nayan et al. 2012 (PMID 22396364) and Selvin et al. 2007 (PMID 17646610) where published, design choices elsewhere (listed per variable), with context from Knutson et al. 2007 (PMID 17580601), Huang & Redline 2019 (PMID 31167888), Basner et al. 2018 (PMID 29126328), Bellenger et al. 2022 (PMID 36146073), Norsk et al. 2015 (PMID 25774397), Matsui et al. 2012 (PMID 22547439) and Juhanoja et al. 2017 (PMID 28193705); SPE shape from NOAA NCEI GOES-07 EPS (October 1989); Mars-surface baseline from NASA CCMC iSWA MSL RAD; conjunction window modelled from JPL Horizons geometry when present. *(snapshots: `sim_crew`)*
 
 **NASA Community Coordinated Modeling Center (CCMC)**
 
@@ -172,6 +185,8 @@ runs in the product's decision path.
 - Maida JC. Introduction to the Solid State Based Interior Lighting System for ISS. NASA Johnson Space Center presentation, 2014-04-07. NTRS 20160005080
 - NASA HRP Evidence Report: Risk of Renal Stone Formation (Sibonga & Pietrzyk, approved May 15, 2017; NTRS 20170004709) https://ntrs.nasa.gov/citations/20170004709
 - NASA HRP Evidence Report: Risk of Renal Stone Formation (Stratton, Lumpkins & Antonsen, approved September 23, 2024; NTRS 20240012429) https://ntrs.nasa.gov/citations/20240012429
+- NASA Human Research Roadmap. Risk of Renal Stone Formation (HRR risk 81), risk statement. https://humanresearchroadmap.nasa.gov/risks/?i=81
+- NASA Open Science Data Repository (OSDR). OSD-575: SpaceX Inspiration4 Blood Serum Metabolic Panel and Immune/Cardiac Cytokine Arrays (Comprehensive Metabolic Panel and Multiplex). Study version 3, submitted 2022-12-05, publicly released 2024-05-14. https://osdr.nasa.gov/bio/repo/data/studies/OSD-575 (no dataset DOI is stated in the OSDR metadata). Investigators listed by OSDR: Christopher Mason (principal investigator); Eliah Overbey (co-investigator); Kirill Grigorev (formal analysis role); Theodore Nelson (formal analysis role). Publications listed by OSDR: The Space Omics and Medical Atlas (SOMA) and international astronaut biobank (doi:10.1038/s41586-024-07639-y); Collection of Biospecimens from the Inspiration4 Mission Establishes the Standards for the Space Omics and Medical Atlas (SOMA) (doi:10.1038/s41467-024-48806-z); CAMbank: SST Field Processing v1 (doi:10.17504/protocols.io.81wgbxxo1lpk/v1).
 - NASA-STD-3001 Vol. 1 Rev. C https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf
 - NASA-STD-3001 Vol. 2 Rev. F https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf
 - NOAA Space Weather Scales (Solar Radiation Storms) https://www.swpc.noaa.gov/noaa-scales-explanation

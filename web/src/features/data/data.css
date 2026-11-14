@@ -1,0 +1,186 @@
+/* #/data: Data sources. Tokens only (src/styles/tokens.css); no Appendix F colour is used for decoration. */
+
+.lfd-page { display: grid; gap: var(--lf-space-3); min-width: 0; }
+.lfd-page code { font-size: 0.9em; overflow-wrap: anywhere; }
+
+.lfd-head h1 { margin: 0 0 0.3em; }
+.lfd-lede { font-size: var(--lf-text-lg); line-height: 1.4; color: var(--lf-text); max-width: 62ch; margin: 0 0 0.5em; }
+.lfd-p { margin: 0 0 0.75em; max-width: 90ch; }
+.lfd-muted { color: var(--lf-text-muted); }
+.lfd-note { margin: 0.5em 0 0; font-size: var(--lf-text-xs); color: var(--lf-text-muted); max-width: 90ch; }
+.lfd-h3 { font-size: var(--lf-text-md); margin: 0 0 0.6em; }
+.lfd-h4 { font: 600 var(--lf-text-xs)/1.3 var(--lf-font-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--lf-text-muted); margin: 1em 0 0.35em; }
+.lfd-h4:first-child { margin-top: 0.25em; }
+
+/* ---- summary ---- */
+.lfd-summary { margin: 0; }
+.lfd-sum-body { display: grid; gap: var(--lf-space-2); }
+.lfd-totals { display: flex; flex-wrap: wrap; gap: var(--lf-space-1) var(--lf-space-4); margin: 0; }
+.lfd-totals > div { display: grid; gap: 2px; }
+.lfd-totals dt { font: 600 0.6875rem/1.2 var(--lf-font-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--lf-text-muted); }
+.lfd-totals dd { margin: 0; font-size: var(--lf-text-lg); color: var(--lf-text); }
+.lfd-totals dd time { font-size: var(--lf-text-md); }
+
+.lfd-sum-cols { display: grid; gap: var(--lf-space-3); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 960px) {
+  .lfd-sum-cols { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); }
+}
+
+.lfd-provlist { list-style: none; margin: 0 0 var(--lf-space-1); padding: 0; display: grid; gap: 6px; }
+.lfd-provlist li {
+  display: grid;
+  grid-template-columns: 8.5rem 2.25rem minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 10px;
+  font-size: var(--lf-text-sm);
+}
+.lfd-provlist-what { color: var(--lf-text-2); }
+.lfd-count { text-align: right; color: var(--lf-text); }
+@media (max-width: 519px) {
+  .lfd-provlist li { grid-template-columns: 8.5rem 2.25rem; }
+  .lfd-provlist-what { grid-column: 1 / -1; font-size: var(--lf-text-xs); padding-bottom: 4px; }
+}
+.lfd-simline { margin: var(--lf-space-1) 0 0; font-size: var(--lf-text-sm); color: var(--lf-text-2); max-width: 70ch; }
+
+.lfd-publist { list-style: none; margin: 0; padding: 0; }
+.lfd-publist li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+  font-size: var(--lf-text-sm);
+}
+.lfd-publist li:first-child { border-top: 1px solid var(--lf-border-subtle); }
+
+.lfd-freshnote { border-top: 1px solid var(--lf-border-subtle); padding-top: var(--lf-space-2); font-size: var(--lf-text-sm); }
+.lfd-freshnote .lfd-p { color: var(--lf-text-2); }
+.lfd-quotes { display: grid; gap: var(--lf-space-1); }
+.lfd-quote {
+  margin: 0;
+  padding: var(--lf-space-1) var(--lf-space-1-5);
+  border-left: 3px solid var(--lf-border-strong);
+  background: var(--lf-surface-2);
+  color: var(--lf-text);
+}
+.lfd-quote p { margin: 0 0 0.35em; }
+.lfd-quote footer { font-size: var(--lf-text-xs); color: var(--lf-text-muted); }
+
+/* ---- provenance badge (neutral: glyph + word; simulated = hatched sim-mode pattern) ---- */
+.lfd-prov {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.15em 0.55em 0.15em 0.4em;
+  border: 1px solid var(--lf-border-strong);
+  border-radius: var(--lf-radius);
+  background: var(--lf-surface-2);
+  color: var(--lf-text);
+  font: 600 0.75rem/1.3 var(--lf-font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.lfd-prov[data-prov='simulated'] {
+  border-style: dashed;
+  background: repeating-linear-gradient(135deg, var(--lf-sim-stripe-a) 0 6px, var(--lf-sim-stripe-b) 6px 12px);
+  color: var(--lf-sim-text);
+  text-shadow: 0 0 3px #000;
+}
+.lfd-prov[data-prov='derived'] { border-style: double; border-width: 3px; padding-top: 0.05em; padding-bottom: 0.05em; }
+.lfd-prov[data-prov='unknown'] { border-style: dotted; color: var(--lf-text-2); }
+
+/* ---- official resources ---- */
+.lfd-official { list-style: none; margin: 0; padding: 0; counter-reset: lfd-off; }
+.lfd-official > li {
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) minmax(0, 1fr) auto;
+  gap: 6px var(--lf-space-2);
+  align-items: start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+  font-size: var(--lf-text-sm);
+}
+.lfd-official > li:first-child { border-top: 1px solid var(--lf-border-subtle); }
+.lfd-off-res { font-weight: 600; }
+.lfd-off-snap { display: grid; gap: 2px; min-width: 0; }
+.lfd-off-id code { font-size: var(--lf-text-sm); }
+.lfd-off-title { color: var(--lf-text-2); }
+.lfd-off-check { font-size: var(--lf-text-xs); }
+@media (max-width: 759px) {
+  .lfd-official > li { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---- publisher groups and cards ---- */
+.lfd-groups { display: grid; gap: var(--lf-space-4); }
+.lfd-group { display: grid; gap: var(--lf-space-1-5); min-width: 0; scroll-margin-top: var(--lf-space-3); }
+.lfd-group:focus { outline: none; }
+.lfd-group-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--lf-space-2); padding-bottom: 6px; border-bottom: 1px solid var(--lf-border); }
+.lfd-group-head .lf-eyebrow { flex: 0 0 100%; max-width: none; margin: 0; }
+.lfd-group-title { font-size: var(--lf-text-lg); margin: 0; }
+.lfd-group-count { font-size: var(--lf-text-sm); color: var(--lf-text-muted); }
+
+.lfd-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--lf-space-2);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 30rem), 1fr));
+  align-items: start;
+}
+.lfd-item { min-width: 0; border-radius: var(--lf-radius); scroll-margin-top: var(--lf-space-3); }
+.lfd-item:focus { outline: none; }
+/* Table F.5-2: bright green = navigation outline ("you followed a link to this card"). */
+.lfd-item[data-targeted] > .lfd-card { outline: 2px solid var(--lf-focus); outline-offset: 2px; }
+.lfd-item[data-sim] > .lfd-card { border: 1px dashed var(--lf-border-strong); }
+
+.lfd-card { display: flex; flex-direction: column; gap: var(--lf-space-1); overflow-wrap: anywhere; }
+.lfd-card .lf-sim[data-variant='banner'] { margin: calc(-1 * var(--lf-space-1)) calc(-1 * var(--lf-space-1)) 0; width: auto; }
+.lfd-card-head { display: grid; gap: 6px; }
+.lfd-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.lfd-card-title { font-size: var(--lf-text-md); line-height: 1.3; margin: 0.15em 0 0; }
+.lfd-card-id { margin: 0; font-size: var(--lf-text-xs); color: var(--lf-text-muted); }
+.lfd-card-id code { color: var(--lf-text); font-size: var(--lf-text-sm); }
+.lfd-what { margin: 0; font-size: var(--lf-text-sm); color: var(--lf-text-2); }
+
+.lfd-meta { display: grid; gap: 6px; margin: 0; font-size: var(--lf-text-sm); }
+.lfd-meta > div { display: grid; grid-template-columns: 8.25rem minmax(0, 1fr); gap: 2px 12px; }
+.lfd-meta dt { color: var(--lf-text-muted); }
+.lfd-meta dd { margin: 0; min-width: 0; overflow-wrap: anywhere; color: var(--lf-text); }
+.lfd-meta time { white-space: nowrap; }
+.lfd-range { display: inline; }
+.lfd-sub { display: block; font-size: var(--lf-text-xs); color: var(--lf-text-muted); }
+.lfd-sha { color: var(--lf-text); }
+@media (max-width: 419px) {
+  .lfd-meta > div { grid-template-columns: minmax(0, 1fr); }
+}
+
+.lfd-links { display: flex; flex-wrap: wrap; gap: 6px var(--lf-space-3); font-size: var(--lf-text-sm); }
+.lfd-link { display: grid; gap: 1px; min-width: 0; max-width: 100%; }
+.lfd-urltext { font: 400 var(--lf-text-xs)/1.45 var(--lf-font-mono); overflow-wrap: anywhere; word-break: break-word; }
+
+.lfd-details { margin-top: 0; }
+.lfd-details > .lf-expander-body { padding-left: 0.4em; }
+.lfd-caveats { margin: 0 0 0.25em; padding-left: 1.5em; display: grid; gap: 0.6em; color: var(--lf-text); }
+.lfd-caveats li { max-width: 80ch; line-height: 1.5; }
+.lfd-caveats li::marker { font-family: var(--lf-font-mono); color: var(--lf-text-muted); }
+.lfd-urls { margin: 0; padding-left: 1.9em; display: grid; gap: 4px; }
+.lfd-urls li::marker { font: 400 var(--lf-text-xs) var(--lf-font-mono); color: var(--lf-text-muted); }
+.lfd-access p { margin: 0 0 0.4em; color: var(--lf-text); }
+.lfd-cites-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.lfd-loading { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--lf-data-unavailable); }
+.lfd-failed { display: grid; gap: 4px; justify-items: start; }
+
+.lfd-dur { white-space: nowrap; }
+
+/* The sticky mission bar wraps to two rows below 1180px and to a three-row grid below 640px
+   (src/styles/shell.css); keep a deep-linked card's badges clear of it. */
+@media (max-width: 1179px) {
+  .lfd-item, .lfd-group { scroll-margin-top: 3.5rem; }
+}
+@media (max-width: 639px) {
+  .lfd-item, .lfd-group { scroll-margin-top: 5.25rem; }
+}

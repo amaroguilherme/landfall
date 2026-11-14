@@ -75,6 +75,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[FAIL] {aid}", file=sys.stderr)
             traceback.print_exc()
     write_manifest(ctx.out_dir)
+    from ingest import citations  # keep CITATIONS.md in lock-step with what ships
+
+    citations.main()
     return 1 if failures else 0
 
 

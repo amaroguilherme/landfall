@@ -106,8 +106,12 @@ class RunContext:
         last: Exception | None = None
         for attempt in range(retries):
             try:
-                r = httpx.get(url, params=params, timeout=self.timeout, follow_redirects=True,
-                              headers={"User-Agent": USER_AGENT, **(headers or {})})
+                # Force IPv4: on this build machine some GSFC hosts accept TCP over IPv6 and
+                # then hang in the TLS handshake (found by the hapi adapter's verifier).
+                transport = httpx.HTTPTransport(local_address="0.0.0.0")
+                with httpx.Client(transport=transport, timeout=self.timeout, follow_redirects=True,
+                                  headers={"User-Agent": USER_AGENT, **(headers or {})}) as client:
+                    r = client.get(url, params=params)
                 r.raise_for_status()
                 self.cache_dir.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(r.content)

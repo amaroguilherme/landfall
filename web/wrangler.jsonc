@@ -1,0 +1,12 @@
+// Cloudflare Workers static assets (the current form of Cloudflare Pages).
+// No Worker code runs: the judged site is plain static files, so it never sleeps on idle
+// and never depends on a backend. Missing files return a real 404 (no SPA fallback):
+// the app uses hash routing, and the data layer relies on 404 to show a [V2 10020]
+// "unavailable" state instead of parsing an HTML fallback as JSON.
+{
+  "name": "landfall",
+  "compatibility_date": "2026-11-13",
+  "assets": {
+    "directory": "./dist"
+  }
+}

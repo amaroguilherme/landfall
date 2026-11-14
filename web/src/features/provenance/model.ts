@@ -58,6 +58,8 @@ export interface ThresholdRule extends Sourced {
   derived_from_rule?: string
   max_severity?: string
   action_id?: string | null
+  /** One-line action shown with the finding (thresholds.json `action`). */
+  action?: Sourced & { label?: string; text: string }
   case_id?: string | null
   body_region?: string
   notes?: string[]
@@ -240,6 +242,8 @@ export type RowValue =
   | { kind: 'number'; value: number; unit: string | null }
   | { kind: 'range'; min: number; max: number; mean?: number; unit: string | null }
   | { kind: 'snapshot'; snapshot: string; unit: string | null }
+  /** A Tier B personal band: each crewmember's baseline mean ± critical × S_diff, in the indicator's unit. */
+  | { kind: 'band'; unit: string | null }
   | { kind: 'tripwire'; op: Op; value: number; unit: string | null; of_last_n: number; at_least: number; reassess_after_s: number }
   | { kind: 'mapping'; severity: string | null; severity_max: string | null }
 
@@ -370,7 +374,8 @@ function buildRows(): ProvRow[] {
     if (rule.biological_text) facts.push({ label: 'NOAA biological text', text: rule.biological_text })
     if (rule.max_severity) facts.push({ label: 'Severity cap', text: `never above ${rule.max_severity}` })
     if (rule.derived_from_rule) facts.push({ label: 'Reuses rule', text: rule.derived_from_rule })
-    if (rule.action_id) facts.push({ label: 'Action', text: rule.action_id })
+    if (rule.action?.text) facts.push({ label: 'Action', text: rule.action.text, chip: rule.action.chip, source: rule.action.source })
+    if (rule.action_id) facts.push({ label: 'Action id', text: rule.action_id })
     push({
       id: rule.id,
       aliases: [],
@@ -477,31 +482,69 @@ function buildRows(): ProvRow[] {
       })
     }
     // The critical value is not a stored constant: the engine derives it from alpha and the
-    // baseline length (Crawford & Howell 1998 single-case test, df = n - 1).
-    const df = rci.baseline_window_days - 1
-    const crit = Math.round(tCritical(rci.alpha_two_tailed, df) * 1000) / 1000
+    // baseline length (Crawford & Howell 1998 single-case test, df = n - 1). Shown for the full
+    // baseline window and for the fewest baseline days accepted.
+    const r3 = (x: number) => Math.round(x * 1000) / 1000
+    const criticalRow = (n: number, id: string, aliases: string[], lead: string, from: string) => {
+      const df = n - 1
+      const crit = r3(tCritical(rci.alpha_two_tailed, df))
+      push({
+        id,
+        aliases,
+        kind: 'rci',
+        file: 'personal',
+        path: `derived by the engine: tCritical(rci.alpha_two_tailed, rci.${from} - 1)`,
+        label: `${lead} (|t|, ${n}-day baseline, df ${df})`,
+        value: { kind: 'number', value: crit, unit: 't' },
+        condition: { kind: 'compare', lead: 'reliable change when |t|', op: 'gt', value: crit, unit: null },
+        categories: ['PERSONAL'],
+        chip: 'derived',
+        source: {
+          kind: 'derived',
+          from: ['rci.alpha_two_tailed', `rci.${from}`],
+          arithmetic: `Student t quantile at two-tailed alpha ${rci.alpha_two_tailed} with df = ${n} - 1 = ${df}; t = (x - mean) / (SD * sqrt(1 + 1/n)) (Crawford & Howell 1998)`,
+        },
+        appliesTo: ['*'],
+        appliesNote: null,
+        parentId: null,
+        usedBy: [{ id: 'personal', label: `all ${indicators.length} personal indicators`, role: 'Tier B', href: null }],
+        notes: [],
+        facts: rci.method ? [{ label: 'Method', text: rci.method, chip: rci.chip, source: rci.source }] : [],
+      })
+      return crit
+    }
+    const n = rci.baseline_window_days
+    const crit = criticalRow(n, 'rci.critical', ['rci.critical_z'], 'Single-case test critical value', 'baseline_window_days')
+    if (rci.min_baseline_n !== n) criticalRow(rci.min_baseline_n, 'rci.critical_min_baseline', [], 'Critical value at the fewest baseline days', 'min_baseline_n')
+    // The smallest one-day change the test can flag, in baseline SDs: critical x sqrt(1 + 1/n).
+    // Times each crewmember's own baseline SD it is that indicator's minimum detectable change.
+    const mdcSd = r3(crit * Math.sqrt(1 + 1 / n))
     push({
-      id: 'rci.critical',
-      aliases: ['rci.critical_z'],
+      id: 'rci.min_detectable_change_sd',
+      aliases: ['rci.mdc'],
       kind: 'rci',
       file: 'personal',
-      path: 'derived by the engine: tCritical(rci.alpha_two_tailed, rci.baseline_window_days - 1)',
-      label: `Single-case test critical value (|t|, df ${df})`,
-      value: { kind: 'number', value: crit, unit: 't' },
-      condition: { kind: 'compare', lead: 'reliable change when |t|', op: 'gt', value: crit, unit: null },
+      path: 'derived: rci.critical x sqrt(1 + 1/rci.baseline_window_days)',
+      label: `Smallest flaggable one-day change, in baseline SDs (${n}-day baseline)`,
+      value: { kind: 'number', value: mdcSd, unit: 'SD' },
+      condition: { kind: 'compare', lead: 'flagged when |today − mean| / SD', op: 'gt', value: mdcSd, unit: null },
       categories: ['PERSONAL'],
       chip: 'derived',
       source: {
         kind: 'derived',
-        from: ['rci.alpha_two_tailed', 'rci.baseline_window_days'],
-        arithmetic: `Student t quantile at two-tailed alpha ${rci.alpha_two_tailed} with df = ${rci.baseline_window_days} - 1 = ${df}; t = (x - mean) / (SD * sqrt(1 + 1/n)) (Crawford & Howell 1998)`,
+        from: ['rci.critical', 'rci.baseline_window_days'],
+        arithmetic: `minimum detectable change = critical x SD x sqrt(1 + 1/n) = ${crit} x sqrt(1 + 1/${n}) = ${mdcSd} baseline SDs; in an indicator's own unit it is this multiple of the crewmember's baseline SD, which the engine reports per finding (critical x S_diff)`,
       },
       appliesTo: ['*'],
       appliesNote: null,
       parentId: null,
       usedBy: [{ id: 'personal', label: `all ${indicators.length} personal indicators`, role: 'Tier B', href: null }],
       notes: [],
-      facts: rci.method ? [{ label: 'Method', text: rci.method, chip: rci.chip, source: rci.source }] : [],
+      facts: (() => {
+        // personal.json's own statement of the detectable change, when the rules carry one.
+        const dc = (rci as unknown as { detectable_change?: { text?: string; chip?: string; source?: RuleSource } }).detectable_change
+        return dc?.text ? [{ label: 'From personal.json', text: dc.text, chip: dc.chip, source: dc.source }] : []
+      })(),
     })
   }
   for (const [i, ind] of indicators.entries()) {
@@ -512,14 +555,23 @@ function buildRows(): ProvRow[] {
     })
     if (ind.definition) facts.push({ label: 'Definition', text: ind.definition.text, chip: ind.definition.chip, source: ind.definition.source })
     if (ind.context) facts.push({ label: 'Context', text: ind.context.text, chip: ind.context.chip, source: ind.context.source })
+    // Any other sourced block on the indicator ({text, chip, source}, e.g. a reference range shown as
+    // context) is listed too, so a field added to personal.json is never silently dropped here.
+    for (const [key, val] of Object.entries(ind as unknown as Record<string, unknown>)) {
+      if (key === 'definition' || key === 'context' || key === 'reliability_r') continue
+      const v = val as { text?: unknown; chip?: unknown; source?: unknown } | null
+      if (v && typeof v === 'object' && typeof v.text === 'string' && typeof v.chip === 'string') {
+        facts.push({ label: key.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()), text: v.text, chip: v.chip, source: (v.source as RuleSource) ?? undefined })
+      }
+    }
     // reliability_r is context only now (used_by_engine: false): never render it as a constant the
-    // engine uses. The row stays so #/provenance?id=<indicator> deep links keep resolving.
+    // engine uses. Old deep links (#/provenance?id=<indicator>.reliability_r) still resolve (alias).
     const rel = ind.reliability_r
     const relUsed = !!rel && rel.used_by_engine !== false && typeof rel.value === 'number'
     if (rel?.source?.basis_citation) facts.push({ label: relUsed ? 'Basis cited' : 'Reliability (context only, not used by the test)', text: rel.source.basis_citation })
     push({
-      id: `${ind.id}.reliability_r`,
-      aliases: [ind.id],
+      id: ind.id,
+      aliases: [`${ind.id}.reliability_r`],
       kind: 'reliability',
       file: 'personal',
       path: relUsed ? `personal.json indicators[${i}].reliability_r.value` : `personal.json indicators[${i}]`,
@@ -527,15 +579,17 @@ function buildRows(): ProvRow[] {
       shortLabel: ind.label,
       value: relUsed
         ? { kind: 'number', value: rel!.value as number, unit: 'r' }
-        : { kind: 'snapshot', snapshot: 'sim_crew', unit: ind.unit },
-      condition: null,
+        : { kind: 'band', unit: ind.unit },
+      condition: relUsed
+        ? null
+        : { kind: 'text', text: `own baseline band; ${ind.alerting ? `a reliable change for the worse (${ind.worse}) is a caution at most` : 'shown, never alerts'}` },
       categories: ['PERSONAL'],
       chip: relUsed ? rel!.chip : (ind.definition?.chip ?? 'design choice'),
       source: relUsed ? rel!.source : (ind.definition?.source ?? { kind: 'design_choice', rationale: 'Indicator chosen by LANDFALL for the Tier B single-case test.' }),
       appliesTo: ['*'],
       appliesNote: ind.alerting ? null : 'context only, never alerts',
       parentId: null,
-      usedBy: [{ id: ind.id, label: ind.label, role: 'Tier B indicator', href: null }],
+      usedBy: [{ id: 'trends', label: 'each crewmember’s band on Trends', role: 'tested daily for', href: '#/trends' }],
       notes: [],
       facts,
     })
@@ -716,7 +770,7 @@ function buildRows(): ProvRow[] {
     if (rule.derived_from_rule) add(rule.derived_from_rule, { id: rule.id, label: rule.label, role: 'reused by', href: provHref(rule.id) })
   }
   for (const ind of indicators) {
-    if (ind.case_id) add(`${ind.id}.reliability_r`, { id: ind.case_id, label: caseTitle(ind.case_id), role: 'linked to case', href: caseHref(ind.case_id) })
+    if (ind.case_id) add(ind.id, { id: ind.case_id, label: caseTitle(ind.case_id), role: 'linked to case', href: caseHref(ind.case_id) })
   }
   for (const r of rows) {
     if (r.source?.kind === 'derived') for (const from of r.source.from ?? []) add(from, { id: r.id, label: r.label, role: 'input to', href: provHref(r.id) })
@@ -782,7 +836,8 @@ export const KIND_FAMILY: Record<RowKind, string> = {
   approach: 'Approaching levels',
   constant: 'Constants',
   rci: 'Reliable-change settings',
-  reliability: 'Test-retest reliability r',
+  // Rows of kind 'reliability' are the Tier B indicators (the single-case test uses no test-retest reliability).
+  reliability: 'Tier B indicators',
   tripwire: 'Case tripwires',
   projection: 'Projections',
   comms: 'Comms light-time envelopes',

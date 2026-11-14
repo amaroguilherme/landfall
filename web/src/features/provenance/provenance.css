@@ -346,3 +346,8 @@ span.prov-sub { display: block; }
   .prov-reqtable td { border: 0; padding: 0; }
   .prov-reqtable td:last-child { grid-column: 1 / -1; font-size: var(--lf-text-xs); }
 }
+
+/* Build notes (collapsed): verbatim notes about the build process, kept out of the running text. */
+.lf-build-lead { font-size: var(--lf-text-sm); color: var(--lf-text-muted); margin: 0 0 var(--lf-space-1); max-width: 80ch; }
+.lf-build-notes { margin: 0; padding-left: 1.2em; font-size: var(--lf-text-sm); color: var(--lf-text-2); }
+.lf-build-notes li { margin: 0.25em 0; max-width: 90ch; }

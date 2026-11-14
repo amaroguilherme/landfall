@@ -5,6 +5,7 @@ import type { SnapshotState } from '../../app/data'
 import { CATEGORIES } from '../../app/vocab'
 import type { Category, Severity } from '../../app/vocab'
 import { CategoryBadge, Chip, Citation, FreshnessChip, Num, ReqId, SeverityIcon, UnknownIcon, ExternalIcon } from '../../ui'
+import { BuildNotes, isBuildNote } from '../data/buildNotes'
 import { CASES, META, OP_SYMBOL, ROWS, envShort } from './model'
 import type { Condition, ProvRow, Ref, RowValue, RuleSource } from './model'
 import { matchVerbatim, normReqId, pdfAt, volOf } from './snapshots'
@@ -203,6 +204,16 @@ export function ValueCell({ value }: { value: RowValue }) {
           per time step from <code>{value.snapshot}</code>
         </span>
       )
+    case 'band':
+      return (
+        <span className="prov-snapval">
+          own baseline band
+          <span className="prov-sub">
+            mean ± critical × S<sub>diff</sub>
+            {value.unit ? <> · {value.unit}</> : null}, per crewmember
+          </span>
+        </span>
+      )
     case 'tripwire':
       return (
         <span className="prov-trip">
@@ -233,6 +244,13 @@ export function ValueCell({ value }: { value: RowValue }) {
 
 /** One-line value for compact lists (design-choice pills). */
 export function ValueInline({ value, of }: { value: RowValue; of?: RowValue | null }) {
+  if (value.kind === 'band') {
+    return (
+      <span className="prov-inl">
+        own baseline band{value.unit ? <> · <span className="lf-mono">{value.unit}</span></> : null}
+      </span>
+    )
+  }
   if (value.kind === 'tripwire') {
     return (
       <span className="prov-inl">
@@ -626,13 +644,66 @@ export function NasaVerbatim({ source, row }: { source: RuleSource; row: ProvRow
           </CheckLine>
         ) : null}
       </ul>
-      {rec?.landfallNote || table?.landfallNote ? (
-        <p className="prov-ournote">
-          <span className="prov-ournote-tag">Ingest note (ours, not NASA text)</span> {rec?.landfallNote || table?.landfallNote}
-        </p>
-      ) : null}
+      {(() => {
+        const note = rec?.landfallNote || table?.landfallNote
+        if (!note) return null
+        // A note about the build process or the internal plan goes into a collapsed "Build notes" disclosure.
+        if (isBuildNote(note)) return <BuildNotes notes={[note]} what="requirement snapshot" />
+        return (
+          <p className="prov-ournote">
+            <span className="prov-ournote-tag">Ingest note (ours, not NASA text)</span> {note}
+          </p>
+        )
+      })()}
       <DocLine idx={idx} page={snapPage} state={state} />
     </div>
+  )
+}
+
+// ---- alert classes (NASA-STD-3001 Vol 2 Table 10.3-1) --------------------------------------------
+
+/**
+ * The Table 10.3-1 row(s) a severity-mapping row lands on, verbatim from the frozen Vol 2 snapshot:
+ * the definition, the priority and the visual annunciation of that alert class.
+ */
+export function AlertClassQuote({ severity }: { severity: string | null }) {
+  const { idx2, v2 } = useSnaps()
+  if (!severity) return null
+  if (v2.status === 'loading') return <p className="prov-loading">Reading Table 10.3-1 from the frozen std_vol2_requirements snapshot…</p>
+  const table = idx2?.tables.get('Table 10.3-1') ?? null
+  if (!table) return <NotInSnapshot>Table 10.3-1 is not in the frozen std_vol2_requirements snapshot of this build.</NotInSnapshot>
+  if (severity === 'nominal') {
+    return <p className="prov-sub">Nominal is not an alert class: Table 10.3-1 lists Emergency, Warning, Caution and Advisory only, so nothing is annunciated.</p>
+  }
+  const rows = table.rows.filter((r) => r.label.toLowerCase().startsWith(severity.toLowerCase()))
+  if (!rows.length) return <NotInSnapshot>No “{severity}” row in Table 10.3-1.</NotInSnapshot>
+  const col = (re: RegExp) => table.columns.find((c) => re.test(c)) ?? null
+  const defCol = col(/^Definition/i)
+  const prioCol = col(/^Priority/i)
+  const visCol = col(/^Visual/i)
+  return (
+    <figure className="prov-quote">
+      <figcaption>
+        {table.caption}
+        <span className="prov-sub">The NASA alert class this row lands on, verbatim (definition, priority, visual annunciation)</span>
+      </figcaption>
+      <dl className="prov-cell">
+        {rows.map((r) => (
+          <Fragment key={r.label}>
+            <dt>{r.label}</dt>
+            <dd>
+              {defCol ? <>“{r.cells[defCol]?.text}”</> : null}
+              {prioCol ? (
+                <span className="prov-sub">
+                  Priority <span className="lf-mono">{r.cells[prioCol]?.text}</span>
+                  {visCol ? <> · {r.cells[visCol]?.text}</> : null}
+                </span>
+              ) : null}
+            </dd>
+          </Fragment>
+        ))}
+      </dl>
+    </figure>
   )
 }
 

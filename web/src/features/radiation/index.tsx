@@ -10,7 +10,7 @@ import { RULES, getRule, sLevel, thresholdRules } from '../../app/engine'
 import type { Finding, Rule } from '../../app/engine'
 import { useSnapshot } from '../../app/data'
 import type { LoadStatus, Snapshot } from '../../app/data'
-import { evaluateOps, evaluateRuleAt } from '../../app/evaluate'
+import { TO_DATE_VARIABLES, evaluateOps, evaluateRuleAt } from '../../app/evaluate'
 import type { OpsFeed } from '../../app/evaluate'
 import { useMetMinute, useMission } from '../../app/mission'
 import { useScenario } from '../../app/model'
@@ -22,7 +22,6 @@ import type { CrewId, EnvId, Observation } from '../../app/vocab'
 import {
   CategoryBadge,
   Chip,
-  Citation,
   EmptyState,
   Expander,
   FindingBadge,
@@ -34,24 +33,36 @@ import {
   SeverityBadge,
   SimulatedMarker,
   StaleIcon,
+  UnknownIcon,
   formatNumber,
 } from '../../ui'
 import { TimeChart, envelope } from '../trends/chart'
 import type { HLineSpec, LineSpec, MarkSpec, VLineSpec } from '../trends/chart'
 import {
+  DOSE_INSTRUMENT,
   dailySeries,
+  dateRuns,
+  detectorDays,
+  donkiCrossCheck,
   findRequirement,
   firstReach,
   hhmmUtc,
+  lcFirst,
+  monthYear,
   nextPasses,
+  organVerdict,
+  recordCoverage,
   regularSeries,
   replayMapping,
+  speRank,
   tepcNative,
   transitions,
+  unitText,
   utcLabel,
   utcToMet,
+  windowSeconds,
 } from './model'
-import type { HapiDoseData, IssTrackData, ProtonsLiveData, ReplayData, RequirementRec, SScaleData, TepcData } from './model'
+import type { DonkiData, HapiDoseData, IssTrackData, ProtonsLiveData, ReplayData, RequirementRec, SScaleData, SpeListData, TepcData } from './model'
 import '../trends/trends.css'
 import './radiation.css'
 
@@ -61,13 +72,25 @@ const chipFor = (kind: string, fallback: string) => CHIP_DEFS.find((c) => c.sour
 const DESIGN_CHIP = chipFor('design_choice', 'design choice')
 const NOAA_CHIP = chipFor('noaa', 'NOAA-published')
 const fmt = (v: number, d?: number) => formatNumber(v, d)
-const dayLabel = (v: number) => String(Math.floor(v)).padStart(4, '0')
+/** MET day on a chart axis: Appendix F F.6.1 f, leading zeros suppressed in the day field. */
+const dayLabel = (v: number) => String(Math.floor(v))
 const logLabel = (v: number) => (Math.abs(Math.log10(v) - Math.round(Math.log10(v))) < 1e-9 ? fmt(v) : '')
+/** NASA's description of the CRaTER instrument (NSSDCA experiment page, checked 2026-11-14). */
+const CRATER_NSSDCA_URL = 'https://nssdc.gsfc.nasa.gov/nmc/experiment/display.action?id=2009-031A-06'
 
 function Kind({ kind, children }: { kind: 'live' | 'historical' | 'replay' | 'prediction' | 'stale' | 'simulated'; children: ReactNode }) {
   return (
-    <span className="lf-tr-kind" data-kind={kind === 'simulated' ? 'live' : kind}>
+    <span className="lf-tr-kind" data-kind={kind}>
       {children}
+    </span>
+  )
+}
+
+/** Cyan data-quality tag ([V2 10020]: missing or incomplete data is cyan, Table F.5-1). */
+function PartialTag() {
+  return (
+    <span className="lf-dq" data-tone="stale">
+      <UnknownIcon size={13} /> PARTIAL RECORD
     </span>
   )
 }
@@ -99,7 +122,9 @@ function EnvPicker({ envId, onPick }: { envId: EnvId; onPick: (e: EnvId) => void
       {ENVIRONMENTS.map((e) => (
         <button key={e.id} type="button" className="lf-tr-crew-btn" aria-pressed={e.id === envId} onClick={() => onPick(e.id as EnvId)}>
           <span className="lf-tr-crew-role">{e.label}</span>
-          <span className="lf-tr-crew-none">{e.dose_snapshot ? `dose: ${e.dose_snapshot}` : 'no dose snapshot'}</span>
+          <span className="lf-tr-crew-none">
+            {e.dose_snapshot ? `measured dose: ${DOSE_INSTRUMENT[e.dose_snapshot] ?? 'NASA dosimeter'}` : 'no dosimetry shipped'}
+          </span>
         </button>
       ))}
     </div>
@@ -116,6 +141,7 @@ function ProtonPanel({
   replaySnap,
   sim,
   scale,
+  speList,
   vol2,
   t,
   envId,
@@ -127,6 +153,7 @@ function ProtonPanel({
   replaySnap: Snapshot<ReplayData> | null
   sim: unknown
   scale: SScaleData | null
+  speList: SpeListData | null
   vol2: { reqs: RequirementRec[]; doc: string }
   t: number
   envId: EnvId
@@ -138,22 +165,39 @@ function ProtonPanel({
     const r = regularSeries(replay.series_ge10mev)
     return { t: r.t.map((ms) => utcToMet(ms, mapping) / 86_400), v: r.v }
   }, [replay, mapping])
+  // The same GOES-7 file's >=100 MeV channel, on the same columns (envelope x depends only on the span).
+  const series100 = useMemo(() => {
+    if (!replay?.series_ge100mev || !mapping) return null
+    const r = regularSeries(replay.series_ge100mev)
+    return { t: r.t.map((ms) => utcToMet(ms, mapping) / 86_400), v: r.v }
+  }, [replay, mapping])
   const nowDay = t / 86_400
   const env = useMemo(() => {
     if (!series || !series.t.length) return null
     return envelope(series.t, series.v, series.t[0], series.t[series.t.length - 1], cols)
   }, [series, cols])
+  const env100 = useMemo(() => {
+    if (!series100 || !series || !series.t.length) return null
+    return envelope(series100.t, series100.v, series.t[0], series.t[series.t.length - 1], cols)
+  }, [series100, series, cols])
   const lines = useMemo<LineSpec[]>(() => {
     if (!env) return []
     const seen = (arr: Array<number | null>) => arr.map((v, i) => (env.x[i] <= nowDay ? v : null))
     const ahead = (arr: Array<number | null>) => arr.map((v, i) => (env.x[i] > nowDay ? v : null))
-    return [
+    const out: LineSpec[] = [
       { label: 'seen max', values: seen(env.max), color: '--lf-text', width: 1.25 },
       { label: 'seen min', values: seen(env.min), color: '--lf-text', width: 1.25 },
       { label: 'ahead max', values: ahead(env.max), color: '--lf-text-muted', width: 1, dash: [3, 3] },
       { label: 'ahead min', values: ahead(env.min), color: '--lf-text-muted', width: 1, dash: [3, 3] },
     ]
-  }, [env, nowDay])
+    if (env100) {
+      out.push(
+        { label: '>=100 MeV seen', values: seen(env100.max), color: '--lf-text-2', width: 1, dash: [1, 2] },
+        { label: '>=100 MeV ahead', values: ahead(env100.max), color: '--lf-text-muted', width: 1, dash: [1, 3] },
+      )
+    }
+    return out
+  }, [env, env100, nowDay])
   const bands = useMemo(
     () => [
       { upper: 0, lower: 1, fill: 'rgba(255,255,255,0.40)' },
@@ -184,15 +228,27 @@ function ProtonPanel({
   const vlines = useMemo<VLineSpec[]>(() => [{ x: nowDay, label: 'NOW (scenario)', color: '--lf-text', labelAt: 'bottom' }], [nowDay])
   const trs = useMemo(() => (replay ? transitions(replay, mapping) : []), [replay, mapping])
   const reach = useMemo(() => firstReach(trs), [trs])
-  const marks = useMemo<MarkSpec[]>(
-    () => reach.filter((r) => r.met !== null).map((r) => ({ x: (r.met as number) / 86_400, y: scale?.levels.find((l) => l.n === r.level)?.threshold_pfu ?? 1, shape: 'diamond' as const, hollow: true, color: '--lf-text', size: 4.5, label: `S${r.level}` })),
-    [reach, scale],
-  )
+  const marks = useMemo<MarkSpec[]>(() => {
+    const out: MarkSpec[] = reach
+      .filter((r) => r.met !== null)
+      .map((r) => ({ x: (r.met as number) / 86_400, y: scale?.levels.find((l) => l.n === r.level)?.threshold_pfu ?? 1, shape: 'diamond' as const, hollow: true, color: '--lf-text', size: 4.5, label: `S${r.level}` }))
+    // Label the >=100 MeV channel on the canvas at its peak, so the dotted trace is named where it is drawn.
+    const p = replay?.max_ge100mev
+    const pMs = p ? Date.parse(p.time_tag) : Number.NaN
+    if (p && mapping && env100 && Number.isFinite(pMs)) {
+      out.push({ x: utcToMet(pMs, mapping) / 86_400, y: p.flux_pfu, shape: 'circle', hollow: true, color: '--lf-text-2', size: 3.5, label: '≥100 MeV peak' })
+    }
+    return out
+  }, [reach, scale, replay, mapping, env100])
   const level = ops?.s_level ?? null
   const levelDef = scale?.levels.find((l) => l.n === level) ?? null
+  // Where noaa_scale_available is false (Mars) the feed is the scenario's own space-weather monitor.
   const onboard = ops?.kind === 'onboard_monitor'
   const r6165 = findRequirement(vol2.reqs, 'V2 6165')
   const r6164 = findRequirement(vol2.reqs, 'V2 6164')
+  const listed = replay?.noaa_spe_list_entry?.start && speList ? speRank(speList, replay.noaa_spe_list_entry.start) : null
+  const peak100 = replay?.max_ge100mev?.flux_pfu ?? null
+  const noaa100 = replay?.noaa_note_oct1989_ge100mev_pfu ?? null
   return (
     <Panel
       title="Proton flux and the NOAA S-scale"
@@ -204,12 +260,15 @@ function ProtonPanel({
         </>
       }
     >
-      <SimulatedMarker variant="banner">The scenario clock is simulated; the flux is the real 1989 record, only time-shifted.</SimulatedMarker>
+      <SimulatedMarker variant="banner">
+        The scenario clock is simulated; the flux is the real 1989 record, only time-shifted
+        {onboard ? ', and here it stands in for a space-weather monitor in Mars orbit (a scenario assumption)' : ''}.
+      </SimulatedMarker>
       <div className="lf-rad-now">
         {ops ? (
           <>
             <p className="lf-rad-big">
-              <span className="lf-rad-label">{onboard ? 'Onboard proton monitor' : 'NOAA GOES ≥10 MeV'}</span>
+              <span className="lf-rad-label">{onboard ? 'Space-weather monitor in Mars orbit · ≥10 MeV' : 'NOAA GOES ≥10 MeV'}</span>
               <Num value={ops.flux} unit="pfu" digits={0} />
               <span>
                 S-level <Num value={ops.s_level} />
@@ -249,13 +308,13 @@ function ProtonPanel({
           vlines={vlines}
           marks={marks}
           yLog
-          yMin={0.01}
+          yMin={0.001}
           yMax={100000}
           xFormat={dayLabel}
           yFormat={logLabel}
           height={260}
           onPlotWidth={(w) => setCols((c) => (Math.abs(c - Math.round(w)) >= 2 ? Math.max(60, Math.round(w)) : c))}
-          ariaLabel={`October 1989 GOES-7 proton flux replayed on the scenario clock, log scale, with NOAA S1 to S5 thresholds; ${reach.length} S-levels reached.`}
+          ariaLabel={`October 1989 GOES-7 proton flux replayed on the scenario clock, log scale: the ≥10 MeV channel with NOAA S1 to S5 thresholds (${reach.length} S-levels reached) and, dotted, the ≥100 MeV channel of the same file.`}
         />
       ) : (
         <EmptyState kind={replayStatus === 'loading' ? 'loading' : 'missing'} title="Replay not available" headingLevel={3}>
@@ -263,10 +322,50 @@ function ProtonPanel({
         </EmptyState>
       )}
       <p className="lf-tr-muted">
-        Solid: what the {onboard ? 'onboard monitor' : 'feed'} has reported up to the scenario clock. Dashed: the rest of the real 1989 event,
-        not yet reached by the clock. Envelope: min and max per pixel column of <Num value={replay?.series_ge10mev.n ?? null} /> five-minute
-        samples. {mapping ? <>Time shift: 1989 UTC {utcLabel(mapping.mapUtcMs)} = MET {dayLabel(mapping.mapMet / 86_400)}/00:00:00.</> : null}
+        Solid: the ≥10 MeV flux the {onboard ? 'monitor' : 'feed'} has reported up to the scenario clock. Dashed: the rest of the real 1989
+        event, not yet reached by the clock. Envelope: min and max per pixel column of <Num value={replay?.series_ge10mev.n ?? null} />{' '}
+        five-minute samples.{' '}
+        {env100 ? (
+          <>
+            Dotted: the same file’s ≥100 MeV channel (maximum per column), which peaks at <Num value={peak100} unit="pfu" digits={0} /> here
+            {noaa100 !== null ? (
+              <>
+                ; a footnote on NOAA’s list gives <Num value={noaa100} unit="pfu" digits={0} /> for this event, and neither source explains
+                the difference
+              </>
+            ) : null}
+            . NOAA defines its S-scale on ≥10 MeV only.{' '}
+          </>
+        ) : null}
+        {mapping ? (
+          <>
+            Time shift: 1989 UTC {utcLabel(mapping.mapUtcMs)} = <MetTime t={mapping.mapMet} label />.
+          </>
+        ) : null}
       </p>
+      {listed ? (
+        <p className="lf-tr-muted">
+          In NOAA’s list of <Num value={listed.of} /> solar proton events affecting the Earth environment (
+          {monthYear(speList?.list_first_start)} to {monthYear(speList?.list_last_start)}), this event’s peak of{' '}
+          <Num value={listed.event.peak_pfu} unit="pfu" digits={0} /> ranks{' '}
+          <strong>
+            <Num value={listed.rank} />
+            {listed.rank === 1 ? 'st' : listed.rank === 2 ? 'nd' : listed.rank === 3 ? 'rd' : 'th'}
+          </strong>
+          {listed.above.length ? (
+            <>
+              , after{' '}
+              {listed.above.map((e, i) => (
+                <span key={e.start}>
+                  {i ? ', ' : ''}
+                  {monthYear(e.start)} (<Num value={e.peak_pfu} unit="pfu" digits={0} />)
+                </span>
+              ))}
+            </>
+          ) : null}
+          . Ranked on this page from the frozen list, by NOAA’s printed peak at ≥10 MeV.
+        </p>
+      ) : null}
       {reach.length ? (
         <ul className="lf-rad-reach">
           {reach.map((r) => (
@@ -301,20 +400,33 @@ function ProtonPanel({
         </Expander>
       ) : null}
       <div className="lf-rad-role">
-        <h3 className="lf-tr-card-title">Who watches the Sun here</h3>
+        <h3 className="lf-tr-card-title">Who watches the Sun here, and who raises the alarm</h3>
         {onboard ? (
-          <p>
-            At {environment(envId).label} no NOAA alert reaches the crew in time (and none during solar conjunction), so the habitat’s own
-            external monitor plays the space-weather role, and LANDFALL raises the alert from it alone.
-          </p>
+          <>
+            <p>
+              At {environment(envId).label} no NOAA alert reaches the crew in time, and none at all during solar conjunction. In this
+              scenario the proton reading comes from an external space-weather monitor above the atmosphere, in Mars orbit, relayed to the
+              habitat locally with no Earth link needed: the kind of monitoring <ReqId id="V2 6165" /> requires. The habitat’s radiation
+              monitoring system raises the radiation alarm, as <ReqId id="V2 6164" /> requires; LANDFALL is not that alarm. It opens the
+              health case that follows and guides the crew through the shelter steps; an escalation goes to the Crew Medical Officer at
+              once and is queued for the flight surgeon until the link returns.
+            </p>
+            <p className="lf-tr-muted">
+              Scenario assumption: the monitor’s values are the GOES-7 October 1989 ≥10 MeV record, time-shifted, with no correction for
+              distance from the Sun or for the atmosphere. The habitat dose rate further down is a separate, simulated confirmation.
+            </p>
+          </>
         ) : (
           <p>
-            Here NOAA’s GOES satellites in geostationary orbit are the external space-weather monitor; their S-scale reaches the crew through
-            the ground, and LANDFALL applies NOAA’s published levels to that feed.
+            Near Earth, NOAA’s GOES satellites in geostationary orbit are the external space-weather monitor, and NOAA’s S-scale reaches the
+            crew through the ground. With the link up, Mission Control and the flight surgeon have the same alert within the round-trip light
+            time, and the crew follows their direction. The vehicle’s radiation monitoring system raises the radiation alarm (
+            <ReqId id="V2 6164" />
+            ); LANDFALL applies NOAA’s published levels to the feed as a decision aid: it opens the health case and prepares the packet.
           </p>
         )}
         <Quote req={r6165} doc={vol2.doc} />
-        {onboard ? <Quote req={r6164} doc={vol2.doc} /> : null}
+        <Quote req={r6164} doc={vol2.doc} />
       </div>
     </Panel>
   )
@@ -396,11 +508,35 @@ function SaaStrip({ track, snap, status }: { track: IssTrackData; snap: Snapshot
   )
 }
 
-function DailyDoseChart({ data, label, ariaWhat }: { data: HapiDoseData; label: string; ariaWhat: string }) {
-  const s = useMemo(() => dailySeries(data), [data])
+/** The publisher's own description of a HAPI parameter (for use mid-sentence), else its id. */
+function paramLabel(data: HapiDoseData, p: string): string {
+  const d = data.parameters?.[p]?.description
+  return d ? lcFirst(d) : p
+}
+
+const COMPARE_STYLE: Array<Pick<LineSpec, 'color' | 'width' | 'dash' | 'points'>> = [
+  { color: '--lf-text-2', width: 1.5, points: 3 },
+  { color: '--lf-text', width: 1.25, dash: [5, 3] },
+  { color: '--lf-text-muted', width: 1, dash: [1, 2] },
+]
+const STYLE_WORD = ['solid', 'dashed', 'dotted']
+
+function DailyDoseChart({ data, ariaWhat, parameters, yLog = false }: { data: HapiDoseData; ariaWhat: string; parameters?: string[]; yLog?: boolean }) {
+  const paramKey = (parameters ?? [data.headline_parameter]).join('|')
+  const params = useMemo(() => paramKey.split('|').filter((p) => data.series[p]), [paramKey, data])
+  const s = useMemo(() => dailySeries(data, params[0] ?? data.headline_parameter), [data, params])
   const t0 = s.t[0] ?? 0
   const x = useMemo(() => s.t.map((ms) => (ms - t0) / DAY_MS), [s, t0])
-  const lines = useMemo<LineSpec[]>(() => [{ label, values: s.v, color: '--lf-text-2', width: 1.5, points: 3 }], [s, label])
+  const lines = useMemo<LineSpec[]>(
+    () =>
+      params.map((p, k) => {
+        // Align every series on the first one's days (a day absent from a series stays a gap, never zero).
+        const own = dailySeries(data, p)
+        const byDay = new Map(own.t.map((ms, i) => [ms, own.v[i]]))
+        return { label: p, values: s.t.map((ms) => byDay.get(ms) ?? null), ...COMPARE_STYLE[Math.min(k, COMPARE_STYLE.length - 1)] }
+      }),
+    [params, data, s],
+  )
   const marks = useMemo<MarkSpec[]>(() => {
     const out: MarkSpec[] = []
     let first = true
@@ -412,22 +548,54 @@ function DailyDoseChart({ data, label, ariaWhat }: { data: HapiDoseData; label: 
     return out
   }, [data, t0])
   const xFormat = useMemo(() => (v: number) => new Date(t0 + v * DAY_MS).toISOString().slice(5, 10), [t0])
-  const summary = data.series[data.headline_parameter]?.summary
+  const summary = data.series[params[0] ?? data.headline_parameter]?.summary
   const digits = (summary?.median ?? 1) < 1 ? 3 : 0
-  const yFormat = useMemo(() => (v: number) => fmt(v, digits), [digits])
+  const yFormat = useMemo(() => (yLog ? (v: number) => (Math.abs(Math.log10(v) - Math.round(Math.log10(v))) < 1e-9 ? fmt(v, digits) : '') : (v: number) => fmt(v, digits)), [digits, yLog])
+  const units = unitText(s.units)
+  // Log axis bounds: one decade around the observed daily means.
+  const all = lines.flatMap((l) => l.values).filter((v): v is number => typeof v === 'number' && v > 0)
+  const yMin = yLog && all.length ? 10 ** Math.floor(Math.log10(Math.min(...all))) : undefined
+  const yMax = yLog && all.length ? 10 ** Math.ceil(Math.log10(Math.max(...all))) : undefined
   return (
     <>
-      <TimeChart x={x} lines={lines} marks={marks} xFormat={xFormat} yFormat={yFormat} height={200} ariaLabel={`${ariaWhat}: ${s.v.filter((v) => v !== null).length} daily means in ${s.units}.`} />
+      <TimeChart
+        x={x}
+        lines={lines}
+        marks={marks}
+        xFormat={xFormat}
+        yFormat={yFormat}
+        yLog={yLog}
+        yMin={yMin}
+        yMax={yMax}
+        height={200}
+        ariaLabel={`${ariaWhat}: ${s.v.filter((v) => v !== null).length} daily means in ${units}${yLog ? ', log scale' : ''}${params.length > 1 ? `, ${params.length} detector series` : ''}.`}
+      />
       <p className="lf-tr-muted">
-        Daily mean of <code>{data.headline_parameter}</code> in {s.units}, as served.
+        {params.length > 1 ? (
+          <>
+            Daily means in {units}, as served{yLog ? ', on a log scale so that equal ratios look equal' : ''}:{' '}
+            {params.map((p, k) => (
+              <span key={p}>
+                {k ? '; ' : ''}
+                {STYLE_WORD[Math.min(k, STYLE_WORD.length - 1)]} = {paramLabel(data, p)} (<code>{p}</code>)
+              </span>
+            ))}
+            .
+          </>
+        ) : (
+          <>
+            Daily mean of {paramLabel(data, params[0] ?? data.headline_parameter)} (<code>{params[0] ?? data.headline_parameter}</code>) in{' '}
+            {units}, as served.
+          </>
+        )}
         {summary ? (
           <>
             {' '}
-            Window median <Num value={summary.median ?? null} unit={s.units} digits={digits ? 5 : 1} />
+            Window median{params.length > 1 ? ' of the solid series' : ''} <Num value={summary.median ?? null} unit={units} digits={digits ? 5 : 1} />
             {typeof summary.median_uGy_per_day === 'number' && s.units !== 'uGy/day' ? (
               <>
                 {' '}
-                (= <Num value={summary.median_uGy_per_day} unit="uGy/day" digits={1} />, a unit conversion only)
+                (= <Num value={summary.median_uGy_per_day} unit="µGy/day" digits={1} />, a unit conversion only)
               </>
             ) : null}
             .
@@ -441,7 +609,7 @@ function DailyDoseChart({ data, label, ariaWhat }: { data: HapiDoseData; label: 
       </p>
       {data.enhanced_days ? (
         <p className="lf-tr-muted">
-          Enhanced days: {data.enhanced_days.rule}. <Chip kind={DESIGN_CHIP} /> It flags days for a human to look at; it does not identify a solar
+          Enhanced days: {unitText(data.enhanced_days.rule)}. <Chip kind={DESIGN_CHIP} /> It flags days for a human to look at; it does not identify a solar
           particle event and never alerts.
         </p>
       ) : null}
@@ -464,8 +632,12 @@ function TepcChart({ data }: { data: TepcData }) {
   )
   const bands = useMemo(() => [{ upper: 0, lower: 1, fill: 'rgba(209,209,209,0.45)' }], [])
   const xFormat = useMemo(() => (v: number) => `${String(Math.floor(v)).padStart(2, '0')}:00`, [])
-  const yFormat = useMemo(() => (v: number) => fmt(v, 1), [])
   const st = data.native_window.dose_rate_stats_uGy_per_min
+  // Log axis: the orbital background (median ~0.07) and the SAA spikes (up to ~9) differ by two decades,
+  // and a linear axis flattens the background the explainer describes. Bounds: the decades around the data.
+  const finite = raw.v.filter((v): v is number => typeof v === 'number' && v > 0)
+  const yMin = finite.length ? 10 ** Math.floor(Math.log10(Math.min(...finite))) : 0.01
+  const yMax = finite.length ? 10 ** Math.ceil(Math.log10(Math.max(...finite))) : 10
   return (
     <>
       <TimeChart
@@ -473,22 +645,32 @@ function TepcChart({ data }: { data: TepcData }) {
         lines={lines}
         bands={bands}
         xFormat={xFormat}
-        yFormat={yFormat}
+        yFormat={logLabel}
+        yLog
+        yMin={yMin}
+        yMax={yMax}
         height={210}
         onPlotWidth={(w) => setCols((c) => (Math.abs(c - Math.round(w)) >= 2 ? Math.max(60, Math.round(w)) : c))}
-        ariaLabel={`ISS TEPC absorbed dose rate on ${data.native_window.start.slice(0, 10)}, one value per minute in uGy/min, with spikes on orbits through the South Atlantic Anomaly.`}
+        ariaLabel={`ISS TEPC absorbed dose rate on ${data.native_window.start.slice(0, 10)}, one value per minute in µGy/min on a log scale: a background that varies along each orbit, with spikes on orbits through the South Atlantic Anomaly.`}
       />
       <p className="lf-tr-muted">
-        Absorbed dose rate in the detector, uGy/min, {data.native_window.start.slice(0, 10)} UTC (one ordinary day; the dataset ends in 2018).
+        Absorbed dose rate in the detector, µGy/min on a log scale, {data.native_window.start.slice(0, 10)} UTC (one ordinary day; the dataset
+        ends in 2018).
         {st ? (
           <>
             {' '}
-            Median <Num value={st.median ?? null} unit="uGy/min" digits={3} />, peak <Num value={st.max ?? null} unit="uGy/min" digits={3} />.
+            Median <Num value={st.median ?? null} unit="µGy/min" digits={3} />
+            {typeof st.p95 === 'number' ? (
+              <>
+                , 95th percentile <Num value={st.p95} unit="µGy/min" digits={3} />
+              </>
+            ) : null}
+            , peak <Num value={st.max ?? null} unit="µGy/min" digits={3} />.
           </>
         ) : null}{' '}
         {data.native_window.dose_uGy !== undefined ? (
           <>
-            Day total <Num value={data.native_window.dose_uGy} unit="uGy" digits={1} /> (absorbed, not effective dose).
+            Day total <Num value={data.native_window.dose_uGy} unit="µGy" digits={1} /> (absorbed, not effective dose).
           </>
         ) : null}{' '}
         {data.explainer}
@@ -497,15 +679,25 @@ function TepcChart({ data }: { data: TepcData }) {
   )
 }
 
+interface SpeDayBlock {
+  baseline?: { value?: number; unit?: string; parameter?: string; chip?: string; source?: Record<string, unknown> }
+  scaling?: { dose_multiple_at_s3?: number; chip?: string; source?: Record<string, unknown> }
+}
+
 function OnboardDoseToday({ index, runtime, t, sim }: { index: ScenarioIndex; runtime: readonly Observation[]; t: number; sim: unknown }) {
   const day0 = Math.floor(t / 86_400) * 86_400
   const obs = useMemo(() => observationsFor(index, runtime, null, 'onboard_dose_rate').filter((o) => o.t >= day0 && o.t <= t), [index, runtime, day0, t])
-  const base = (sim as { spe_day?: { baseline?: { value?: number; unit?: string; chip?: string; source?: Record<string, unknown> }; scaling?: { chip?: string; source?: Record<string, unknown> } } })?.spe_day
+  const base = (sim as { spe_day?: SpeDayBlock })?.spe_day
+  const quiet = typeof base?.baseline?.value === 'number' ? base.baseline.value : null
+  const multiple = typeof base?.scaling?.dose_multiple_at_s3 === 'number' ? base.scaling.dose_multiple_at_s3 : null
   const x = useMemo(() => obs.map((o) => o.t), [obs])
-  const lines = useMemo<LineSpec[]>(() => [{ label: 'onboard dose rate', values: obs.map((o) => o.value), color: '--lf-text-2', width: 1.5 }], [obs])
+  const lines = useMemo<LineSpec[]>(() => [{ label: 'simulated habitat dose rate', values: obs.map((o) => o.value), color: '--lf-text-2', width: 1.5 }], [obs])
   const hlines = useMemo<HLineSpec[]>(
-    () => (typeof base?.baseline?.value === 'number' ? [{ y: base.baseline.value, label: `quiet Mars baseline ${fmt(base.baseline.value, 1)} (MSL RAD median)`, color: '--lf-text-muted', dash: [3, 3] }] : []),
-    [base],
+    () =>
+      quiet !== null
+        ? [{ y: quiet, label: `quiet Mars rate ${fmt(quiet, 1)} µGy/day (real: MSL RAD median)`, short: 'quiet Mars rate', color: '--lf-text-muted', dash: [3, 3] }]
+        : [],
+    [quiet],
   )
   const vlines = useMemo<VLineSpec[]>(() => [{ x: t, label: 'NOW', color: '--lf-text' }], [t])
   const xFormat = useMemo(() => (v: number) => {
@@ -515,27 +707,216 @@ function OnboardDoseToday({ index, runtime, t, sim }: { index: ScenarioIndex; ru
   const yFormat = useMemo(() => (v: number) => fmt(v, 0), [])
   if (!obs.length) return null
   const last = obs[obs.length - 1]
+  const unit = unitText(last.unit)
+  const rationale = typeof base?.scaling?.source?.rationale === 'string' ? (base.scaling.source.rationale as string) : null
   return (
     <div className="lf-rad-sub">
       <h3 className="lf-tr-card-title">
-        Habitat monitor dose rate today <Kind kind="simulated">LIVE · SIMULATED</Kind>
+        Habitat dose rate today: a simulated confirmation{' '}
+        <Kind kind="simulated">
+          SIMULATED{multiple !== null ? <> · ASSUMED {fmt(multiple)}× SCALING</> : null} · DESIGN CHOICE
+        </Kind>
       </h3>
-      <SimulatedMarker variant="banner">Scenario value: the real Mars quiet rate plus the 1989 flux profile under an assumed scaling.</SimulatedMarker>
+      <SimulatedMarker variant="banner">
+        Scenario values, not a measurement: the real Mars quiet rate plus the 1989 flux profile under an assumed scaling.
+      </SimulatedMarker>
       <p className="lf-tr-meta">
         <span>
-          Latest <Num value={last.value} unit={last.unit} digits={0} /> at <MetTime t={last.t} />
+          Simulated value at <MetTime t={last.t} label />: <Num value={last.value} unit={unit} digits={0} />
+          {quiet !== null && quiet > 0 ? (
+            <>
+              {' '}
+              (<Num value={last.value / quiet} digits={1} unit="×" /> the quiet rate)
+            </>
+          ) : null}
         </span>
+        <span>quiet rate:</span>
         <Chip kind={base?.baseline?.chip} />
         <span>scaling:</span>
         <Chip kind={base?.scaling?.chip} />
       </p>
-      <TimeChart x={x} lines={lines} hlines={hlines} vlines={vlines} xMin={day0} xMax={Math.max(t, day0 + 600)} xFormat={xFormat} yFormat={yFormat} height={180} ariaLabel={`Simulated habitat dose rate today, ${obs.length} five-minute values, latest ${fmt(last.value, 0)} ${last.unit}.`} />
-      {base?.scaling?.source ? (
-        <p className="lf-tr-muted">
-          <Citation source={base.scaling.source} /> Absorbed dose (uGy) is never turned into effective dose (mSv) here.
-        </p>
-      ) : null}
+      <TimeChart x={x} lines={lines} hlines={hlines} vlines={vlines} xMin={day0} xMax={Math.max(t, day0 + 600)} xFormat={xFormat} yFormat={yFormat} height={180} ariaLabel={`Simulated habitat dose rate today, ${obs.length} five-minute values in ${unit}, latest simulated value ${fmt(last.value, 0)}.`} />
+      <p className="lf-tr-muted">
+        {multiple !== null ? (
+          <>
+            The 1989 ≥10 MeV profile is mapped linearly so that NOAA’s S3 flux gives <Num value={multiple} unit="×" /> the measured Mars quiet
+            rate.{' '}
+          </>
+        ) : null}
+        {rationale ? (
+          <>
+            <Chip kind={base?.scaling?.chip} /> {rationale}{' '}
+          </>
+        ) : (
+          <>Not a radiation-transport calculation, and no effective dose (mSv) is derived from it. </>
+        )}
+        The quiet rate is the real MSL RAD detector-E median, which may include the rover’s own power-source background (see the dosimetry
+        above).
+      </p>
     </div>
+  )
+}
+
+/**
+ * MSL RAD: the headline detector-E total may include the rover's RTG background (snapshot caveat). The
+ * numbers are this window's own medians of the publisher's raw and RTG-corrected detector-B series.
+ */
+function RtgNote({ data }: { data: HapiDoseData }) {
+  const raw = data.series.dose_b_raw?.summary?.median
+  const corrected = data.series.dose_b_rtg?.summary?.median
+  if (typeof raw !== 'number' || typeof corrected !== 'number') return null
+  const units = unitText(data.series.dose_b_raw?.units)
+  return (
+    <>
+      {' '}
+      This detector-E reading may also include the rover’s own power-source (RTG) background: the publisher does not say whether
+      detector E is RTG-corrected, and on silicon detector B its RTG correction lowers this window’s median from{' '}
+      <Num value={raw} unit={units} digits={1} /> to <Num value={corrected} unit={units} digits={1} />. So the natural rate a crew outdoors
+      would face may be lower than this headline.
+    </>
+  )
+}
+
+/** CRaTER's detector pairs on the days its D1&2 dose was enhanced, and DONKI's observed SEP entries around them. */
+function CraterPairs({ data }: { data: HapiDoseData }) {
+  const donki = useMeta<DonkiData>('swpc_sep_events')
+  const pairs = useMemo(() => ['d1_2_dose_rate', 'd3_4_dose_rate', 'd5_6_dose_rate'].filter((p) => data.series[p]), [data])
+  const days = useMemo(() => (data.enhanced_days?.days ?? []).map((d) => d.date), [data])
+  const rows = useMemo(() => detectorDays(data, days, pairs), [data, days, pairs])
+  const runs = useMemo(() => dateRuns(days), [days])
+  const checks = useMemo(() => (donki.status === 'ready' && donki.snap ? donkiCrossCheck(runs, donki.snap.data.events) : null), [donki.status, donki.snap, runs])
+  if (pairs.length < 2 || !rows.length) return null
+  const units = unitText(data.series[pairs[0]]?.units)
+  const median = (p: string) => data.series[p]?.summary?.median ?? null
+  const label = (p: string) => (data.parameters?.[p]?.description ?? p).replace(/^Combined (.+?) detector dose rate$/, '$1')
+  const peak = (run: string[]) =>
+    run.reduce<{ date: string; ratio: number } | null>((best, date) => {
+      const r = rows.find((x) => x.date === date)?.pairs[0].ratio ?? null
+      return r !== null && (!best || r > best.ratio) ? { date, ratio: r } : best
+    }, null)
+  const matched = checks ? checks.filter((c) => c.observed.length > 0).length : null
+  return (
+    <section className="lf-rad-sub" aria-labelledby="rad-crater-h">
+      <h3 id="rad-crater-h" className="lf-tr-card-title">
+        Three detector pairs, one telescope <Kind kind="historical">MEASURED · LUNAR ORBIT</Kind>
+      </h3>
+      <p>
+        In quiet times the pairs agree: window medians <Num value={median(pairs[0])} unit={units} digits={4} /> ({label(pairs[0])}) and{' '}
+        <Num value={median(pairs[1])} unit={units} digits={4} /> ({label(pairs[1])}). On the days the rule below flags, they part: each
+        pair’s daily mean as a multiple of its own median.
+      </p>
+      <div className="lf-tr-table-wrap lf-rad-pairs-wrap">
+        <table className="lf-tr-table lf-rad-pairs">
+          <caption className="lf-rad-caption">CRaTER daily means on the flagged days, in {units} and as a multiple of each pair’s own median</caption>
+          <thead>
+            <tr>
+              <th scope="col">Day (UTC)</th>
+              {pairs.map((p) => (
+                <th key={p} scope="col" className="num">
+                  {label(p)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.date}>
+                <th scope="row" className="num">
+                  {r.date}
+                </th>
+                {r.pairs.map((c) => (
+                  <td key={c.parameter} className="num">
+                    <Num value={c.mean} digits={4} /> <span className="lf-rad-x">(<Num value={c.ratio} digits={1} unit="×" />)</span>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="lf-tr-muted">
+        What sits between the pairs, in NASA’s description of the instrument: “One pair is at each entrance aperture and one is between the two
+        layers of TEP”, tissue-equivalent plastic that “is designed to be analogous to human muscle” (
+        <a href={CRATER_NSSDCA_URL} target="_blank" rel="noopener noreferrer">
+          NASA NSSDCA, CRaTER
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
+        ). The dataset names its pairs {pairs.map(label).join(', ')} without saying where each sits; read in stack order, {label(pairs[1])} is
+        the pair between the two plastic layers. That reading is this page’s assumption. If it holds, the gap shows what several centimetres of
+        tissue-like plastic did to these particular events. Neither pair is a crew dose, and LANDFALL does not pick one to stand for a
+        crewmember.
+      </p>
+      <h4 className="lf-rad-h4">Independent cross-check: NASA’s DONKI event log</h4>
+      {checks ? (
+        <>
+          <p className="lf-tr-muted">
+            DONKI is NASA CCMC’s analyst-logged database of space-weather events. Below, for each run of flagged days, the solar energetic
+            particle entries DONKI logged from the day before the run to its last day, observed by an instrument (entries whose instrument is
+            a model forecast, “MODEL: …”, are left out: a forecast is not an observation). None of these instruments is CRaTER and the
+            flagging rule does not read DONKI, so this checks timing only: <Num value={matched} /> of <Num value={checks.length} /> runs have
+            an observed entry.
+          </p>
+          <ul className="lf-rad-xcheck">
+            {checks.map((c) => {
+              const p = peak(c.run)
+              return (
+                <li key={c.run[0]}>
+                  <p className="lf-rad-xcheck-head">
+                    <strong>
+                      {c.run[0]}
+                      {c.run.length > 1 ? <> to {c.run[c.run.length - 1]}</> : null}
+                    </strong>
+                    {p ? (
+                      <>
+                        {' '}
+                        · peak {label(pairs[0])} day {p.date} (<Num value={p.ratio} digits={1} unit="×" />)
+                      </>
+                    ) : null}
+                    {c.observed.length === 0 ? (
+                      <span className="lf-dq" data-tone="stale">
+                        <UnknownIcon size={13} /> no observed DONKI entry
+                      </span>
+                    ) : null}
+                  </p>
+                  {c.observed.length ? (
+                    <ul className="lf-rad-donki">
+                      {c.observed.map((e) => (
+                        <li key={e.sep_id}>
+                          <span className="lf-num">{utcLabel(Date.parse(e.event_time))}</span> {e.instruments.join('; ')}
+                          {e.link ? (
+                            <>
+                              {' '}
+                              <a href={e.link} target="_blank" rel="noopener noreferrer">
+                                DONKI entry
+                                <span className="sr-only"> {e.sep_id} (opens in a new tab)</span>
+                              </a>
+                            </>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="lf-tr-muted">Not every enhanced day has a logged event: the rule flags days for a person to look at.</p>
+                  )}
+                  {c.modelled ? (
+                    <p className="lf-tr-muted">
+                      <Num value={c.modelled} /> model-forecast {c.modelled === 1 ? 'entry' : 'entries'} in the same span, not counted.
+                    </p>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ul>
+          <p className="lf-tr-muted">
+            <FreshnessChip meta={donki.snap} status={donki.status} id="swpc_sep_events" source={donki.snap?.source} />
+          </p>
+        </>
+      ) : (
+        <p className="lf-tr-nodata">
+          <StaleIcon size={13} /> DONKI SEP log (swpc_sep_events) {donki.status === 'loading' ? 'loading' : 'not in this build'}.
+        </p>
+      )}
+    </section>
   )
 }
 
@@ -584,21 +965,33 @@ function MeasuredPanel({ envId, index, runtime, t, sim }: { envId: EnvId; index:
             </p>
           )}
         </>
+      ) : id === 'hapi_crater_dose' ? (
+        <DailyDoseChart data={snap.data as HapiDoseData} ariaWhat={snap.title} parameters={['d1_2_dose_rate', 'd3_4_dose_rate']} yLog />
       ) : (
-        <DailyDoseChart data={snap.data as HapiDoseData} label={(snap.data as HapiDoseData).headline_parameter} ariaWhat={snap.title} />
+        <DailyDoseChart data={snap.data as HapiDoseData} ariaWhat={snap.title} />
       )}
       {snap && dose.status === 'ready' ? (
         <>
-          {(snap.data as { explainer?: string }).explainer && envId !== 'iss' ? <p>{(snap.data as { explainer?: string }).explainer}</p> : null}
-          {notes.map((n) => (
-            <p key={n} className="lf-tr-muted">
-              {n}
+          {(snap.data as { explainer?: string }).explainer && envId !== 'iss' ? (
+            <p>
+              {(snap.data as { explainer?: string }).explainer}
+              {id === 'hapi_msl_rad_dose' ? <RtgNote data={snap.data as HapiDoseData} /> : null}
             </p>
-          ))}
+          ) : null}
+          {id === 'hapi_crater_dose' ? <CraterPairs data={snap.data as HapiDoseData} /> : null}
+          {notes.length ? (
+            <Expander summary={`Environment notes (engine/rules/environments.json, ${notes.length})`}>
+              {notes.map((n) => (
+                <p key={n} className="lf-tr-muted">
+                  {n}
+                </p>
+              ))}
+            </Expander>
+          ) : null}
           <Expander summary="Caveats from the snapshot">
             <ul>
               {snap.caveats.map((c) => (
-                <li key={c}>{c}</li>
+                <li key={c}>{unitText(c)}</li>
               ))}
             </ul>
           </Expander>
@@ -617,13 +1010,56 @@ const WINDOW_COLS: Array<{ key: string; label: string; match: (r: Rule) => boole
   { key: 'career', label: 'Career', match: (r) => r.window?.kind === 'career' },
 ]
 
-function evalSafe(rule: Rule, index: ScenarioIndex, runtime: readonly Observation[], crewId: CrewId, envId: EnvId, t: number): { finding: Finding | null; error: string | null; value: number | null } {
+function evalSafe(
+  rule: Rule,
+  index: ScenarioIndex,
+  runtime: readonly Observation[],
+  crewId: CrewId,
+  envId: EnvId,
+  t: number,
+): { finding: Finding | null; error: string | null; value: number | null; partial: boolean; reports: number } {
   try {
     const ev = evaluateRuleAt(rule, index, runtime, crewId, envId, t)
-    return { finding: ev.finding, error: null, value: ev.input.value }
+    // A summed window whose record starts after the window opens is a partial record (D15). Prefer the
+    // app's own flag if the aggregation reports one; otherwise judge it from the reports themselves.
+    const own = (ev.input as { partial?: unknown }).partial
+    const kind = rule.window?.kind
+    let partial = false
+    let reports = ev.input.n
+    if (typeof own === 'boolean') partial = own
+    else if (kind === 'cumulative' || (kind === 'career' && !TO_DATE_VARIABLES.has(rule.variable))) {
+      const seconds = kind === 'career' ? null : windowSeconds(rule.window?.duration)
+      const cov = recordCoverage(observationsFor(index, runtime, crewId, rule.variable), rule.unit, t, seconds)
+      partial = cov.partial
+      reports = cov.n
+    }
+    return { finding: ev.finding, error: null, value: ev.input.value, partial, reports }
   } catch (e) {
-    return { finding: null, error: (e as Error).message, value: null }
+    return { finding: null, error: (e as Error).message, value: null, partial: false, reports: 0 }
   }
+}
+
+/**
+ * One Table 4.8-1 cell. A partial record's logged sum is a lower bound of the window's dose: it can show
+ * that a limit is reached or approached (conclusive), but never that the window is "within limit".
+ */
+function OrganCell({ rule, r }: { rule: Rule; r: ReturnType<typeof evalSafe> }) {
+  if (!r.finding) return <span className="lf-tr-nodata">{r.error}</span>
+  const v = organVerdict(r.finding.status, r.partial, r.value)
+  return (
+    <span className="lf-rad-cell">
+      <span>
+        {OPS_SYMBOL[rule.op] ?? rule.op} <Num value={rule.limit} unit={rule.unit} />
+      </span>
+      {v.logged ? (
+        <span className="lf-rad-logged">
+          logged <Num value={r.value} unit={rule.unit} /> of <Num value={rule.limit} unit={rule.unit} />
+        </span>
+      ) : null}
+      {v.badge ? <FindingBadge finding={r.finding} /> : null}
+      {v.partialTag ? <PartialTag /> : null}
+    </span>
+  )
 }
 
 function LimitsPanel({ index, runtime, envId, t, crewId, vol1 }: { index: ScenarioIndex; runtime: readonly Observation[]; envId: EnvId; t: number; crewId: CrewId; vol1: { reqs: RequirementRec[]; doc: string } }) {
@@ -631,6 +1067,11 @@ function LimitsPanel({ index, runtime, envId, t, crewId, vol1 }: { index: Scenar
   const career = rules.find((r) => r.role !== 'context' && r.window?.kind === 'career' && r.unit === 'mSv') ?? null
   const organ = rules.filter((r) => r.role !== 'context' && r.category === 'PEL' && (r.unit === 'mGy-Eq' || r.unit === 'mGy'))
   const organVars = Array.from(new Set(organ.map((r) => r.variable)))
+  // Organ-dose reports in this crewmember's record (scenario + entered on this device), in a limit's own unit.
+  const organReports = organVars.reduce((n, variable) => {
+    const units = new Set(organ.filter((r) => r.variable === variable).map((r) => r.unit))
+    return n + observationsFor(index, runtime, crewId, variable).filter((o) => o.t <= t && units.has(o.unit) && Number.isFinite(o.value)).length
+  }, 0)
   let spe: Rule | null = null
   try {
     spe = getRule(RULES, 'ctx_spe_design_reference')
@@ -670,7 +1111,7 @@ function LimitsPanel({ index, runtime, envId, t, crewId, vol1 }: { index: Scenar
           </ul>
           <p className="lf-tr-muted">
             Tick: approach level <Num value={career.approach_at?.value ?? null} unit={career.unit} /> (<Chip kind={career.approach_at?.chip} />
-            ). Effective dose is the quantity of this limit, so it is compared directly. The SPE day’s absorbed dose (uGy) is not added to it:
+            ). Effective dose is the quantity of this limit, so it is compared directly. The SPE day’s absorbed dose (µGy) is not added to it:
             LANDFALL makes no personal dose projection and runs no REID model.
           </p>
           {req4030 ? <Quote req={req4030} doc={vol1.doc} /> : null}
@@ -702,10 +1143,9 @@ function LimitsPanel({ index, runtime, envId, t, crewId, vol1 }: { index: Scenar
                     {WINDOW_COLS.map((w) => {
                       const rule = row.find(w.match)
                       if (!rule) return <td key={w.key}>not in Table 4.8-1</td>
-                      const r = evalSafe(rule, index, runtime, crewId, envId, t)
                       return (
                         <td key={w.key}>
-                          {OPS_SYMBOL[rule.op] ?? rule.op} <Num value={rule.limit} unit={rule.unit} /> {r.finding ? <FindingBadge finding={r.finding} /> : null}
+                          <OrganCell rule={rule} r={evalSafe(rule, index, runtime, crewId, envId, t)} />
                         </td>
                       )
                     })}
@@ -715,10 +1155,20 @@ function LimitsPanel({ index, runtime, envId, t, crewId, vol1 }: { index: Scenar
             </tbody>
           </table>
         </div>
+        {organReports === 0 ? (
+          <p className="lf-tr-muted">
+            No organ dose in mGy-Eq or mGy is in {crewId}’s record, so every cell reads insufficient data (cyan) instead of a guess.
+          </p>
+        ) : (
+          <p className="lf-tr-muted">
+            {crewId}’s record holds <Num value={organReports} /> organ-dose {organReports === 1 ? 'report' : 'reports'}. A window the record does
+            not cover from its start reads <PartialTag /> (cyan, as missing data): the logged sum is a lower bound, because unlogged time is not
+            zero dose. It can show a limit reached or approached, never “within limit”.
+          </p>
+        )}
         <p className="lf-tr-muted">
-          No organ dose in mGy-Eq or mGy is in this scenario’s record, so every cell reads insufficient data (cyan) instead of a guess. Organ dose
-          needs an organ-dose model; LANDFALL compares only values reported in the limit’s own unit and takes no Gy to Gy-Eq or Sv step. Limits
-          read from <code>engine/rules/thresholds.json</code> (<Chip kind={organ[0]?.chip} />, Table 4.8-1).
+          Organ dose needs an organ-dose model; LANDFALL compares only values reported in the limit’s own unit and takes no Gy to Gy-Eq or Sv
+          step. Limits read from <code>engine/rules/thresholds.json</code> (<Chip kind={organ[0]?.chip} />, Table 4.8-1).
         </p>
       </section>
       {spe ? (
@@ -838,6 +1288,7 @@ export default function Radiation(_props: FeatureProps) {
   const runtime = state.observations
   const replay = useMeta<ReplayData>('swpc_spe_replay')
   const scale = useMeta<SScaleData>('swpc_s_scale')
+  const speList = useMeta<SpeListData>('swpc_spe_list')
   const live = useMeta<ProtonsLiveData>('swpc_protons_live')
   const v1 = useMeta<{ requirements: RequirementRec[] }>('std_vol1_requirements')
   const v2 = useMeta<{ requirements: RequirementRec[] }>('std_vol2_requirements')
@@ -856,8 +1307,9 @@ export default function Radiation(_props: FeatureProps) {
     <div className="lf-tr lf-rad">
       <h1>Radiation</h1>
       <p className="lf-tr-lead">
-        The radiation environment at <strong>{env.label}</strong>, from real NASA and NOAA measurements, and the scenario’s proton monitor. Absorbed
-        dose (Gy) is never converted into effective dose (Sv): each quantity is compared only with a limit in its own unit.
+        The radiation environment at <strong>{env.label}</strong>, from real NASA and NOAA measurements, and the scenario’s proton reading (a
+        replay of a real 1989 event; simulated values are labelled where they appear). Absorbed dose (Gy) is never converted into effective
+        dose (Sv): each quantity is compared only with a limit in its own unit.
       </p>
       <EnvPicker envId={envId} onPick={setEnv} />
       <ProtonPanel
@@ -868,6 +1320,7 @@ export default function Radiation(_props: FeatureProps) {
         replaySnap={replay.snap}
         sim={scenario.sim.data}
         scale={scale.status === 'ready' ? scale.snap?.data ?? null : null}
+        speList={speList.status === 'ready' ? speList.snap?.data ?? null : null}
         vol2={vol2}
         t={t}
         envId={envId}

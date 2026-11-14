@@ -42,6 +42,7 @@ export interface DailyStat {
 export interface HapiDoseData {
   explainer?: string
   headline_parameter: string
+  parameters?: Record<string, { units?: string; description?: string }>
   series: Record<string, { units: string; summary?: Record<string, number>; daily: DailyStat[] }>
   enhanced_days?: { rule: string; basis: string; days: Array<{ date: string; mean: number; ratio_to_median: number }> }
   conversions?: Record<string, number>
@@ -64,9 +65,12 @@ export interface SScaleData {
 export interface ReplayData {
   unit: string
   series_ge10mev: { start: string; step_s: number; n: number; values: Array<number | null> }
+  series_ge100mev?: { start: string; step_s: number; n: number; values: Array<number | null>; column?: string }
+  max_ge100mev?: { time_tag: string; flux_pfu: number }
+  noaa_note_oct1989_ge100mev_pfu?: number
   s_transitions: Array<[string, number | null]>
   sesc_event_computed?: { start: string; max_time: string; max_pfu: number; max_s_level: number }
-  noaa_spe_list_entry?: { start_as_printed?: string; max_as_printed?: string; peak_pfu?: number; s_level?: number }
+  noaa_spe_list_entry?: { start?: string; max?: string; start_as_printed?: string; max_as_printed?: string; peak_pfu?: number; s_level?: number }
 }
 
 export interface ProtonsLiveData {
@@ -233,4 +237,195 @@ export function utcLabel(ms: number): string {
 /** "HH:MM" UTC for ms. */
 export function hhmmUtc(ms: number): string {
   return new Date(ms).toISOString().slice(11, 16)
+}
+
+// ---- display units ------------------------------------------------------------------------------
+
+/** Snapshot unit strings use ASCII "u" for micro ("uGy/day"); the page prints the SI symbol µ. */
+export function unitText(u: string | null | undefined): string {
+  if (!u) return ''
+  return u.replace(/(^|[^A-Za-z])u(Gy|Sv)/g, '$1µ$2')
+}
+
+/** Short instrument name of each dose snapshot (environment picker; no raw snapshot ids on screen). */
+export const DOSE_INSTRUMENT: Readonly<Record<string, string>> = {
+  hapi_iss_tepc: 'ISS TEPC',
+  hapi_crater_dose: 'LRO CRaTER',
+  hapi_msl_rad_dose: 'Curiosity RAD',
+}
+
+// ---- cumulative-dose record coverage (partial records) ---------------------------------------------
+
+const YEAR_S = 365 * DAY_S // the same 365-day year the app's window aggregation uses (a design choice there)
+
+/** Seconds in a rule window duration ("P30D", "P1Y", "PT1H"); null when absent or not understood. */
+export function windowSeconds(duration: string | null | undefined): number | null {
+  const m = /^P(?:(\d+)Y)?(?:(\d+)D)?(?:T(?:(\d+)H)?)?$/.exec((duration ?? '').trim())
+  if (!m || duration === 'P' || !(m[1] || m[2] || m[3])) return null
+  return Number(m[1] ?? 0) * YEAR_S + Number(m[2] ?? 0) * DAY_S + Number(m[3] ?? 0) * 3600
+}
+
+/**
+ * What a cumulative-dose cell shows. A partial record's logged sum is a lower bound: "outside" or
+ * "approaching" on it is conclusive (the full sum can only be higher), "within" is not, so a partial
+ * record never shows "within limit" (D15) and shows the cyan partial-record tag instead.
+ */
+export function organVerdict(status: string, partial: boolean, value: number | null): { badge: boolean; partialTag: boolean; logged: boolean } {
+  const logged = value !== null && status !== 'insufficient_data' && status !== 'not_applicable' && status !== 'stale'
+  const lowerBoundSays = status === 'outside' || status === 'approaching'
+  return { badge: !partial || lowerBoundSays, partialTag: partial && logged, logged }
+}
+
+/** "March 1991" from an ISO date (UTC), for prose. */
+export function monthYear(iso: string | null | undefined): string {
+  const ms = Date.parse(iso ?? '')
+  if (!Number.isFinite(ms)) return '?'
+  const d = new Date(ms)
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  return `${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`
+}
+
+/** Lower-case the first letter of a description used mid-sentence, unless it starts an acronym ("CRaTER"). */
+export function lcFirst(s: string): string {
+  return /^[A-Z][a-z]/.test(s) ? s[0].toLowerCase() + s.slice(1) : s
+}
+
+export interface RecordCoverage {
+  /** t of the earliest usable report at or before t (any age), or null when there is none. */
+  firstT: number | null
+  /** Usable reports (same unit, finite value) at or before t. */
+  n: number
+  /**
+   * True when the record starts after the window opens: the logged sum is then a lower bound of the
+   * window's dose (unlogged time is not zero dose). Always true for a career sum that does not start at MET 0.
+   */
+  partial: boolean
+}
+
+/**
+ * Coverage of a cumulative dose window (t - seconds, t] by dose reports, each report being the dose since
+ * the previous one. `seconds` null = career window, opening at MET 0.
+ */
+export function recordCoverage(
+  observations: ReadonlyArray<{ t: number; value: number; unit: string }>,
+  unit: string,
+  t: number,
+  seconds: number | null,
+): RecordCoverage {
+  let firstT: number | null = null
+  let n = 0
+  for (const o of observations) {
+    if (o.t > t || o.unit !== unit || typeof o.value !== 'number' || !Number.isFinite(o.value)) continue
+    n += 1
+    if (firstT === null || o.t < firstT) firstT = o.t
+  }
+  const opens = seconds === null ? 0 : t - seconds
+  return { firstT, n, partial: firstT !== null && firstT > opens }
+}
+
+// ---- CRaTER detector pairs and the DONKI cross-check --------------------------------------------
+
+export interface PairDay {
+  parameter: string
+  mean: number | null
+  /** Daily mean / this pair's own window median. */
+  ratio: number | null
+}
+
+export interface DetectorDay {
+  date: string
+  pairs: PairDay[]
+}
+
+/** Each detector pair's daily mean on the given dates, and its multiple of that pair's own window median. */
+export function detectorDays(d: HapiDoseData, dates: readonly string[], parameters: readonly string[]): DetectorDay[] {
+  return dates.map((date) => ({
+    date,
+    pairs: parameters.map((parameter) => {
+      const s = d.series[parameter]
+      const row = s?.daily.find((r) => r.date === date)
+      const median = s?.summary?.median
+      const mean = row && row.n > 0 && typeof row.mean === 'number' && Number.isFinite(row.mean) ? row.mean : null
+      return { parameter, mean, ratio: mean !== null && typeof median === 'number' && median > 0 ? mean / median : null }
+    }),
+  }))
+}
+
+/** Consecutive calendar dates ("YYYY-MM-DD", any order) grouped into runs, each sorted. */
+export function dateRuns(dates: readonly string[]): string[][] {
+  const sorted = [...new Set(dates)].sort()
+  const runs: string[][] = []
+  for (const d of sorted) {
+    const run = runs[runs.length - 1]
+    const prev = run?.[run.length - 1]
+    if (prev && Date.parse(`${d}T00:00:00Z`) - Date.parse(`${prev}T00:00:00Z`) === DAY_S * 1000) run.push(d)
+    else runs.push([d])
+  }
+  return runs
+}
+
+export interface DonkiSep {
+  sep_id: string
+  event_time: string
+  instruments: string[]
+  link?: string
+}
+
+export interface DonkiData {
+  events: DonkiSep[]
+  count?: number
+}
+
+/** A DONKI entry whose every instrument is a model forecast ("MODEL: …"), not an observation. */
+export function isModelEntry(e: DonkiSep): boolean {
+  return e.instruments.length > 0 && e.instruments.every((i) => /^MODEL\b/i.test(i.trim()))
+}
+
+export interface CrossCheck {
+  run: string[]
+  /** Observed (non-model) DONKI SEP entries from the day before the run to its last day, by time. */
+  observed: DonkiSep[]
+  /** Model-forecast entries in the same span (counted, never used as a confirmation). */
+  modelled: number
+}
+
+/** For each run of enhanced days, the DONKI SEP entries logged from one day before it to its end. */
+export function donkiCrossCheck(runs: readonly string[][], events: readonly DonkiSep[]): CrossCheck[] {
+  return runs.map((run) => {
+    const from = Date.parse(`${run[0]}T00:00:00Z`) - DAY_S * 1000
+    const to = Date.parse(`${run[run.length - 1]}T00:00:00Z`) + DAY_S * 1000
+    const inSpan = events.filter((e) => {
+      const ms = Date.parse(e.event_time)
+      return Number.isFinite(ms) && ms >= from && ms < to
+    })
+    const observed = inSpan.filter((e) => !isModelEntry(e)).sort((a, b) => Date.parse(a.event_time) - Date.parse(b.event_time))
+    return { run: [...run], observed, modelled: inSpan.length - observed.length }
+  })
+}
+
+// ---- NOAA's solar proton event list --------------------------------------------------------------
+
+export interface SpeListEvent {
+  start: string
+  max?: string
+  start_as_printed?: string
+  max_as_printed?: string
+  peak_pfu: number | null
+  s_level?: number
+}
+
+export interface SpeListData {
+  events: SpeListEvent[]
+  list_first_start?: string
+  list_last_start?: string
+}
+
+/** Rank (1 = largest) of the event starting at `start` by peak >=10 MeV flux, and the events ranked above it. */
+export function speRank(list: SpeListData, start: string): { rank: number; of: number; event: SpeListEvent; above: SpeListEvent[] } | null {
+  const ms = Date.parse(start)
+  const event = list.events.find((e) => Date.parse(e.start) === ms)
+  if (!event || typeof event.peak_pfu !== 'number') return null
+  const ranked = list.events.filter((e) => typeof e.peak_pfu === 'number')
+  const above = ranked.filter((e) => (e.peak_pfu as number) > (event.peak_pfu as number)).sort((a, b) => (b.peak_pfu as number) - (a.peak_pfu as number))
+  return { rank: above.length + 1, of: ranked.length, event, above }
 }

@@ -5,11 +5,13 @@
 import { useId, useState } from 'react'
 import { BASELINE_FIRST_DAY, BASELINE_LAST_DAY, SIM_LAST_DAY } from '../../app/scenario'
 import { CREW } from '../../app/vocab'
-import { Chip, Citation, Expander, Num, Panel, SeverityBadge } from '../../ui'
+import { Chip, Citation, Expander, Num, SeverityBadge } from '../../ui'
+import { FoldPanel } from './fold'
 import type { MetaFile, PersonalFile, ThresholdsFile } from './rules'
 import type { CriticalRow } from './stats'
-import { SD_INTERVAL_LEVEL, chanceRates, criticalRow, round1, sdInterval95, unlimitedRow } from './stats'
-import { RichText, SectionTitle, Verbatim } from './shared'
+import { SD_INTERVAL_LEVEL, chanceRates, countsEither, criticalRow, round1, sdInterval95, unlimitedRow } from './stats'
+import { RichText, Verbatim } from './shared'
+import { EpisodeTable, MdcTable } from './TierBEvidence'
 
 const PARAM_LABEL: Record<string, string> = {
   alpha_two_tailed: 'α, two-tailed',
@@ -102,7 +104,7 @@ function CriticalTable({ rows }: { rows: CriticalRow[] }) {
             Critical |t|
           </th>
           <th scope="col" className="num">
-            Flag beyond (baseline SDs)
+            Smallest flaggable change (baseline SDs)
           </th>
         </tr>
       </thead>
@@ -116,7 +118,7 @@ function CriticalTable({ rows }: { rows: CriticalRow[] }) {
             <td className="num" data-label="Critical |t|">
               <Num value={r.critical} digits={3} />
             </td>
-            <td className="num" data-label="Flag beyond (SDs)">
+            <td className="num" data-label="Smallest change (SDs)">
               <Num value={r.bandSd} digits={3} />
             </td>
           </tr>
@@ -138,8 +140,10 @@ function ChanceCalc({ personal }: { personal: PersonalFile }) {
   const [crewRaw, setCrewRaw] = useState(String(CREW.length))
   const days = clampInt(daysRaw, 1, 100_000)
   const crew = clampInt(crewRaw, 1, 50)
-  const one = days !== null ? chanceRates(k, days, alpha) : null
-  const all = days !== null && crew !== null ? chanceRates(k * crew, days, alpha) : null
+  const one = days !== null ? chanceRates(k, days, alpha, either.length) : null
+  const all = days !== null && crew !== null ? chanceRates(k * crew, days, alpha, either.length * crew) : null
+  // Does the engine count the both-direction indicators in its caution figures?
+  const eitherCounted = countsEither(one)
   const idDays = useId()
   const idCrew = useId()
   return (
@@ -189,10 +193,20 @@ function ChanceCalc({ personal }: { personal: PersonalFile }) {
           <Num value={one?.expected ?? null} digits={3} />
           <span className="lf-m-eqnote"> per crewmember, either direction</span>
         </p>
-        <p className="lf-mono lf-m-eqline">
-          cautions: k × days × α / 2 = <Num value={one?.expected_cautions ?? null} digits={3} />
-          <span className="lf-m-eqnote"> per crewmember, worse direction only</span>
-        </p>
+        {eitherCounted && either.length > 0 ? (
+          <p className="lf-mono lf-m-eqline">
+            cautions: (k − e) × days × α / 2 + e × days × α = <Num value={one?.expected_cautions ?? null} digits={3} />
+            <span className="lf-m-eqnote">
+              {' '}
+              per crewmember; e = <Num value={either.length} /> {either.length === 1 ? 'indicator alerts' : 'indicators alert'} in both directions
+            </span>
+          </p>
+        ) : (
+          <p className="lf-mono lf-m-eqline">
+            cautions: k × days × α / 2 = <Num value={one?.expected_cautions ?? null} digits={3} />
+            <span className="lf-m-eqnote"> per crewmember, worse direction only</span>
+          </p>
+        )}
         {one ? (
           <ul className="lf-m-notes">
             <li>Per crewmember: {one.text}.</li>
@@ -211,7 +225,10 @@ function ChanceCalc({ personal }: { personal: PersonalFile }) {
         {either.length > 0 ? (
           <p className="lf-m-small">
             {either.map((i) => i.label).join(', ')} can raise a caution in either direction, so for{' '}
-            {either.length === 1 ? 'it' : 'them'} every chance flag is a caution and the caution figures above are too low.
+            {either.length === 1 ? 'it' : 'them'} every chance flag is a caution
+            {eitherCounted
+              ? ', and the caution figures above count that.'
+              : '. The engine in this build counts every indicator as one-sided, so the caution figures above are too low.'}
           </p>
         ) : null}
       </div>
@@ -236,10 +253,16 @@ export function TiersSection({ meta, personal, thresholds }: { meta: MetaFile; p
   const nHi = sdInterval95(rci.baseline_window_days)
 
   return (
-    <Panel
-      id="m-tiers"
+    <FoldPanel
+      s="tiers"
       eyebrow="Two tiers"
-      title={<SectionTitle n={3}>Tier A: a published number. Tier B: your own baseline.</SectionTitle>}
+      title="Tier A: a published number. Tier B: your own baseline."
+      abstract={
+        <>
+          The single-case test, its critical value (<Num value={full.critical} digits={3} />), the smallest change it can flag, and what each
+          tier catches in the scenario.
+        </>
+      }
       footer={
         <>
           <span>Rules: engine/rules/personal.json, thresholds.json, meta.json ·</span>
@@ -304,6 +327,26 @@ export function TiersSection({ meta, personal, thresholds }: { meta: MetaFile; p
         (section 1.3.6.7.2) and Purdue STAT 503’s table, whose 0.0005 upper-tail column is this two-tailed α. A shorter
         baseline puts the line further out, because its SD is less certain. <Chip kind="derived" />
       </p>
+
+      <div className="lf-m-aside">
+        <h3 className="lf-m-h4">The smallest change Tier B can see</h3>
+        <p>
+          A single day is flagged only when it sits beyond the band: its minimum detectable change is t<sub>crit</sub> × SD × √(1 + 1/n),
+          here <Num value={full.bandSd} digits={3} /> times the crewmember’s own baseline SD for a{' '}
+          <Num value={rci.baseline_window_days} />
+          -day baseline. A smaller real change, however important, passes unflagged; a noisier person needs a bigger change. That is the
+          price of a low chance rate, and it is why the band and this number are printed together. In each indicator’s own unit, from
+          the scenario’s baselines:
+        </p>
+        <MdcTable personal={personal} />
+        <p className="lf-m-small">
+          The noise column is the simulator’s own record of how it drew day-to-day scatter, with its basis chip: where it says design
+          choice, the scatter is LANDFALL’s, not a measured within-person value, and real scatter may be larger, which would raise the
+          smallest flaggable change by the same factor. The chance rate does not depend on the scatter; the power to see a change does.
+        </p>
+        <h3 className="lf-m-h4">What Tier B detects in the scenario, and what only Tier A catches</h3>
+        <EpisodeTable />
+      </div>
 
       {rci.lineage ? (
         <div className="lf-m-aside">
@@ -411,6 +454,6 @@ export function TiersSection({ meta, personal, thresholds }: { meta: MetaFile; p
           </p>
         </div>
       ) : null}
-    </Panel>
+    </FoldPanel>
   )
 }

@@ -45,7 +45,38 @@
 .lf-rad-here { font-weight: 400; color: var(--lf-text); }
 .lf-rad-caption { text-align: left; font-size: var(--lf-text-sm); color: var(--lf-text-2); padding: 0 0 0.35em; }
 
+/* Kind tags inside a card title read as tags, not as part of the heading text. Inter (the UI font), not
+   the heading's Public Sans: Public Sans is loaded at 700 only (index.css font budget), and a 600 face
+   is not precached, so it would fail to load offline. */
+.lf-rad .lf-tr-card-title .lf-tr-kind { font-family: var(--lf-font-ui); font-size: var(--lf-text-xs); font-weight: 600; letter-spacing: 0.04em; vertical-align: 0.15em; }
+/* Tables whose rows grew to two lines are shown whole (the shared wrapper caps height at 18rem). */
+.lf-rad-organ.lf-tr-table-wrap, .lf-rad-pairs-wrap.lf-tr-table-wrap { max-height: none; }
+
+/* Simulated values: the hatched sim-marker stripes (F.4.2 j), never a "live" style. */
+.lf-tr-kind[data-kind='simulated'] {
+  border-style: solid;
+  background: repeating-linear-gradient(135deg, var(--lf-sim-stripe-a) 0 4px, var(--lf-sim-stripe-b) 4px 8px);
+  color: var(--lf-sim-text);
+}
+
+/* Table 4.8-1 cells: limit, logged sum, then the verdict or the cyan partial-record tag. */
+.lf-rad-cell { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0.25em; white-space: normal; }
+.lf-rad-logged { font-size: var(--lf-text-xs); color: var(--lf-text-muted); }
+
+/* CRaTER pairs and the DONKI cross-check */
+.lf-rad-h4 { font-size: var(--lf-text-sm); font-weight: 600; margin: var(--lf-space-2) 0 var(--lf-space-0-5); }
+.lf-rad-pairs td, .lf-rad-pairs th { white-space: nowrap; }
+.lf-rad-x { color: var(--lf-text-muted); }
+.lf-rad-xcheck { list-style: none; padding: 0; margin: var(--lf-space-1) 0; display: grid; gap: var(--lf-space-1); }
+.lf-rad-xcheck > li { border-left: 2px solid var(--lf-border-strong); padding: 0 0 0 var(--lf-space-1-5); }
+.lf-rad-xcheck-head { margin: 0 0 0.25em; display: flex; flex-wrap: wrap; align-items: center; gap: 0.25em 0.75em; max-width: none; }
+.lf-rad-donki { margin: 0; padding-left: 1.1em; font-size: var(--lf-text-sm); }
+.lf-rad-donki li { margin: 0.15em 0; overflow-wrap: anywhere; }
+
 @media (max-width: 640px) {
+  /* CRaTER pairs: each multiple goes under its value so the four columns fit a phone. */
+  .lf-rad-pairs td, .lf-rad-pairs th { white-space: normal; }
+  .lf-rad-pairs .lf-rad-x { display: block; }
   .lf-rad-bars li { grid-template-columns: 3em minmax(60px, 1fr); }
   .lf-rad-bars li > :nth-child(n + 3) { grid-column: 2; }
   .lf-rad-tick[data-pos='odd'] { display: none; }

@@ -172,9 +172,94 @@ export interface V2Requirement {
   checks: { in: string; expect: string; ok: boolean }[]
 }
 
+export interface Vol2Table {
+  caption: string
+  page?: number | number[]
+  columns: string[]
+  rows: string[][]
+  verified?: boolean
+}
+
 export interface Vol2Data {
   document: { revision: string; approved: string; title: string; pdf_url: string; sha256: string }
   requirements: V2Requirement[]
+  tables?: Record<string, Vol2Table>
+}
+
+/** The frozen Table 10.3-1 (Alert Type and Annunciation Table), found by its caption. */
+export function alertTable(v2: Vol2Data | null | undefined): Vol2Table | null {
+  return (v2?.tables ? Object.values(v2.tables).find((x) => /^Table 10\.3-1\b/.test(x.caption)) : undefined) ?? null
+}
+
+/** Table 10.3-1 rows as {type, definition, priority, visual}. */
+export function alertClasses(v2: Vol2Data | null | undefined): { type: string; definition: string; priority: string; visual: string }[] {
+  const t = alertTable(v2)
+  if (!t) return []
+  const col = (re: RegExp) => t.columns.findIndex((c) => re.test(c))
+  const [d, p, v] = [col(/^Definition/i), col(/^Priority/i), col(/^Visual/i)]
+  return t.rows.map((r) => ({ type: r[0] ?? '', definition: d >= 0 ? r[d] ?? '' : '', priority: p >= 0 ? r[p] ?? '' : '', visual: v >= 0 ? r[v] ?? '' : '' }))
+}
+
+/** The Table 10.3-1 row for a LANDFALL severity ("warning" -> the "Warning" row; emergency rows share a prefix). */
+export function alertClassFor(classes: ReturnType<typeof alertClasses>, severity: string): ReturnType<typeof alertClasses>[number] | null {
+  return classes.find((c) => c.type.toLowerCase() === severity.toLowerCase()) ?? classes.find((c) => c.type.toLowerCase().startsWith(severity.toLowerCase())) ?? null
+}
+
+/** Plain-language reading of a meta.json severity_mapping `when` clause (unknown keys are shown as written). */
+export function describeWhen(when: Record<string, unknown>): string {
+  const STATUS: Record<string, string> = {
+    outside: 'outside',
+    approaching: 'approaching',
+    within: 'within',
+    reliable_change: 'reliable change',
+    insufficient_data: 'insufficient data',
+    stale: 'stale data',
+    not_applicable: 'not applicable here',
+  }
+  const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : [String(v)])
+  const parts: string[] = []
+  for (const [k, v] of Object.entries(when)) {
+    switch (k) {
+      case 'tier':
+        parts.push(`Tier ${String(v)}`)
+        break
+      case 'role':
+        parts.push(v === 'alert' ? 'alert rule' : v === 'context' ? 'context rule' : `role ${String(v)}`)
+        break
+      case 'category':
+        parts.push(String(v))
+        break
+      case 'category_in':
+        parts.push(list(v).join(' / '))
+        break
+      case 'status':
+        parts.push(STATUS[String(v)] ?? String(v).replace(/_/g, ' '))
+        break
+      case 'status_in':
+        parts.push(list(v).map((s) => STATUS[s] ?? s.replace(/_/g, ' ')).join(' or '))
+        break
+      case 'direction':
+        parts.push(`${String(v)} direction`)
+        break
+      case 'alerting':
+        parts.push(v ? 'alerting indicator' : 'non-alerting indicator')
+        break
+      case 's_level_in': {
+        const l = list(v)
+        parts.push(l.length > 1 ? `NOAA S${l[0]} to S${l[l.length - 1]}` : `NOAA S${l[0]}`)
+        break
+      }
+      case 's_level_min':
+        parts.push(`NOAA S${String(v)} or above`)
+        break
+      case 'eva':
+        parts.push(v === 'planned_or_in_progress' ? 'EVA planned or in progress' : `EVA ${String(v).replace(/_/g, ' ')}`)
+        break
+      default:
+        parts.push(`${k.replace(/_/g, ' ')} ${Array.isArray(v) ? v.join(' / ') : String(v).replace(/_/g, ' ')}`)
+    }
+  }
+  return parts.join(' · ')
 }
 
 export interface OsdrCmpData {

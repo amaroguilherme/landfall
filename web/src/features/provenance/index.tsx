@@ -9,6 +9,7 @@ import { Button, Chip, EmptyState, Expander, FreshnessChip, Num, Panel, ReqId, U
 import { CASES, FILE_STATUS, GROUPS, META, ROWS, citedRequirements, designChoiceFamilies, findRow, groupOf } from './model'
 import type { DesignFamily, ProvRow } from './model'
 import {
+  AlertClassQuote,
   AppliesCell,
   Categories,
   CategoryTag,
@@ -396,6 +397,7 @@ function RowDetail({ row }: { row: ProvRow }) {
   return (
     <div className="prov-rowdetail">
       <SourceBlock source={row.source} row={row} />
+      {row.kind === 'severity_map' && row.value.kind === 'mapping' ? <AlertClassQuote severity={row.value.severity ?? row.value.severity_max} /> : null}
       {row.facts.length ? (
         <dl className="prov-facts">
           {row.facts.map((f) => (
@@ -485,8 +487,8 @@ function DesignChoices() {
       }
     >
       <p className="prov-dc-lead">
-        NASA publishes no numeric in-flight alert thresholds for crew health. Where we needed a number NASA does not publish, it is listed here as
-        ours.
+        NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew health; its alert requirements leave the number to the program.
+        Where we needed a number NASA does not publish, it is listed here as ours.
       </p>
       {reqIds.length ? (
         <>

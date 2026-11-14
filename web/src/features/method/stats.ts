@@ -31,10 +31,19 @@ export function unlimitedRow(alpha: number): CriticalRow {
 
 /**
  * Chance findings for k alerting indicators over `days` days, straight from the engine
- * (SPEC 5 expected_false_alarms): flags in either direction, and cautions (worse direction only).
+ * (SPEC 5 expected_false_alarms): flags in either direction, and cautions. `kEither` of the k alert
+ * in both directions (every chance flag of theirs is a caution); it is passed to an engine that takes
+ * it, and the result then carries `k_either`. An engine without it counts every indicator as one-sided,
+ * and the page says its caution figure is then too low.
  */
-export function chanceRates(k: number, days: number, alpha: number): FalseAlarms {
-  return expectedFalseAlarms(k, days, alpha)
+export function chanceRates(k: number, days: number, alpha: number, kEither = 0): FalseAlarms & { k_either?: number } {
+  const fn = expectedFalseAlarms as unknown as (k: number, d: number, a: number, e?: number) => FalseAlarms & { k_either?: number }
+  return kEither > 0 ? fn(k, days, alpha, kEither) : fn(k, days, alpha)
+}
+
+/** True when an engine result already counts the both-direction indicators. */
+export function countsEither(r: { k_either?: unknown } | null | undefined): boolean {
+  return !!r && typeof r.k_either === 'number'
 }
 
 /** Confidence level of sdInterval95, and its two-sided standard-normal quantile (they go together). */

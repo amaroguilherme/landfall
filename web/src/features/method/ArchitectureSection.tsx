@@ -1,11 +1,12 @@
-// Section 6: architecture in one paragraph, a small flow diagram (HTML + CSS, no image), and a
+// Section: architecture in one paragraph, a small flow diagram (HTML + CSS, no image), and a
 // copyable "check our arithmetic" command.
 import { useRef, useState } from 'react'
 import { useManifest } from '../../app/data'
 import { ENGINE_IS_SHIM } from '../../app/engine'
-import { Button, Num, Panel } from '../../ui'
+import { Button, Num } from '../../ui'
+import { FoldPanel } from './fold'
 import type { MetaFile } from './rules'
-import { ExtLink, Path, RichText, SectionTitle, UnavailableNote } from './shared'
+import { ExtLink, Path, RichText, UnavailableNote } from './shared'
 
 const REPO_URL = 'https://github.com/amaroguilherme/landfall'
 const CHECK_CMD = `git clone ${REPO_URL} && cd landfall && uv run pytest engine`
@@ -87,21 +88,21 @@ function Flow({ snapshots, adapters }: { snapshots: number | null; adapters: num
         </li>
         <li className="lf-m-stage">
           <span className="lf-m-stage-when">in the browser</span>
-          <strong>Offline app</strong>
-          <span>no backend, no other origin; works with the network off</span>
+          <strong>Browser app</strong>
+          <span>no backend and no other origin; once loaded it keeps working with the network off</span>
         </li>
       </ol>
       <ul className="lf-m-flow-off" aria-label="Not in the decision path">
         <li>
-          <strong>Optional API</strong> (<Path>api/</Path>, FastAPI): never on the demo path
+          <strong>No server</strong> between the frozen data and the answer: nothing is computed at a backend
         </li>
         <li>
           <strong>No AI / LLM</strong> anywhere in the decision path
         </li>
       </ul>
       <figcaption id="m-flow-cap" className="sr-only">
-        Build-time ingest produces frozen JSON; the browser engine evaluates it offline; the optional API and any language
-        model are outside the decision path.
+        Build-time ingest produces frozen JSON; the browser engine evaluates it with no server; no language model is in
+        the decision path.
       </figcaption>
     </figure>
   )
@@ -112,10 +113,11 @@ export function ArchitectureSection({ meta }: { meta: MetaFile }) {
   const ready = m.status === 'ready'
   const llm = meta.refusals.find((r) => r.id === 'no_llm_in_decision_path')
   return (
-    <Panel
-      id="m-architecture"
+    <FoldPanel
+      s="architecture"
       eyebrow="Architecture"
-      title={<SectionTitle n={6}>Two engines, one set of answers</SectionTitle>}
+      title="Two engines, one set of answers"
+      abstract="Build-time ingest, frozen JSON, a TypeScript engine in the browser held to a stdlib-only Python reference by shared vectors."
       footer={
         <>
           <span>Code:</span>
@@ -129,8 +131,8 @@ export function ArchitectureSection({ meta }: { meta: MetaFile }) {
         freezes it as JSON, with its citation, caveats and checksum. At run time, the browser loads only those files and
         the rules, and a TypeScript engine evaluates them: pure functions, same inputs, same outputs. The same engine
         exists as a stdlib-only Python reference, and both replay one shared set of conformance vectors, so you can check
-        the arithmetic without trusting this interface. The optional API is never on the demo path, and no language
-        model sits anywhere in the decision path.
+        the arithmetic without trusting this interface. No server and no language model sits anywhere in the decision
+        path.
         {llm ? (
           <>
             {' '}
@@ -147,6 +149,6 @@ export function ArchitectureSection({ meta }: { meta: MetaFile }) {
         </UnavailableNote>
       ) : null}
       <CopyBlock />
-    </Panel>
+    </FoldPanel>
   )
 }

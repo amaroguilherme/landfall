@@ -2,15 +2,34 @@
 // predicted SAA passes (wall clock inside the window vs expired), and daily dose gaps.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { dailySeries, findRequirement, firstReach, nextPasses, replayMapping, transitions, utcToMet } from './model'
-import type { HapiDoseData, IssTrackData, ReplayData } from './model'
+import {
+  dailySeries,
+  dateRuns,
+  detectorDays,
+  donkiCrossCheck,
+  findRequirement,
+  firstReach,
+  isModelEntry,
+  lcFirst,
+  monthYear,
+  nextPasses,
+  organVerdict,
+  recordCoverage,
+  replayMapping,
+  speRank,
+  transitions,
+  unitText,
+  utcToMet,
+  windowSeconds,
+} from './model'
+import type { DonkiData, HapiDoseData, IssTrackData, ReplayData, SpeListData } from './model'
 
 const snap = (id: string) => JSON.parse(readFileSync(new URL(`../../../public/data/${id}.json`, import.meta.url), 'utf8'))
 
 describe('replay mapping', () => {
   const sim = snap('sim_crew').data
   const m = replayMapping(sim)!
-  it("puts the first S3 sample of 1989 where sim_crew says (MET 0412/14:15:00)", () => {
+  it('puts the first S3 sample of 1989 where sim_crew says (MET day 412, 14:15:00)', () => {
     const iso = sim.spe_day.shape.mapping.replay_utc_of_first_s3_sample
     expect(utcToMet(Date.parse(iso), m)).toBe(412 * 86_400 + 14 * 3600 + 15 * 60)
   })
@@ -46,6 +65,107 @@ describe('daily dose series', () => {
     const s = dailySeries(raw as HapiDoseData)
     expect(s.gaps).toEqual(raw.days_without_samples as string[])
     expect(s.v.filter((v) => v === null).length).toBe(s.gaps.length)
+  })
+})
+
+describe('display units and windows', () => {
+  it('prints micro as µ, never ASCII u, and leaves other units alone', () => {
+    expect(unitText('uGy/day')).toBe('µGy/day')
+    expect(unitText('uGy/min')).toBe('µGy/min')
+    expect(unitText('uSv/min')).toBe('µSv/min')
+    expect(unitText('cGy/day')).toBe('cGy/day')
+    expect(unitText('mGy-Eq')).toBe('mGy-Eq')
+  })
+  it('reads the rule window durations (365-day year, as the app aggregation)', () => {
+    expect(windowSeconds('P30D')).toBe(30 * 86_400)
+    expect(windowSeconds('P1Y')).toBe(365 * 86_400)
+    expect(windowSeconds('PT1H')).toBe(3600)
+    expect(windowSeconds(null)).toBeNull()
+    expect(windowSeconds('P')).toBeNull()
+  })
+})
+
+describe('partial dose records', () => {
+  const t = 412 * 86_400
+  const obs = [{ t: t - 60, value: 14, unit: 'mGy-Eq' }]
+  it('a record that starts inside the window is partial: its sum is only a lower bound', () => {
+    expect(recordCoverage(obs, 'mGy-Eq', t, 30 * 86_400)).toEqual({ firstT: t - 60, n: 1, partial: true })
+    expect(recordCoverage(obs, 'mGy-Eq', t, null).partial).toBe(true) // career sums open at MET 0
+  })
+  it('a report at or before the window start covers the window', () => {
+    const covered = [{ t: t - 31 * 86_400, value: 2, unit: 'mGy-Eq' }, ...obs]
+    expect(recordCoverage(covered, 'mGy-Eq', t, 30 * 86_400).partial).toBe(false)
+  })
+  it('no usable report is no record (not partial); other units and future reports do not count', () => {
+    const other = [{ t: t - 60, value: 14, unit: 'mSv' }, { t: t + 60, value: 1, unit: 'mGy-Eq' }]
+    expect(recordCoverage(other, 'mGy-Eq', t, 30 * 86_400)).toEqual({ firstT: null, n: 0, partial: false })
+  })
+  it('a partial record never reads "within limit"; a lower bound already approaching or outside is conclusive', () => {
+    // The review case: 14 mGy-Eq BFO logged on the SPE day, a 30-day window that began before any report.
+    expect(organVerdict('within', true, 14)).toEqual({ badge: false, partialTag: true, logged: true })
+    expect(organVerdict('approaching', true, 210)).toEqual({ badge: true, partialTag: true, logged: true })
+    expect(organVerdict('outside', true, 300)).toEqual({ badge: true, partialTag: true, logged: true })
+    expect(organVerdict('within', false, 14)).toEqual({ badge: true, partialTag: false, logged: true })
+    expect(organVerdict('insufficient_data', false, null)).toEqual({ badge: true, partialTag: false, logged: false })
+  })
+})
+
+describe('prose helpers', () => {
+  it('names months in English and keeps acronyms', () => {
+    expect(monthYear('1991-03-23T08:20:00Z')).toBe('March 1991')
+    expect(monthYear('2017-09-10T16:45:00Z')).toBe('September 2017')
+    expect(lcFirst('Radiation dose rate in Si detector B (raw)')).toBe('radiation dose rate in Si detector B (raw)')
+    expect(lcFirst('CRaTER dose')).toBe('CRaTER dose')
+  })
+})
+
+describe('CRaTER detector pairs on the enhanced days, and the DONKI cross-check', () => {
+  const crater = snap('hapi_crater_dose').data as HapiDoseData & { enhanced_days: { days: { date: string }[] } }
+  const donki = snap('swpc_sep_events').data as DonkiData
+  const days = crater.enhanced_days.days.map((d) => d.date)
+  const rows = detectorDays(crater, days, ['d1_2_dose_rate', 'd3_4_dose_rate'])
+  const byDate = new Map(rows.map((r) => [r.date, r]))
+  it('on the three peak days D1&2 read 14 to 17 times its median while D3&4 read 1.2 to 2.4 times its own', () => {
+    for (const date of ['2026-07-31', '2026-08-22', '2026-09-05']) {
+      const [d12, d34] = byDate.get(date)!.pairs
+      expect(d12.ratio!, date).toBeGreaterThan(14)
+      expect(d12.ratio!, date).toBeLessThan(17.2)
+      expect(d34.ratio!, date).toBeGreaterThan(1.15)
+      expect(d34.ratio!, date).toBeLessThan(2.4)
+    }
+  })
+  it('the two pairs have nearly the same quiet median (0.0139 vs 0.0138 cGy/day)', () => {
+    const m12 = crater.series.d1_2_dose_rate.summary!.median
+    const m34 = crater.series.d3_4_dose_rate.summary!.median
+    expect(Math.abs(m12 / m34 - 1)).toBeLessThan(0.02)
+  })
+  it('groups the enhanced days into four runs', () => {
+    expect(dateRuns(days).map((r) => [r[0], r[r.length - 1]])).toEqual([
+      ['2026-07-30', '2026-08-01'],
+      ['2026-08-21', '2026-08-26'],
+      ['2026-09-05', '2026-09-06'],
+      ['2026-09-14', '2026-09-14'],
+    ])
+  })
+  it('finds observed DONKI SEP entries for the July, August and September runs, none for 2026-09-14, and never counts a MODEL entry', () => {
+    const checks = donkiCrossCheck(dateRuns(days), donki.events)
+    const firstDays = checks.map((c) => [...new Set(c.observed.map((e) => e.event_time.slice(0, 10)))])
+    expect(firstDays).toEqual([['2026-07-30'], ['2026-08-20', '2026-08-21', '2026-08-22'], ['2026-09-05'], []])
+    expect(checks.every((c) => c.observed.every((e) => !isModelEntry(e)))).toBe(true)
+    expect(checks[0].modelled).toBeGreaterThan(0) // REleASE forecasts exist on 2026-07-30 and are set aside
+    expect(checks[0].observed.some((e) => e.instruments.some((i) => /GOES/.test(i)))).toBe(true)
+  })
+})
+
+describe("NOAA's solar proton event list", () => {
+  it('ranks October 1989 second by peak >=10 MeV flux, after March 1991', () => {
+    const list = snap('swpc_spe_list').data as SpeListData
+    const replay = snap('swpc_spe_replay').data as ReplayData
+    const r = speRank(list, replay.noaa_spe_list_entry!.start!)!
+    expect(r.rank).toBe(2)
+    expect(r.event.peak_pfu).toBe(40000)
+    expect(r.above.map((e) => [e.start.slice(0, 7), e.peak_pfu])).toEqual([['1991-03', 43000]])
+    expect(r.of).toBe(list.events.filter((e) => typeof e.peak_pfu === 'number').length)
   })
 })
 

@@ -5,10 +5,12 @@ import { useManifest, useSnapshot } from '../../app/data'
 import type { ManifestEntry, SnapshotState } from '../../app/data'
 import { Link } from '../../app/location'
 import { CREW } from '../../app/vocab'
-import { ClockIcon, Expander, FreshnessChip, Num, Panel, ReqId, SimulatedMarker } from '../../ui'
+import { ClockIcon, Expander, FreshnessChip, Num, ReqId, SimulatedMarker } from '../../ui'
+import { BuildNotes, splitBuildNotes } from '../data/buildNotes'
+import { FoldPanel } from './fold'
 import { normReqId } from './rules'
 import type { OsdrCmpData, SimCrewData, Vol2Data } from './rules'
-import { ExtLink, MissingNote, RichText, SectionTitle, Verbatim } from './shared'
+import { ExtLink, MissingNote, RichText, Verbatim } from './shared'
 
 function Loading({ what }: { what: string }) {
   return (
@@ -111,7 +113,8 @@ function SimCard() {
   else if (!s.data || !s.snapshot) body = <Missing id="sim_crew" state={s} />
   else {
     const d = s.data
-    const cav = s.snapshot.caveats
+    // Caveats about how the file was built (they cite the internal plan) stay verbatim, in Build notes.
+    const { shown: cav, build } = splitBuildNotes(s.snapshot.caveats)
     const shown = [cav.find((c) => /^SIMULATED/i.test(c)), cav.find((c) => /^Calibration/i.test(c)), cav.find((c) => /scripted/i.test(c))].filter(
       (c): c is string => !!c,
     )
@@ -161,6 +164,7 @@ function SimCard() {
             </ol>
           </Expander>
         ) : null}
+        <BuildNotes notes={build} what="scenario file" />
       </>
     )
   }
@@ -254,10 +258,11 @@ function FrozenCard() {
 
 export function DataSection() {
   return (
-    <Panel
-      id="m-data"
+    <FoldPanel
+      s="data"
       eyebrow="Data honesty"
-      title={<SectionTitle n={5}>Real NASA data, simulated crew data</SectionTitle>}
+      title="Real NASA data, simulated crew data"
+      abstract="What is measured, what is simulated, and what “frozen at build” means for a page judged weeks later."
       footer={<span>Sources: /data/osdr_cmp.json, /data/sim_crew.json, /data/manifest.json (contract: ingest/common.py)</span>}
     >
       <p>
@@ -270,6 +275,6 @@ export function DataSection() {
         <SimCard />
         <FrozenCard />
       </div>
-    </Panel>
+    </FoldPanel>
   )
 }

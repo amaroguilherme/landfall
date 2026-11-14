@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { tCdf, tCritical } from '../../app/engine'
 import { META, THRESHOLDS, PERSONAL, compliant, normReqId, quotedPhrase, sentencesContaining, windowLabel } from './rules'
-import { chanceRates, criticalRow, sdInterval95, unlimitedRow } from './stats'
+import { chanceRates, countsEither, criticalRow, sdInterval95, unlimitedRow } from './stats'
 
 const round3 = (x: number): number => Math.round(x * 1000) / 1000
 
@@ -54,8 +54,13 @@ describe('the Tier B text the page prints from the rules files', () => {
     expect(rci.method).toContain(fewest)
     expect(META!.tiers.find((t) => t.id === 'B')?.definition).toContain(full)
   })
-  it('cautions are half the flags only because no alerting indicator is worse in both directions', () => {
-    expect(PERSONAL!.indicators.filter((i) => i.alerting && i.worse === 'either')).toEqual([])
+  it('an indicator that alerts in both directions is passed to the engine, and the caution count follows', () => {
+    const e = PERSONAL!.indicators.filter((i) => i.alerting && i.worse === 'either').length
+    const k = PERSONAL!.indicators.filter((i) => i.alerting).length
+    const r = chanceRates(k, 31, 0.001, e)
+    expect(r.expected).toBeCloseTo(k * 31 * 0.001, 12)
+    if (countsEither(r)) expect(r.expected_cautions).toBeCloseTo(((k - e) * 31 * 0.001) / 2 + e * 31 * 0.001, 12)
+    else expect(r.expected_cautions).toBeCloseTo((k * 31 * 0.001) / 2, 12) // the page then says the caution figure is too low
   })
   it("the change note's figure is what the earlier arithmetic gives (Student's t, 14-day baseline)", () => {
     // The earlier rule flagged |x - mean| >= 3.29 x sqrt(2 (1 - r)) x SD with r = 0.8. For a new day from the same

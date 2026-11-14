@@ -1,7 +1,8 @@
-// Section 4: what LANDFALL refuses to do (engine/rules/meta.json refusals, verbatim).
-import { Panel, UnavailableIcon } from '../../ui'
+// Section: refusals (engine/rules/meta.json refusals, verbatim).
+import { UnavailableIcon } from '../../ui'
+import { FoldPanel } from './fold'
 import type { MetaFile } from './rules'
-import { RichText, SectionTitle } from './shared'
+import { RichText } from './shared'
 
 /** "No diagnosis. LANDFALL reports ..." -> ["No diagnosis.", "LANDFALL reports ..."] */
 function splitHeadline(text: string): [string, string] {
@@ -11,10 +12,11 @@ function splitHeadline(text: string): [string, string] {
 
 export function RefusalsSection({ meta }: { meta: MetaFile }) {
   return (
-    <Panel
-      id="m-refusals"
+    <FoldPanel
+      s="refusals"
       eyebrow="Refusals"
-      title={<SectionTitle n={4}>What LANDFALL refuses to do</SectionTitle>}
+      title="Refusals written into the rules"
+      abstract={`${meta.refusals.length} things the system will not do, read from the rules data.`}
       footer={<span>Source: engine/rules/meta.json (refusals). Each case in cases.json also lists its own.</span>}
     >
       <p>
@@ -41,6 +43,6 @@ export function RefusalsSection({ meta }: { meta: MetaFile }) {
           )
         })}
       </ul>
-    </Panel>
+    </FoldPanel>
   )
 }

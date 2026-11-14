@@ -1,12 +1,15 @@
-// Section 1: NASA publishes no numeric in-flight alert thresholds for crew health.
-// The requirement IDs come from meta.json (principle no_nasa_alert_thresholds); the text, the
-// rationale and the "verified" flags come from the frozen std_vol1/std_vol2 snapshots.
+// Section: NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew health; its alert
+// requirements leave the number to the program. The requirement IDs come from meta.json (principle
+// no_nasa_alert_thresholds); the text, the rationale and the "verified" flags come from the frozen
+// std_vol1/std_vol2 snapshots.
 import { useSnapshot } from '../../app/data'
 import type { SnapshotState } from '../../app/data'
-import { EmptyState, Expander, FreshnessChip, Panel, ReqId } from '../../ui'
+import { EmptyState, Expander, FreshnessChip, ReqId } from '../../ui'
+import { isBuildNote } from '../data/buildNotes'
+import { FoldPanel } from './fold'
 import { normReqId, quotedPhrase, sentencesContaining } from './rules'
 import type { MetaFile, Vol1Data, Vol2Data } from './rules'
-import { ExtLink, MissingNote, RichText, SectionTitle, Verbatim, Verified } from './shared'
+import { ExtLink, MissingNote, RichText, Verbatim, Verified } from './shared'
 
 interface ReqQuote {
   id: string
@@ -119,25 +122,34 @@ function SnapshotFooter({ v1, v2 }: { v1: SnapshotState<Vol1Data>; v2: SnapshotS
   )
 }
 
-const TITLE = 'NASA publishes no numeric in-flight alert thresholds for crew health'
+// Scoped to the standard (a program can still set numbers): the claim is about NASA-STD-3001.
+const TITLE = 'NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew health'
+
+/** The principle text after its first clause (which the title already says), capitalised. */
+function ledeOf(text: string): string {
+  const m = /^[^.;]*publishes no numeric in-flight alert thresholds for crew health[.;]\s*/i.exec(text)
+  const rest = m ? text.slice(m[0].length) : text
+  return rest ? rest[0].toUpperCase() + rest.slice(1) : ''
+}
 
 export function GapSection({ meta }: { meta: MetaFile }) {
   const v1 = useSnapshot<Vol1Data>('std_vol1_requirements')
   const v2 = useSnapshot<Vol2Data>('std_vol2_requirements')
   const principle = meta.principles.find((p) => p.id === 'no_nasa_alert_thresholds')
-  // The section title is the principle's first sentence: show only what follows it.
-  const lede = principle ? (principle.text.startsWith(TITLE) ? principle.text.slice(TITLE.length).replace(/^[.\s]+/, '') : principle.text) : ''
+  // The section title is the principle's first clause: show only what follows it.
+  const lede = principle ? ledeOf(principle.text) : ''
   const ids = (principle?.requirement_ids ?? []).map(normReqId)
   const loading = v1.status === 'loading' || v2.status === 'loading'
   const volumeReadings = [v1.snapshot, v2.snapshot]
-    .map((s) => s?.caveats.find((c) => /alert threshold/i.test(c)))
+    .map((s) => s?.caveats.find((c) => /alert threshold/i.test(c) && !isBuildNote(c)))
     .filter((c): c is string => !!c)
 
   return (
-    <Panel
-      id="m-gap"
+    <FoldPanel
+      s="gap"
       eyebrow="The gap"
-      title={<SectionTitle n={1}>{TITLE}</SectionTitle>}
+      title={TITLE}
+      abstract="Its alert requirements leave the number to the program. The requirements, verbatim, with the phrases checked on the PDF page."
       footer={<SnapshotFooter v1={v1} v2={v2} />}
     >
       {lede ? (
@@ -188,6 +200,6 @@ export function GapSection({ meta }: { meta: MetaFile }) {
           </ul>
         </div>
       ) : null}
-    </Panel>
+    </FoldPanel>
   )
 }

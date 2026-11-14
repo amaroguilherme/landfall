@@ -6,6 +6,8 @@ import type { MouseEvent, ReactNode } from 'react'
 import { formatUtc, parseIsoDuration, snapshotUrl, useSnapshot } from '../../app/data'
 import type { ManifestEntry, Snapshot, SnapshotCoverage, SnapshotState } from '../../app/data'
 import { ClockIcon, FreshnessChip, Num, SimulatedMarker } from '../../ui'
+import { BuildNotes, splitBuildNotes } from './buildNotes'
+import { SnapshotDigest } from './digest'
 import { Ext } from './Ext'
 import { LazyDetails } from './LazyDetails'
 import { ProvenanceBadge } from './ProvenanceBadge'
@@ -304,22 +306,30 @@ export function SnapshotCard({
           }
         >
           <WithSnapshot id={entry.id} snap={snap}>
-            {(s) =>
-              s.caveats.length ? (
+            {(s) => {
+              const { shown, build } = splitBuildNotes(s.caveats)
+              return (
                 <>
-                  <ol className="lfd-caveats">
-                    {s.caveats.map((c, i) => (
-                      <li key={i}>{c}</li>
-                    ))}
-                  </ol>
-                  <p className="lfd-note">
-                    Verbatim from the <code>caveats</code> field of <code>{entry.id}.json</code>.
-                  </p>
+                  <SnapshotDigest snapshot={s} />
+                  {s.caveats.length ? (
+                    <>
+                      <ol className="lfd-caveats">
+                        {shown.map((c, i) => (
+                          <li key={i}>{c}</li>
+                        ))}
+                      </ol>
+                      <p className="lfd-note">
+                        Verbatim from the <code>caveats</code> field of <code>{entry.id}.json</code>
+                        {build.length ? '; notes about how the file was built are in the disclosure below' : ''}.
+                      </p>
+                      <BuildNotes notes={build} />
+                    </>
+                  ) : (
+                    <p className="lfd-muted">This snapshot records no caveats.</p>
+                  )}
                 </>
-              ) : (
-                <p className="lfd-muted">This snapshot records no caveats.</p>
               )
-            }
+            }}
           </WithSnapshot>
         </LazyDetails>
 

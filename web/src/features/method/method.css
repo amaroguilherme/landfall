@@ -361,3 +361,83 @@
   .lf-m-stack-rate th.num,
   .lf-m-stack-rate td.num { padding-left: 1.5em; }
 }
+
+/* Build notes (collapsed): verbatim notes about the build process, kept out of the running text. */
+.lf-build-lead { font-size: var(--lf-text-sm); color: var(--lf-text-muted); margin: 0 0 var(--lf-space-1); max-width: 80ch; }
+.lf-build-notes { margin: 0; padding-left: 1.2em; font-size: var(--lf-text-sm); color: var(--lf-text-2); }
+.lf-build-notes li { margin: 0.25em 0; max-width: 90ch; }
+
+/* ---- the two-minute version ---- */
+.lf-m-two {
+  margin: var(--lf-space-2) 0;
+  padding: var(--lf-space-2) var(--lf-space-2) var(--lf-space-1);
+  border: 1px solid var(--lf-border);
+  border-left: 3px solid var(--lf-border-strong);
+  border-radius: var(--lf-radius);
+  background: var(--lf-surface-1);
+}
+.lf-m-two-title { font-size: var(--lf-text-lg); margin: 0 0 var(--lf-space-1); }
+.lf-m-two-list { margin: 0 0 var(--lf-space-1); padding-left: 1.4em; display: grid; gap: 0.6em; }
+.lf-method .lf-m-two-list li { max-width: 80ch; }
+.lf-m-two-list strong { color: var(--lf-text); }
+.lf-m-see { white-space: nowrap; }
+.lf-m-terms { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.35em 1em; margin: 0; }
+.lf-m-terms > div { display: contents; }
+.lf-m-terms dt { font-weight: 600; color: var(--lf-text); }
+.lf-m-terms dd { margin: 0; max-width: 72ch; }
+
+/* ---- table of contents head ---- */
+.lf-m-toc { margin-top: var(--lf-space-2); }
+.lf-m-toc-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--lf-space-1); }
+.lf-method .lf-m-toc-title { margin: 0; font-weight: 600; color: var(--lf-text-2); max-width: none; }
+
+/* ---- collapsible sections: the summary is the panel head ---- */
+.lf-m-fold > details > summary { cursor: pointer; list-style: none; align-items: flex-start; flex-wrap: nowrap; }
+.lf-m-fold > details > summary::-webkit-details-marker { display: none; }
+.lf-m-fold > details:not([open]) > summary { border-bottom: 0; padding-bottom: var(--lf-space-2); }
+.lf-m-fold-text { min-width: 0; }
+.lf-method .lf-m-abstract { margin: 0.4em 0 0; font-size: var(--lf-text-sm); color: var(--lf-text-muted); max-width: 80ch; }
+.lf-m-fold-cue {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  min-height: 36px;
+  padding: 0.25em 0.75em;
+  border: 1px solid var(--lf-action-edge);
+  border-radius: var(--lf-radius);
+  font-size: var(--lf-text-sm);
+  font-weight: 600;
+  color: var(--lf-text);
+}
+.lf-m-fold-cue .lf-icon { transform: rotate(-90deg); transition: transform 120ms ease; }
+.lf-m-fold > details[open] > summary .lf-m-fold-cue .lf-icon { transform: none; }
+.lf-m-fold > details > summary:hover .lf-m-fold-cue { background: var(--lf-surface-2); }
+
+/* ---- severity classes and computed tables ---- */
+.lf-m-class { display: inline-flex; align-items: center; gap: 0.3em; font-weight: 600; color: var(--lf-text); white-space: nowrap; text-transform: capitalize; }
+.lf-m-rowlink { font-size: var(--lf-text-xs); font-weight: 400; margin-left: 0.35em; white-space: nowrap; }
+.lf-m-sd { display: block; }
+.lf-m-tiera { display: block; }
+.lf-m-mdc, .lf-m-detect { margin: var(--lf-space-1) 0; }
+.lf-m-mdc-table td.num { white-space: nowrap; }
+
+@media (max-width: 600px) {
+  .lf-m-terms { grid-template-columns: minmax(0, 1fr); }
+  .lf-m-terms dd { margin-bottom: 0.5em; }
+  .lf-m-fold > details > summary { flex-wrap: wrap; }
+  /* Tables that become one block per row, each cell carrying its column name. */
+  .lf-m-blocks thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .lf-m-blocks tr { display: block; padding: 0.6em 0; border-bottom: 1px solid var(--lf-border-subtle); }
+  .lf-m-blocks th, .lf-m-blocks td { display: block; padding: 0.1em 0; border: 0; text-align: left; }
+  .lf-m-blocks .num { text-align: left; }
+  .lf-m-blocks td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font: 600 0.6875rem/1.4 var(--lf-font-ui);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--lf-text-muted);
+  }
+  .lf-m-blocks .lf-m-why { min-width: 0; }
+}

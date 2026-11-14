@@ -5,10 +5,11 @@ import { useSnapshot } from '../../app/data'
 import type { SnapshotState } from '../../app/data'
 import { ENVIRONMENTS } from '../../app/scenario'
 import type { Category } from '../../app/vocab'
-import { CategoryBadge, Chip, Expander, FreshnessChip, Num, Panel, ReqId, SimulatedMarker } from '../../ui'
+import { CategoryBadge, Chip, Expander, FreshnessChip, Num, ReqId, SimulatedMarker } from '../../ui'
+import { FoldPanel } from './fold'
 import { OP_SYMBOL, compliant, normReqId, windowLabel } from './rules'
 import type { MetaFile, SimCrewData, ThresholdRule, ThresholdsFile, Vol1Data } from './rules'
-import { ExtLink, MissingNote, RichText, SectionTitle, Verbatim, Verified } from './shared'
+import { ExtLink, MissingNote, RichText, Verbatim, Verified } from './shared'
 
 const LIMIT_KINDS = ['FFD', 'PEL', 'POL'] as const
 type LimitKind = (typeof LIMIT_KINDS)[number]
@@ -294,10 +295,11 @@ export function LimitsSection({ meta, thresholds }: { meta: MetaFile; thresholds
   const others = meta.categories.filter((c) => !(LIMIT_KINDS as readonly string[]).includes(c.id))
 
   return (
-    <Panel
-      id="m-limits"
+    <FoldPanel
+      s="limits"
       eyebrow="What NASA does publish"
-      title={<SectionTitle n={2}>Three kinds of limit, three shapes</SectionTitle>}
+      title="Three kinds of limit, three shapes"
+      abstract="Fitness-for-duty floors, exposure ceilings and outcome limits: NASA’s definitions word for word, each with a worked example."
       footer={
         <>
           <span>Glossary: NASA-STD-3001 Vol 1 Appendix C.2 · rules: engine/rules/thresholds.json</span>
@@ -345,6 +347,6 @@ export function LimitsSection({ meta, thresholds }: { meta: MetaFile; thresholds
           </ul>
         </div>
       ) : null}
-    </Panel>
+    </FoldPanel>
   )
 }

@@ -1,7 +1,7 @@
 # LANDFALL shell: what feature agents build on
 
 Everything here is in `src/app/`, `src/ui/`, `src/styles/`. **Do not edit those folders**; replace only
-your own `src/features/<feature>/` folder. Your folder's `index.tsx` must `export default` a component.
+your own `src/features/<feature>/` folder. The real engine is wired: see "Mission model" below before computing anything yourself. Your folder's `index.tsx` must `export default` a component.
 
 ```tsx
 import type { FeatureProps } from '../../app/router'      // { params, query }
@@ -13,6 +13,7 @@ export default function Body({ params, query }: FeatureProps) { ... }
 | `#/` | `now` | The hero. **Bundled eagerly** (not lazy): keep its top-level imports light; lazy-load heavy parts (uPlot) inside it. |
 | `#/body` | `body` | |
 | `#/case` and `#/case/:id` | `cases` | `params.id` is `undefined` on `#/case` (list the three cases). |
+| `#/radiation` | `radiation` | Lazy. Ships as a placeholder that already shows the OPS feed; replace the folder. |
 | `#/noon-sight` `#/trends` `#/downlink` `#/band` `#/provenance` `#/method` `#/data` | same names | React.lazy, prefetched on idle after the hero renders. |
 
 Query strings work: `#/trends?crew=CM-3` gives `query.crew === 'CM-3'`. Route matching is in `routes.ts`.
@@ -21,12 +22,17 @@ Query strings work: `#/trends?crew=CM-3` gives `query.crew === 'CM-3'`. Route ma
 
 ```ts
 import { Link, navigate, useRoute } from '../../app/location'   // NOT from router.tsx (avoids a cycle with the hero)
-import { useMission, useMetNow, useMetClock, alertFromFinding, isShared, selectObservations } from '../../app/mission'
+import { useMission, useMetNow, useMetMinute, useMetClock, alertFromFinding, isShared, selectObservations } from '../../app/mission'
+import { useScenario, useEvaluation, useCrewEvaluation, useCases, useGroundPacket,
+         markHeroReady, useMarkHeroReady, useHeroTiming } from '../../app/model'
+import { aggregateForRule, evaluateRuleAt, evaluatePersonalAt, percentOfPreMission } from '../../app/evaluate'
+import { observationsFor, visibleObservations } from '../../app/scenarioData'
+import { CASE_DEFS, CASE_IDS, caseKey } from '../../app/caseTimeline'
 import { useSnapshot, useManifest, freshnessOf, formatUtc } from '../../app/data'
-import { useComms, formatCommsLightTime, formatCountdown, metToUtc } from '../../app/comms'
-import { formatMet, sLevel, evaluateRule, rci, caseReduce, buildGroundPacket, commsEta, ENGINE_IS_SHIM } from '../../app/engine'
-import type { Finding, Rule, CaseState, CaseEvent } from '../../app/engine'
-import { CREW, CREW_IDS, crewMember, SEVERITY_RANK } from '../../app/vocab'
+import { useComms, formatCommsLightTime, formatCountdown, formatEarliestReply, metToUtc } from '../../app/comms'
+import { RULES, getRule, getCase, getIndicator, getEnvironment, formatMet, fmtNum, sLevel, expectedFalseAlarms } from '../../app/engine'
+import type { Finding, PersonalFinding, Rule, Indicator, CaseState, CaseEvent, FhirBundle } from '../../app/engine'
+import { CREW, CREW_IDS, crewMember, SEVERITY_RANK, CHIPS, CHIP_DEFS, CATEGORIES, CATEGORY_DEFS, chipDef, categoryDef } from '../../app/vocab'
 import type { Severity, Status, Category, ChipKind, CrewId, EnvId, Observation, Source } from '../../app/vocab'
 import { ENVIRONMENTS, environment, MET_NOW_S, metDay } from '../../app/scenario'
 import { Chip, CategoryBadge, SeverityBadge, FindingBadge, StatusBadge, Card, Panel, Num, MetTime,
@@ -35,16 +41,114 @@ import { Chip, CategoryBadge, SeverityBadge, FindingBadge, StatusBadge, Card, Pa
 
 ## Engine: ONLY through `src/app/engine.ts`
 
-`web/src/engine/` did not exist when the shell was built, so the facade re-exports `engine-shim.ts`:
+The facade re-exports the **real** TypeScript engine (`web/src/engine`, proven identical to the Python reference by the
+shared vectors; see `src/engine/README.md`). The shim is deleted. `ENGINE_IS_SHIM === false`.
 
-- **Exact per SPEC 5:** `formatMet(s)` gives `"0412/14:20:00"`; `sLevel(pfu)` gives 0 to 5 (inclusive thresholds 10, 1e2, 1e3, 1e4, 1e5; throws on non-finite);
-  `expectedFalseAlarms(k, days, alpha=0.001)` gives `{expected, one_every_days}`.
-- **Fallback:** `commsEta(env, t, table?)` linearly interpolates the light time and finds blackout windows.
-- **STUBS** (always `status: 'insufficient_data'`, `severity: 'advisory'`): `evaluateRule`, `evaluatePersonal`, `rci`,
-  `caseReduce` (never transitions; appends an `error` log entry), `buildGroundPacket` (empty FHIR collection).
-  `ENGINE_IS_SHIM === true` while this is the case; show nothing that pretends otherwise.
-- Types follow SPEC field names (snake_case): `Finding {rule_id, tier, category, status, severity, value, unit, limit, margin, chip, source, why: string[]}`.
-  Rules JSON lives in `../../../engine/rules/*.json` (import it with `import.meta.glob(..., {eager: true, import: 'default'})` if you need it before the engine lands).
+- Shapes follow `engine/SPEC.md` section 5 (snake_case). **`Finding.why` is one string.** `CaseState` has `status`
+  (`idle | detected | acting | watch | resolved | escalated | dismissed`), not `phase`.
+- `expectedFalseAlarms(k, days, alpha = 0.001)` (positional) gives `{expected, per_day, every_n_days, text, expected_cautions, cautions_per_day,
+  caution_every_n_days, caution_text, assumes, k_indicators, days, alpha}` (flags count either direction; cautions only the worse one).
+- Never call `commsEta` / `buildGroundPacket` / `caseReduce` yourself for the scenario: use `useComms`, `useGroundPacket`,
+  `useCases` below (they pass the comms table, the mission epoch and the trigger lookup the engine needs).
+- `RULES` holds the five rules files. Validate env ids with `getEnvironment(RULES, id)` (the engine is silent on typos;
+  `environment(id)` in `scenario.ts` already does it and throws on an unknown id).
+- Another workflow is switching the Tier B statistic inside `src/engine` (Crawford & Howell). Read Tier B results from the
+  `PersonalFinding` the hooks give you (`status`, `severity`, `limit`, `margin`, `why`, `rci`); do not recompute the statistic.
+
+## Mission model: `src/app/model.tsx` (+ pure `scenarioData.ts`, `evaluate.ts`, `caseTimeline.ts`)
+
+Everything below runs in the browser on the frozen snapshots; nothing is precomputed at build.
+
+### `useScenario()`
+
+`{ status: 'loading'|'ready'|'missing'|'error', index: ScenarioIndex | null, sim, replay, error }`
+
+- `index.series: Map<'CM-3|urine_volume_24h' | '|proton_flux_10mev', Observation[]>` (t-sorted; crew id empty = vehicle sensor).
+  Use `observationsFor(index, state.observations, crewId, variable)` to get a crewmember's own + vehicle + runtime values.
+- `index.epochIso` (`2027-01-31T02:40:00Z`), `index.nowMet` (`35648400`), `index.baselineDays` (`[368, 381]`), `index.variables`,
+  `index.episodes`, `index.replay: {snapshot: 'swpc_spe_replay'|'sim_crew'|null, first_t, last_t, n}`.
+- `t` = MET second the value became AVAILABLE (end of its window). `cabin_ppco2` hourly means are shifted to their window end.
+- After scenario now, `proton_flux_10mev` continues with the **real GOES-7 October 1989** series from `swpc_spe_replay`, time-shifted
+  with sim_crew's own mapping (identical to sim_crew's `after_now` copy; a test proves it), up to MET 0424/19:15. These samples
+  only become visible when the clock passes them. Label them as a replay of a real event (`provenance: 'replay'`).
+
+### `useEvaluation()` / `useCrewEvaluation(crewId?)`
+
+`useEvaluation()` gives `{ status, evaluation: MissionEvaluation | null, envId, t, error }` for the store's env at the clock minute
+(store observations from Noon Sight / manual entry included; switching env re-evaluates). `useCrewEvaluation()` gives
+`evaluation.crew[crewId ?? state.crewId]` or null.
+
+```ts
+MissionEvaluation = { envId, t, eva: false, ops: OpsFeed, crew: Record<CrewId, CrewEvaluation>, alerts: AlertItem[], tierBAlertingIndicators }
+CrewEvaluation    = { crewId, tierA: RuleEvaluation[] /* FFD, PEL, POL, TARGET alert rules */, context: RuleEvaluation[] /* role context: never fire */, tierB: PersonalEvaluation[] }
+RuleEvaluation    = { rule: Rule, finding: Finding, input: Aggregate }
+Aggregate         = { value: number|null, unit, t: number|null, n, basis: string /* plain English */, unit_mismatch: number }
+PersonalEvaluation= { indicator: Indicator, finding: PersonalFinding, baseline: number[] /* fixed days 368-381 */, current: Observation|null }
+OpsFeed           = { kind: 'onboard_monitor' /* Mars: noaa_scale_available false */ | 'noaa', label, flux, t, s_level /* engine sLevel */,
+                      provenance: 'simulated'|'replay'|null, findings: RuleEvaluation[] /* every OPS rule */, active: RuleEvaluation|null /* highest S rule outside */ }
+```
+
+- Window helper `aggregateForRule(rule, observations, t)`: `instant` latest; `rolling_mean PT1H` mean of values available in
+  (t - 1 h, t]; `cumulative` sum of dose reports in the window (a 24-h total is taken as is, never summed twice); `career`
+  latest "to date" record for `career_effective_dose`, else the sum of reports; `ratio_to_baseline` value already in % of
+  pre-mission (`percentOfPreMission(current, pre)` converts raw values). A year is 365 d (design choice).
+- **Honest gaps:** the scenario has no organ dose (mGy-Eq / mGy) and no BMD, so those rules are `insufficient_data` (render cyan).
+  A rule that does not apply in this env is `not_applicable` (gray). Units are never converted; a value in another unit is
+  set aside and counted in `input.unit_mismatch`.
+- `insufficient_data` / `stale` have severity `advisory` but must be drawn **cyan** (meta.json `no_data.colour_note`).
+  `<FindingBadge finding/>` already does this.
+- Values at scenario now (Mars): CM-2 `ffd_vo2max_surface_eva` 35.1 outside (warning); at ISS / cislunar
+  `ffd_vo2max_microgravity_eva` within. CM-1 sleep indicators reliable change (caution). OPS S3 at 1,100 pfu (caution;
+  `eva` is false because the scenario schedules no EVA). Cabin ppCO2 within. Career doses within.
+
+### Annunciator (mission bar)
+
+`<MissionEngine/>` (mounted once in `App.tsx`) publishes `evaluation.alerts` under source `'mission'`. **Features do not need to
+publish findings.** Policy (`alertsFor` in `evaluate.ts`): one entry per crewmember x rule / indicator at advisory or above;
+never context rules, private indicators (mood) or data-quality states; OPS is one crew-wide entry for the highest S rule
+outside. Ids are `${crew_id}:${rule_id}` (`ALL:ops_onboard_proton_s3`), href `#/case/<case_id>` or `#/body`. At now on Mars
+the bar reads **E 0 · W 1 · C 5 · A 0**. If you publish your own list, reuse these ids so entries merge.
+
+### `useCases()`
+
+```ts
+const { status, cases, get, dispatch, resetScenario, t, error } = useCases()
+cases: CaseView[]            // 12 views: every crewmember x case, idle ones included, folded at t
+get(caseId, crewId?)         // one view (default crewmember: the store's), or null
+dispatch(caseId, event, crewId?)  // event = {type:'SELECT', countermeasure_id} | {type:'STEP', step_id, input?} |
+                                  //         {type:'OUTCOME', text} | {type:'DISMISS', reason}  (+ optional t; default the clock)
+resetScenario()              // drop user events, runtime observations, Noon Sights, logbook, acks; clock back to now
+CaseView = { key: 'CM-1:spe_shelter', crewId, caseId, def: CaseDef, state: CaseState, logOrigins: ('auto'|'scenario'|'user'|'tick')[], opening: {t, finding, trigger} | null }
+```
+
+- Each state is a fold of the engine's `caseReduce`: **auto OPEN** (a trigger's first finding at caution or above, found by the
+  engine from the data), the **seeded simulated crew actions**, **user events**, and **synthesized tripwire TICKs** (tripwire
+  observations of the crewmember + vehicle sensors; one TICK exactly at `reassess_at`). `logOrigins[i]` labels `state.log[i]`.
+  A rejected event stays in `state.log` with `error` set (engine behaviour): show it.
+- Scenario timeline (Mars, now): `CM-3:renal_stone` opened 0399/00:00:00 by `target_urine_output_24h`, hydration selected,
+  steps r1 r3 r5, outcome 0410/08:00 -> **watch**, tripwire armed, `reassess_at` 0413/08:00 (resolves later: output recovered).
+  `CM-1:sleep_circadian` opened 0404/06:52:30 by `sleep_duration`, light countermeasure selected, steps s1-s3 -> **acting**.
+  `*:spe_shelter` opened **0412/14:15:00** for all four crewmembers by `ops_onboard_proton_s3` (Mars; `ops_noaa_s3`
+  elsewhere) -> **detected**: the crew acts in the demo. After an OUTCOME, the T+6 h tripwire is judged on the replay (still
+  S3: `escalated` = stay sheltered).
+- Moving the clock back shows each case as it was then (events after the clock are not applied yet).
+- `state.cases` / `setCase` in the store are DEPRECATED (nothing writes them); use `useCases()`.
+
+### Hero timing (the honest "LANDFALL answered in N ms")
+
+- The first time the fold processes a `spe_shelter` OPEN, `performance.now()` is recorded. **The hero must read cases through
+  `useCases()`** so that OPEN is processed when the hero mounts.
+- When the Now route has PAINTED the primary countermeasure, call `useMarkHeroReady(true)` (double rAF after commit) or
+  `markHeroReady()`. That sets `<html data-hero-ready-ms>` (rounded `performance.now()`), plus `data-spe-open-ms` and
+  `data-hero-answer-ms`. First call wins.
+- `useHeroTiming()` gives `{ speOpenProcessedAtMs, heroReadyAtMs, answerMs }` and re-renders when the measurement lands.
+  Display `answerMs` as measured in this browser; never a constant.
+
+### `useGroundPacket(caseId, crewId?)`
+
+`{ status, bundle: FhirBundle | null, caseView, caseState, caseOpen, consent, withheld: string[], missionEpoch, t, error }`.
+Built by the engine's `buildGroundPacket(caseState, scenario + runtime observations up to t, store consent, env, t,
+sim_crew met_epoch_utc)`. `withheld` lists escalation variables the consent keeps off the ground (mood unless shared).
 
 ## Data: `src/app/data.ts`
 
@@ -60,6 +164,7 @@ const m = useManifest()                            // { status, manifest, entrie
   retrieved_at, coverage{start,stop,cadence}, freshness{kind,stale_after}, provenance, caveats[], data}`.
 - `freshnessOf(meta, status, now?)` gives `{state: 'frozen'|'stale'|'missing'|'unavailable'|'unknown'|'loading', label, detail, kind, retrievedAt, ageS}`.
   It is judged against the real wall clock, so live feeds show STALE weeks after the build. That is correct and honest.
+  `swpc_protons_live` is the real NOAA feed frozen at build (stale): it is NOT the scenario's flux; show it only as "conditions at build".
 - After first render, every route chunk and every manifest snapshot is prefetched (skipped when Save-Data is on), so the app keeps working offline.
 - `index.html` has a CSP (`connect-src 'self'`, `img-src 'self' data: blob:`, `font-src 'self'`): any request to another origin is blocked by the browser. External `<a href>` links still work.
 
@@ -67,32 +172,44 @@ const m = useManifest()                            // { status, manifest, entrie
 
 ```ts
 const { state, setEnv, setCrew, setConsent, addObservations, addLog, addNoonSight,
-        publishAlerts, acknowledge, setCase, reset } = useMission()
-const t = useMetNow()                          // MET seconds; re-renders once per second (separate store, no global re-render)
+        publishAlerts, acknowledge, addCaseEvent, resetScenario, reset } = useMission()
+const t = useMetNow()                          // MET seconds; re-renders once per second
+const m = useMetMinute()                       // MET floored to the minute; re-renders once per minute
 const { metNow, running, pause, resume, set, reset } = useMetClock()
 ```
 
 - `state.envId` (default `'mars_surface'`), `state.crewId` (default `'CM-1'`), `state.consent[crewId][variable]` (all `true` except `mood: false`;
-  use `isShared(consent, variable)`, where unknown variables are shared and mood never is), `state.observations` (runtime-added, SPEC 4 shape),
+  use `isShared(consent, variable)`, where unknown variables are shared and mood never is), `state.observations` (runtime-added, SPEC 4 shape:
+  `{crew_id: CrewId | null, variable, value: number, unit, t, source, provenance}`; **these feed every evaluation and case**: a manual
+  low `urine_volume_24h` for CM-3 turns `target_urine_output_24h` outside and lands in the renal tripwire),
   `state.logbook: LogEntry[] {id, t, crew_id|'ALL', kind, text, case_id?}`, `state.noonSights: NoonSightResult[] {id, crew_id, t, observations, details?}`
-  (`addNoonSight` also appends its observations), `state.cases: Record<key, CaseState>` (`setCase(key, caseState)`; use key `${crew_id}:${case_id}`),
+  (`addNoonSight` also appends its observations), `state.caseEvents` (user case events; use `useCases().dispatch`),
   `state.alerts`, `state.acknowledged`.
-- **Annunciator:** the mission bar counts what features publish. Publish your full current list under your own source key and it
-  replaces your previous list: `publishAlerts('now', [alertFromFinding(f, {title, crew_id: 'ALL', href: '#/case/spe_shelter', t})])`.
-  Ids should be stable (`${crew_id}:${rule_id}`). Duplicates across sources merge (highest severity wins). Until any source publishes,
-  the bar shows `W – C – A –` (not evaluated). E is always 0 (LANDFALL never raises Emergency-class alarms).
-  Severities: `nominal` is not counted; `advisory` / `caution` / `warning` light A / C / W.
+- `resetScenario()` keeps env, crew and consent; `reset()` resets everything. The mission bar has a reset button (desktop).
 - Selectors (pure): `selectEnv`, `selectCrew`, `selectConsent`, `selectObservations(state, {crewId?, variable?})`, `selectLogbook(state, crewId?)`,
   `selectAlerts`, `selectAnnunciator` gives `{emergency, warning, caution, advisory, unacknowledged, evaluated}`.
 
 ## Scenario and comms
 
 - `MET_NOW_S = 35_648_400` (MET 0412/14:20:00); `SIM_FIRST_DAY 368`, `SIM_LAST_DAY 412`, baseline days 368 to 381; `metDay(t)`.
-- `ENVIRONMENTS` come from `engine/rules/environments.json` at build time (SPEC 3.1 fallback if absent); `environment(id)`.
-- `useComms(envId, t)` gives `{link: 'AOS'|'LOS', one_way_s, round_trip_s, blocked, reason, resumes_at, window, basis, snapshot, snapshotStatus, metEpochUtc, range}`.
-  Mars uses `horizons_mars_comms` (rows by column name, conjunction windows) mapped to MET via `sim_crew.data.calendar.met_epoch_utc`.
-  At scenario now: LOS, solar conjunction 2028-03-12 12:00Z to 2028-03-29 23:00Z, OWLT about 19 min 51 s, link back in 11 d 06 h.
-  `formatCommsLightTime(c, roundTrip?)`, `formatCountdown(seconds)` give `"11 d 06 h"`, and `metToUtc(t, epochMs)`.
+- `ENVIRONMENTS` are `engine/rules/environments.json` via `getEnvironment(RULES, id)`; `environment(id)` throws on an unknown id.
+- `useComms(envId?, t?)` (defaults: store env, scenario clock; recomputed per minute) gives
+  `{link: 'AOS'|'LOS', one_way_s, round_trip_s, blocked, reason, resumes_at, earliest_reply_s, light_time_source: 'table'|'environment_max'|null,
+  env, basis: 'snapshot'|'static'|'fallback', snapshotId, snapshotStatus, snapshot, range, window, metEpochUtc}`, all from the engine's `commsEta`.
+  Mars: `horizons_mars_comms` light time and REAL conjunction windows mapped to MET via `sim_crew.data.calendar.met_epoch_utc`
+  (at now: LOS, 2028-03-12 12:00Z to 2028-03-29 23:00Z, OWLT about 19 min 51 s, link back in 11 d 06 h, `earliest_reply_s` adds the
+  round trip at `resumes_at`). Moon: `horizons_moon_comms` (environments.json `comms_snapshot`), about 1.2-1.36 s, never blocked.
+  ISS / cislunar: the environments.json envelope (engine uses its max). A missing snapshot gives `basis: 'fallback'`, light time null (cyan).
+  `formatCommsLightTime(c, roundTrip?)`, `formatEarliestReply(c)`, `formatCountdown(seconds)` give `"11 d 06 h"`, and `metToUtc(t, epochMs)`.
+
+## Vocabulary: `src/app/vocab.ts`
+
+- Chips and categories are **read from `engine/rules/meta.json`**: `CHIPS` / `CHIP_DEFS {id, source_kind, definition}`, `CATEGORIES` /
+  `CATEGORY_DEFS {id, name, shape, glossary, source}`, `chipDef(label)`, `chipSourceKind(label)`, `categoryDef(id)`. Never hard-code a chip
+  list: a chip renamed in meta.json (e.g. "NASA brief" -> "NASA report") renders correctly because `<Chip>` and its glyph key on `source_kind`.
+- `TARGET` is a category (rule `target_urine_output_24h`: a literature countermeasure target, NOT a NASA limit, capped at caution);
+  `<CategoryBadge category="TARGET"/>` has its own bullseye glyph and a dotted border.
+- `ChipKind` is `string` (the rules own the list); `Category` is the engine's union (`FFD | PEL | POL | OPS | PERSONAL | TARGET | string`).
 
 ## UI primitives: `src/ui`
 
@@ -100,8 +217,8 @@ const { metNow, running, pause, resume, set, reset } = useMetClock()
 |---|---|
 | `<Num value unit digits? signed? arrow? severity? unitLabel?/>` | **Every number.** DM Mono, tabular, U+2212 minus; `null` renders "—" flagged no-data (cyan). `arrow="up"` + `severity="caution"\|"warning"` = Appendix F F.4.3.1 d out-of-threshold arrow. |
 | `<MetTime t label?/>` | MET `dddd/hh:mm:ss` via the engine's `formatMet`. |
-| `<Chip kind="NASA-published"/>` | Provenance chip; 6 kinds, neutral colour, distinct glyph + border (dashed + hatched = design choice). |
-| `<CategoryBadge category="FFD" long?/>` | FFD floor / PEL ceiling / POL delta / OPS scale / PERSONAL baseline glyphs. |
+| `<Chip kind={rule.chip}/>` | Provenance chip; label, definition and glyph from meta.json (keyed by `source_kind`); neutral colour, distinct glyph + border (dashed + hatched = design choice). `kind` null/undefined renders nothing. |
+| `<CategoryBadge category="FFD" long?/>` | FFD floor / PEL ceiling / POL delta / OPS scale / PERSONAL baseline / TARGET bullseye glyphs; name and shape from meta.json. |
 | `<SeverityBadge severity label? solid? size?/>` | Icon (circle / triangle / octagon) + text. `solid` = lit. |
 | `<FindingBadge finding/>` | Use for engine Findings: stale / insufficient_data (cyan) and not_applicable (gray) override severity colour. |
 | `<StatusBadge status/>` | Data-quality badge. |
@@ -114,7 +231,7 @@ const { metNow, running, pause, resume, set, reset } = useMetClock()
 | `<Tabs label tabs=[{id,label,content}] value? onChange?/>` | ARIA tabs, arrow keys. |
 | `<EmptyState kind="placeholder"\|"unavailable"\|"missing"\|"error"\|"loading" title headingLevel?/>` | |
 | `<Button variant="primary"\|"secondary"\|"ghost">`, `<ButtonLink href>` | **Actions are dark green** (`--lf-action`, Appendix F Table F.5-2). Never make an action red or blue: red is Warning, blue is Advisory. |
-| Icons | `SeverityIcon, CategoryGlyph, ChipGlyph, ClockIcon, StaleIcon, UnknownIcon, UnavailableIcon, AntennaIcon, SunIcon, ChevronIcon, ExternalIcon, PauseIcon, PlayIcon, ArrowIcon` |
+| Icons | `SeverityIcon, CategoryGlyph, ChipGlyph, ClockIcon, StaleIcon, UnknownIcon, UnavailableIcon, AntennaIcon, SunIcon, ChevronIcon, ExternalIcon, PauseIcon, PlayIcon, ResetIcon, ArrowIcon` |
 
 Use one `<h1>` per view (your page title). The mission bar and nav have none.
 
@@ -136,6 +253,7 @@ Use one `<h1>` per view (your page title). The mission bar and nav have none.
 | `--lf-text`, `--lf-text-2`, `--lf-text-muted` | `#fff`, `#d1d1d1`, `#b9b9bb` | all at least 9:1 on `--lf-bg` |
 | `--lf-font-ui` (Inter), `--lf-font-heading` (Public Sans), `--lf-font-mono` (DM Mono) | | Weights loaded: Inter 400/600, Public Sans 700, DM Mono 400/500. Stay within them. |
 | `--lf-space-0-5 … --lf-space-6`, `--lf-radius`, `--lf-text-xs … --lf-text-2xl`, `--lf-max-width` | | |
+| `--lf-missionbar-offset` | measured | The mission bar's real height (ResizeObserver), set on `<html>`; `scroll-padding-top` uses it, so anchors clear the sticky bar on every viewport. Use it for any sticky element below the bar. |
 
 Charts: use the severity tokens only for out-of-limit marks, cyan for gaps/stale, and neutral greys for series.
 Label historical vs live (F.5.8 b). Respect `prefers-reduced-motion` (the global CSS already zeroes transitions).

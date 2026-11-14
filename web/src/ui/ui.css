@@ -25,12 +25,12 @@
   white-space: nowrap;
   vertical-align: middle;
 }
-.lf-chip[data-chip='NASA-published'],
-.lf-chip[data-chip='NOAA-published'] { border-color: var(--lf-border-strong); color: var(--lf-text); }
-.lf-chip[data-chip='NASA brief'] { border-color: var(--lf-border-strong); }
-.lf-chip[data-chip='literature'] { border-style: dotted; border-color: var(--lf-border-strong); }
-.lf-chip[data-chip='derived'] { border-style: double; border-width: 3px; padding: 0 0.45em; }
-.lf-chip[data-chip='design choice'] {
+.lf-chip[data-source-kind='nasa_standard'],
+.lf-chip[data-source-kind='noaa'] { border-color: var(--lf-border-strong); color: var(--lf-text); }
+.lf-chip[data-source-kind='nasa_brief'] { border-color: var(--lf-border-strong); }
+.lf-chip[data-source-kind='literature'] { border-style: dotted; border-color: var(--lf-border-strong); }
+.lf-chip[data-source-kind='derived'] { border-style: double; border-width: 3px; padding: 0 0.45em; }
+.lf-chip[data-source-kind='design_choice'] {
   border-style: dashed;
   border-color: var(--lf-border-strong);
   background: repeating-linear-gradient(135deg, transparent 0 5px, rgb(255 255 255 / 0.06) 5px 7px);
@@ -55,6 +55,7 @@
 .lf-cat[data-category='FFD'] { border-bottom-width: 3px; }  /* floor */
 .lf-cat[data-category='PEL'] { border-top-width: 3px; }     /* ceiling */
 .lf-cat[data-category='PERSONAL'] { border-style: dashed; } /* not a limit */
+.lf-cat[data-category='TARGET'] { border-style: dotted; border-width: 2px; } /* literature target, not a NASA limit */
 
 /* ---- severity badges: icon (shape-coded) + text + colour ---- */
 .lf-sev {

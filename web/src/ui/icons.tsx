@@ -1,6 +1,7 @@
 // Inline SVG icons (no icon font, no network). 16x16 grid, currentColor, decorative by default.
 // Severity icons are SHAPE-coded (circle / triangle / octagon) so status never relies on colour.
 import type { ReactNode, SVGProps } from 'react'
+import { chipSourceKind } from '../app/vocab'
 import type { Category, ChipKind, Severity } from '../app/vocab'
 
 type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & { title?: string; size?: number }
@@ -154,28 +155,43 @@ export function CategoryGlyph({ category, ...p }: IconProps & { category: Catego
           <circle cx="14" cy="9" r="1.5" fill="currentColor" />
         </Svg>
       )
+    case 'TARGET': // literature countermeasure target (not a NASA limit): a bullseye
+      return (
+        <Svg {...p}>
+          <circle cx="8" cy="8" r="6.4" {...S} />
+          <circle cx="8" cy="8" r="3.4" {...S} />
+          <circle cx="8" cy="8" r="1.2" fill="currentColor" />
+        </Svg>
+      )
+    default: // a category the rules add later: neutral square, the badge text still names it
+      return (
+        <Svg {...p}>
+          <rect x="2.5" y="2.5" width="11" height="11" {...S} />
+        </Svg>
+      )
   }
 }
 
 // ---- chip glyphs ------------------------------------------------------------------------------
 
+/** Glyph per SPEC source kind; the chip label is mapped to its kind through engine/rules/meta.json. */
 export function ChipGlyph({ chip, ...p }: IconProps & { chip: ChipKind | string }) {
   const size = p.size ?? 10
-  switch (chip) {
-    case 'NASA-published':
+  switch (chipSourceKind(chip) ?? chip) {
+    case 'nasa_standard':
       return (
         <Svg {...p} size={size}>
           <rect x="3" y="3" width="10" height="10" fill="currentColor" />
         </Svg>
       )
-    case 'NASA brief':
+    case 'nasa_brief':
       return (
         <Svg {...p} size={size}>
           <rect x="3" y="3" width="10" height="10" {...S} strokeWidth={1.8} />
           <rect x="3" y="3" width="5" height="10" fill="currentColor" />
         </Svg>
       )
-    case 'NOAA-published':
+    case 'noaa':
       return (
         <Svg {...p} size={size}>
           <circle cx="8" cy="8" r="5.2" fill="currentColor" />
@@ -193,7 +209,7 @@ export function ChipGlyph({ chip, ...p }: IconProps & { chip: ChipKind | string 
           <path d="M3 5.8h10M3 10.2h10" {...S} strokeWidth={1.9} />
         </Svg>
       )
-    case 'design choice':
+    case 'design_choice':
       return (
         <Svg {...p} size={size}>
           <path d="M8 2.2L13.8 8 8 13.8 2.2 8z" {...S} strokeWidth={1.8} />
@@ -249,6 +265,16 @@ export function PauseIcon(p: IconProps) {
   return (
     <Svg {...p}>
       <path d="M5.5 3v10M10.5 3v10" {...S} strokeWidth={2} />
+    </Svg>
+  )
+}
+
+export function ResetIcon(p: IconProps) {
+  // counter-clockwise arrow: back to the scenario start
+  return (
+    <Svg {...p}>
+      <path d="M3.2 6.2a5.2 5.2 0 111 5.6" {...S} />
+      <path d="M2.6 2.6v3.8h3.8" {...S} />
     </Svg>
   )
 }

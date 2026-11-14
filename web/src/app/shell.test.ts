@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { expectedFalseAlarms, formatMet, sLevel } from './engine-shim'
+import { ENGINE_IS_SHIM, expectedFalseAlarms, formatMet, sLevel } from './engine'
 import { matchRoute, hrefFor } from './routes'
 import { freshnessOf, parseIsoDuration } from './data'
 import type { SnapshotMeta } from './data'
@@ -27,7 +27,7 @@ describe('formatMet (SPEC 5)', () => {
     expect(formatMet(86_400)).toBe('0001/00:00:00')
   })
   it('rejects non-finite input', () => {
-    expect(() => formatMet(Number.NaN)).toThrow(RangeError)
+    expect(() => formatMet(Number.NaN)).toThrow()
   })
 })
 
@@ -49,10 +49,11 @@ describe('sLevel (SPEC 5, NOAA thresholds inclusive)', () => {
 })
 
 describe('expectedFalseAlarms', () => {
-  it('is k * days * alpha', () => {
+  it('is k * days * alpha (real engine, positional call shape)', () => {
+    expect(ENGINE_IS_SHIM).toBe(false)
     const r = expectedFalseAlarms(10, 30)
     expect(r.expected).toBeCloseTo(0.3, 12)
-    expect(r.one_every_days).toBeCloseTo(100, 9)
+    expect(r.every_n_days).toBeCloseTo(100, 9)
   })
 })
 

@@ -4,6 +4,7 @@ export type RouteId =
   | 'now'
   | 'body'
   | 'case'
+  | 'radiation'
   | 'noon-sight'
   | 'trends'
   | 'downlink'
@@ -16,6 +17,7 @@ export type FeatureName =
   | 'now'
   | 'body'
   | 'cases'
+  | 'radiation'
   | 'noon-sight'
   | 'trends'
   | 'downlink'
@@ -42,6 +44,7 @@ export const ROUTES: readonly RouteDef[] = [
   { id: 'now', pattern: '/', feature: 'now', label: 'Now', title: 'Now', navHref: '#/' },
   { id: 'body', pattern: '/body', feature: 'body', label: 'Body', title: 'Body map', navHref: '#/body' },
   { id: 'case', pattern: '/case/:id?', feature: 'cases', label: 'Cases', title: 'Case', navHref: '#/case' },
+  { id: 'radiation', pattern: '/radiation', feature: 'radiation', label: 'Radiation', title: 'Radiation', navHref: '#/radiation' },
   { id: 'noon-sight', pattern: '/noon-sight', feature: 'noon-sight', label: 'Noon Sight', title: 'Noon Sight', navHref: '#/noon-sight' },
   { id: 'trends', pattern: '/trends', feature: 'trends', label: 'Trends', title: 'Trends', navHref: '#/trends' },
   { id: 'downlink', pattern: '/downlink', feature: 'downlink', label: 'Downlink', title: 'Ground packet', navHref: '#/downlink' },

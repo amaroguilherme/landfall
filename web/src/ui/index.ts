@@ -19,5 +19,6 @@ export {
   ExternalIcon,
   PauseIcon,
   PlayIcon,
+  ResetIcon,
   ArrowIcon,
 } from './icons'

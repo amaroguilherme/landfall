@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { DEFAULT_CREW, DEFAULT_ENV, MET_NOW_S, environment } from './scenario'
 import type { Environment } from './scenario'
 import type { CaseState, Consent, Finding } from './engine'
+import type { CaseEventRecord } from './caseTimeline'
 import { CREW_IDS, SEVERITY_RANK, crewMember } from './vocab'
 import type { Category, CrewId, CrewMember, EnvId, Observation, Severity } from './vocab'
 
@@ -93,6 +94,15 @@ export const metClock = {
 /** Current MET in seconds; re-renders the caller once per second while running. */
 export function useMetNow(): number {
   return useSyncExternalStore(subscribeClock, () => clock.metNow, () => MET_NOW_S)
+}
+
+/** Current MET floored to the minute; re-renders the caller only when the minute changes. */
+export function useMetMinute(): number {
+  return useSyncExternalStore(
+    subscribeClock,
+    () => Math.floor(clock.metNow / 60) * 60,
+    () => Math.floor(MET_NOW_S / 60) * 60,
+  )
 }
 
 /** Clock state plus controls. */
@@ -188,8 +198,13 @@ export interface MissionState {
   alerts: Record<string, AlertItem[]>
   /** Acknowledged alert ids -> MET of acknowledgement. */
   acknowledged: Record<string, number>
-  /** Case state machines (engine caseReduce output), keyed by `${crew_id}:${case_id}` or case id. */
+  /**
+   * DEPRECATED (kept so older feature code compiles): nothing in the shell writes it any more.
+   * Case states come from useCases() (app/model.tsx), a fold of caseReduce over caseEvents.
+   */
   cases: Record<string, CaseState>
+  /** Case events dispatched from the UI (useCases().dispatch), in-memory only. */
+  caseEvents: CaseEventRecord[]
 }
 
 export type MissionAction =
@@ -202,6 +217,8 @@ export type MissionAction =
   | { type: 'publishAlerts'; source: string; alerts: AlertItem[] }
   | { type: 'acknowledge'; ids: string[]; t: number }
   | { type: 'setCase'; key: string; state: CaseState }
+  | { type: 'addCaseEvent'; record: CaseEventRecord }
+  | { type: 'resetScenario' }
   | { type: 'reset' }
 
 export function initialMissionState(): MissionState {
@@ -217,6 +234,7 @@ export function initialMissionState(): MissionState {
     alerts: {},
     acknowledged: {},
     cases: {},
+    caseEvents: [],
   }
 }
 
@@ -253,6 +271,13 @@ export function missionReducer(state: MissionState, action: MissionAction): Miss
     }
     case 'setCase':
       return { ...state, cases: { ...state.cases, [action.key]: action.state } }
+    case 'addCaseEvent':
+      return { ...state, caseEvents: [...state.caseEvents, action.record] }
+    case 'resetScenario': {
+      // Back to the seeded scenario: drop everything the user added; keep the view (env, crew) and consent.
+      const fresh = initialMissionState()
+      return { ...fresh, envId: state.envId, crewId: state.crewId, consent: state.consent, alerts: state.alerts }
+    }
     case 'reset':
       return initialMissionState()
     default:
@@ -351,7 +376,13 @@ export interface MissionActions {
   /** Replace the alert list of one publisher. Pass [] to clear it. */
   publishAlerts: (source: string, alerts: AlertItem[]) => void
   acknowledge: (ids: string[]) => void
+  /** DEPRECATED: use useCases().dispatch (app/model.tsx). */
   setCase: (key: string, state: CaseState) => void
+  /** Append a case event (use useCases().dispatch, which fills key, t and seq). */
+  addCaseEvent: (record: CaseEventRecord) => void
+  /** Reset the scenario: user case events, runtime observations, Noon Sights, logbook, acks; clock back to now. */
+  resetScenario: () => void
+  /** Reset everything, including env, crew and consent. */
   reset: () => void
 }
 
@@ -378,6 +409,11 @@ export function MissionProvider({ children, initial }: { children: ReactNode; in
       publishAlerts: (source, alerts) => dispatch({ type: 'publishAlerts', source, alerts }),
       acknowledge: (ids) => dispatch({ type: 'acknowledge', ids, t: metClock.get().metNow }),
       setCase: (key, caseState) => dispatch({ type: 'setCase', key, state: caseState }),
+      addCaseEvent: (record) => dispatch({ type: 'addCaseEvent', record }),
+      resetScenario: () => {
+        dispatch({ type: 'resetScenario' })
+        metClock.reset()
+      },
       reset: () => {
         dispatch({ type: 'reset' })
         metClock.reset()

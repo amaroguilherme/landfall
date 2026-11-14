@@ -1,35 +1,14 @@
 // ENGINE FACADE - the ONE place the UI reaches the engine.
-// Features import from here ('../../app/engine'), never from '../engine' or the shim directly,
-// so switching from the shim to the real TypeScript engine port is a one-file change.
+// Features import from here ('../../app/engine'), never from '../engine' directly.
 //
-// Currently: web/src/engine/index.ts did not exist when the shell was built, so this re-exports
-// the shim. To switch: replace the two export lines below with re-exports from '../engine'
-// (adapting names if the port differs) and set ENGINE_IS_SHIM to false there.
-export {
-  ENGINE_IS_SHIM,
-  S_THRESHOLDS_PFU,
-  buildGroundPacket,
-  caseReduce,
-  commsEta,
-  evaluatePersonal,
-  evaluateRule,
-  expectedFalseAlarms,
-  formatMet,
-  rci,
-  sLevel,
-} from './engine-shim'
-export type {
-  CaseEvent,
-  CaseLogEntry,
-  CasePhase,
-  CaseState,
-  CommsEta,
-  CommsTable,
-  Consent,
-  FhirBundle,
-  Finding,
-  PersonalIndicator,
-  RciConfig,
-  RciResult,
-  Rule,
-} from './engine-shim'
+// This re-exports the real TypeScript engine (web/src/engine), the browser port of the Python
+// reference engine, proven identical by the shared conformance vectors (engine/tests/vectors).
+// The shell's stand-in (engine-shim.ts) is gone. Shapes follow engine/SPEC.md section 5:
+//   - Finding.why is ONE string (not string[]).
+//   - CaseState has `status` ('idle' | 'detected' | 'acting' | 'watch' | 'resolved' | 'escalated' | 'dismissed').
+//   - expectedFalseAlarms(k, days, alpha = 0.001) keeps its positional call shape and returns
+//     {expected, per_day, every_n_days, text, k_indicators, days, alpha}.
+//   - buildGroundPacket takes a 6th argument, mission_epoch (sim_crew data.calendar.met_epoch_utc).
+//   - commsEta throws missing_comms_table for Mars without a table (use app/comms useComms()).
+// ENGINE_IS_SHIM is exported as `false` (the Method page reads it).
+export * from '../engine'

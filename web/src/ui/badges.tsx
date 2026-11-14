@@ -1,25 +1,22 @@
 // Chips and badges. Every one carries text plus a shape (icon or border style): status and
 // provenance are never conveyed by colour alone (Appendix F F.5.10 e).
 import type { ReactNode } from 'react'
+import { categoryDef, chipDef } from '../app/vocab'
 import type { Category, ChipKind, Severity, Status } from '../app/vocab'
 import { CategoryGlyph, ChipGlyph, SeverityIcon, StaleIcon, UnavailableIcon, UnknownIcon } from './icons'
 
 // ---- provenance chip ------------------------------------------------------------------------
 
-const CHIP_HELP: Record<ChipKind, string> = {
-  'NASA-published': 'Number published by NASA with a requirement ID',
-  'NASA brief': 'Number from a NASA OCHMO technical brief (no requirement ID)',
-  'NOAA-published': 'Number published by NOAA',
-  literature: 'Number from peer-reviewed literature, cited',
-  derived: 'Arithmetic on published values, shown',
-  'design choice': 'No published basis: chosen by LANDFALL and labeled as such',
-}
-
-/** Provenance chip for a constant: <Chip kind="NASA-published" />. Unknown strings render as-is. */
-export function Chip({ kind, children }: { kind: ChipKind | string; children?: ReactNode }) {
-  const help = CHIP_HELP[kind as ChipKind] ?? 'Basis of this value'
+/**
+ * Provenance chip for a constant: <Chip kind="NASA-published" />. The label, its definition and
+ * its glyph come from engine/rules/meta.json (chips[].id / definition / source_kind), so a chip
+ * renamed in the rules renders correctly here. An unknown label renders as-is; no kind renders nothing.
+ */
+export function Chip({ kind, children }: { kind: ChipKind | null | undefined; children?: ReactNode }) {
+  if (!kind) return null
+  const def = chipDef(kind)
   return (
-    <span className="lf-chip" data-chip={kind} title={help}>
+    <span className="lf-chip" data-chip={kind} data-source-kind={def?.source_kind} title={def?.definition ?? 'Basis of this value'}>
       <ChipGlyph chip={kind} />
       <span>{children ?? kind}</span>
     </span>
@@ -28,30 +25,33 @@ export function Chip({ kind, children }: { kind: ChipKind | string; children?: R
 
 // ---- category badge -------------------------------------------------------------------------
 
-const CATEGORY_HELP: Record<Category, string> = {
-  FFD: 'Fitness for Duty: a floor on capability',
-  PEL: 'Permissible Exposure Limit: a ceiling on cumulative exposure',
-  POL: 'Permissible Outcome Limit: a maximum change from your own preflight baseline',
-  OPS: 'Operational scale published by another agency (NOAA)',
-  PERSONAL: 'Reliable change against your own recent baseline (not a limit)',
-}
-
-const CATEGORY_SHORT: Record<Category, string> = {
+/** One short shape word per category id (presentation only; names and shapes come from meta.json). */
+const CATEGORY_SHORT: Record<string, string> = {
   FFD: 'floor',
   PEL: 'ceiling',
   POL: 'max change',
   OPS: 'NOAA scale',
   PERSONAL: 'own baseline',
+  TARGET: 'case target',
 }
 
-/** FFD / PEL / POL / OPS / PERSONAL with a distinct glyph each. `long` adds the shape word. */
+function categoryHelp(category: Category): string {
+  const def = categoryDef(category)
+  return def ? `${def.name}: ${def.shape}` : category
+}
+
+/**
+ * FFD / PEL / POL / OPS / PERSONAL / TARGET, each with its own glyph. `long` adds the shape word.
+ * Name and shape are read from engine/rules/meta.json categories[].
+ */
 export function CategoryBadge({ category, long = false }: { category: Category; long?: boolean }) {
+  const help = categoryHelp(category)
   return (
-    <span className="lf-cat" data-category={category} title={CATEGORY_HELP[category]}>
+    <span className="lf-cat" data-category={category} title={help}>
       <CategoryGlyph category={category} size={14} />
       <span className="lf-cat-code">{category}</span>
-      {long ? <span className="lf-cat-word">{CATEGORY_SHORT[category]}</span> : null}
-      <span className="sr-only">, {CATEGORY_HELP[category]}</span>
+      {long ? <span className="lf-cat-word">{CATEGORY_SHORT[category] ?? categoryDef(category)?.name ?? ''}</span> : null}
+      <span className="sr-only">, {help}</span>
     </span>
   )
 }
@@ -123,9 +123,17 @@ export function StatusBadge({ status }: { status: Status }) {
  * The badge for an engine Finding: data-quality states (cyan / gray) take precedence over the
  * severity colour, so "no data" never looks like "nominal".
  */
-export function FindingBadge({ finding, solid }: { finding: { status: Status; severity: Severity }; solid?: boolean }) {
+export function FindingBadge({ finding, solid }: { finding: { status: Status; severity: Severity; category?: string | null }; solid?: boolean }) {
   if (DATA_STATUS[finding.status]) return <StatusBadge status={finding.status} />
-  return <SeverityBadge severity={finding.severity} label={STATUS_LABEL[finding.status]} solid={solid} />
+  // A TARGET is a countermeasure target, not a limit (SPEC 1.2): never label it "limit".
+  const label = (finding.category === 'TARGET' ? TARGET_LABEL[finding.status] : undefined) ?? STATUS_LABEL[finding.status]
+  return <SeverityBadge severity={finding.severity} label={label} solid={solid} />
+}
+
+const TARGET_LABEL: Partial<Record<Status, string>> = {
+  within: 'Meets target',
+  approaching: 'Approaching target',
+  outside: 'Outside target',
 }
 
 export { STATUS_LABEL, SEVERITY_LABEL }

@@ -1,4 +1,4 @@
-// Hash router (no dependency). Routes: #/ (hero), #/body, #/case/:id, #/noon-sight, #/trends,
+// Hash router (no dependency). Routes: #/ (hero), #/body, #/case/:id, #/radiation, #/noon-sight, #/trends,
 // #/downlink, #/band, #/provenance, #/method, #/data. The hero is bundled eagerly; every other
 // feature is React.lazy and pre-fetched on idle so navigation keeps working offline.
 // Features import navigation helpers from './location', not from this file.
@@ -25,6 +25,7 @@ type LazyName = Exclude<FeatureName, 'now'>
 const loaders: Record<LazyName, () => Promise<{ default: FeatureComponent }>> = {
   body: () => import('../features/body'),
   cases: () => import('../features/cases'),
+  radiation: () => import('../features/radiation'),
   'noon-sight': () => import('../features/noon-sight'),
   trends: () => import('../features/trends'),
   downlink: () => import('../features/downlink'),

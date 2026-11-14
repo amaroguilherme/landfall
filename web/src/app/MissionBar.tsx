@@ -1,12 +1,14 @@
 // Persistent mission bar: the "common dedicated area for key information visible at all times"
 // of NASA-STD-3001 Vol 2 Appendix F F.4.2 f (time, alerts, communication status AOS / LOS),
 // topped by a hatched mode strip because sim mode must be visually distinct (F.4.2 j).
-import { useRef } from 'react'
-import { AntennaIcon, FreshnessChip, MetTime, PauseIcon, PlayIcon, SunIcon } from '../ui'
-import { formatCommsLightTime, formatCountdown, useComms } from './comms'
+import { useEffect, useRef } from 'react'
+import type { RefObject } from 'react'
+import { AntennaIcon, FreshnessChip, MetTime, PauseIcon, PlayIcon, ResetIcon, SunIcon } from '../ui'
+import { formatCommsLightTime, formatCountdown, formatEarliestReply, useComms } from './comms'
 import type { CommsStatus } from './comms'
 import { formatUtc } from './data'
-import { ENVIRONMENTS, ENVIRONMENTS_SOURCE } from './scenario'
+import { ENVIRONMENTS, ENVIRONMENTS_SOURCE, MET_NOW_S } from './scenario'
+import { formatMet } from './engine'
 import { useMetClock, useMission } from './mission'
 import { Annunciator } from './Annunciator'
 import { useDismissableDetails } from './useDismissableDetails'
@@ -15,6 +17,8 @@ import type { CrewId, EnvId } from './vocab'
 
 function MetClock() {
   const { metNow, running, pause, resume } = useMetClock()
+  const { resetScenario } = useMission()
+  const resetLabel = `Reset the scenario to MET ${formatMet(MET_NOW_S)} (drops your entries and case actions)`
   return (
     <div className="lf-mb-met">
       <span className="lf-mb-label" aria-hidden="true">
@@ -30,6 +34,9 @@ function MetClock() {
         title={running ? 'Pause mission clock' : 'Resume mission clock'}
       >
         {running ? <PauseIcon size={12} /> : <PlayIcon size={12} />}
+      </button>
+      <button type="button" className="lf-iconbtn lf-mb-reset" onClick={resetScenario} aria-label={resetLabel} title={resetLabel}>
+        <ResetIcon size={12} />
       </button>
       {!running ? <span className="lf-mb-paused">PAUSED</span> : null}
     </div>
@@ -77,7 +84,9 @@ function CrewSelector() {
 
 function commsSourceNote(c: CommsStatus): string {
   if (c.basis === 'snapshot') {
-    return 'Light time: Earth-Mars range from the frozen JPL Horizons ephemeris divided by c. Conjunction window: the same snapshot. The mission calendar is fictional; the window is real.'
+    return c.env.comms.conjunction
+      ? 'Light time: Earth-Mars range from the frozen JPL Horizons ephemeris divided by c. Conjunction window: the same snapshot. The mission calendar is fictional; the window is real.'
+      : 'Light time: Earth-Moon range from the frozen JPL Horizons ephemeris divided by c (daily samples, interpolated). The Moon is never behind the Sun, so there is no conjunction.'
   }
   if (c.basis === 'static') return 'Light time is a constant of this environment (see its chip in Provenance).'
   return c.snapshotStatus === 'ready'
@@ -86,9 +95,8 @@ function commsSourceNote(c: CommsStatus): string {
 }
 
 function CommsStatusCell() {
-  const { state } = useMission()
   const { metNow } = useMetClock()
-  const c = useComms(state.envId, metNow)
+  const c = useComms()
   const ref = useRef<HTMLDetailsElement>(null)
   useDismissableDetails(ref)
   const unknownOwlt = c.one_way_s === null
@@ -141,10 +149,18 @@ function CommsStatusCell() {
               </dd>
               <dt>Link resumes</dt>
               <dd>
-                <MetTime t={c.window.stop} label /> (in <span className="lf-num">{formatCountdown(c.window.stop - metNow)}</span>)
+                <MetTime t={c.resumes_at ?? c.window.stop} label /> (in{' '}
+                <span className="lf-num">{formatCountdown((c.resumes_at ?? c.window.stop) - metNow)}</span>)
               </dd>
             </>
           ) : null}
+          <dt>Earliest reply</dt>
+          <dd>
+            <span className="lf-num" data-missing={c.earliest_reply_s === null || undefined}>
+              {formatEarliestReply(c)}
+            </span>{' '}
+            (zero ground time)
+          </dd>
           <dt>Environment</dt>
           <dd>{c.env.label}</dd>
           {c.metEpochUtc ? (
@@ -165,9 +181,29 @@ function CommsStatusCell() {
   )
 }
 
+/** Publish the bar's real height as --lf-missionbar-offset so scroll-padding-top tracks it on every viewport. */
+function useBarHeightVar(ref: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const root = document.documentElement
+    const set = () => root.style.setProperty('--lf-missionbar-offset', `${Math.ceil(el.getBoundingClientRect().height)}px`)
+    set()
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', set)
+      return () => window.removeEventListener('resize', set)
+    }
+    const ro = new ResizeObserver(set)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [ref])
+}
+
 export function MissionBar() {
+  const ref = useRef<HTMLElement>(null)
+  useBarHeightVar(ref)
   return (
-    <header className="lf-missionbar">
+    <header className="lf-missionbar" ref={ref}>
       <div className="lf-modestrip" role="note">
         <span className="lf-modestrip-tag">SIMULATED CREW DATA</span>
         <span className="lf-modestrip-text">Crew physiology is simulated (seeded, labeled). NASA and NOAA data are real, frozen at build.</span>

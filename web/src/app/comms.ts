@@ -1,29 +1,45 @@
-// Comms status for the mission bar and any feature: AOS/LOS, one-way light time, conjunction.
-// Mars uses the JPL Horizons snapshot (/data/horizons_mars_comms.json: UTC-dated rows and
-// conjunction windows) mapped to MET through the scenario epoch in /data/sim_crew.json
-// (data.calendar.met_epoch_utc). If either file is missing, the SPEC 3.1 fallback applies and
-// the source is reported as missing ([V2 10020]).
+// Comms status for the mission bar and any feature: AOS/LOS, one-way light time, conjunction,
+// earliest reply, all from the engine's commsEta (SPEC 5 comms_eta).
+//   - Mars: JPL Horizons snapshot horizons_mars_comms (light time per day + REAL conjunction
+//     windows), mapped to MET through the scenario epoch sim_crew data.calendar.met_epoch_utc.
+//   - Moon (lunar_surface): JPL Horizons snapshot horizons_moon_comms (environments.json
+//     comms_snapshot), real daily light time; no conjunction (the Moon is never behind the Sun).
+//   - ISS / cislunar: the environments.json envelope (commsEta uses its max).
+// If a snapshot is missing, the SPEC 3.1 fallback applies and the source is reported as missing
+// ([V2 10020]): light time unknown (null), and on Mars LOS by the SPEC 7 scenario.
 import { useMemo } from 'react'
 import { commsEta } from './engine'
 import type { CommsEta, CommsTable } from './engine'
 import { useSnapshot } from './data'
 import type { LoadStatus, Snapshot } from './data'
+import { useMetNow, useMission } from './mission'
 import type { Environment } from './scenario'
 import { environment } from './scenario'
 import type { EnvId } from './vocab'
 
 export interface ConjunctionWindow {
   id: string | null
-  /** MET seconds. */
+  /** MET seconds, half-open [start, stop). */
   start: number
   stop: number
   startUtc: string
   stopUtc: string
 }
 
-export interface CommsStatus extends CommsEta {
+export interface CommsStatus {
   /** AOS = acquisition of signal (link up); LOS = loss of signal. */
   link: 'AOS' | 'LOS'
+  /** One-way light time in seconds; null when the ephemeris needed for it is not in this build. */
+  one_way_s: number | null
+  round_trip_s: number | null
+  blocked: boolean
+  reason: 'solar_conjunction' | null
+  /** MET seconds when the link is back (end of the chained conjunction windows), else null. */
+  resumes_at: number | null
+  /** Seconds from t until a reply could arrive (zero ground time): round trip, or wait + round trip. */
+  earliest_reply_s: number | null
+  /** 'table' = ephemeris; 'environment_max' = environments.json envelope; null = unknown. */
+  light_time_source: CommsEta['light_time_source'] | null
   env: Environment
   /** Snapshot backing the light time, when the environment uses one. */
   snapshotId: string | null
@@ -63,7 +79,7 @@ export function metToUtc(t: number, epochMs: number): string {
 }
 
 /**
- * Convert the horizons_mars_comms payload into the engine's comms table (MET-indexed):
+ * Convert a horizons_*_comms payload into the engine's comms table (MET-indexed, SPEC 5):
  * rows [date, ..., one_way_light_time_s, ...] by column name, conjunction windows start/end.
  */
 export function toCommsTable(
@@ -98,9 +114,6 @@ export function toCommsTable(
   if (!samples.length) return null
   return {
     samples,
-    blackouts: windows.map((w) => ({ start: w.start, stop: w.stop, reason: 'solar_conjunction' })),
-    // SPEC 5 comms_eta shape, read by the real engine port (web/src/engine/comms.ts) once the
-    // facade in app/engine.ts switches to it; `blackouts` above is what the shim reads.
     conjunction_windows: windows.map((w) => ({ start: w.start, end: w.stop, reason: 'solar_conjunction' })),
     windows,
   }
@@ -108,44 +121,83 @@ export function toCommsTable(
 
 type SnapLike = { status: LoadStatus; snapshot: Snapshot | null }
 
+/** Snapshot id that backs an environment's light time: Mars from_snapshot, Moon comms_snapshot. */
+export function commsSnapshotId(env: Environment): string | null {
+  const owlt = env.comms.one_way_light_time_s
+  if (typeof owlt.from_snapshot === 'string') return owlt.from_snapshot
+  return typeof env.comms_snapshot === 'string' ? env.comms_snapshot : null
+}
+
+function staticRange(env: Environment): CommsStatus['range'] {
+  const o = env.comms.one_way_light_time_s
+  return typeof o.min === 'number' && typeof o.max === 'number' ? { min: o.min, max: o.max, mean: o.mean } : null
+}
+
 /** Pure: comms status for an environment at MET t, given the ephemeris and scenario snapshots. */
 export function computeComms(env: Environment, t: number, ephem: SnapLike | null, sim: SnapLike | null = null): CommsStatus {
-  const owlt = env.comms?.one_way_light_time_s
-  const snapshotId = owlt && 'from_snapshot' in owlt ? owlt.from_snapshot : null
+  const snapshotId = commsSnapshotId(env)
+  const needsTable = typeof env.comms.one_way_light_time_s.from_snapshot === 'string'
   const epoch = sim?.status === 'ready' ? metEpochFromSim(sim.snapshot?.data) : null
-  let basis: CommsStatus['basis'] = snapshotId ? 'fallback' : 'static'
-  let eta: CommsEta
-  let window: ConjunctionWindow | null = null
   const table = snapshotId && ephem?.status === 'ready' && epoch ? toCommsTable(ephem.snapshot?.data, epoch.ms) : null
-  if (table) {
-    eta = commsEta(env, t, table)
-    window = table.windows.find((w) => t >= w.start && t < w.stop) ?? null
-    basis = 'snapshot'
-  } else {
-    eta = commsEta(env, t, null)
-  }
-  return {
-    ...eta,
-    link: eta.blocked ? 'LOS' : 'AOS',
+  const base = {
     env,
     snapshotId,
     snapshotStatus: snapshotId ? (ephem?.status ?? 'loading') : null,
     snapshot: ephem?.snapshot ?? null,
-    basis,
-    range: owlt && 'max' in owlt ? owlt : null,
-    window,
+    range: staticRange(env),
     metEpochUtc: epoch?.iso ?? null,
+  }
+  if (table) {
+    // An environment with a static range and a comms_snapshot (the Moon) reads its light time
+    // from the ephemeris: a copy of the environment that points at the snapshot.
+    const envForEngine: Environment = needsTable
+      ? env
+      : { ...env, comms: { ...env.comms, one_way_light_time_s: { ...env.comms.one_way_light_time_s, from_snapshot: snapshotId! } } }
+    const eta = commsEta(envForEngine, t, table)
+    return {
+      ...base,
+      ...eta,
+      link: eta.blocked ? 'LOS' : 'AOS',
+      basis: 'snapshot',
+      window: table.windows.find((w) => t >= w.start && t < w.stop) ?? null,
+    }
+  }
+  if (!needsTable) {
+    const eta = commsEta(env, t, null)
+    return { ...base, ...eta, link: eta.blocked ? 'LOS' : 'AOS', basis: 'static', window: null }
+  }
+  // Ephemeris (or the scenario calendar) not available: commsEta would throw missing_comms_table.
+  // SPEC 3.1 says this environment has conjunctions and SPEC 7 places the scenario "now" inside
+  // one, so the link is reported LOS; the light time is unknown and shown as missing.
+  const blocked = env.comms.conjunction === true
+  return {
+    ...base,
+    link: blocked ? 'LOS' : 'AOS',
+    one_way_s: null,
+    round_trip_s: null,
+    blocked,
+    reason: blocked ? 'solar_conjunction' : null,
+    resumes_at: null,
+    earliest_reply_s: null,
+    light_time_source: null,
+    basis: 'fallback',
+    window: null,
   }
 }
 
-/** React hook: comms status for an environment at MET t (recomputed once per MET minute). */
-export function useComms(envId: EnvId, t: number): CommsStatus {
-  const env = environment(envId)
-  const owlt = env.comms?.one_way_light_time_s
-  const snapshotId = owlt && 'from_snapshot' in owlt ? owlt.from_snapshot : null
+/**
+ * React hook: comms status (recomputed once per MET minute).
+ * `useComms()` uses the store's environment and the scenario clock; both can be overridden.
+ */
+export function useComms(envId?: EnvId, t?: number): CommsStatus {
+  const { state } = useMission()
+  const clockT = useMetNow()
+  const id = envId ?? state.envId
+  const env = environment(id)
+  const snapshotId = commsSnapshotId(env)
   const ephem = useSnapshot(snapshotId)
   const sim = useSnapshot(snapshotId ? 'sim_crew' : null)
-  const minute = Math.floor(t / 60)
+  const minute = Math.floor((t ?? clockT) / 60)
   return useMemo(
     () => computeComms(env, minute * 60, snapshotId ? ephem : null, snapshotId ? sim : null),
     [env, minute, snapshotId, ephem, sim],
@@ -163,12 +215,19 @@ export function formatLightTime(seconds: number | null): string {
 }
 
 /** One-way light time for display: the mean when known, "≤1.50 s" for a 0-to-max envelope. */
-export function formatCommsLightTime(c: Pick<CommsStatus, 'one_way_s' | 'range'>, roundTrip = false): string {
+export function formatCommsLightTime(c: Pick<CommsStatus, 'one_way_s' | 'range'> & { basis?: CommsStatus['basis'] }, roundTrip = false): string {
   const k = roundTrip ? 2 : 1
-  if (c.range && c.range.mean === undefined && c.range.min === 0) {
+  if (c.basis !== 'snapshot' && c.range && c.range.mean === undefined && c.range.min === 0) {
     return c.range.max * k <= 1 ? '≤1 s' : `≤${formatLightTime(c.range.max * k)}`
   }
   return formatLightTime(c.one_way_s === null ? null : c.one_way_s * k)
+}
+
+/** Earliest possible reply from Earth (zero ground time): "11 d 06 h" when blocked, else the round trip. */
+export function formatEarliestReply(c: Pick<CommsStatus, 'earliest_reply_s' | 'blocked' | 'range' | 'basis'>): string {
+  if (c.earliest_reply_s === null) return '—'
+  if (c.blocked) return formatCountdown(c.earliest_reply_s)
+  return formatCommsLightTime({ one_way_s: c.earliest_reply_s / 2, range: c.range, basis: c.basis }, true)
 }
 
 /** "11 d 06 h", "3 h 20 min", "45 min" for a duration in seconds. */

@@ -36,14 +36,20 @@ function Cell({
         {evaluated ? count : '–'}
       </span>
       <span className="sr-only">
-        {evaluated ? `${count} ${noun}${count === 1 ? '' : 's'}` : `${noun}s not evaluated`},
+        {evaluated ? `${count} ${plural(noun, count)}` : `${plural(noun, 2)} not evaluated`},
       </span>
     </span>
   )
 }
 
+/** English plural for the screen-reader text: emergency -> emergencies, advisory -> advisories. */
+function plural(noun: string, n: number): string {
+  if (n === 1) return noun
+  return /[^aeiou]y$/.test(noun) ? `${noun.slice(0, -1)}ies` : `${noun}s`
+}
+
 function summarise(c: AnnunciatorCounts): string {
-  const part = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
+  const part = (n: number, w: string) => `${n} ${plural(w, n)}`
   return `Alerts: ${part(c.warning, 'warning')}, ${part(c.caution, 'caution')}, ${part(c.advisory, 'advisory')}.`
 }
 

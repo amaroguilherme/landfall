@@ -1,5 +1,9 @@
 /* Mission bar, navigation and popovers (the shell). */
 
+/* Anchored scrolling clears the sticky mission bar at its REAL height on every viewport:
+   MissionBar measures itself (ResizeObserver) into --lf-missionbar-offset. */
+html { scroll-padding-top: calc(var(--lf-missionbar-offset, var(--lf-missionbar-h)) + 8px); }
+
 .lf-missionbar {
   position: sticky;
   top: 0;
@@ -98,7 +102,8 @@
   z-index: 60;
   width: min(26rem, calc(100vw - 24px));
   padding: var(--lf-space-2);
-  background: var(--lf-surface-2);
+  /* surface-1, not surface-2: warning red (#ff7066) is 6.1:1 here but 5.6:1 on surface-2 (F.5.10 f: >= 6:1) */
+  background: var(--lf-surface-1);
   border: 1px solid var(--lf-border-strong);
   border-radius: var(--lf-radius);
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.5);
@@ -251,6 +256,7 @@
   .lf-mb-met { gap: 4px; }
   .lf-mb-met .lf-met { font-size: 0.875rem; }
   .lf-mb-met .lf-iconbtn { width: 22px; height: 22px; }
+  .lf-mb-reset { display: none; } /* no room beside the MET on a phone; reloading also resets (in-memory state) */
   .lf-mb-ann { grid-area: ann; margin-left: 0; justify-self: end; }
   .lf-mb-ctx { grid-area: ctx; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
   .lf-comms { grid-area: comms; }
@@ -265,6 +271,8 @@
   .lf-pop-body { position: fixed; top: auto; left: 10px; right: 10px; width: auto; margin-top: 6px; max-height: 70vh; overflow: auto; }
 }
 
-@media (max-width: 359px) {
+/* Below ~420 px the clock controls do not fit beside the MET and the annunciator; hide them rather
+   than let them slide under the annunciator (an overlapped control would still take focus). */
+@media (max-width: 419px) {
   .lf-mb-met .lf-iconbtn { display: none; }
 }

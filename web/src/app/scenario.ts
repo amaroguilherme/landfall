@@ -1,15 +1,17 @@
 // The demo scenario (engine/SPEC.md section 7) and the environment list (SPEC section 3.1).
-// Environments come from engine/rules/environments.json when that file exists at build time;
-// otherwise from the SPEC 3.1 fallback below. import.meta.glob tolerates a missing file, so
-// the shell builds before and after the rules land.
-import type { ChipKind, CrewId, EnvId, Source } from './vocab'
+// Environments come from engine/rules/environments.json through the engine's RULES (bundled at
+// build time) and every id is validated with getEnvironment(RULES, id): the engine is silent on
+// typos, so an unknown id throws here instead of evaluating against the wrong environment.
+import { RULES, getEnvironment } from './engine'
+import type { Environment as EngineEnvironment, Source as EngineSource } from './engine'
 import { ENV_IDS } from './vocab'
+import type { ChipKind, CrewId, EnvId } from './vocab'
 
 const DAY_S = 86_400
 
-/** "Now" in the scenario: MET 0412/14:20:00, in integer seconds. */
+/** "Now" in the scenario: MET 0412/14:20:00 (SPEC 7; sim_crew data.met.now_met_s, checked by a test). */
 export const MET_NOW_S = 412 * DAY_S + 14 * 3600 + 20 * 60
-/** Simulated data window: MET day 368 to day 412; baseline days 368 to 381. */
+/** Simulated data window: MET day 368 to day 412; baseline days 368 to 381 (SPEC 7, fixed). */
 export const SIM_FIRST_DAY = 368
 export const SIM_LAST_DAY = 412
 export const BASELINE_FIRST_DAY = 368
@@ -28,135 +30,40 @@ export interface CommsRange {
 }
 
 export interface EnvironmentComms {
-  /** Either a static range in seconds, or a pointer to an ephemeris snapshot. */
-  one_way_light_time_s?: CommsRange | { from_snapshot: string }
+  /** A static range in seconds ({min, mean?, max}) or a pointer to an ephemeris snapshot ({from_snapshot}). */
+  one_way_light_time_s: { min?: number; mean?: number; max?: number; from_snapshot?: string }
   /** True when this environment can be cut off by solar conjunction. */
   conjunction: boolean
-  chip?: ChipKind | string
-  source?: Source
+  chip?: ChipKind
+  source?: EngineSource
+  [key: string]: unknown
 }
 
-export interface Environment {
+/** environments.json entry (SPEC 3.1), as the engine reads it. */
+export interface Environment extends EngineEnvironment {
   id: EnvId
   label: string
   kind: 'station' | 'spacecraft' | 'surface' | string
   gravity: string
   eva_type: 'microgravity' | 'surface' | string
   gcr_regime: string
-  dose_snapshot?: string
+  dose_snapshot: string | null
   noaa_scale_available: boolean
-  comms?: EnvironmentComms
-  [extra: string]: unknown
+  comms: EnvironmentComms
+  /** Time-resolved light-time snapshot for an environment with a static range (lunar_surface). */
+  comms_snapshot?: string
+  notes?: string[]
 }
 
-interface EnvironmentsFile {
-  schema: string
-  environments: Environment[]
-}
+/** Where the environment list came from (always the rules file now; kept for the mission bar). */
+export const ENVIRONMENTS_SOURCE = 'rules' as const
 
-const EARTH_MOON_LIGHT_S = 384_400 / 299_792.458 // 1.282 s
+/** The four SPEC environments, from the rules, in ENV_IDS order. Throws at load if one is missing. */
+export const ENVIRONMENTS: readonly Environment[] = ENV_IDS.map((id) => getEnvironment(RULES, id) as Environment)
 
-/** SPEC 3.1 fallback, used only when engine/rules/environments.json is absent. */
-export const FALLBACK_ENVIRONMENTS: Environment[] = [
-  {
-    id: 'iss',
-    label: 'ISS · low Earth orbit',
-    kind: 'station',
-    gravity: 'microgravity',
-    eva_type: 'microgravity',
-    gcr_regime: 'leo',
-    dose_snapshot: 'hapi_iss_tepc',
-    noaa_scale_available: true,
-    comms: {
-      one_way_light_time_s: { min: 0.0, max: 1.0 },
-      conjunction: false,
-      chip: 'design choice',
-      source: { kind: 'design_choice', rationale: 'TDRS relay; sub-second' },
-    },
-  },
-  {
-    id: 'cislunar',
-    label: 'Cislunar spacecraft',
-    kind: 'spacecraft',
-    gravity: 'microgravity',
-    eva_type: 'microgravity',
-    gcr_regime: 'free_space',
-    dose_snapshot: 'hapi_crater_dose',
-    noaa_scale_available: true,
-    comms: {
-      one_way_light_time_s: { min: EARTH_MOON_LIGHT_S, max: EARTH_MOON_LIGHT_S },
-      conjunction: false,
-      chip: 'derived',
-      source: {
-        kind: 'derived',
-        from: ['earth_moon_mean_distance_km', 'speed_of_light_km_s'],
-        arithmetic: '384,400 km / 299,792.458 km/s = 1.28 s (shell fallback until environments.json lands)',
-      },
-    },
-  },
-  {
-    id: 'lunar_surface',
-    label: 'Lunar surface',
-    kind: 'surface',
-    gravity: 'lunar',
-    eva_type: 'surface',
-    gcr_regime: 'planetary_surface',
-    noaa_scale_available: true,
-    comms: {
-      one_way_light_time_s: { min: EARTH_MOON_LIGHT_S, max: EARTH_MOON_LIGHT_S },
-      conjunction: false,
-      chip: 'derived',
-      source: {
-        kind: 'derived',
-        from: ['earth_moon_mean_distance_km', 'speed_of_light_km_s'],
-        arithmetic: '384,400 km / 299,792.458 km/s = 1.28 s (shell fallback until environments.json lands)',
-      },
-    },
-  },
-  {
-    id: 'mars_surface',
-    label: 'Mars surface',
-    kind: 'surface',
-    gravity: 'martian',
-    eva_type: 'surface',
-    gcr_regime: 'planetary_surface',
-    dose_snapshot: 'hapi_msl_rad_dose',
-    noaa_scale_available: false,
-    comms: { one_way_light_time_s: { from_snapshot: 'horizons_mars_comms' }, conjunction: true },
-  },
-]
-
-const rulesGlob = import.meta.glob<EnvironmentsFile>('../../../engine/rules/environments.json', {
-  eager: true,
-  import: 'default',
-})
-const rulesFile: EnvironmentsFile | undefined = Object.values(rulesGlob)[0]
-
-function isEnvironment(e: unknown): e is Environment {
-  return (
-    typeof e === 'object' &&
-    e !== null &&
-    typeof (e as Environment).id === 'string' &&
-    (ENV_IDS as readonly string[]).includes((e as Environment).id)
-  )
-}
-
-function mergeEnvironments(file: EnvironmentsFile | undefined): Environment[] {
-  const fromRules = Array.isArray(file?.environments) ? file.environments.filter(isEnvironment) : []
-  return ENV_IDS.map((id) => {
-    const fallback = FALLBACK_ENVIRONMENTS.find((e) => e.id === id)!
-    const rule = fromRules.find((e) => e.id === id)
-    // Rules win field by field; the fallback only fills what the rules file leaves out.
-    return rule ? { ...fallback, ...rule, label: rule.label ?? fallback.label } : fallback
-  })
-}
-
-/** Where the environment list came from, so the UI can say so. */
-export const ENVIRONMENTS_SOURCE: 'rules' | 'spec_fallback' = rulesFile ? 'rules' : 'spec_fallback'
-export const ENVIRONMENTS: readonly Environment[] = mergeEnvironments(rulesFile)
-
+/** environments.json entry for an id; throws invalid_argument (EngineError) for an unknown id. */
 export function environment(id: EnvId): Environment {
-  return ENVIRONMENTS.find((e) => e.id === id) ?? ENVIRONMENTS[0]
+  return ENVIRONMENTS.find((e) => e.id === id) ?? (getEnvironment(RULES, id) as Environment)
 }
 
 /** MET day number (integer) for a MET in seconds. */

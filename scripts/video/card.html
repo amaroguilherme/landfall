@@ -1,0 +1,153 @@
+<!doctype html>
+<!--
+  LANDFALL demo video: plain typographic title card (no imagery, no logos).
+  make-video.mjs copies this file next to card-fonts.css (the app's own Inter, Public Sans Web and
+  DM Mono, downloaded from the deployed app and inlined as data: URLs), then calls
+  renderCard(spec) once and setTime(t) once per video frame, so every fade is deterministic.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>LANDFALL video card</title>
+    <link rel="stylesheet" href="card-fonts.css" />
+    <style>
+      :root {
+        --bg: #17171b; /* HDS carbon-90, the app's background */
+        --text: #ffffff;
+        --text-2: #d1d1d1; /* carbon-20 */
+        --muted: #b9b9bb; /* carbon-30 */
+        --rule: #444447; /* carbon-70 */
+        --link-underline: #4cc38a; /* the app's link underline (green, not blue: blue means Advisory) */
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+      }
+      body {
+        font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: geometricPrecision;
+      }
+      .card {
+        position: absolute;
+        inset: 0;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0 210px;
+      }
+      [data-in] {
+        will-change: opacity, transform;
+      }
+
+      /* brand: the wordmark, centred, as in the mission bar (Public Sans 700, 0.22em tracking) */
+      .brand {
+        align-items: center;
+        text-align: center;
+      }
+      .wordmark {
+        font: 700 136px/1 'Public Sans Web', 'Public Sans', sans-serif;
+        letter-spacing: 0.22em;
+        margin-right: -0.22em; /* the tracking after the last letter would push the word off-centre */
+      }
+      .brand .sub {
+        margin-top: 52px;
+        font: 500 42px/1.3 'Inter', sans-serif;
+        color: var(--text-2);
+        letter-spacing: -0.005em;
+      }
+
+      /* statement: one large line with a small mono kicker */
+      /* labels are written in capitals by the storyboard; values keep the app's own case (19 min 51 s) */
+      .kicker {
+        font: 500 26px/1.2 'DM Mono', monospace;
+        letter-spacing: 0.1em;
+        color: var(--muted);
+        margin-bottom: 40px;
+      }
+      .statement .line {
+        font: 700 78px/1.12 'Public Sans Web', 'Public Sans', sans-serif;
+        letter-spacing: -0.018em;
+        max-width: 1480px;
+        text-wrap: balance;
+      }
+
+      /* final: two claims, the URL, the app's own footer line */
+      .final .wordmark {
+        font-size: 34px;
+        margin-bottom: 64px;
+      }
+      .final .claim {
+        font: 700 56px/1.16 'Public Sans Web', 'Public Sans', sans-serif;
+        letter-spacing: -0.015em;
+        max-width: 1500px;
+        text-wrap: balance;
+      }
+      .final .claim + .claim {
+        margin-top: 28px;
+      }
+      .final .url {
+        margin-top: 80px;
+        font: 500 44px/1 'DM Mono', monospace;
+        letter-spacing: -0.01em;
+        color: var(--text);
+        align-self: flex-start;
+        padding-bottom: 12px;
+        border-bottom: 4px solid var(--link-underline);
+      }
+      .final .foot {
+        margin-top: 56px;
+        max-width: 1440px;
+        font: 400 26px/1.45 'Inter', sans-serif;
+        color: var(--muted);
+        text-wrap: balance;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="card" class="card"></main>
+    <script>
+      const FADE_S = 0.4
+      const ease = (p) => 1 - Math.pow(1 - p, 3)
+
+      /** spec = { layout: 'brand' | 'statement' | 'final', blocks: [{ cls, text, in }] } */
+      window.renderCard = (spec) => {
+        const root = document.getElementById('card')
+        root.className = `card ${spec.layout}`
+        root.replaceChildren()
+        for (const b of spec.blocks) {
+          const el = document.createElement('div')
+          el.className = b.cls
+          el.textContent = b.text
+          el.dataset.in = String(b.in ?? 0)
+          root.appendChild(el)
+        }
+        window.setTime(0)
+        return root.innerText
+      }
+
+      /** Fade each block in from its own start time (seconds into the card). */
+      window.setTime = (t) => {
+        for (const el of document.querySelectorAll('[data-in]')) {
+          const p = ease(Math.min(1, Math.max(0, (t - Number(el.dataset.in)) / FADE_S)))
+          el.style.opacity = String(p)
+          el.style.transform = p < 1 ? `translateY(${((1 - p) * 16).toFixed(2)}px)` : ''
+        }
+      }
+
+      /** True once every face the card uses is defined and loaded (fonts.check alone passes undefined faces). */
+      window.fontsReady = async () => {
+        const faces = ['700 136px "Public Sans Web"', '500 42px "Inter"', '400 26px "Inter"', '500 26px "DM Mono"']
+        const loaded = await Promise.all(faces.map((f) => document.fonts.load(f)))
+        await document.fonts.ready
+        return loaded.every((list) => list.length > 0)
+      }
+    </script>
+  </body>
+</html>

@@ -48,6 +48,39 @@ Requirement text is extracted verbatim with a ToUnicode-aware PDF parser and che
 - NASA Exploration Medical Capability. *Medical System Concept of Operations for Mars Exploration
   Mission-11.* NTRS 20200001715. https://ntrs.nasa.gov/citations/20200001715
 
+## The navigation anchor
+
+- NASA Space Station Research. *Deep Space Navigation: Tool Tested as Emergency Navigation Device*
+  (M. Gaskill, ISS Program Science Office, 2018-06-19; quotes principal investigator Greg Holt). Archived copy:
+  https://web.archive.org/web/20180831201933/https://www.nasa.gov/mission_pages/station/research/news/Sextant_ISS/
+- ISS investigation 7646, *Sextant Navigation for Exploration Missions* (PI Greg N. Holt, NASA JSC).
+- Holt GN, Wood BA. *Sextant Navigation on the International Space Station: A Human Space Exploration Demo.*
+  AAS 19-064, 2019. NTRS 20190001296. https://ntrs.nasa.gov/citations/20190001296
+
+## Wearable reference hardware
+
+- Canadian Space Agency Bio-Monitor (Hexoskin Astroskin), flown on the ISS: product documentation of channels and
+  rates, transcribed during preparation and marked "not re-verified in this build" on `#/band`.
+- Part datasheets and product pages are cited per part in `hardware/sensor-map.json`.
+
+## Interoperability standards
+
+- HL7 International. *FHIR Release 4* (vital-signs profile). https://hl7.org/fhir/R4/
+- Regenstrief Institute. *LOINC.* https://loinc.org/ · *UCUM, The Unified Code for Units of Measure.* https://ucum.org/
+
+## Design system
+
+- NASA. *Horizon Design System* (`@nasa-hds/core` v0.10.0, CC0-1.0). https://github.com/nasa/hds-core
+
+## Statistics
+
+- Crawford JR, Howell DC. Comparing an individual's test score against norms derived from small samples.
+  *Clin Neuropsychol* 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241
+- Crawford JR, Garthwaite PH, Azzalini A, Howell DC, Laws KR. Testing for a deficit in single-case studies:
+  effects of departures from normality. *Neuropsychologia* 2006;44(4):666-677. doi:10.1016/j.neuropsychologia.2005.06.001
+- Jacobson NS, Truax P. Clinical significance: a statistical approach to defining meaningful change in
+  psychotherapy research. *J Consult Clin Psychol* 1991;59(1):12-19.
+
 ## Ephemerides and space weather
 
 - JPL Horizons On-Line Ephemeris System, NASA Jet Propulsion Laboratory. https://ssd.jpl.nasa.gov/horizons/

@@ -30,7 +30,7 @@
   margin: 0 0 var(--lf-space-2);
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 4px;
 }
 .ns-step {
@@ -58,13 +58,14 @@
   border-radius: 50%;
   font-size: 0.75rem;
 }
-.ns-step-label { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ns-step-label { font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; min-width: 0; }
 .ns-step-time { font-size: 0.6875rem; }
 .ns-step-short { display: none; }
 .ns-step[data-state='current'] { color: var(--lf-text); border-color: var(--lf-border-strong); border-top-color: var(--lf-text); background: var(--lf-surface-2); }
 .ns-step[data-state='current'] .ns-step-n { background: var(--lf-text); color: var(--lf-bg); border-color: var(--lf-text); }
 .ns-step[data-state='done'] { color: var(--lf-text-2); border-top-color: var(--lf-text-muted); }
 @media (max-width: 639px) {
+  .ns-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ns-step { grid-template-columns: 1fr; justify-items: center; padding: 6px 2px; text-align: center; }
   .ns-step-n { grid-row: auto; }
   .ns-step-label { font-size: 0.6875rem; max-width: 100%; }
@@ -322,3 +323,19 @@
 /* Fluids context: the evidence-report sentence is quoted verbatim from engine/rules */
 .ns-quote { color: var(--lf-text-2); font-style: normal; }
 .ns-block { display: block; margin-top: 0.3em; }
+
+/* Medical kit (twice a week): cuff blood pressure and fingerstick glucose */
+.ns-kit-due { margin: 0 0 var(--lf-space-2); padding: 8px 12px; border: 1px solid var(--lf-border); border-radius: var(--lf-radius); background: var(--lf-surface-2); font-size: var(--lf-text-sm); color: var(--lf-text-2); }
+.ns-kit-due strong { color: var(--lf-text); }
+.ns-kit-due[data-due] { border-color: var(--lf-border-strong); }
+.ns-kit-group { border: 1px solid var(--lf-border-subtle); border-radius: var(--lf-radius); margin: 0 0 var(--lf-space-2); padding: var(--lf-space-1-5) var(--lf-space-2) var(--lf-space-2); min-width: 0; }
+.ns-kit-group legend { font: 700 var(--lf-text-md)/1.3 var(--lf-font-heading); color: var(--lf-text); padding: 0 6px; }
+.ns-kit-group .ns-how { font-size: var(--lf-text-sm); }
+.ns-fields-pair { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--lf-space-2); }
+.ns-confirm { margin-top: var(--lf-space-1); border-color: var(--lf-border-strong); align-items: flex-start; padding: 8px 12px; }
+.ns-confirm input { margin-top: 2px; }
+.ns-context-line { margin: var(--lf-space-1) 0 0; padding-left: 8px; border-left: 2px dotted var(--lf-border-strong); color: var(--lf-text-2); }
+.ns-kit-skip { margin-top: var(--lf-space-2); }
+.ns-skip-opts { display: grid; gap: 6px; }
+.ns-input-text { width: min(100%, 28rem); font-family: var(--lf-font-ui); font-size: var(--lf-text-md); }
+.ns-context .lf-expander { margin-top: var(--lf-space-1); }

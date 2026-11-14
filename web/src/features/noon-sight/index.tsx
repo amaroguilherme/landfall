@@ -1,7 +1,8 @@
 // NOON SIGHT (#/noon-sight): the daily check. A navigator's noon sight is the daily fix that
-// tells you where you are without help from anyone. Five short steps: PVT-B, sleep, mood,
-// fluids, symptoms. Answers become SPEC section 4 observations in the mission store, labelled
-// as entered by the crewmember (never "simulated"), plus one logbook line.
+// tells you where you are without help from anyone. Six short steps: PVT-B, sleep, mood,
+// fluids, the medical kit (cuff blood pressure and fingerstick glucose, twice a week), symptoms.
+// Answers become SPEC section 4 observations in the mission store, labelled as entered by the
+// crewmember (never "simulated"), plus one logbook line.
 // Gamification is sober by design: a streak and weekly logbook completeness. No points, no
 // confetti, no leaderboard, and mood never counts towards anything.
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -9,7 +10,9 @@ import type { ReactNode, RefObject } from 'react'
 import type { FeatureProps } from '../../app/router'
 import { useSnapshot } from '../../app/data'
 import type { LoadStatus, Snapshot } from '../../app/data'
+import { useComms } from '../../app/comms'
 import { metClock, useMetNow, useMission } from '../../app/mission'
+import { useCases } from '../../app/model'
 import { crewMember } from '../../app/vocab'
 import type { ChipKind, CrewId, Observation } from '../../app/vocab'
 import { BASELINE_FIRST_DAY, BASELINE_LAST_DAY, SIM_FIRST_DAY } from '../../app/scenario'
@@ -27,6 +30,7 @@ import {
   SimulatedMarker,
   UnavailableIcon,
 } from '../../ui'
+import { KitStep } from './KitStep'
 import { MoodTrend } from './MoodTrend'
 import type { MoodPoint } from './MoodTrend'
 import { PvtTest } from './PvtTest'
@@ -36,13 +40,16 @@ import type { PvtScore } from './pvt'
 import {
   DAILY_ENTRIES,
   EMPTY_ANSWERS,
+  EMPTY_KIT,
   PROVENANCE_MEASURED,
   RENAL_SYMPTOMS,
   SYMPTOMS,
+  URGENT_SYMPTOMS,
   baselineMean,
   buildObservations,
   collectFixes,
   computeStreak,
+  kitSchedule,
   lastNight,
   logbookText,
   metDayOf,
@@ -50,18 +57,20 @@ import {
   seriesPoints,
   simMember,
   simObservations,
+  symptomLabel,
   weekCompleteness,
 } from './record'
-import type { NoonAnswers, SimCrewData, SimCrewMember, SymptomId } from './record'
+import type { KitDraft, NoonAnswers, SimCrewData, SimCrewMember, SymptomId } from './record'
 import { POTABLE_WATER_CONSTANT_ID, minBaseline, ruleConstant, urineTarget } from './renal'
 import './noon-sight.css'
 
-type StepId = 'pvt' | 'sleep' | 'mood' | 'fluids' | 'symptoms' | 'done'
+type StepId = 'pvt' | 'sleep' | 'mood' | 'fluids' | 'kit' | 'symptoms' | 'done'
 const STEPS: { id: Exclude<StepId, 'done'>; label: string; short: string; time: string }[] = [
   { id: 'pvt', label: 'Reaction time', short: 'PVT-B', time: '3 min' },
   { id: 'sleep', label: 'Sleep', short: 'Sleep', time: '10 s' },
   { id: 'mood', label: 'Mood', short: 'Mood', time: '5 s' },
   { id: 'fluids', label: 'Fluids', short: 'Fluids', time: '30 s' },
+  { id: 'kit', label: 'Medical kit', short: 'Kit', time: '2× a week' },
   { id: 'symptoms', label: 'Symptoms', short: 'Symptoms', time: '15 s' },
 ]
 const STEP_IDS = STEPS.map((s) => s.id) as string[]
@@ -137,6 +146,7 @@ function NoonSightView({ crewId, initialStep }: { crewId: CrewId; initialStep: S
   const [fluidRaw, setFluidRaw] = useState('')
   const [urineRaw, setUrineRaw] = useState('')
   const [symptoms, setSymptoms] = useState<Record<SymptomId, boolean>>(NO_SYMPTOMS)
+  const [kitDraft, setKitDraft] = useState<KitDraft>(EMPTY_KIT)
   const [logged, setLogged] = useState<{ t: number; observations: Observation[]; text: string } | null>(null)
 
   const sessionObs = useMemo(() => state.observations.filter((o) => o.crew_id === crewId), [state.observations, crewId])
@@ -148,7 +158,10 @@ function NoonSightView({ crewId, initialStep }: { crewId: CrewId; initialStep: S
     const streak = computeStreak(collectFixes(checkins, sessionTimes, now), today)
     const obs = [...simObservations(member, DAILY_ENTRIES.map((e) => e.variable), now), ...sessionObs]
     const week = weekCompleteness(obs, crewId, today, now)
-    return { streak, week }
+    // Twice a week: the last cuff reading in the simulated record or this session.
+    const bpTimes = [...seriesPoints(member?.series.bp_systolic).map((p) => p.t), ...sessionObs.filter((o) => o.variable === 'bp_systolic').map((o) => o.t)]
+    const kit = kitSchedule(bpTimes, today, now)
+    return { streak, week, kit }
   }, [member, now, today, crewId, state.noonSights, sessionObs])
 
   // Move focus to the new step's heading (keyboard and screen-reader users), not on first render.
@@ -171,7 +184,10 @@ function NoonSightView({ crewId, initialStep }: { crewId: CrewId; initialStep: S
 
   /** Log the fix: observations into the store (SPEC section 4), one logbook line, then "Fix logged". */
   const logFix = (symptomAnswers: NoonAnswers['symptoms']) => {
-    const t = metClock.get().metNow
+    // Stamped to the MET minute: the mission evaluation reads the clock floored to the minute, so an
+    // entry stamped mid-minute would stay out of the findings until the next one. A minute is ample
+    // resolution for a cuff reading, a fingerstick or a 24-hour total.
+    const t = Math.floor(metClock.get().metNow / 60) * 60
     const final: NoonAnswers = { ...answers, fluidIntakeMl: fluid.value, urineOutputMl: urine.value, symptoms: symptomAnswers }
     const observations = buildObservations(final, crewId, t)
     const text = logbookText(final)
@@ -183,6 +199,7 @@ function NoonSightView({ crewId, initialStep }: { crewId: CrewId; initialStep: S
         entered_by: 'crewmember',
         pvt: final.pvt ? { mode: final.pvt.mode, score: final.pvt.score } : null,
         demo_not_recorded: final.pvt?.mode === 'demo',
+        medical_kit_not_taken: final.kitSkip,
       },
     })
     addLog({ t, crew_id: crewId, kind: 'measurement', text })
@@ -199,6 +216,7 @@ function NoonSightView({ crewId, initialStep }: { crewId: CrewId; initialStep: S
     setFluidRaw('')
     setUrineRaw('')
     setSymptoms(NO_SYMPTOMS)
+    setKitDraft(EMPTY_KIT)
     setLogged(null)
     setNow(metClock.get().metNow)
     setStep('pvt')
@@ -212,11 +230,12 @@ function NoonSightView({ crewId, initialStep }: { crewId: CrewId; initialStep: S
   return (
     <div className="ns">
       <header className="ns-head">
-        <p className="lf-eyebrow">Daily check · about 90 seconds, plus the 3-minute PVT-B</p>
+        <p className="lf-eyebrow">Daily check · about 90 seconds, plus the 3-minute PVT-B and, twice a week, the medical kit</p>
         <h1>Noon Sight</h1>
         <p className="ns-lede">
-          A navigator’s noon sight is the daily fix that tells you where you are without help from anyone. This is yours:
-          a reaction-time test and four quick questions, compared only with your own baseline.
+          A navigator’s noon sight is the daily fix that tells you where you are without help from anyone. This is yours: a
+          reaction-time test, four quick questions and, twice a week, your blood pressure and blood sugar from the medical kit,
+          compared only with your own baseline.
         </p>
         <p className="ns-who">
           Logging as <strong>{crewId}</strong> · {crew.role} · <MetNowLabel />{' '}
@@ -445,15 +464,32 @@ function NoonSightView({ crewId, initialStep }: { crewId: CrewId; initialStep: S
               </div>
               <StepNav
                 onBack={() => go('mood')}
-                onNext={() => go('symptoms')}
-                nextLabel="Next: symptoms"
+                onNext={() => go('kit')}
+                nextLabel="Next: medical kit"
                 nextDisabled={Boolean(fluid.error || urine.error)}
               />
             </StepPanel>
           ) : null}
 
+          {step === 'kit' ? (
+            <StepPanel n={5} title="Medical kit: blood pressure and blood sugar" headingRef={headingRef}>
+              <KitStep
+                crewId={crewId}
+                draft={kitDraft}
+                onDraft={setKitDraft}
+                schedule={record.kit}
+                onBack={() => go('fluids')}
+                onNext={(kit) => {
+                  setAnswers((a) => ({ ...a, bpSystolic: kit.systolic, bpDiastolic: kit.diastolic, glucoseMgDl: kit.glucose, kitSkip: kit.skip }))
+                  go('symptoms')
+                }}
+                stepNav={(p) => <StepNav {...p} />}
+              />
+            </StepPanel>
+          ) : null}
+
           {step === 'symptoms' ? (
-            <StepPanel n={5} title="Symptoms" headingRef={headingRef}>
+            <StepPanel n={6} title="Symptoms" headingRef={headingRef}>
               <fieldset className="ns-checks">
                 <legend>Anything bothering you today? Tick all that apply.</legend>
                 {SYMPTOMS.map((s) => (
@@ -470,18 +506,9 @@ function NoonSightView({ crewId, initialStep }: { crewId: CrewId; initialStep: S
               <p className="ns-note">
                 LANDFALL records what you report. It does not diagnose and it does not suggest medicine.
               </p>
-              {RENAL_SYMPTOMS.some((id) => symptoms[id]) ? (
-                <div className="ns-procedure" role="note">
-                  <p>
-                    <strong>Tell your Crew Medical Officer now.</strong> In the renal-stone procedure, side or back pain, blood in
-                    the urine, or pain when passing urine means a flight surgeon should look: the case queues the ground packet,
-                    which sends itself when a link exists.
-                  </p>
-                  <a href="#/case/renal_stone">Open the renal-stone case</a>
-                </div>
-              ) : null}
+              <SymptomPrompts symptoms={symptoms} crewId={crewId} />
               <StepNav
-                onBack={() => go('fluids')}
+                onBack={() => go('kit')}
                 onNext={() => logFix(symptoms)}
                 nextLabel="Log this fix"
                 extra={
@@ -528,6 +555,65 @@ function NoonSightView({ crewId, initialStep }: { crewId: CrewId; initialStep: S
 // Pieces
 // ---------------------------------------------------------------------------------------------
 
+/** Plain-language list: "a, b and c". */
+function listWords(items: string[]): string {
+  if (items.length <= 1) return items.join('')
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+}
+
+/**
+ * What a ticked symptom asks of the crewmember. Escalation has two tiers (meta.json escalation):
+ * the Crew Medical Officer now, the flight surgeon with the link. No diagnosis, no medicine.
+ */
+function SymptomPrompts({ symptoms, crewId }: { symptoms: Record<SymptomId, boolean>; crewId: CrewId }) {
+  const comms = useComms()
+  const { get } = useCases()
+  const renal = RENAL_SYMPTOMS.filter((id) => symptoms[id])
+  const urgent = URGENT_SYMPTOMS.filter((id) => symptoms[id])
+  if (!renal.length && !urgent.length) return null
+  const renalStatus = get('renal_stone', crewId)?.state.status ?? 'idle'
+  const ground =
+    comms.link === 'AOS'
+      ? 'With the link up, Mission Control and the flight surgeon can join within the round trip.'
+      : 'With no link now, the Crew Medical Officer acts onboard; the flight surgeon gets the case when the link resumes.'
+  return (
+    <>
+      {renal.length ? (
+        <div className="ns-procedure" role="note">
+          <p>
+            <strong>Tell your Crew Medical Officer now.</strong> {capitalize(listWords(renal.map((id) => symptomLabel(id).toLowerCase())))}{' '}
+            {renal.length === 1 ? 'is a red flag' : 'are red flags'} of the renal-stone procedure.{' '}
+            {renalStatus === 'acting'
+              ? 'Your renal-stone case is open: answer its red-flag question there now. A “yes” escalates the case at once, to the Crew Medical Officer now and to the flight surgeon through the ground packet.'
+              : renalStatus === 'detected'
+                ? 'Your renal-stone case is open: start it and answer its red-flag question. A “yes” escalates the case at once, to the Crew Medical Officer now and to the flight surgeon through the ground packet.'
+                : renalStatus === 'watch'
+                  ? 'Your renal-stone case is in watch (its tripwire is armed), so the Crew Medical Officer decides what follows.'
+                  : renalStatus === 'escalated'
+                    ? 'Your renal-stone case is already escalated: the Crew Medical Officer has it.'
+                    : 'Your renal-stone case is not open now, so the Crew Medical Officer decides what follows.'}{' '}
+            {ground}
+          </p>
+          <a href="#/case/renal_stone">Open the renal-stone case</a>
+        </div>
+      ) : null}
+      {urgent.length ? (
+        <div className="ns-procedure" role="note">
+          <p>
+            <strong>Tell your Crew Medical Officer now.</strong> LANDFALL has no guided case for{' '}
+            {listWords(urgent.map((id) => symptomLabel(id).toLowerCase()))}: the Crew Medical Officer uses the vehicle medical
+            procedures. {ground}
+          </p>
+        </div>
+      ) : null}
+    </>
+  )
+}
+
+function capitalize(text: string): string {
+  return text ? text[0].toUpperCase() + text.slice(1) : text
+}
+
 function MetNowLabel() {
   const t = useMetNow()
   return <MetTime t={t} label />
@@ -557,7 +643,13 @@ function StepPanel({
     <section className="lf-panel ns-panel" aria-labelledby="ns-step-h">
       <header className="lf-panel-head">
         <div>
-          {n !== null ? <p className="lf-eyebrow">Step {n} of 5</p> : <p className="lf-eyebrow">Noon Sight complete</p>}
+          {n !== null ? (
+            <p className="lf-eyebrow">
+              Step {n} of {STEPS.length}
+            </p>
+          ) : (
+            <p className="lf-eyebrow">Noon Sight complete</p>
+          )}
           <h2 id="ns-step-h" className="lf-panel-title" tabIndex={-1} ref={headingRef}>
             {title}
           </h2>
@@ -817,7 +909,7 @@ function PvtResult({
       {mode === 'full' ? (
         <>
           <p className="ns-small">
-            Recorded as <code>pvt_lapses</code> = <Num value={score.lapses} unit="count" /> and <code>pvt_median_rt</code> ={' '}
+            Recorded as your PVT-B lapses, <Num value={score.lapses} />, and median reaction time,{' '}
             <Num value={score.medianRt === null ? null : Math.round(score.medianRt)} unit="ms" />, {PROVENANCE_MEASURED} by the app.
           </p>
           <p className="ns-small ns-muted">
@@ -892,8 +984,8 @@ function SleepFromBand({
             </span>
           </Stat>
         ) : null}
-        <Stat label="Midpoint vs schedule">
-          <Num value={night.midpointShiftH} digits={2} signed unit="h" />
+        <Stat label="Midpoint shift from your baseline">
+          <Num value={night.midpointShiftH} digits={2} unit="h" />
         </Stat>
         <Stat label="Your baseline">
           <Num value={base.mean} digits={2} unit="h" />
@@ -901,8 +993,9 @@ function SleepFromBand({
       </dl>
       <p className="ns-small ns-muted">
         Actigraphy estimates sleep from wrist movement; it does not measure sleep stages (that needs EEG research hardware).
-        Midpoint is compared with 02:00 MET, the middle of the pre-shift sleep period. Baseline: MET days{' '}
-        <span className="lf-num">{baselineDays[0]}</span>–<span className="lf-num">{baselineDays[1]}</span>.
+        Midpoint shift: how far last night’s sleep midpoint was, earlier or later, from the median midpoint of your baseline
+        nights; it is never negative. Baseline: MET days <span className="lf-num">{baselineDays[0]}</span>–
+        <span className="lf-num">{baselineDays[1]}</span>.
       </p>
       <FreshnessChip meta={snapshot} status={status} id="sim_crew" />
     </div>
@@ -1001,9 +1094,14 @@ const VAR_LABEL: Record<string, string> = {
   mood: 'Mood (self-rated)',
   fluid_intake_24h: 'Fluid intake, 24 h',
   urine_volume_24h: 'Urine output, 24 h',
-  renal_symptoms: 'Renal symptoms (case r4)',
+  bp_systolic: 'Blood pressure, systolic (cuff)',
+  bp_diastolic: 'Blood pressure, diastolic (cuff)',
+  glucose: 'Blood glucose (fingerstick)',
+  renal_symptoms: 'Any renal-stone red flag',
 }
 for (const s of SYMPTOMS) VAR_LABEL[`symptom_${s.id}`] = s.label
+
+const SOURCE_WORDS: Record<string, string> = { app: 'LANDFALL app', manual: 'manual entry', band: 'band' }
 
 function DoneView({
   logged,
@@ -1026,9 +1124,7 @@ function DoneView({
       </p>
       {logged.observations.length ? (
         <table className="ns-table ns-obs">
-          <caption className="ns-small ns-muted">
-            Observations added to the mission store (engine/SPEC.md section 4 shape)
-          </caption>
+          <caption className="ns-small ns-muted">What was added to your record (each one an observation in the engine/SPEC.md section 4 shape)</caption>
           <thead>
             <tr>
               <th scope="col">What</th>
@@ -1042,16 +1138,13 @@ function DoneView({
           <tbody>
             {logged.observations.map((o) => (
               <tr key={o.variable}>
-                <th scope="row">
+                <th scope="row" title={o.variable}>
                   {VAR_LABEL[o.variable] ?? o.variable}
-                  <code className="ns-var">{o.variable}</code>
                 </th>
                 <td className="num">
                   {o.unit === 'yes/no' ? <span className="lf-mono">{o.value ? 'yes' : 'no'}</span> : <Num value={o.value} unit={o.unit === 'score_1_5' ? '/ 5' : o.unit} />}
                 </td>
-                <td>
-                  <code>{o.source}</code>
-                </td>
+                <td>{SOURCE_WORDS[o.source] ?? o.source}</td>
                 <td>
                   {o.provenance === PROVENANCE_MEASURED ? 'measured by the app' : 'entered by the crewmember'}
                   {o.variable === 'mood' ? (
@@ -1074,8 +1167,15 @@ function DoneView({
         <strong>Logbook:</strong> <span className="ns-logline">{logged.text}</span>
       </p>
       <p className="ns-small ns-muted">
-        Time is MET <span className="lf-num">t = {logged.t}</span> s. Nothing here is simulated, and nothing left this device:
-        sharing goes through <a href="#/downlink">Downlink</a>, behind your consent.
+        Nothing here is simulated, and nothing left this device: sharing goes through <a href="#/downlink">Downlink</a>, behind
+        your consent.
+        {logged.observations.some((o) => o.variable === 'bp_systolic' || o.variable === 'glucose') ? (
+          <>
+            {' '}
+            Your medical-kit readings are compared with your own baseline on the <a href="#/body?region=heart">body map</a> and in{' '}
+            <a href={`#/trends?crew=${crewId}`}>Trends</a>.
+          </>
+        ) : null}
       </p>
       <div className="ns-nav">
         <ButtonLink href={`#/trends?crew=${crewId}`}>See your trends</ButtonLink>

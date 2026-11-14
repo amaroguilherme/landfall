@@ -1,9 +1,12 @@
 // Original stylised front-view figure (inline SVG, drawn for LANDFALL from simple geometry:
 // capsules, ellipses and rounded rectangles; not traced from any anatomical source).
-// Each region is an SVG <a> (Tab + Enter), with an accessible name that carries its status, and
-// is tinted by its worst current state. Colour is never the only cue: the no-data state is
-// hatched and dashed, the selected region gets a heavy outline, and the region list next to the
-// figure repeats every state as icon + text.
+// Each region is an SVG <a> (Tab + Enter), with an accessible name that carries its status. Its FILL
+// is the worst MEASURED finding of the selected crewmember on that region (meta.json
+// body_region_rule); a region in the hazard footprint of an open case gets a hatched outline in the
+// procedure colour instead, drawn only outside the shape (a mask hides the inner half), so it never
+// reads as a severity fill. Colour is never the only cue: the no-data state is hatched and dashed,
+// the footprint is hatched, the selected region gets a heavy outline, and the region list next to the
+// figure repeats every state and footprint as icon + text.
 import type { MouseEvent, ReactNode } from 'react'
 import type { RegionId } from './regions'
 import { REGIONS } from './regions'
@@ -180,38 +183,61 @@ const SHAPES: Record<Exclude<RegionId, 'skin'>, Shape> = {
 /** Paint order: base silhouette first, then organs back to front, small targets last. */
 const ORDER: RegionId[] = ['skin', 'brain', 'eyes', 'lungs', 'blood_forming_organs', 'heart', 'kidneys', 'skeleton', 'muscles', 'immune']
 
+/** Geometry of a region (the silhouette for skin). */
+function geometry(id: RegionId): ReactNode {
+  return id === 'skin' ? SILHOUETTE : SHAPES[id].paint
+}
+
 export function BodyFigure({
   states,
+  footprint,
   selected,
   hrefFor,
   onSelect,
   onPreview,
 }: {
   states: Record<RegionId, RegionState>
+  /** Regions in the hazard footprint of an open case of the selected crewmember (outline only). */
+  footprint: Partial<Record<RegionId, boolean>>
   selected: RegionId
   hrefFor: (id: RegionId) => string
   onSelect: (id: RegionId, e: MouseEvent<Element>) => void
   /** Hover / focus preview for the readout line (null on leave). */
   onPreview?: (id: RegionId | null) => void
 }) {
+  const footIds = ORDER.filter((id) => footprint[id])
   return (
     <svg
       className="lf-fig"
       viewBox="0 0 300 604"
       role="group"
-      aria-label="Body figure. Each part is a link; the list next to it gives the same regions and states."
+      aria-label="Body figure. Each part is a link; the list next to it gives the same regions, states and case footprints."
     >
       <defs>
         <pattern id="lf-fig-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <rect width="6" height="6" className="lf-fig-hatch-bg" />
           <line x1="0" y1="0" x2="0" y2="6" className="lf-fig-hatch-line" />
         </pattern>
+        <pattern id="lf-fig-foot-hatch" width="3.2" height="3.2" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+          <line x1="0" y1="0" x2="0" y2="3.2" className="lf-fig-foot-line" />
+        </pattern>
+        {/* One mask per footprint region: white everywhere, black inside the shape, so the hatched
+            outline shows only outside it and never tints the organ itself. */}
+        {footIds.map((id) => (
+          <mask key={id} id={`lf-fig-foot-mask-${id}`} maskUnits="userSpaceOnUse" x="-20" y="-20" width="340" height="644">
+            <rect x="-20" y="-20" width="340" height="644" fill="#fff" />
+            <g fill="#000" stroke="none">
+              {geometry(id)}
+            </g>
+          </mask>
+        ))}
       </defs>
       {ORDER.map((id) => {
         const def = REGIONS.find((r) => r.id === id)!
         const state = states[id]
         const isSel = id === selected
-        const name = `${def.label}${def.aka ? `, ${def.aka}` : ''}: ${STATE_LABEL[state]}${isSel ? ', selected' : ''}`
+        const inFoot = Boolean(footprint[id])
+        const name = `${def.label}${def.aka ? `, ${def.aka}` : ''}: ${STATE_LABEL[state]}${inFoot ? ', in the hazard footprint of an open case' : ''}${isSel ? ', selected' : ''}`
         return (
           <a
             key={id}
@@ -219,6 +245,7 @@ export function BodyFigure({
             className="lf-fig-region"
             data-region={id}
             data-state={state}
+            data-footprint={inFoot || undefined}
             data-selected={isSel || undefined}
             aria-label={name}
             aria-current={isSel ? 'true' : undefined}
@@ -229,6 +256,11 @@ export function BodyFigure({
             onBlur={() => onPreview?.(null)}
           >
             <title>{name}</title>
+            {inFoot ? (
+              <g className="lf-fig-foot" mask={`url(#lf-fig-foot-mask-${id})`} aria-hidden="true">
+                {geometry(id)}
+              </g>
+            ) : null}
             {id === 'skin' ? (
               <g className="lf-fig-paint lf-fig-skin">{SILHOUETTE}</g>
             ) : (

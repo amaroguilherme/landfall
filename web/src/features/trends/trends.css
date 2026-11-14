@@ -75,3 +75,17 @@
 .lf-tr-flags li[data-severity='warning'] .lf-icon { color: var(--lf-sev-warning); }
 .lf-tr-banner { margin: 0 0 var(--lf-space-2); }
 .lf-tr-crew-btn:not([aria-pressed='true']) .lf-tr-crew-na { color: var(--lf-data-stale); }
+
+/* band line and its minimum detectable change (D10) */
+.lf-tr-band { display: inline-flex; flex-direction: column; gap: 0.2em; }
+.lf-tr-mdc { color: var(--lf-text-2); }
+.lf-tr-mdc strong { color: var(--lf-text); font-weight: 600; }
+.lf-tr-tags { gap: 0.35em 0.6em; }
+.lf-tr-note { font-size: var(--lf-text-sm); color: var(--lf-text-2); margin: 0 0 var(--lf-space-1); padding-left: 8px; border-left: 2px solid var(--lf-border-strong); max-width: none; }
+.lf-tr-note > p { margin: 0; max-width: none; }
+.lf-tr-note .lf-expander { margin-top: 2px; }
+.lf-tr-ctx { border-left-style: dotted; }
+.lf-tr-action { font-size: var(--lf-text-sm); color: var(--lf-text); margin: var(--lf-space-1) 0; padding: 6px 10px; border: 1px solid var(--lf-border); border-radius: var(--lf-radius); background: var(--lf-surface-2); max-width: none; }
+.lf-tr-action .lf-sev { margin-right: 0.35em; }
+.lf-tr-episodes { list-style: none; margin: var(--lf-space-1) 0 0; padding: 8px 10px; border: 1px dashed var(--lf-border-strong); border-radius: var(--lf-radius); font-size: var(--lf-text-sm); color: var(--lf-text-2); display: grid; gap: 0.35em; }
+.lf-tr-episodes strong { color: var(--lf-text); font-weight: 600; }

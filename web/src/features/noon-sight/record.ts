@@ -222,23 +222,203 @@ export function weekCompleteness(observations: readonly Observation[], crew: Cre
 }
 
 // ---------------------------------------------------------------------------------------------
-// Answers -> observations (SPEC section 4). Entered values are never labelled simulated.
+// Symptoms. The six renal ones are, in order and in the same words, the red flags of the renal-stone
+// case's red-flag question (engine/rules/cases.json renal_stone, step r4 red_flags; a test checks
+// them), which follow the HRR risk statement (D5). Chest pain, shortness of breath and a change in
+// vision have no LANDFALL case: they prompt "tell your Crew Medical Officer now".
 // ---------------------------------------------------------------------------------------------
 
 export const SYMPTOMS = [
   { id: 'headache', label: 'Headache' },
-  { id: 'nausea', label: 'Nausea or vomiting' },
   { id: 'trouble_sleeping', label: 'Trouble sleeping' },
-  { id: 'flank_pain', label: 'Pain in your side or lower back' },
-  { id: 'urinary', label: 'Blood in your urine, or pain when passing urine' },
+  { id: 'flank_pain', label: 'Pain in the side or back (flank)' },
+  { id: 'blood_in_urine', label: 'Blood in the urine' },
+  { id: 'painful_urination', label: 'Pain or burning when passing urine' },
+  { id: 'fever_chills', label: 'Fever or chills' },
+  { id: 'nausea_vomiting', label: 'Nausea or vomiting' },
+  { id: 'cannot_pass_urine', label: 'Being unable to pass urine' },
+  { id: 'chest_pain', label: 'Chest pain' },
+  { id: 'short_of_breath', label: 'Shortness of breath' },
+  { id: 'vision_change', label: 'A change in your vision' },
+  { id: 'rash', label: 'Rash or skin irritation' },
 ] as const
 export type SymptomId = (typeof SYMPTOMS)[number]['id']
 
-/**
- * The renal-stone case asks "any pain in the side or back, blood in the urine, or pain when
- * passing urine?" (engine/rules/cases.json step r4, variable renal_symptoms, yes/no).
- */
-export const RENAL_SYMPTOMS: readonly SymptomId[] = ['flank_pain', 'urinary']
+/** The renal-stone case's red flags (cases.json renal_stone r4 red_flags, same order and words). */
+export const RENAL_SYMPTOMS: readonly SymptomId[] = ['flank_pain', 'blood_in_urine', 'painful_urination', 'fever_chills', 'nausea_vomiting', 'cannot_pass_urine']
+
+/** Symptoms no LANDFALL case covers that still mean "tell your Crew Medical Officer now". */
+export const URGENT_SYMPTOMS: readonly SymptomId[] = ['chest_pain', 'short_of_breath', 'vision_change']
+
+export function symptomLabel(id: SymptomId): string {
+  return SYMPTOMS.find((s) => s.id === id)?.label ?? id
+}
+
+// ---------------------------------------------------------------------------------------------
+// Medical kit: cuff blood pressure and fingerstick glucose (D8), twice a week
+// ---------------------------------------------------------------------------------------------
+
+export type KitVariable = 'bp_systolic' | 'bp_diastolic' | 'glucose'
+
+export interface KitSpec {
+  variable: KitVariable
+  unit: 'mmHg' | 'mg/dL'
+  label: string
+  /**
+   * Entry range (design choice): wide enough for any real reading of a cuff or a glucometer, so a
+   * number outside it is a typing or unit error. It is an entry check, never a clinical limit.
+   */
+  min: number
+  max: number
+}
+
+export const KIT_SPECS: Record<KitVariable, KitSpec> = {
+  bp_systolic: { variable: 'bp_systolic', unit: 'mmHg', label: 'Systolic (top number)', min: 40, max: 300 },
+  bp_diastolic: { variable: 'bp_diastolic', unit: 'mmHg', label: 'Diastolic (bottom number)', min: 20, max: 200 },
+  glucose: { variable: 'glucose', unit: 'mg/dL', label: 'Blood glucose', min: 10, max: 800 },
+}
+
+export const KIT_ENTRY_RANGE_RATIONALE =
+  'An entry check, not a clinical limit: the range is wide enough for any real reading, so a number outside it is a typing or unit error. LANDFALL alerts only on a reliable change against your own baseline.'
+
+/** Twice a week: a reading is due again from this many MET days after the last one (design choice). */
+export const KIT_INTERVAL_DAYS = 3
+
+/** Parse one kit field: '' -> null (not taken, never zero); whole numbers only, inside the entry range. */
+export function parseKit(raw: string, spec: KitSpec): { value: number | null; error: string | null } {
+  const s = raw.trim().replace(/\s/g, '')
+  if (s === '') return { value: null, error: null }
+  if (spec.unit === 'mg/dL' && /^\d+[.,]\d+$/.test(s)) {
+    return {
+      value: null,
+      error: 'LANDFALL takes whole mg/dL. A reading with a decimal point is probably in mmol/L: check the unit on the meter. Do not convert it here.',
+    }
+  }
+  if (!/^\d+$/.test(s)) return { value: null, error: `Enter whole ${spec.unit}, digits only.` }
+  const v = Number(s)
+  if (v < spec.min || v > spec.max) {
+    return { value: null, error: `${v} ${spec.unit} is outside the entry range (${spec.min}–${spec.max} ${spec.unit}): check the number.` }
+  }
+  return { value: v, error: null }
+}
+
+/** Cross-check of one cuff reading: the top number must be the larger one. */
+export function bpPairError(systolic: number | null, diastolic: number | null): string | null {
+  if (systolic === null && diastolic === null) return null
+  if (systolic === null || diastolic === null) return 'Enter both numbers of the cuff reading, or leave both empty.'
+  if (systolic <= diastolic) return 'The top number (systolic) must be larger than the bottom one (diastolic). Check the order.'
+  return null
+}
+
+/** A personal band (Tier B, from the engine): mean +/- the minimum detectable change. */
+export interface Band {
+  lo: number
+  hi: number
+}
+
+/** True when a value lies outside the crewmember's own band: ask to re-measure and confirm. */
+export function outsideBand(value: number | null, band: Band | null): boolean {
+  if (value === null || !band) return false
+  return value < band.lo || value > band.hi
+}
+
+export interface KitSchedule {
+  /** MET day of the last reading (simulated record or this session), or null. */
+  lastDay: number | null
+  daysSince: number | null
+  due: boolean
+  /** First MET day the next reading is due (lastDay + KIT_INTERVAL_DAYS). */
+  nextDay: number | null
+}
+
+/** Twice a week: due when the last reading is KIT_INTERVAL_DAYS or more MET days old (or there is none). */
+export function kitSchedule(readingTimes: readonly number[], today: number, now: number): KitSchedule {
+  let last: number | null = null
+  for (const t of readingTimes) if (t <= now && (last === null || t > last)) last = t
+  if (last === null) return { lastDay: null, daysSince: null, due: true, nextDay: null }
+  const lastDay = metDayOf(last)
+  const daysSince = today - lastDay
+  return { lastDay, daysSince, due: daysSince >= KIT_INTERVAL_DAYS, nextDay: lastDay + KIT_INTERVAL_DAYS }
+}
+
+export const KIT_SKIP_REASONS = [
+  { id: 'not_due', label: 'Not due today: it is twice a week' },
+  { id: 'kit_unavailable', label: 'The cuff or the glucometer is not available' },
+  { id: 'later', label: 'No time now: later today' },
+  { id: 'other', label: 'Another reason' },
+] as const
+export type KitSkipId = (typeof KIT_SKIP_REASONS)[number]['id']
+
+/** The plain-language reason recorded in the logbook ('' when the "other" text is empty). */
+export function kitSkipText(id: KitSkipId | null, other: string): string {
+  if (!id) return ''
+  if (id === 'other') return other.trim() ? `other: ${other.trim()}` : ''
+  return KIT_SKIP_REASONS.find((r) => r.id === id)?.label ?? ''
+}
+
+/** The medical-kit step's raw entries (kept while the crewmember moves between steps). */
+export interface KitDraft {
+  sysRaw: string
+  diaRaw: string
+  gluRaw: string
+  /** "I re-measured and this is what the device shows", required for a value outside the own band. */
+  confirmBp: boolean
+  confirmGlu: boolean
+  skipId: KitSkipId | null
+  skipOther: string
+}
+
+export const EMPTY_KIT: KitDraft = { sysRaw: '', diaRaw: '', gluRaw: '', confirmBp: false, confirmGlu: false, skipId: null, skipOther: '' }
+
+export interface KitCheck {
+  systolic: number | null
+  diastolic: number | null
+  glucose: number | null
+  errors: { systolic: string | null; diastolic: string | null; pair: string | null; glucose: string | null }
+  /** The reading lies outside the crewmember's own band (engine Tier B): re-measure, then confirm. */
+  bpOutside: boolean
+  glucoseOutside: boolean
+  needsConfirm: boolean
+  bpTaken: boolean
+  glucoseTaken: boolean
+  /** Something was not taken today, so a reason is asked for. */
+  missing: boolean
+  skipText: string
+  ok: boolean
+}
+
+export function checkKit(d: KitDraft, bands: Partial<Record<KitVariable, Band | null>>): KitCheck {
+  const sys = parseKit(d.sysRaw, KIT_SPECS.bp_systolic)
+  const dia = parseKit(d.diaRaw, KIT_SPECS.bp_diastolic)
+  const glu = parseKit(d.gluRaw, KIT_SPECS.glucose)
+  const pair = sys.error || dia.error ? null : bpPairError(sys.value, dia.value)
+  const bpTaken = sys.value !== null && dia.value !== null && !pair
+  const glucoseTaken = glu.value !== null
+  const bpOutside = bpTaken && (outsideBand(sys.value, bands.bp_systolic ?? null) || outsideBand(dia.value, bands.bp_diastolic ?? null))
+  const glucoseOutside = glucoseTaken && outsideBand(glu.value, bands.glucose ?? null)
+  const needsConfirm = (bpOutside && !d.confirmBp) || (glucoseOutside && !d.confirmGlu)
+  const missing = !bpTaken || !glucoseTaken
+  const skipText = missing ? kitSkipText(d.skipId, d.skipOther) : ''
+  const hasError = Boolean(sys.error || dia.error || pair || glu.error)
+  return {
+    systolic: bpTaken ? sys.value : null,
+    diastolic: bpTaken ? dia.value : null,
+    glucose: glu.value,
+    errors: { systolic: sys.error, diastolic: dia.error, pair, glucose: glu.error },
+    bpOutside,
+    glucoseOutside,
+    needsConfirm,
+    bpTaken,
+    glucoseTaken,
+    missing,
+    skipText,
+    ok: !hasError && !needsConfirm && (!missing || skipText !== ''),
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Answers -> observations (SPEC section 4). Entered values are never labelled simulated.
+// ---------------------------------------------------------------------------------------------
 
 export interface NoonAnswers {
   /** null = PVT-B skipped. Demo runs are kept for display and never become observations. */
@@ -247,6 +427,12 @@ export interface NoonAnswers {
   mood: number | null
   fluidIntakeMl: number | null
   urineOutputMl: number | null
+  /** Medical kit (twice a week): one cuff reading and one fingerstick; null = not taken. */
+  bpSystolic: number | null
+  bpDiastolic: number | null
+  glucoseMgDl: number | null
+  /** Why a kit reading was not taken today (plain language), or null. */
+  kitSkip: string | null
   /** null = step skipped; otherwise every item is answered (unticked = no). */
   symptoms: Record<SymptomId, boolean> | null
 }
@@ -257,6 +443,10 @@ export const EMPTY_ANSWERS: NoonAnswers = {
   mood: null,
   fluidIntakeMl: null,
   urineOutputMl: null,
+  bpSystolic: null,
+  bpDiastolic: null,
+  glucoseMgDl: null,
+  kitSkip: null,
   symptoms: null,
 }
 
@@ -278,6 +468,12 @@ export function buildObservations(a: NoonAnswers, crew: CrewId, t: number): Obse
   if (a.mood !== null) push('mood', a.mood, 'score_1_5', 'app', PROVENANCE_ENTERED)
   if (a.fluidIntakeMl !== null) push('fluid_intake_24h', a.fluidIntakeMl, 'mL', 'manual', PROVENANCE_ENTERED)
   if (a.urineOutputMl !== null) push('urine_volume_24h', a.urineOutputMl, 'mL', 'manual', PROVENANCE_ENTERED)
+  // One cuff reading is a pair: both numbers or neither.
+  if (a.bpSystolic !== null && a.bpDiastolic !== null) {
+    push('bp_systolic', a.bpSystolic, KIT_SPECS.bp_systolic.unit, 'manual', PROVENANCE_ENTERED)
+    push('bp_diastolic', a.bpDiastolic, KIT_SPECS.bp_diastolic.unit, 'manual', PROVENANCE_ENTERED)
+  }
+  if (a.glucoseMgDl !== null) push('glucose', a.glucoseMgDl, KIT_SPECS.glucose.unit, 'manual', PROVENANCE_ENTERED)
   if (a.symptoms) {
     for (const s of SYMPTOMS) push(`symptom_${s.id}`, a.symptoms[s.id] ? 1 : 0, 'yes/no', 'manual', PROVENANCE_ENTERED)
     const renal = RENAL_SYMPTOMS.some((id) => a.symptoms?.[id])
@@ -309,6 +505,12 @@ export function logbookText(a: NoonAnswers): string {
   parts.push(a.mood === null ? 'mood not logged' : 'mood logged (private)')
   parts.push(a.fluidIntakeMl === null ? 'fluid intake not entered' : `fluid intake ${a.fluidIntakeMl} mL`)
   parts.push(a.urineOutputMl === null ? 'urine output not entered' : `urine output ${a.urineOutputMl} mL`)
+  const kit: string[] = []
+  if (a.bpSystolic !== null && a.bpDiastolic !== null) kit.push(`blood pressure ${a.bpSystolic}/${a.bpDiastolic} mmHg`)
+  if (a.glucoseMgDl !== null) kit.push(`glucose ${a.glucoseMgDl} mg/dL`)
+  if (kit.length) parts.push(kit.join(', '))
+  if (a.kitSkip) parts.push(`${kit.length ? 'rest of the medical kit' : 'medical kit'} not taken (${a.kitSkip[0].toLowerCase()}${a.kitSkip.slice(1)})`)
+  else if (!kit.length) parts.push('medical kit not taken')
   if (!a.symptoms) parts.push('symptoms skipped')
   else {
     const on = SYMPTOMS.filter((s) => a.symptoms?.[s.id]).map((s) => s.label.toLowerCase())

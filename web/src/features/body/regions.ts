@@ -47,6 +47,18 @@ export type MeasureHow = 'band' | 'app' | 'manual' | 'vehicle' | 'lab' | 'ground
 
 export const MEASURED_HERE: readonly MeasureHow[] = ['band', 'app']
 
+/**
+ * Variables shown as a whole-body FITNESS TAG, never as an organ finding (meta.json
+ * body_region_rule: "VO2max is a fitness tag (EVA assignment), not a heart or lung finding"). Their
+ * rules still appear on the heart, lungs and muscles panels, labelled as the fitness tag, and never
+ * colour an organ.
+ */
+export const FITNESS_VARIABLES: readonly string[] = ['vo2max']
+
+export function isFitnessRule(rule: Pick<Rule, 'variable'>): boolean {
+  return FITNESS_VARIABLES.includes(rule.variable)
+}
+
 export const HOW_LABEL: Record<MeasureHow, string> = {
   band: 'LANDFALL BAND',
   app: 'LANDFALL app',
@@ -142,7 +154,7 @@ export const REGIONS: readonly RegionDef[] = [
       { variable: 'pvt_lapses', label: 'Reaction-time lapses (PVT-B)', how: 'app', via: '3-minute reaction test in the LANDFALL app, at the daily Noon Sight check' },
       { variable: 'pvt_median_rt', label: 'Median reaction time (PVT-B)', how: 'app', via: 'same 3-minute test' },
       { variable: 'sleep_duration', label: 'Sleep duration', how: 'band', via: 'wrist actigraphy (movement), main sleep period' },
-      { variable: 'sleep_midpoint_shift', label: 'Sleep timing (midpoint shift)', how: 'band', via: 'wrist actigraphy, compared with your own baseline nights' },
+      { variable: 'sleep_midpoint_shift', label: 'Sleep timing (midpoint shift)', how: 'band', via: 'wrist actigraphy: how far the night’s sleep midpoint moved, earlier or later, from the median of your own baseline nights' },
       { variable: 'light_exposure_daytime', label: 'Daytime light at the wrist', how: 'band', via: 'light sensor on the band (not light at the eye)' },
       { variable: 'mood', label: 'Mood (self-rated)', how: 'app', via: 'one-tap private check-in: never alerts, never leaves the device without your consent' },
       { variable: 'cabin_ppco2', label: 'Cabin CO₂ (1-hour mean)', how: 'vehicle', via: 'cabin CO₂ sensor of the vehicle life-support system; the vehicle caution and warning system owns the alarm', requirement_ids: ['V2 6022'] },
@@ -169,6 +181,7 @@ export const REGIONS: readonly RegionDef[] = [
     indicators: [],
     measures: [
       { variable: 'dose_lens', label: 'Lens radiation dose', how: 'vehicle', via: 'vehicle radiation monitoring system and ground radiation analysts', requirement_ids: V2_6164 },
+      { variable: 'symptom_vision_change', label: 'Change in vision (reported)', how: 'app', via: 'ticked at the Noon Sight symptoms step: recorded, never diagnosed; it prompts “tell your Crew Medical Officer now”' },
       { variable: null, label: 'Eye imaging for SANS (optic nerve, retina)', how: 'vehicle', via: 'vehicle medical kit imaging, read with ground guidance' },
     ],
     osdr: [],
@@ -189,9 +202,9 @@ export const REGIONS: readonly RegionDef[] = [
     ruleVariables: [],
     indicators: ['skin_temp'],
     measures: [
-      { variable: 'skin_temp', label: 'Skin temperature', how: 'band', via: 'temperature sensor on the band, during sleep' },
+      { variable: 'skin_temp', label: 'Skin temperature', how: 'band', via: 'temperature sensor on the band, during sleep (context only: it follows cabin temperature and clothing too, so it never alerts)' },
       { variable: 'dose_skin', label: 'Skin radiation dose', how: 'vehicle', via: 'vehicle radiation monitoring system and ground radiation analysts', requirement_ids: V2_6164 },
-      { variable: null, label: 'Rash or irritation', how: 'manual', via: 'what you see, written in the logbook' },
+      { variable: 'symptom_rash', label: 'Rash or skin irritation (reported)', how: 'app', via: 'ticked at the Noon Sight symptoms step: recorded, never diagnosed' },
     ],
     osdr: [],
     osdrNote: 'No Inspiration4 (OSDR) panel in this build measures the skin.',
@@ -211,13 +224,16 @@ export const REGIONS: readonly RegionDef[] = [
     ],
     hazardQuotes: [],
     ruleVariables: ['vo2max'],
-    indicators: ['resting_hr', 'hrv_sdnn'],
+    indicators: ['resting_hr', 'hrv_sdnn', 'bp_systolic', 'bp_diastolic'],
     measures: [
-      { variable: 'resting_hr', label: 'Resting heart rate', how: 'band', via: 'band heart sensor, lowest stable 5 minutes of sleep' },
-      { variable: 'hrv_sdnn', label: 'Heart rate variability (SDNN)', how: 'band', via: 'band heart sensor, 5-minute windows during sleep' },
-      { variable: 'heart_rate', label: 'Heart rate (1-minute)', how: 'band', via: 'band heart sensor, continuous' },
-      { variable: null, label: 'Blood pressure', how: 'manual', via: 'cuff from the vehicle medical kit, typed in by the crewmember' },
-      { variable: 'vo2max', label: 'Aerobic capacity (VO₂max)', how: 'vehicle', via: 'periodic fitness test on the exercise / metabolic system', requirement_ids: ['V1 4001', 'V1 4002'] },
+      { variable: 'resting_hr', label: 'Resting heart rate', how: 'band', via: 'optical pulse sensor (PPG) on the band, lowest stable 5 minutes of sleep' },
+      { variable: 'hrv_sdnn', label: 'Heart rate variability (SDNN)', how: 'band', via: 'pulse-to-pulse intervals from the band’s optical sensor, 5-minute windows of low-motion sleep (pulse-rate variability, an approximation of HRV)' },
+      { variable: 'heart_rate', label: 'Heart rate (1-minute)', how: 'band', via: 'optical pulse sensor on the band, continuous' },
+      { variable: null, label: 'Heart rhythm strip (30-second ECG)', how: 'band', via: 'on-demand spot check: a finger of the other hand on the band’s outer electrode closes the lead; it feeds no indicator or rule' },
+      { variable: 'bp_systolic', label: 'Blood pressure, systolic (cuff)', how: 'manual', via: 'one seated reading with the blood pressure cuff of the vehicle medical kit, typed in at the Noon Sight medical-kit step (twice a week)' },
+      { variable: 'bp_diastolic', label: 'Blood pressure, diastolic (cuff)', how: 'manual', via: 'the same reading of the vehicle medical kit cuff, typed in with it at the Noon Sight medical-kit step' },
+      { variable: 'symptom_chest_pain', label: 'Chest pain (reported)', how: 'app', via: 'ticked at the Noon Sight symptoms step: recorded, never diagnosed; it prompts “tell your Crew Medical Officer now”' },
+      { variable: 'vo2max', label: 'Aerobic capacity (VO₂max)', how: 'vehicle', via: 'periodic fitness test on the exercise / metabolic system; a whole-body fitness tag, not a heart finding', requirement_ids: ['V1 4001', 'V1 4002'] },
       { variable: 'dose_circulatory', label: 'Circulatory system radiation dose', how: 'vehicle', via: 'vehicle radiation monitoring system and ground radiation analysts', requirement_ids: V2_6164 },
     ],
     osdr: [],
@@ -241,7 +257,8 @@ export const REGIONS: readonly RegionDef[] = [
     measures: [
       { variable: 'cabin_ppco2', label: 'Cabin CO₂ (1-hour mean)', how: 'vehicle', via: 'cabin CO₂ sensor of the vehicle life-support system', requirement_ids: ['V2 6022'] },
       { variable: 'suit_pico2', label: 'Suit inspired CO₂', how: 'vehicle', via: 'spacesuit CO₂ monitor', requirement_ids: ['V2 11036'] },
-      { variable: 'vo2max', label: 'Aerobic capacity (VO₂max)', how: 'vehicle', via: 'periodic fitness test on the exercise / metabolic system', requirement_ids: ['V1 4001', 'V1 4002'] },
+      { variable: 'symptom_short_of_breath', label: 'Shortness of breath (reported)', how: 'app', via: 'ticked at the Noon Sight symptoms step: recorded, never diagnosed; it prompts “tell your Crew Medical Officer now”' },
+      { variable: 'vo2max', label: 'Aerobic capacity (VO₂max)', how: 'vehicle', via: 'periodic fitness test on the exercise / metabolic system; a whole-body fitness tag, not a lung finding', requirement_ids: ['V1 4001', 'V1 4002'] },
     ],
     osdr: [],
     osdrNote: 'No Inspiration4 (OSDR) panel in this build measures the lungs.',
@@ -249,17 +266,23 @@ export const REGIONS: readonly RegionDef[] = [
   {
     id: 'blood_forming_organs',
     label: 'Blood-forming organs',
-    aka: 'Bone marrow: breastbone (sternum) and pelvis',
+    aka: 'Active bone marrow, mostly in the spine, pelvis and ribs',
     short: 'Marrow',
     does:
-      'The marrow inside your breastbone and pelvis makes red cells (carry oxygen), white cells (fight infection) and platelets (stop bleeding). NASA sets 30-day and 1-year radiation dose limits for it.',
+      'The active marrow inside your bones, mostly in the spine, pelvis and ribs, makes red cells (carry oxygen), white cells (fight infection) and platelets (stop bleeding). NASA sets 30-day and 1-year radiation dose limits for it. The figure draws it as the spine and the pelvis.',
     hazards: ['space_radiation', 'distance_from_earth'],
     risks: [{ slug: 'risk-of-radiation-induced-cancers', anchors: ['certain cancers'] }],
     hazardQuotes: [{ hazard: 'space_radiation', anchor: 'Radiation exposure increases cancer risk' }],
     ruleVariables: [],
     indicators: [],
     measures: [
-      { variable: 'proton_flux_10mev', label: 'Solar protons ≥10 MeV', how: 'vehicle', via: 'onboard proton monitor (in this scenario, a time-shifted replay of a real 1989 event)', requirement_ids: V2_6164 },
+      {
+        variable: 'proton_flux_10mev',
+        label: 'Solar protons ≥10 MeV',
+        how: 'vehicle',
+        via: 'external space-weather monitor above the atmosphere (at Mars, in Mars orbit, relayed to the habitat with no Earth link); in this scenario, a time-shifted replay of the real October 1989 GOES-7 event. The vehicle’s radiation monitoring system raises the alarm; LANDFALL opens the shelter case',
+        requirement_ids: ['V2 6165', 'V2 6164'],
+      },
       { variable: 'dose_bfo', label: 'Blood-forming organ dose', how: 'vehicle', via: 'vehicle radiation monitoring system and ground radiation analysts', requirement_ids: V2_6164 },
       { variable: null, label: 'Blood counts (CBC)', how: 'lab', via: 'blood draw analysed by a laboratory, usually on samples returned to the ground' },
     ],
@@ -281,8 +304,14 @@ export const REGIONS: readonly RegionDef[] = [
     ruleVariables: ['urine_volume_24h'],
     indicators: ['urine_volume_24h', 'fluid_intake_24h'],
     measures: [
-      { variable: 'urine_volume_24h', label: '24-h urine output', how: 'manual', via: 'measured by the crewmember and typed in once a day' },
-      { variable: 'fluid_intake_24h', label: '24-h fluid intake', how: 'manual', via: 'water dispenser and drink pouches, typed in once a day' },
+      { variable: 'urine_volume_24h', label: '24-h urine output', how: 'manual', via: 'graduated collection bag from the medical kit, typed in once a day at the Noon Sight fluids step' },
+      { variable: 'fluid_intake_24h', label: '24-h fluid intake', how: 'manual', via: 'water dispenser and drink pouches, typed in once a day at the Noon Sight fluids step' },
+      {
+        variable: 'renal_symptoms',
+        label: 'Renal red-flag symptoms (reported)',
+        how: 'app',
+        via: 'ticked at the Noon Sight symptoms step (side or back pain, blood in the urine, pain when passing urine, fever or chills, nausea or vomiting, unable to pass urine): recorded, never diagnosed. The renal case asks the same red-flag question, and a “yes” there escalates the case at once',
+      },
       { variable: null, label: 'Urine chemistry (calcium, oxalate, citrate, pH)', how: 'ground', via: 'ground laboratory on returned 24-h urine samples' },
       { variable: null, label: 'Kidney stone imaging', how: 'vehicle', via: "the vehicle's in-mission imaging (ultrasound, if one is carried), with ground guidance; [V1 3004](i) requires in-mission imaging but names neither the kidney nor ultrasound", requirement_ids: ['V1 3004'] },
       { variable: null, label: 'Blood kidney markers (creatinine, BUN)', how: 'lab', via: 'blood chemistry panel' },
@@ -319,7 +348,7 @@ export const REGIONS: readonly RegionDef[] = [
     label: 'Muscles',
     short: 'Muscles',
     does:
-      'Your muscles move you and burn blood sugar (glucose) for fuel. With no gravity to work against they lose strength and endurance unless you exercise.',
+      'Your muscles move you and burn blood sugar (glucose) for fuel. With no gravity to work against they lose strength and endurance unless you exercise. Blood sugar is a whole-body value; it is listed here, next to the fuel muscles burn, because this figure draws no liver or pancreas.',
     hazards: ['gravity_fields'],
     risks: [
       { slug: 'risk-of-reduced-cardiorespiratory-and-musculoskeletal-fitness', anchors: ['weaken the bones, muscles'] },
@@ -327,13 +356,14 @@ export const REGIONS: readonly RegionDef[] = [
     ],
     hazardQuotes: [],
     ruleVariables: ['vo2max'],
-    indicators: [],
+    indicators: ['glucose'],
     measures: [
-      { variable: 'vo2max', label: 'Aerobic capacity (VO₂max)', how: 'vehicle', via: 'periodic fitness test on the exercise / metabolic system', requirement_ids: ['V1 4001', 'V1 4002'] },
+      { variable: 'vo2max', label: 'Aerobic capacity (VO₂max)', how: 'vehicle', via: 'periodic fitness test on the exercise / metabolic system; a whole-body fitness tag, not a muscle finding', requirement_ids: ['V1 4001', 'V1 4002'] },
       { variable: null, label: 'Muscle strength', how: 'vehicle', via: 'strength test on the exercise device', requirement_ids: ['V1 4024'] },
-      { variable: null, label: 'Blood sugar (glucose), mg/dL', how: 'lab', via: 'blood chemistry panel' },
+      { variable: 'glucose', label: 'Blood sugar (glucose), fingerstick', how: 'manual', via: 'fasting fingerstick with the glucometer of the vehicle medical kit, typed in at the Noon Sight medical-kit step (twice a week)' },
+      { variable: null, label: 'Serum glucose (lab panel)', how: 'lab', via: 'blood chemistry panel on a blood draw; the Inspiration4 values below are this kind of lab value' },
     ],
-    osdr: [{ snapshot: 'osdr_cmp', key: 'glucose', why: 'blood sugar: the fuel muscles burn' }],
+    osdr: [{ snapshot: 'osdr_cmp', key: 'glucose', why: 'blood sugar: the fuel muscles burn (serum, laboratory panel)' }],
   },
   {
     id: 'immune',
@@ -350,7 +380,8 @@ export const REGIONS: readonly RegionDef[] = [
     ruleVariables: [],
     indicators: [],
     measures: [
-      { variable: null, label: 'Body (core) temperature', how: 'manual', via: 'clinical thermometer from the vehicle medical kit; the band’s skin temperature is not core temperature' },
+      { variable: null, label: 'Body (core) temperature', how: 'manual', via: 'clinical thermometer from the vehicle medical kit, read by the Crew Medical Officer (not entered in LANDFALL in this build); the band’s skin temperature is not core temperature' },
+      { variable: 'symptom_fever_chills', label: 'Fever or chills (reported)', how: 'app', via: 'ticked at the Noon Sight symptoms step: recorded, never diagnosed' },
       { variable: null, label: 'White cell counts (CBC)', how: 'lab', via: 'blood draw analysed by a laboratory' },
       { variable: null, label: 'Cytokines and virus reactivation', how: 'ground', via: 'blood, saliva and urine samples returned to the ground' },
     ],

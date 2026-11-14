@@ -2,13 +2,23 @@
 // fold. Runs against the real engine/rules/*.json and web/public/data snapshots when present.
 import { describe, expect, it } from 'vitest'
 import type { Finding, Rule } from '../../app/engine'
+import { caseSchedule, computeCases } from '../../app/caseTimeline'
+import { evaluateMission } from '../../app/evaluate'
+import type { CrewEvaluation } from '../../app/evaluate'
+import { buildScenarioIndex } from '../../app/scenarioData'
+import type { SimCrewData, SpeReplayData } from '../../app/scenarioData'
+import { CREW_IDS } from '../../app/vocab'
+import type { EnvId } from '../../app/vocab'
+import { SYMPTOMS } from '../noon-sight/record'
 import { capsule } from './Figure'
 import { bandFor, outsideRange } from './RefChart'
 import type { OsdrAnalyte, OsdrData, OsdrTimepoint } from './RefChart'
 import {
+  FITNESS_VARIABLES,
   REGIONS,
   REGION_IDS,
   casesForRegion,
+  isFitnessRule,
   isRegionId,
   opWords,
   regionDef,
@@ -19,11 +29,19 @@ import {
   windowWords,
 } from './regions'
 import type { RegionId } from './regions'
-import { CASES, HAZARDS_META, META_BODY_REGIONS, PERSONAL_INDICATORS, THRESHOLD_RULES } from './rules'
+import { BODY_REGION_RULE, CASES, HAZARDS_META, META_BODY_REGIONS, PACKET_STATES, PERSONAL_INDICATORS, THRESHOLD_RULES, packetStateLabel } from './rules'
 import type { CaseDef } from './rules'
-import { alertSignals, baselineValues, caseStatus, defaultRegion, latestPoint, summarizeRegion } from './status'
+import {
+  FOOTPRINT_STATUSES,
+  defaultRegion,
+  fitnessTag,
+  footprintFor,
+  regionIndicatorRows,
+  regionRuleRows,
+  summarizeRegion,
+  summaryInputs,
+} from './status'
 import type { RegionState } from './status'
-import type { EvalContext, Evaluator, SimCrewData } from './status'
 
 // Frozen snapshots the body map reads (a missing file skips its checks instead of failing).
 const SNAPSHOTS = import.meta.glob<unknown>(
@@ -31,6 +49,7 @@ const SNAPSHOTS = import.meta.glob<unknown>(
     '../../../public/data/hrp_risks.json',
     '../../../public/data/hrp_hazards.json',
     '../../../public/data/sim_crew.json',
+    '../../../public/data/swpc_spe_replay.json',
     '../../../public/data/osdr_cbc.json',
     '../../../public/data/osdr_cmp.json',
     '../../../public/data/osdr_cytokines.json',
@@ -78,11 +97,16 @@ describe.skipIf(!THRESHOLD_RULES)('region -> thresholds.json rules', () => {
       for (const r of rules) expect(regionsOfRule(r.id)).toEqual([region])
     }
   })
-  it('puts the VO2max FFD floors on heart, lungs and muscles', () => {
+  it('lists the VO2max FFD floors on heart, lungs and muscles as the fitness tag (caution at most)', () => {
     for (const id of ['ffd_vo2max_microgravity_eva', 'ffd_vo2max_surface_eva']) {
       expect(regionsOfRule(id).sort()).toEqual(['heart', 'lungs', 'muscles'])
-      expect(RULES.find((r) => r.id === id)?.category).toBe('FFD')
+      const rule = RULES.find((r) => r.id === id)!
+      expect(rule.category).toBe('FFD')
+      expect(isFitnessRule(rule)).toBe(true)
+      expect(rule.max_severity).toBe('caution')
+      expect(rule.action?.label).toBe('EVA assignment not cleared')
     }
+    expect(RULES.filter(isFitnessRule).every((r) => r.variable === 'vo2max')).toBe(true)
   })
   it('puts the [V1 4027] BMD POL rules on the skeleton only', () => {
     const bmd = RULES.filter((r) => r.variable.startsWith('bmd_'))
@@ -125,10 +149,34 @@ describe.skipIf(!PERSONAL_INDICATORS)('region -> personal.json indicators and me
       }
     }
   })
-  it('measurement variables are real ids (rules, personal indicators or simulated series)', () => {
+  it('measurement variables are real ids (rules, indicators, simulated series, Noon Sight symptoms or case steps)', () => {
     const sim = snapshot<{ data: { variables: Record<string, unknown> } }>('sim_crew')
-    const known = new Set<string>([...RULES.map((r) => r.variable), ...byId.keys(), ...Object.keys(sim?.data.variables ?? {})])
+    const steps = (CASES ?? []).flatMap((c) => ((c as unknown as { procedure?: Array<{ input?: { variable?: string } }> }).procedure ?? []).map((p) => p.input?.variable))
+    const known = new Set<string>([
+      ...RULES.map((r) => r.variable),
+      ...byId.keys(),
+      ...Object.keys(sim?.data.variables ?? {}),
+      ...SYMPTOMS.map((x) => `symptom_${x.id}`),
+      ...steps.filter((v): v is string => typeof v === 'string'),
+    ])
     for (const r of REGIONS) for (const m of r.measures) if (m.variable) expect(known.has(m.variable), `${r.id}:${m.variable}`).toBe(true)
+  })
+  it('claims manual entry only where LANDFALL has an entry for it', () => {
+    // A manual hand-off either reaches a real variable (typed in: Noon Sight or a case step) or says it is not entered.
+    for (const r of REGIONS) {
+      for (const m of r.measures.filter((x) => x.how === 'manual')) {
+        if (m.variable === null) expect(m.via, `${r.id}:${m.label}`).toMatch(/not entered in LANDFALL/)
+        else expect(m.via, `${r.id}:${m.label}`).toMatch(/typed in/)
+      }
+    }
+  })
+  it('places the blood-forming organs in the spine, pelvis and ribs, and the proton reading on an external monitor', () => {
+    const bfo = regionDef('blood_forming_organs')
+    expect(bfo.aka).toMatch(/spine, pelvis and ribs/)
+    expect(bfo.does).not.toMatch(/breastbone/)
+    const p = bfo.measures.find((m) => m.variable === 'proton_flux_10mev')!
+    expect(p.via).toMatch(/external space-weather monitor/)
+    expect(p.requirement_ids).toContain('V2 6165')
   })
   it('radiation dose is a vehicle hand-off citing [V2 6164], and BMD comes from ground DXA', () => {
     for (const r of REGIONS) {
@@ -154,6 +202,12 @@ describe.skipIf(!CASES)('region -> cases.json', () => {
   })
   it('every case a region links to has a tripwire text to show', () => {
     for (const r of REGIONS) for (const c of casesForRegion(r.id, cases)) expect(c.tripwire?.text, c.id).toBeTruthy()
+  })
+  it('reads the ground-packet state labels from meta.json (Prepared, then Queued)', () => {
+    expect(PACKET_STATES.map((p) => p.id)).toEqual(['prepared', 'queued'])
+    expect(packetStateLabel(null)).toBe('Prepared (held on board)')
+    expect(packetStateLabel(35_600_000)).toBe('Queued')
+    expect([...FOOTPRINT_STATUSES].sort()).toEqual(['acting', 'detected', 'escalated', 'watch'])
   })
 })
 
@@ -196,9 +250,9 @@ describe('HRP and OSDR picks resolve against the frozen snapshots', () => {
   })
 })
 
-// ---- status fold -------------------------------------------------------------------------------
+// ---- status fold (the organ's fill) ------------------------------------------------------------
 
-const f = (status: Finding['status'], severity: Finding['severity']) => ({ status, severity })
+const f = (status: Finding['status'], severity: Finding['severity'], label = 'x') => ({ label, finding: { status, severity } })
 
 describe('summarizeRegion', () => {
   it('reports no_data (never nominal) when every finding is insufficient or stale', () => {
@@ -207,135 +261,123 @@ describe('summarizeRegion', () => {
   })
   it('reports unmonitored when the region has nothing to evaluate', () => {
     expect(summarizeRegion([]).state).toBe('unmonitored')
-    expect(summarizeRegion([f('not_applicable', 'nominal'), null]).state).toBe('unmonitored')
+    expect(summarizeRegion([f('not_applicable', 'nominal'), { label: 'y', finding: null }]).state).toBe('unmonitored')
   })
-  it('takes the worst evaluated severity and counts missing data alongside', () => {
-    const s = summarizeRegion([f('within', 'nominal'), f('insufficient_data', 'advisory'), f('approaching', 'caution')])
+  it('takes the worst evaluated severity, lists what set it, and counts missing data alongside', () => {
+    const s = summarizeRegion([f('within', 'nominal', 'a'), f('insufficient_data', 'advisory', 'b'), f('approaching', 'caution', 'c')])
     expect(s).toMatchObject({ state: 'caution', evaluated: 2, missing: 1, total: 3 })
+    expect(s.drivers).toEqual([{ label: 'c', severity: 'caution', status: 'approaching' }])
     expect(summarizeRegion([f('within', 'nominal'), f('insufficient_data', 'advisory')]).state).toBe('nominal')
     expect(summarizeRegion([f('outside', 'warning'), f('approaching', 'caution')]).state).toBe('warning')
-  })
-  it('lets an open case or a published alert raise the region, with its reason', () => {
-    const s = summarizeRegion([f('insufficient_data', 'advisory')], [{ severity: 'caution', reason: 'Case open: SPE' }])
-    expect(s.state).toBe('caution')
-    expect(s.reasons).toEqual(['Case open: SPE'])
   })
   it('never shows an emergency state (LANDFALL never raises Emergency-class alarms)', () => {
     expect(summarizeRegion([f('outside', 'emergency')]).state).toBe('warning')
   })
 })
 
-// ---- simulated series ----------------------------------------------------------------------------
+// ---- the real scenario: fills, footprint and the fitness tag (meta.json body_region_rule, D6) -------
 
-const SIM: SimCrewData = {
-  crew: [
-    {
-      crew_id: 'CM-2',
-      series: {
-        vo2max: { unit: 'ml/min/kg', source: 'vehicle', t: [100, 200, 300], v: [40, null, 35.1] },
-        resting_hr: { unit: 'bpm', source: 'band', t: [86_400 * 368, 86_400 * 370, 86_400 * 382], v: [50, 52, 60] },
-      },
-    },
-  ],
-  vehicle: { series: { proton_flux_10mev: { unit: 'pfu', source: 'replay', start_t: 1000, step_s: 300, v: [0.1, 5, 1200, null] } } },
-}
+const SIM_DATA = snapshot<{ data: SimCrewData }>('sim_crew')?.data ?? null
+const REPLAY = snapshot<{ data: SpeReplayData }>('swpc_spe_replay')?.data ?? null
 
-describe('latestPoint / baselineValues', () => {
-  it('returns the latest non-null sample at or before t', () => {
-    expect(latestPoint(SIM, 'CM-2', 'vo2max', 250)).toMatchObject({ t: 100, value: 40 })
-    expect(latestPoint(SIM, 'CM-2', 'vo2max', 400)).toMatchObject({ t: 300, value: 35.1, unit: 'ml/min/kg' })
-    expect(latestPoint(SIM, 'CM-2', 'vo2max', 50)).toBeNull()
-    expect(latestPoint(SIM, 'CM-1', 'vo2max', 400)).toBeNull()
-    expect(latestPoint(null, 'CM-2', 'vo2max', 400)).toBeNull()
-  })
-  it('expands vehicle series from start_t + i * step_s and skips gaps', () => {
-    expect(latestPoint(SIM, 'CM-2', 'proton_flux_10mev', 1000 + 2 * 300)).toMatchObject({ value: 1200, source: 'replay' })
-    expect(latestPoint(SIM, 'CM-2', 'proton_flux_10mev', 99_999)).toMatchObject({ value: 1200 })
-  })
-  it('lets a newer runtime observation win', () => {
-    const extra = [{ crew_id: 'CM-2' as const, variable: 'vo2max', value: 37, unit: 'ml/min/kg', t: 350, source: 'manual' as const, provenance: 'manual' }]
-    expect(latestPoint(SIM, 'CM-2', 'vo2max', 400, extra)).toMatchObject({ value: 37, source: 'manual' })
-  })
-  it('takes the baseline from MET days in the window only', () => {
-    expect(baselineValues(SIM, 'CM-2', 'resting_hr', 368, 381)).toEqual([50, 52])
-  })
-})
+describe.skipIf(!SIM_DATA)('the body map on the frozen scenario (D6)', () => {
+  const index = buildScenarioIndex(SIM_DATA!, REPLAY)
+  const t = index.nowMet
+  const ENVS: EnvId[] = ['iss', 'cislunar', 'lunar_surface', 'mars_surface']
+  const evalAt = (envId: EnvId) => evaluateMission(index, [], envId, t)
+  const casesAt = (envId: EnvId) => computeCases({ index, runtime: [], envId, t, userEvents: [] }, caseSchedule(index, [], envId))
+  const fill = (crew: CrewEvaluation, envId: EnvId, id: RegionId) => {
+    const region = regionDef(id)
+    return summarizeRegion(summaryInputs(regionRuleRows(region, crew, envId), regionIndicatorRows(region, crew)))
+  }
 
-// ---- cases and alerts -----------------------------------------------------------------------------
-
-const SPE_CASE: CaseDef = {
-  id: 'spe_shelter',
-  title: 'Solar particle event: shelter',
-  one_line: '',
-  hazards: [],
-  body_regions: ['blood_forming_organs', 'skin', 'eyes'],
-  triggers: [{ kind: 'ops', rule_id: 'ops_onboard_proton_s3' }],
-}
-const OPS_RULE = {
-  id: 'ops_onboard_proton_s3',
-  label: 'Onboard monitor at S3',
-  variable: 'proton_flux_10mev',
-  unit: 'pfu',
-  op: 'lt',
-  limit: 1000,
-  category: 'OPS',
-  tier: 'A',
-  role: 'alert',
-  applies_to: ['mars_surface'],
-  window: { kind: 'instant' },
-  chip: 'design choice',
-  source: { kind: 'design_choice', rationale: 'test' },
-} as Rule
-
-function ctxWith(evaluator: Evaluator, envId = 'mars_surface'): EvalContext {
-  return { sim: SIM, crewId: 'CM-2', envId, t: 99_999, extra: [], evaluator, rci: null, baselineDays: [368, 381] }
-}
-const stub: Evaluator = {
-  evaluateRule: (rule, value) => ({ rule_id: rule.id, tier: 'A', category: rule.category, status: 'insufficient_data', severity: 'advisory', value, unit: rule.unit, limit: rule.limit, margin: null, chip: rule.chip, source: rule.source, why: '', role: rule.role, op: rule.op, approach_at: null, env_id: null, t: null, case_id: null, action_id: null }),
-  evaluatePersonal: () => {
-    throw new Error('not used')
-  },
-}
-const fakeEngine: Evaluator = {
-  ...stub,
-  evaluateRule: (rule, value) => {
-    const outside = value !== null && rule.op === 'lt' && !(value < rule.limit)
-    return { ...stub.evaluateRule(rule, value, '', 0), status: value === null ? 'insufficient_data' : outside ? 'outside' : 'within', severity: outside ? 'caution' : 'nominal' }
-  },
-}
-const lookups = { rule: (id: string) => (id === OPS_RULE.id ? OPS_RULE : undefined), indicator: () => undefined }
-
-describe('caseStatus', () => {
-  it('stays closed while the engine only reports insufficient data (the shim)', () => {
-    expect(caseStatus(SPE_CASE, ctxWith(stub), lookups)).toMatchObject({ open: false, severity: null })
+  it('meta.json states the rule the figure follows', () => {
+    expect(BODY_REGION_RULE).toMatch(/hatched outline/)
+    expect(BODY_REGION_RULE).toMatch(/Only a measured finding for the selected crewmember fills an organ/)
+    expect(BODY_REGION_RULE).toMatch(/VO2max is a fitness tag/)
+    for (const v of FITNESS_VARIABLES) expect(RULES.some((r) => r.variable === v), v).toBe(true)
   })
-  it('opens when a trigger reaches caution, and says why', () => {
-    const s = caseStatus(SPE_CASE, ctxWith(fakeEngine), lookups)
-    expect(s.open).toBe(true)
-    expect(s.severity).toBe('caution')
-    expect(s.reasons[0]).toMatch(/Onboard monitor/)
-  })
-  it('does not evaluate a trigger outside its environment', () => {
-    expect(caseStatus(SPE_CASE, ctxWith(fakeEngine, 'iss'), lookups).open).toBe(false)
-  })
-  it('treats a case the store holds in watch as open', () => {
-    expect(caseStatus(SPE_CASE, ctxWith(stub), lookups, { phase: 'watch' })).toMatchObject({ open: true, severity: 'caution' })
-    expect(caseStatus(SPE_CASE, ctxWith(stub), lookups, { status: 'resolved' }).open).toBe(false)
-  })
-})
 
-describe('alertSignals', () => {
-  const alerts = [
-    { id: 'ALL:ops_onboard_proton_s3', severity: 'caution' as const, title: 'S3 protons: shelter', crew_id: 'ALL' as const, href: '#/case/spe_shelter' },
-    { id: 'CM-3:target_urine_output_24h', severity: 'caution' as const, title: 'Low urine', crew_id: 'CM-3' as const },
-    { id: 'CM-2:x', severity: 'nominal' as const, title: 'fine', crew_id: 'CM-2' as const, href: '#/case/spe_shelter' },
-  ]
-  it('matches alerts by case link or rule id, for this crewmember or ALL, ignoring nominal', () => {
-    expect(alertSignals(alerts, 'CM-2', new Set(['spe_shelter']), new Set())).toEqual([
-      { severity: 'caution', reason: 'Annunciator: S3 protons: shelter', caseId: 'spe_shelter' },
-    ])
-    expect(alertSignals(alerts, 'CM-3', new Set(), new Set(['target_urine_output_24h']))).toHaveLength(1)
-    expect(alertSignals(alerts, 'CM-1', new Set(), new Set(['target_urine_output_24h']))).toHaveLength(0)
+  it('fills an organ only from its own measured findings: no organ is ever red, in any environment', () => {
+    for (const envId of ENVS) {
+      const ev = evalAt(envId)
+      for (const crewId of CREW_IDS) {
+        for (const region of REGIONS) {
+          const ruleRows = regionRuleRows(region, ev.crew[crewId], envId)
+          const s = fill(ev.crew[crewId], envId, region.id)
+          // The only Warning LANDFALL emits is the S3 storm (OPS), which never joins an organ.
+          expect(s.state, `${envId} ${crewId} ${region.id}`).not.toBe('warning')
+          for (const r of ruleRows) expect(r.rule.category, r.rule.id).not.toBe('OPS')
+        }
+      }
+    }
+  })
+
+  it("keeps CM-2's VO2max off the heart, lungs and muscles: it is the fitness tag, and it flips with the environment", () => {
+    const mars = evalAt('mars_surface').crew['CM-2']
+    const tag = fitnessTag(mars, 'mars_surface')!
+    expect(tag.state).toBe('not_cleared')
+    expect(tag.label).toBe('EVA assignment not cleared')
+    expect(tag.rule.id).toBe('ffd_vo2max_surface_eva')
+    expect(tag.finding.severity).toBe('caution')
+    expect(tag.input.value).toBe(35.1)
+    expect(tag.action).toMatch(/Crew Medical Officer/)
+    for (const id of ['heart', 'lungs', 'muscles'] as RegionId[]) {
+      const rows = regionRuleRows(regionDef(id), mars, 'mars_surface')
+      expect(rows.some((r) => r.fitness && r.applicable && r.finding.status === 'outside'), id).toBe(true)
+      // The organ's fill ignores the fitness row: it is the same as without it.
+      const s = fill(mars, 'mars_surface', id)
+      expect(s.drivers.some((d) => /VO2max/i.test(d.label)), id).toBe(false)
+    }
+    const iss = fitnessTag(evalAt('iss').crew['CM-2'], 'iss')!
+    expect(iss.rule.id).toBe('ffd_vo2max_microgravity_eva')
+    expect(iss.state).toBe('cleared')
+    expect(iss.action).toBeNull()
+  })
+
+  it('draws the open SPE case as a footprint on its regions for every crewmember, never as a fill', () => {
+    const views = casesAt('mars_surface')
+    const ev = evalAt('mars_surface')
+    const spe = (CASES ?? []).find((c) => c.id === 'spe_shelter')!
+    for (const crewId of CREW_IDS) {
+      for (const region of REGIONS) {
+        const foot = footprintFor(region.id, views, crewId)
+        const inSpe = spe.body_regions.includes(region.id)
+        expect(foot.some((c) => c.caseId === 'spe_shelter'), `${crewId} ${region.id}`).toBe(inSpe)
+      }
+      // No organ dose is in the record: the marrow is in the footprint and reads insufficient data.
+      expect(fill(ev.crew[crewId], 'mars_surface', 'blood_forming_organs').state).toBe('no_data')
+      expect(fill(ev.crew[crewId], 'mars_surface', 'eyes').state).toBe('no_data')
+    }
+  })
+
+  it("outlines a crewmember's own open cases only", () => {
+    const views = casesAt('mars_surface')
+    const renalOpen = views.filter((v) => v.caseId === 'renal_stone' && FOOTPRINT_STATUSES.has(v.state.status)).map((v) => v.crewId)
+    for (const crewId of CREW_IDS) {
+      expect(footprintFor('kidneys', views, crewId).length > 0, crewId).toBe(renalOpen.includes(crewId))
+    }
+    expect(footprintFor('kidneys', views, 'CM-3').map((c) => c.caseId)).toEqual(renalOpen.includes('CM-3') ? ['renal_stone'] : [])
+  })
+
+  it('shows the cuff blood pressure on the heart and the fingerstick glucose on the muscles, as Tier B indicators', () => {
+    const ev = evalAt('mars_surface').crew['CM-1']
+    expect(regionIndicatorRows(regionDef('heart'), ev).map((r) => r.indicator.id)).toEqual(['resting_hr', 'hrv_sdnn', 'bp_systolic', 'bp_diastolic'])
+    const glucose = regionIndicatorRows(regionDef('muscles'), ev)
+    expect(glucose.map((r) => r.indicator.id)).toEqual(['glucose'])
+    const g = glucose[0]
+    expect(g.baselineN).toBe(14)
+    expect(g.finding.rci.mdc).toBeGreaterThan(0)
+    expect(g.indicator.limit_note?.text).toMatch(/No NASA numeric limit/)
+    expect(g.indicator.context?.range).toEqual({ min: 65, max: 99, unit: 'mg/dL' })
+    for (const id of ['bp_systolic', 'bp_diastolic', 'glucose']) {
+      const ind = (PERSONAL_INDICATORS ?? []).find((i) => i.id === id)!
+      expect(ind.device, id).toBe('manual')
+      const m = REGIONS.flatMap((r) => r.measures).find((x) => x.variable === id)
+      expect(m?.how, id).toBe('manual')
+      expect(m?.via, id).toMatch(/vehicle medical kit/)
+      expect(m?.via, id).toMatch(/Noon Sight medical-kit step/)
+    }
   })
 })
 
@@ -438,24 +480,13 @@ describe('Inspiration4 data is read per sample and labelled exactly', () => {
   })
 })
 
-describe('an engine refusal never blanks the body map', () => {
-  it('turns a thrown contract error into a no-data row that the summary counts as missing', async () => {
-    const { evaluateIndicatorRow, ENGINE_REFUSED } = await import('./status')
-    const ind = (PERSONAL_INDICATORS ?? [])[0]
-    if (!ind) return
-    const boom = () => {
-      throw Object.assign(new Error('indicator x: reliability_r.value must be a number'), { code: 'invalid_rule' })
+describe('an unavailable evaluation never blanks the body map', () => {
+  it('reads every region as insufficient data, never nominal, when there is no evaluation', () => {
+    for (const region of REGIONS) {
+      const s = summarizeRegion(summaryInputs(regionRuleRows(region, null, 'mars_surface'), regionIndicatorRows(region, null)))
+      expect(['unmonitored', 'no_data']).toContain(s.state)
+      expect(s.state).not.toBe('nominal')
     }
-    const ctx = {
-      sim: null, crewId: 'CM-1', envId: 'mars_surface', t: 0, extra: [], rci: { min_baseline_n: 7 } as never,
-      baselineDays: [368, 381] as [number, number],
-      evaluator: { evaluateRule: boom, evaluatePersonal: boom } as unknown as Evaluator,
-    } as EvalContext
-    const row = evaluateIndicatorRow(ind, ctx)
-    expect(row.finding).toBeNull()
-    expect(row.error).toMatch(/^invalid_rule: /)
-    const s = summarizeRegion([row.finding ?? ENGINE_REFUSED])
-    expect(s.state).toBe('no_data')
-    expect(s.missing).toBe(1)
+    expect(fitnessTag(null, 'mars_surface')).toBeNull()
   })
 })

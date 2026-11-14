@@ -26,7 +26,7 @@
 //             and may depend on PVT hardware."
 //
 // The 355 ms lapse is LITERATURE (this paper), never a NASA requirement: no NASA-STD-3001
-// requirement or OCHMO brief adopts it (PLANO.md Appendix A; engine/rules/personal.json).
+// requirement or OCHMO brief adopts it (engine/rules/personal.json, pvt_lapses definition note).
 
 import type { ChipKind } from '../../app/vocab'
 

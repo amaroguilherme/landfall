@@ -2,16 +2,21 @@
 // plain language for a non-physician CMO ([V2 7045]):
 //   what it does and how spaceflight affects it (NASA HRP, verbatim) ·
 //   which measurements can be performed in space, and how · which NASA limits apply ·
-//   real reference data (Inspiration4) · when it needs the ground (case tripwire).
+//   real reference data (Inspiration4) · when it escalates (case tripwire, two tiers).
+// The header separates three things that must never be confused (meta.json body_region_rule):
+// the organ's state (its own measured findings), the hazard footprint of open cases (not a
+// measurement) and the whole-body fitness tag (VO2max, not an organ finding).
 import { Fragment } from 'react'
 import type { ReactNode } from 'react'
+import type { CaseView } from '../../app/caseTimeline'
 import { useSnapshot } from '../../app/data'
 import type { SnapshotState } from '../../app/data'
+import type { Finding, PersonalFinding } from '../../app/engine'
+import { partialRecord } from '../../app/evaluate'
 import { Link } from '../../app/location'
-import { CATEGORIES } from '../../app/vocab'
-import type { Category } from '../../app/vocab'
 import { BASELINE_FIRST_DAY, BASELINE_LAST_DAY, environment } from '../../app/scenario'
-import type { EnvId } from '../../app/vocab'
+import { CATEGORIES, SEVERITY_RANK } from '../../app/vocab'
+import type { Category, EnvId, Severity } from '../../app/vocab'
 import {
   ButtonLink,
   CategoryBadge,
@@ -33,10 +38,10 @@ import { SmallMultiples, SmallMultiplesLegend, bandKindOf } from './RefChart'
 import type { OsdrData } from './RefChart'
 import { HAZARD_SNAPSHOT_ID, HOW_LABEL, MEASURED_HERE, opWords, sentencesMatching, windowWords } from './regions'
 import type { HazardId, Measure, RegionDef } from './regions'
-import { HAZARDS_META } from './rules'
+import { ESCALATION_META, HAZARDS_META, indicatorById, packetStateLabel, ruleById } from './rules'
 import type { CaseDef } from './rules'
-import type { CaseStatus, IndicatorRow, RegionState, RegionSummary, RuleRow } from './status'
-import { STATE_LABEL } from './status'
+import { FOOTPRINT_STATUSES, STATE_LABEL, actionSentence } from './status'
+import type { FitnessTag, FootprintCase, IndicatorRow, RegionState, RegionSummary, RuleRow } from './status'
 
 // ---- HRP snapshot shapes (web/public/data/hrp_*.json) -------------------------------------------
 
@@ -108,6 +113,22 @@ export function RegionStateBadge({ state, size = 'md' }: { state: RegionState; s
   return <SeverityBadge severity={state} size={size} />
 }
 
+/**
+ * Badge of a Tier B (personal) finding. A personal band is not a limit, so "within" reads
+ * "No reliable change", never "Within limit"; data-quality states stay cyan.
+ */
+export function PersonalBadge({ finding }: { finding: Pick<PersonalFinding, 'status' | 'severity' | 'category'> }) {
+  if (finding.status === 'reliable_change') return <SeverityBadge severity={finding.severity} label="Reliable change" />
+  if (finding.status === 'within') return <SeverityBadge severity="nominal" label="No reliable change" />
+  return <FindingBadge finding={finding} />
+}
+
+/** Digits for a change of this size (the minimum detectable change of a band). */
+function changeDigits(x: number): number {
+  const a = Math.abs(x)
+  return a >= 100 ? 0 : a >= 10 ? 1 : 2
+}
+
 function SourceFoot({ state, id }: { state: SnapshotState<unknown>; id: string }) {
   return (
     <p className="lf-body-src">
@@ -131,6 +152,45 @@ function Section({ id, title, kicker, children }: { id: string; title: ReactNode
     </section>
   )
 }
+
+// ---- the fitness tag (whole body, never an organ) ----------------------------------------------------
+
+/** The whole-body fitness tag next to the figure: VO2max against the EVA floor that applies here. */
+export function FitnessTagCard({ tag, crewLabel, envLabel }: { tag: FitnessTag; crewLabel: string; envLabel: string }) {
+  const req = (tag.rule.source as { requirement_id?: unknown } | undefined)?.requirement_id
+  return (
+    <section className="lf-fit" data-state={tag.state} aria-label={`Fitness tag for ${crewLabel}`}>
+      <p className="lf-fit-k">
+        <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" className="lf-icon">
+          <path d="M2 9h2.5l1.6-4 3 7 1.8-4.5H14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
+        </svg>
+        Fitness tag · whole body, not an organ
+      </p>
+      <p className="lf-fit-v">
+        {tag.state === 'not_cleared' ? (
+          <SeverityBadge severity={tag.finding.severity} label={tag.label} />
+        ) : tag.state === 'no_data' ? (
+          <StatusBadge status="insufficient_data" />
+        ) : (
+          <SeverityBadge severity="nominal" label={tag.label} />
+        )}
+      </p>
+      <p className="lf-fit-t">
+        VO₂max {tag.input.value !== null ? <Num value={tag.input.value} unit={tag.input.unit} /> : 'not on record'}, floor for {envLabel}{' '}
+        {OP_SHORT[tag.rule.op] ?? opWords(tag.rule.op)} <Num value={tag.rule.limit} unit={tag.rule.unit} />
+        {typeof req === 'string' ? (
+          <>
+            {' '}
+            <ReqId id={req} />
+          </>
+        ) : null}
+        . On the heart, lungs and muscles panels; it never colours an organ.
+      </p>
+    </section>
+  )
+}
+
+const OP_SHORT: Record<string, string> = { ge: '≥', gt: '>', le: '≤', lt: '<' }
 
 // ---- 1. what it does / how hazards affect it -----------------------------------------------------
 
@@ -246,10 +306,9 @@ function HowItIsAffected({ region }: { region: RegionDef }) {
 function MeasureRow({ m }: { m: Measure }) {
   const here = MEASURED_HERE.includes(m.how)
   return (
-    <tr data-here={here || undefined}>
+    <tr data-here={here || undefined} data-variable={m.variable ?? undefined}>
       <th scope="row">
         <span className="lf-ms-label">{m.label}</span>
-        {m.variable ? <code className="lf-ms-var">{m.variable}</code> : null}
       </th>
       <td>
         {here ? (
@@ -289,9 +348,9 @@ function Measurements({ region }: { region: RegionDef }) {
   return (
     <Section id={`${region.id}-measure`} kicker="2 · Which measurements can be performed in space, and how" title="What can be measured here">
       <p className="lf-body-fine">
-        <span className="lf-mono">{here}</span> of <span className="lf-mono">{region.measures.length}</span> measured by LANDFALL itself (band
-        or app). The rest is the hand-off boundary: it reaches LANDFALL by manual entry, from a vehicle system, a laboratory or
-        the ground, and is labelled <strong>NOT MEASURABLE HERE</strong>.
+        <span className="lf-mono">{here}</span> of <span className="lf-mono">{region.measures.length}</span> measured or recorded by
+        LANDFALL itself (band or app). The rest is the hand-off boundary: it reaches LANDFALL by manual entry, from a vehicle
+        system, a laboratory or the ground, and is labelled <strong>NOT MEASURABLE HERE</strong>.
       </p>
       <div className="lf-table-wrap">
         <table className="lf-ms">
@@ -331,17 +390,25 @@ function viaFor(region: RegionDef, variable: string): string | null {
 }
 
 function RuleItem({ row, region }: { row: RuleRow; region: RegionDef }) {
-  const { rule, finding, point } = row
+  const { rule, finding, input } = row
   const note = region.ruleNotes?.[rule.variable]
   const approach = rule.approach_at
   const src = rule.source as unknown as Record<string, unknown>
+  const unitMismatch = input.value === null && input.unit_mismatch > 0
+  const flagged = row.applicable && SEVERITY_RANK[finding.severity as Severity] >= SEVERITY_RANK.caution && !['insufficient_data', 'stale'].includes(finding.status)
   return (
-    <li className="lf-limit" data-applicable={row.applicable || undefined}>
+    <li className="lf-limit" data-applicable={row.applicable || undefined} data-fitness={row.fitness || undefined}>
       <div className="lf-limit-head">
         <CategoryTag category={rule.category} />
         <span className="lf-limit-label">{rule.label}</span>
-        <span className="lf-limit-status">{finding ? <FindingBadge finding={finding} /> : <StatusBadge status="not_applicable" />}</span>
+        <span className="lf-limit-status">{row.applicable ? <FindingBadge finding={finding} partial={partialRecord(row)} /> : <StatusBadge status="not_applicable" />}</span>
       </div>
+      {row.fitness ? (
+        <p className="lf-limit-fit">
+          <strong>Fitness tag</strong>, whole body: this test sets the crewmember’s EVA assignment, not the state of this organ, so
+          it never colours the figure.
+        </p>
+      ) : null}
       <p className="lf-limit-rule">
         Must stay {opWords(rule.op)} <Num value={rule.limit} unit={rule.unit} /> <span className="lf-limit-win">· {windowWords(rule.window)}</span>{' '}
         <Chip kind={rule.chip} />
@@ -356,15 +423,22 @@ function RuleItem({ row, region }: { row: RuleRow; region: RegionDef }) {
       </p>
       {row.applicable ? (
         <p className="lf-limit-now">
-          {point && !row.unitMismatch ? (
+          {input.value !== null ? (
             <>
-              Latest <Num value={point.value} unit={point.unit} /> at <MetTime t={point.t} label /> · {point.source}
+              Latest <Num value={input.value} unit={input.unit} />
+              {input.t !== null ? (
+                <>
+                  {' '}
+                  at <MetTime t={input.t} label />
+                </>
+              ) : null}{' '}
+              · {input.basis}
             </>
-          ) : row.unitMismatch ? (
+          ) : unitMismatch ? (
             <span className="lf-nodata">Unit mismatch: not compared (units are never converted silently).</span>
           ) : (
             <span className="lf-nodata">
-              No reading in this scenario{viaFor(region, rule.variable) ? `: comes from the ${viaFor(region, rule.variable)}` : ''}.
+              No reading in this scenario{viaFor(region, rule.variable) ? `: it comes from the ${viaFor(region, rule.variable)}` : ''}.
             </span>
           )}
         </p>
@@ -373,19 +447,20 @@ function RuleItem({ row, region }: { row: RuleRow; region: RegionDef }) {
           Applies to {rule.applies_to.map((e) => environment(e as EnvId)?.label ?? e).join(', ')}.
         </p>
       )}
-      {row.error ? <p className="lf-limit-now lf-nodata">The engine did not evaluate it ({row.error}), so it shows as no data.</p> : null}
+      {flagged && rule.action ? (
+        <p className="lf-limit-action">
+          <strong>{rule.action.label}.</strong> <MonoDigits text={actionSentence(rule.action)} />{' '}
+          <Chip kind={rule.action.chip} />
+        </p>
+      ) : null}
       {note ? <p className="lf-limit-note">{note}</p> : null}
-      {finding?.why?.length ? (
+      {finding.why ? (
         <Expander summary="How the engine read it">
-          <ul className="lf-why">
-            {[finding.why].map((w) => (
-              <li key={w}>
-                <MonoDigits text={w} />
-              </li>
-            ))}
-          </ul>
           <p className="lf-body-fine">
-            <a href={`#/provenance?id=${encodeURIComponent(rule.id)}`}>Provenance of {rule.id}</a>
+            <MonoDigits text={finding.why} />
+          </p>
+          <p className="lf-body-fine">
+            <a href={`#/provenance?id=${encodeURIComponent(rule.id)}`}>Provenance of this limit</a>
           </p>
         </Expander>
       ) : null}
@@ -393,43 +468,109 @@ function RuleItem({ row, region }: { row: RuleRow; region: RegionDef }) {
   )
 }
 
+/** The Noon Sight step where a manual indicator is typed in, or null. */
+function entryStep(variable: string): string | null {
+  if (variable === 'bp_systolic' || variable === 'bp_diastolic' || variable === 'glucose') return 'kit'
+  if (variable === 'urine_volume_24h' || variable === 'fluid_intake_24h') return 'fluids'
+  return null
+}
+
 function IndicatorItem({ row }: { row: IndicatorRow }) {
   const ind = row.indicator
+  const f = row.finding
+  const mdc = f.rci?.mdc ?? null
+  const flagged = f.status === 'reliable_change' && SEVERITY_RANK[f.severity] >= SEVERITY_RANK.caution
+  const direction = ind.worse === 'increase' ? 'upward' : ind.worse === 'decrease' ? 'downward' : 'in either direction'
+  const cur = row.current
   return (
     <li className="lf-limit" data-applicable>
       <div className="lf-limit-head">
         <CategoryBadge category="PERSONAL" long />
         <span className="lf-limit-label">{ind.label}</span>
-        <span className="lf-limit-status">{row.finding ? <FindingBadge finding={row.finding} /> : <StatusBadge status="insufficient_data" />}</span>
+        <span className="lf-limit-status">
+          <PersonalBadge finding={f} />
+        </span>
       </div>
       <p className="lf-limit-rule">
-        Flags a reliable change {ind.worse === 'increase' ? 'upward' : ind.worse === 'decrease' ? 'downward' : 'either way'} against
-        your own baseline (MET days <span className="lf-mono">{BASELINE_FIRST_DAY}</span>–<span className="lf-mono">{BASELINE_LAST_DAY}</span>,{' '}
-        <Num value={row.baselineN} /> readings): a change bigger than your own day-to-day noise. Not a limit.{' '}
-        <Link to="/method">How the test works</Link>
+        Flags a reliable change {direction} against your own baseline (MET days <span className="lf-mono">{BASELINE_FIRST_DAY}</span>–
+        <span className="lf-mono">{BASELINE_LAST_DAY}</span>, <Num value={row.baselineN} /> readings): a change bigger than your own
+        day-to-day noise. Not a limit. <Link to="/method?s=tiers">How the test works</Link>
       </p>
+      {mdc !== null ? (
+        <p className="lf-limit-sub">
+          Smallest change it can flag: <Num value={mdc} unit={ind.unit} digits={changeDigits(mdc)} /> from your baseline mean{' '}
+          <Chip kind="derived" />. A real change smaller than that is never flagged.
+        </p>
+      ) : null}
       <p className="lf-limit-now">
-        {row.point ? (
+        {cur ? (
           <>
-            Latest <Num value={row.point.value} unit={row.point.unit} /> at <MetTime t={row.point.t} label /> · {row.point.source}
+            Latest <Num value={cur.value} unit={cur.unit} /> at <MetTime t={cur.t} label /> ·{' '}
+            {cur.provenance === 'simulated' ? `${cur.source}, simulated` : cur.source === 'manual' ? 'entered by the crewmember' : cur.source}
           </>
         ) : (
-          <span className="lf-nodata">No reading in this scenario.</span>
+          <span className="lf-nodata">No reading after the baseline yet.</span>
         )}
-        {row.error ? <span className="lf-nodata lf-block"> The engine did not evaluate it ({row.error}), so it shows as no data.</span> : null}
         {ind.alerting === false ? <span className="lf-limit-win"> · context only: shown, never an alert</span> : null}
+        {entryStep(ind.variable) ? (
+          <>
+            {' '}
+            · <a href={`#/noon-sight?step=${entryStep(ind.variable)}`}>Enter a reading in Noon Sight</a>
+          </>
+        ) : null}
       </p>
-      {row.finding?.why ? (
+      {flagged && ind.action ? (
+        <p className="lf-limit-action">
+          <strong>{ind.action.label}.</strong> <MonoDigits text={ind.action.text} /> <Chip kind={ind.action.chip} />
+        </p>
+      ) : null}
+      {ind.limit_note?.text ? <LimitNote text={ind.limit_note.text} chip={ind.limit_note.chip} /> : null}
+      {ind.context?.text ? (
+        <p className="lf-limit-ctx">
+          <MonoDigits text={ind.context.text} /> <Chip kind={ind.context.chip} />
+          {ind.context.source ? (
+            <span className="lf-block">
+              <Citation source={ind.context.source} />
+            </span>
+          ) : null}
+        </p>
+      ) : null}
+      {f.why ? (
         <Expander summary="How the engine read it">
           <p className="lf-body-fine">
-            <MonoDigits text={row.finding.why} />
+            <MonoDigits text={f.why} />
           </p>
           <p className="lf-body-fine">
-            <a href={`#/provenance?id=${encodeURIComponent(ind.id)}`}>Provenance of {ind.id}</a>
+            <a href={`#/provenance?id=${encodeURIComponent(ind.id)}`}>Provenance of this indicator</a> · <a href="#/trends">See the trend</a>
           </p>
         </Expander>
       ) : null}
     </li>
+  )
+}
+
+/** First sentence of a note (up to the first ". "), and the rest. */
+function splitFirst(text: string): [string, string] {
+  const i = text.indexOf('. ')
+  return i < 0 ? [text, ''] : [text.slice(0, i + 1), text.slice(i + 2)]
+}
+
+/** "No NASA numeric limit: ..." in one line, with how we know it in a disclosure. */
+function LimitNote({ text, chip }: { text: string; chip?: string }) {
+  const [head, rest] = splitFirst(text)
+  return (
+    <div className="lf-limit-note">
+      <p>
+        <MonoDigits text={head} /> <Chip kind={chip} />
+      </p>
+      {rest ? (
+        <Expander summary="How we know">
+          <p className="lf-body-fine">
+            <MonoDigits text={rest} />
+          </p>
+        </Expander>
+      ) : null}
+    </div>
   )
 }
 
@@ -461,7 +602,8 @@ function Limits({
         </EmptyState>
       ) : here.length === 0 && elsewhere.length === 0 ? (
         <p className="lf-body-empty">
-          NASA publishes no limit for this region in the rules LANDFALL carries. It is observed and cited here, not monitored.
+          None of the NASA-STD-3001 limits LANDFALL carries is about this part of the body. It is observed and cited here, not
+          monitored against a NASA number.
         </p>
       ) : (
         <>
@@ -568,70 +710,161 @@ function ReferenceData({ region }: { region: RegionDef }) {
 
 type OsdrBlockId = 'osdr_cbc' | 'osdr_cmp' | 'osdr_cytokines'
 
-// ---- 5. when it needs the ground -------------------------------------------------------------------
+// ---- 5. when it escalates ---------------------------------------------------------------------------
 
-function GroundSection({ region, cases, statuses, casesMissing }: { region: RegionDef; cases: CaseDef[]; statuses: Record<string, CaseStatus>; casesMissing: boolean }) {
+const CASE_STATUS_WORDS: Record<string, string> = {
+  idle: 'Not open',
+  detected: 'Open · detected',
+  acting: 'Open · acting',
+  watch: 'Open · watch (tripwire armed)',
+  escalated: 'Escalated',
+  resolved: 'Resolved',
+  dismissed: 'Dismissed',
+}
+
+function EscalationTiers() {
+  if (!ESCALATION_META) return null
   return (
-    <Section id={`${region.id}-ground`} kicker="5 · When it needs the flight surgeon" title="When it needs the ground">
+    <ol className="lf-tiers">
+      {ESCALATION_META.tiers.map((t) => (
+        <li key={t.id}>
+          <strong>
+            Tier <span className="lf-mono">{t.tier}</span>, {t.label}
+          </strong>
+          : {t.when}.
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+function CaseCard({ c, view }: { c: CaseDef; view: CaseView | null }) {
+  const status = view?.state.status ?? 'idle'
+  const open = FOOTPRINT_STATUSES.has(status)
+  const opening = view?.opening ?? null
+  const packet = open ? packetStateLabel(view?.state.packet_queued_at) : null
+  return (
+    <li className="lf-case" data-open={open || undefined}>
+      <div className="lf-case-head">
+        <p className="lf-eyebrow">LANDFALL case</p>
+        <h4>
+          <Link to={`/case/${c.id}`}>{c.title}</Link>
+        </h4>
+        <span className="lf-case-state" data-status={status}>
+          {CASE_STATUS_WORDS[status] ?? status}
+        </span>
+      </div>
+      <p>
+        <MonoDigits text={c.one_line} />
+      </p>
+      {open && opening ? (
+        <p className="lf-body-fine">
+          Opened at <MetTime t={opening.t} label /> by {openingLabel(opening.trigger, opening.finding)} ({opening.finding.severity}).
+        </p>
+      ) : !open ? (
+        <p className="lf-body-fine">Opens when any of its triggers reaches Caution. None has for this crewmember now.</p>
+      ) : null}
+      {packet ? (
+        <p className="lf-body-fine">
+          Ground packet: <strong>{packet}</strong>.
+        </p>
+      ) : null}
+      {c.tripwire ? (
+        <div className="lf-tripwire">
+          <p className="lf-tripwire-k">
+            Tripwire <Chip kind={c.tripwire.chip} />
+          </p>
+          <p className="lf-tripwire-t">
+            <MonoDigits text={c.tripwire.text} />
+          </p>
+        </div>
+      ) : null}
+      <ButtonLink href={`#/case/${c.id}`} variant="secondary">
+        Open the case
+      </ButtonLink>
+    </li>
+  )
+}
+
+/** Plain-language label of the trigger that opened a case (the rule or indicator label, never its id). */
+function openingLabel(trigger: { rule_id?: string; indicator_id?: string }, f: Finding): string {
+  if (trigger.rule_id) return ruleById(trigger.rule_id)?.label ?? 'a published limit'
+  if (trigger.indicator_id) {
+    const label = indicatorById(trigger.indicator_id)?.label
+    return label ? `${label}, a reliable change against the own baseline` : 'a reliable change against the own baseline'
+  }
+  return f.category === 'PERSONAL' ? 'a reliable change against the own baseline' : 'a published limit'
+}
+
+interface ActionItem {
+  key: string
+  label: string
+  text: string
+  chip: string | undefined
+  severity: Severity
+}
+
+function GroundSection({
+  region,
+  cases,
+  caseViews,
+  ruleRows,
+  indicatorRows,
+  casesMissing,
+}: {
+  region: RegionDef
+  cases: CaseDef[]
+  caseViews: readonly CaseView[]
+  ruleRows: RuleRow[]
+  indicatorRows: IndicatorRow[]
+  casesMissing: boolean
+}) {
+  // Findings without a deep case (D11): flagged rows that carry a one-line action. The fitness tag
+  // has its own card next to the figure.
+  const actions: ActionItem[] = []
+  for (const r of ruleRows) {
+    if (r.fitness || !r.applicable || !r.rule.action) continue
+    if (SEVERITY_RANK[r.finding.severity as Severity] < SEVERITY_RANK.caution || ['insufficient_data', 'stale'].includes(r.finding.status)) continue
+    actions.push({ key: r.rule.id, label: r.rule.action.label, text: r.rule.action.text, chip: r.rule.action.chip, severity: r.finding.severity as Severity })
+  }
+  for (const r of indicatorRows) {
+    if (!r.indicator.action || r.finding.status !== 'reliable_change' || SEVERITY_RANK[r.finding.severity] < SEVERITY_RANK.caution) continue
+    actions.push({ key: r.indicator.id, label: r.indicator.action.label, text: r.indicator.action.text, chip: r.indicator.action.chip, severity: r.finding.severity })
+  }
+  return (
+    <Section id={`${region.id}-ground`} kicker="5 · When it needs the Crew Medical Officer or the flight surgeon" title="When it escalates">
+      <p className="lf-body-fine">Escalation has two tiers, and how much the crew decides onboard scales with the link:</p>
+      <EscalationTiers />
+      {actions.length ? (
+        <>
+          <h4 className="lf-body-h4">Findings without a guided case</h4>
+          <ul className="lf-actions">
+            {actions.map((a) => (
+              <li key={a.key}>
+                <SeverityBadge severity={a.severity} label={a.label} />{' '}
+                <span>
+                  <MonoDigits text={a.text} /> <Chip kind={a.chip} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
       {casesMissing ? (
         <EmptyState kind="loading" title="Cases loading from engine" headingLevel={3}>
           <p>engine/rules/cases.json is not in this build yet.</p>
         </EmptyState>
       ) : cases.length === 0 ? (
         <p className="lf-body-empty">
-          No LANDFALL case covers this region, so there is no guided procedure or tripwire for it. LANDFALL observes and cites it;
-          use the vehicle medical procedures and talk to the flight surgeon when the link allows.
+          No LANDFALL case covers this part of the body, so there is no guided procedure or tripwire for it. A finding here carries
+          a one-line action instead; for anything that worries you, tell the Crew Medical Officer, who uses the vehicle medical
+          procedures, and the flight surgeon when the link allows.
         </p>
       ) : (
         <ul className="lf-cases">
-          {cases.map((c) => {
-            const st = statuses[c.id]
-            return (
-              <li key={c.id} className="lf-case" data-open={st?.open || undefined}>
-                <div className="lf-case-head">
-                  <p className="lf-eyebrow">LANDFALL case</p>
-                  <h4>
-                    <Link to={`/case/${c.id}`}>{c.title}</Link>
-                  </h4>
-                  {st?.open && st.severity ? (
-                    <SeverityBadge severity={st.severity} label="Case open" solid />
-                  ) : (
-                    <span className="lf-dq" data-tone="unavailable">
-                      <UnavailableIcon size={14} />
-                      <span>Not open</span>
-                    </span>
-                  )}
-                </div>
-                <p>
-                  <MonoDigits text={c.one_line} />
-                </p>
-                {st?.open ? (
-                  <p className="lf-body-fine">Opened by: {st.reasons.join('; ')}</p>
-                ) : (
-                  <p className="lf-body-fine">Opens when any of its triggers reaches Caution. None has.</p>
-                )}
-                {c.tripwire ? (
-                  <div className="lf-tripwire">
-                    <p className="lf-tripwire-k">
-                      Tripwire <Chip kind={c.tripwire.chip} />
-                    </p>
-                    <p className="lf-tripwire-t">
-                      <MonoDigits text={c.tripwire.text} />
-                    </p>
-                  </div>
-                ) : null}
-                {c.escalation?.ground_packet ? (
-                  <p className="lf-body-fine">
-                    If it escalates, a delay-tolerant ground packet (FHIR R4) is queued with{' '}
-                    <span className="lf-mono">{c.escalation.observations?.length ?? 0}</span> measurements, sent only with consent.
-                  </p>
-                ) : null}
-                <ButtonLink href={`#/case/${c.id}`} variant="secondary">
-                  Open the case
-                </ButtonLink>
-              </li>
-            )
-          })}
+          {cases.map((c) => (
+            <CaseCard key={c.id} c={c} view={caseViews.find((v) => v.caseId === c.id) ?? null} />
+          ))}
         </ul>
       )}
     </Section>
@@ -646,25 +879,31 @@ export function RegionPanel({
   ruleRows,
   indicatorRows,
   cases,
-  caseStatuses,
+  caseViews,
+  footprint,
+  fitness,
   rulesMissing,
   casesMissing,
+  evaluationReady,
   envId,
   crewLabel,
-  engineIsShim,
 }: {
   region: RegionDef
   summary: RegionSummary
   ruleRows: RuleRow[]
   indicatorRows: IndicatorRow[]
   cases: CaseDef[]
-  caseStatuses: Record<string, CaseStatus>
+  /** Case views of the selected crewmember. */
+  caseViews: readonly CaseView[]
+  footprint: FootprintCase[]
+  fitness: FitnessTag | null
   rulesMissing: boolean
   casesMissing: boolean
+  evaluationReady: boolean
   envId: EnvId
   crewLabel: string
-  engineIsShim: boolean
 }) {
+  const hasFitnessRow = ruleRows.some((r) => r.fitness && r.applicable)
   return (
     <article className="lf-region" aria-labelledby="lf-region-h" data-state={summary.state}>
       <header className="lf-region-head">
@@ -678,7 +917,7 @@ export function RegionPanel({
           <span className="lf-region-count">
             {summary.total ? (
               <>
-                <Num value={summary.evaluated} /> of <Num value={summary.total} /> evaluated
+                <Num value={summary.evaluated} /> of <Num value={summary.total} /> measured findings evaluated
                 {summary.missing ? (
                   <>
                     {' '}
@@ -692,24 +931,45 @@ export function RegionPanel({
           </span>
           <SimulatedMarker />
         </div>
-        {summary.reasons.length ? (
-          <ul className="lf-region-reasons">
-            {summary.reasons.map((r) => (
-              <li key={r}>{r}</li>
+        {summary.drivers.length ? (
+          <ul className="lf-region-reasons" aria-label="Measured findings that set this state">
+            {summary.drivers.map((d) => (
+              <li key={d.label}>
+                {d.label}: {d.status.replace(/_/g, ' ')} ({d.severity})
+              </li>
             ))}
           </ul>
         ) : null}
-        {engineIsShim && summary.total ? (
-          <p className="lf-body-fine lf-region-shim">
-            The rule engine is not connected in this build, so statuses read “insufficient data” instead of guessing.
+        {footprint.length ? (
+          <p className="lf-region-foot">
+            <span className="lf-foot-swatch lf-foot-swatch-lg" aria-hidden="true" />
+            <span>
+              <strong>In the hazard footprint of {footprint.length === 1 ? 'an open case' : 'open cases'}:</strong>{' '}
+              {footprint.map((c, i) => (
+                <Fragment key={c.caseId}>
+                  {i ? '; ' : ''}
+                  <Link to={`/case/${c.caseId}`}>{c.title}</Link> ({(CASE_STATUS_WORDS[c.status] ?? c.status).toLowerCase()})
+                </Fragment>
+              ))}
+              . The hazard can reach this part of the body; that is not a measurement of it, so it does not change the state above.
+            </span>
           </p>
+        ) : null}
+        {hasFitnessRow && fitness ? (
+          <p className="lf-region-fit">
+            <strong>Fitness tag (whole body): {fitness.label}.</strong> {fitness.action ? <MonoDigits text={fitness.action} /> : null}{' '}
+            The VO₂max test below sets EVA assignment; it does not colour this organ.
+          </p>
+        ) : null}
+        {!evaluationReady ? (
+          <p className="lf-body-fine lf-region-shim">The mission evaluation is not ready, so statuses read “insufficient data” instead of guessing.</p>
         ) : null}
       </header>
       <HowItIsAffected region={region} />
       <Measurements region={region} />
       <Limits region={region} ruleRows={ruleRows} indicatorRows={indicatorRows} rulesMissing={rulesMissing} envId={envId} />
       <ReferenceData region={region} />
-      <GroundSection region={region} cases={cases} statuses={caseStatuses} casesMissing={casesMissing} />
+      <GroundSection region={region} cases={cases} caseViews={caseViews} ruleRows={ruleRows} indicatorRows={indicatorRows} casesMissing={casesMissing} />
     </article>
   )
 }

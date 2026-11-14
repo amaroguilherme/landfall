@@ -3,6 +3,8 @@
 // semantics stay in one place: severity colours only for out-of-limit marks, cyan for stale data,
 // neutral greys for series. Overlays (limit lines, regions, markers) are drawn on the canvas with a
 // text label each; the HTML around every chart repeats them in words (colour is never the only cue).
+// Vertical-marker labels (NOW) and region labels (BASELINE) sit in a lane above the plot area, so
+// they never collide with the data, the band or a mark's label inside it.
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
@@ -104,6 +106,9 @@ export function severityToken(severity: Severity): string {
   return '--lf-text-2'
 }
 
+/** Height of the label lane above the plot (CSS px) that holds the NOW and BASELINE labels. */
+export const LABEL_LANE_PX = 18
+
 const colourCache = new Map<string, string>()
 
 /** Resolve "--token" to its computed value (cached); any other string is returned as is. */
@@ -151,6 +156,23 @@ function pathShape(ctx: CanvasRenderingContext2D, shape: Shape, x: number, y: nu
   }
 }
 
+interface Rect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+/** The plate a label would occupy (same geometry as plateText). */
+function plateRect(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, pr: number, align: 'left' | 'right' = 'left'): Rect {
+  ctx.font = `${Math.round(11 * pr)}px "DM Mono", ui-monospace, monospace`
+  const w = ctx.measureText(text).width + 6 * pr
+  const h = 14 * pr
+  return { x: align === 'right' ? x - w : x, y: y - h + 2 * pr, w, h }
+}
+
+const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+
 /** A text label on a dark plate (contrast stays above 6:1 whatever is drawn underneath). */
 function plateText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, fg: string, pr: number, align: 'left' | 'right' = 'left'): void {
   ctx.font = `${Math.round(11 * pr)}px "DM Mono", ui-monospace, monospace`
@@ -173,6 +195,7 @@ function drawRegions(u: uPlot, p: TimeChartProps): void {
   const ctx = u.ctx
   const { left, top, width, height } = u.bbox
   const pr = uPlot.pxRatio
+  const labels: Array<{ text: string; x: number }> = []
   ctx.save()
   ctx.beginPath()
   ctx.rect(left, top, width, height)
@@ -183,9 +206,11 @@ function drawRegions(u: uPlot, p: TimeChartProps): void {
     if (!(x1 > x0)) continue
     ctx.fillStyle = colour(r.fill)
     ctx.fillRect(x0, top, x1 - x0, height)
-    if (r.label) plateText(ctx, r.label, x0 + 4 * pr, top + 16 * pr, colour('--lf-text-muted'), pr)
+    if (r.label) labels.push({ text: r.label, x: x0 })
   }
   ctx.restore()
+  // In the lane above the plot: never on top of the data.
+  for (const l of labels) plateText(ctx, l.text, l.x, top - 3 * pr, colour('--lf-text-muted'), pr)
 }
 
 function drawOverlays(u: uPlot, p: TimeChartProps): void {
@@ -202,6 +227,8 @@ function drawOverlays(u: uPlot, p: TimeChartProps): void {
     const vx = u.valToPos(v.x, 'x', true)
     if (Number.isFinite(vx) && vx > left + width * 0.66 && vx - 6 * pr < labelRight) labelRight = vx - 6 * pr
   }
+  // Labels already placed: a mark label that would cover one moves below its mark, or is left to the list.
+  const taken: Rect[] = []
   for (const h of p.hlines ?? []) {
     const y = u.valToPos(h.y, 'y', true)
     if (!Number.isFinite(y) || y < top - 1 || y > top + height + 1) continue
@@ -216,8 +243,18 @@ function drawOverlays(u: uPlot, p: TimeChartProps): void {
     ctx.setLineDash([])
     ctx.font = `${Math.round(11 * pr)}px "DM Mono", ui-monospace, monospace`
     const fits = ctx.measureText(h.label).width < (labelRight - left) * 0.6
-    plateText(ctx, fits || !h.short ? h.label : h.short, labelRight, y - 3 * pr, c, pr, 'right')
+    // Above the line, unless that leaves the plot (a limit at the top edge): then just below it, if
+    // that does not cover another limit's label (else it stays off the canvas, as a clipped label did).
+    const text = fits || !h.short ? h.label : h.short
+    const aboveFits = y - 16 * pr >= top
+    const ly = aboveFits ? y - 3 * pr : y + 14 * pr
+    const rect = plateRect(ctx, text, labelRight, ly, pr, 'right')
+    if (aboveFits || !taken.some((t) => overlaps(t, rect))) {
+      taken.push(rect)
+      plateText(ctx, text, labelRight, ly, c, pr, 'right')
+    }
   }
+  const vlabels: Array<{ text: string; x: number; c: string; right: boolean; bottom: boolean }> = []
   for (const v of p.vlines ?? []) {
     const x = u.valToPos(v.x, 'x', true)
     if (!Number.isFinite(x) || x < left - 1 || x > left + width + 1) continue
@@ -230,9 +267,7 @@ function drawOverlays(u: uPlot, p: TimeChartProps): void {
     ctx.lineTo(x, top + height)
     ctx.stroke()
     ctx.setLineDash([])
-    const right = x > left + width * 0.7
-    const ly = v.labelAt === 'bottom' ? top + height - 6 * pr : top + 16 * pr
-    plateText(ctx, v.label, right ? x - 4 * pr : x + 4 * pr, ly, c, pr, right ? 'right' : 'left')
+    vlabels.push({ text: v.label, x, c, right: x > left + width * 0.7, bottom: v.labelAt === 'bottom' })
   }
   for (const m of p.marks ?? []) {
     const x = u.valToPos(m.x, 'x', true)
@@ -254,10 +289,26 @@ function drawOverlays(u: uPlot, p: TimeChartProps): void {
     }
     if (m.label) {
       const right = x > left + width * 0.65
-      plateText(ctx, m.label, right ? x - r - 3 * pr : x + r + 3 * pr, y - r - 2 * pr, c, pr, right ? 'right' : 'left')
+      const lx = right ? x - r - 3 * pr : x + r + 3 * pr
+      const align = right ? 'right' : 'left'
+      // Above the mark, else below it: never clipped at the top and never over another label. When both
+      // places are taken the label is left out; the list under the chart names every flagged day anyway.
+      const above = y - r - 2 * pr
+      const below = y + r + 13 * pr
+      const options = above - 14 * pr < top ? [below] : [above, below]
+      const fit = options.map((ly) => ({ ly, rect: plateRect(ctx, m.label!, lx, ly, pr, align) })).find((o) => !taken.some((t) => overlaps(t, o.rect)) && o.rect.y + o.rect.h <= top + height + 1)
+      if (fit) {
+        taken.push(fit.rect)
+        plateText(ctx, m.label, lx, fit.ly, c, pr, align)
+      }
     }
   }
   ctx.restore()
+  // Marker labels (NOW) in the lane above the plot, outside the clip: they never sit on a mark.
+  for (const l of vlabels) {
+    const ly = l.bottom ? top + height - 6 * pr : top - 3 * pr
+    plateText(ctx, l.text, l.right ? l.x + 1 * pr : l.x + 4 * pr, ly, l.c, pr, l.right ? 'right' : 'left')
+  }
 }
 
 const AXIS_FONT = '11px "DM Mono", ui-monospace, monospace'
@@ -278,9 +329,12 @@ export function TimeChart(props: TimeChartProps) {
     const axisStroke = colour('--lf-text-muted')
     const grid = { stroke: 'rgba(255,255,255,0.08)', width: 1 }
     const ticks = { stroke: 'rgba(255,255,255,0.18)', width: 1, size: 4 }
+    // The label lane above the plot (NOW, BASELINE), only when a label goes there; otherwise uPlot's own padding.
+    const lane = p.vlines?.some((v) => v.labelAt !== 'bottom') || p.regions?.some((r) => r.label) ? LABEL_LANE_PX : 0
     const opts: uPlot.Options = {
       width: w0,
       height,
+      ...(lane ? { padding: [lane + 6, null, null, null] as uPlot.Padding } : {}),
       legend: { show: false },
       cursor: { show: false },
       scales: {

@@ -1,10 +1,12 @@
-// #/ - NOW, the hero. Mars surface, MET 0412/14:20, inside a REAL solar conjunction window (JPL
-// Horizons). A replay of the REAL October 1989 GOES-7 proton event crosses the S3 level on the
-// onboard monitor; Houston cannot be reached; LANDFALL opens the shelter case on onboard data
-// alone and puts ONE action on screen. Nothing here is precomputed or typed: comms come from
-// useComms(), cases from useCases() (the engine's caseReduce fold), crew findings from
-// useEvaluation(), the flux from the scenario index, the quote from cases.json, checked against
-// the frozen standard. The "answered in" figure is this browser's measured latency.
+// #/ - NOW, the hero. Mars surface, MET 412/14:20, inside a solar conjunction window MODELLED from JPL
+// Horizons geometry (edges fitted to NASA/JPL's published command moratoria). A replay of the real
+// October 1989 GOES-7 proton event, read as an external space-weather monitor in Mars orbit (D3), crosses
+// the S3 level. The vehicle's radiation monitoring system raises the alarm ([V2 6164]); LANDFALL opens the
+// shelter health case that follows and puts ONE action on screen first, then shows how long Houston would
+// take. Nothing here is precomputed or typed: comms come from useComms(), cases from useCases() (the
+// engine's caseReduce fold), crew findings from useEvaluation(), the flux from the scenario index, the
+// quote from cases.json (checked against the frozen standard). The "guidance on screen" figure is this
+// browser's measured latency, measured on every visit (and on demand), so a deep link never shows a dash.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { formatCommsLightTime, useComms } from '../../app/comms'
@@ -12,11 +14,13 @@ import { useSnapshot } from '../../app/data'
 import { formatMet, sLevel } from '../../app/engine'
 import { useMission } from '../../app/mission'
 import { useCases, useEvaluation, useHeroTiming, useMarkHeroReady, useScenario } from '../../app/model'
+import { autonomyText, packetState } from '../../app/packet'
 import type { FeatureProps } from '../../app/router'
 import { environment } from '../../app/scenario'
 import { observationsFor } from '../../app/scenarioData'
+import type { ScenarioIndex } from '../../app/scenarioData'
 import { CREW_IDS } from '../../app/vocab'
-import type { Severity } from '../../app/vocab'
+import type { CrewId, EnvId, Observation, Severity } from '../../app/vocab'
 import { EmptyState, MetTime, SimulatedMarker, SEVERITY_LABEL } from '../../ui'
 import { DualCounter } from './DualCounter'
 import type { AnswerState, LandfallAnswer } from './DualCounter'
@@ -29,10 +33,13 @@ import {
   otherOpenCases,
   pickView,
   primaryOf,
+  runOnboard,
   sLevelDescriptor,
   sLevelLines,
   speDef,
+  unscriptedOpenings,
 } from './model'
+import type { OnboardRun } from './model'
 import { RationaleQuote } from './Quote'
 import { CrewStrip, EnvBlock, OtherCases } from './Secondary'
 import { SpeCaseCard } from './SpeCaseCard'
@@ -46,11 +53,54 @@ const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : 0)
 /** Whether the first hero mount of this page load waited for the scenario (a cold load). */
 let firstMountCold: boolean | null = null
 
+interface MeasureInput {
+  index: ScenarioIndex | null
+  runtime: readonly Observation[]
+  envId: EnvId
+  t: number
+  crewId: CrewId
+}
+
+/**
+ * The hero's latency, measured on this visit and again on demand: run the onboard path on the engine
+ * (runOnboard), paint the action it yields, and read the clock after the browser painted (double rAF).
+ * Re-runs when the environment or the crewmember changes, and when `remeasure()` is called; never on the
+ * minute tick (the number would churn).
+ */
+function useOnboardMeasure(input: MeasureInput): { run: OnboardRun | null; answerMs: number | null; remeasure: () => void } {
+  const [nonce, setNonce] = useState(0)
+  const latest = useRef(input)
+  latest.current = input
+  const key = `${input.index ? 'ready' : 'none'}|${input.envId}|${input.crewId}|${nonce}`
+  const run = useMemo(() => {
+    const x = latest.current
+    return x.index ? runOnboard(x.index, x.runtime, x.envId, x.t, x.crewId) : null
+    // Keyed on `key` only: the clock and runtime entries are read at run time, not tracked.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
+  const [painted, setPainted] = useState<{ key: string; ms: number } | null>(null)
+  useEffect(() => {
+    if (!run?.opened) return
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        const ms = nowMs() - run.startedAt
+        if (typeof document !== 'undefined') document.documentElement.dataset.onboardAnswerMs = String(Math.round(ms))
+        setPainted({ key, ms })
+      })
+    })
+    return () => {
+      cancelAnimationFrame(raf1)
+      cancelAnimationFrame(raf2)
+    }
+  }, [run, key])
+  return { run, answerMs: painted && painted.key === key ? painted.ms : null, remeasure: () => setNonce((n) => n + 1) }
+}
+
 export default function Now(_props: FeatureProps) {
-  const [mountAt] = useState(nowMs)
   const { state } = useMission()
   const scenario = useScenario()
-  // useCases() must run here: the fold processes the SPE OPEN when the hero mounts (hero timing).
+  // useCases() runs here so the fold opens the SPE case when the hero mounts (page-level timing below).
   const cases = useCases()
   const [coldMount] = useState(() => cases.status === 'loading')
   useEffect(() => {
@@ -62,7 +112,7 @@ export default function Now(_props: FeatureProps) {
   const comms = useComms()
   const replay = useSnapshot('swpc_spe_replay')
   const env = environment(state.envId)
-  /** Mars: no NOAA alert reaches the crew, so the case runs on the onboard monitor (environments.json). */
+  /** Mars: no NOAA alert reaches the crew; the case reads the Mars-orbit space-weather monitor (environments.json). */
   const onboard = env.noaa_scale_available === false
   const t = cases.t
 
@@ -75,49 +125,49 @@ export default function Now(_props: FeatureProps) {
   const threshold = typeof rule?.limit === 'number' ? rule.limit : null
   const variable = rule?.variable ?? null
 
-  // ---- onboard monitor readings that exist at the clock ----
+  // ---- the measured onboard answer (on this visit, and on demand) ----
+  const measure = useOnboardMeasure({ index: scenario.index, runtime: state.observations, envId: state.envId, t, crewId: spe?.crewId ?? state.crewId })
+  const runPrimary = measure.run?.opened ? primaryOf(speDef()) : null
+  useMarkHeroReady(measure.answerMs !== null)
+
+  // ---- monitor readings that exist at the clock ----
   const fluxObs = useMemo(
     () => (scenario.index && variable ? observationsFor(scenario.index, state.observations, null, variable) : []),
     [scenario.index, state.observations, variable],
   )
-  const series = useMemo(() => fluxWindow(fluxObs, t, SPARK_WINDOW_S, threshold), [fluxObs, t, threshold])
+  const nowMet = scenario.index?.nowMet ?? null
+  const series = useMemo(() => fluxWindow(fluxObs, t, SPARK_WINDOW_S, threshold, nowMet), [fluxObs, t, threshold, nowMet])
   const level = series.last ? sLevel(series.last.value) : null
   const levelWord = sLevelDescriptor(level)
   const levels = useMemo(() => sLevelLines(), [])
 
-  // ---- hero timing: mark once the primary countermeasure is painted ----
-  const painted = !!spe && !!primary
-  const openedHere = timing.speOpenProcessedAtMs !== null && timing.speOpenProcessedAtMs >= mountAt
-  useMarkHeroReady(painted && openedHere)
+  // The card shows the measured answer only while the shelter case is open at the clock (the fold agrees).
+  const nothingOpen = cases.status === 'ready' && (!spe || (measure.run !== null && !measure.run.opened))
   const answer: AnswerState =
     cases.status === 'error'
       ? { kind: 'unavailable', reason: `The case engine could not run in this build (${cases.error ?? 'unknown error'}).` }
-      : timing.answerMs !== null
-        ? {
-            kind: 'measured',
-            answerMs: timing.answerMs,
-            pageMs: pageCold ? timing.heroReadyAtMs : null,
-            firstLoad: timing.heroReadyAtMs !== null && timing.heroReadyAtMs >= mountAt,
-          }
-        : painted && !openedHere && timing.heroReadyAtMs === null
-          ? { kind: 'not_measured', reason: 'Not measured on this visit: another view opened the case first. Reload this page to measure.' }
-          : cases.status === 'ready' && !spe
-            ? { kind: 'unavailable', reason: 'No shelter case is open, so there is nothing to time.' }
-            : { kind: 'pending' }
+      : nothingOpen
+        ? { kind: 'unavailable', reason: 'No shelter case is open at this clock, so there is nothing to time.' }
+        : measure.answerMs !== null
+          ? { kind: 'measured', answerMs: measure.answerMs, pageMs: pageCold ? timing.heroReadyAtMs : null }
+          : { kind: 'pending' }
 
-  const severity = (opening?.severity as Severity | undefined) ?? null
+  const severity = nothingOpen ? null : ((opening?.severity as Severity | undefined) ?? (measure.run?.finding?.severity as Severity | undefined) ?? null)
   const landfall: LandfallAnswer = {
-    action: primary?.title ?? null,
+    action: nothingOpen ? null : (runPrimary?.title ?? null),
     severity,
     badge: severity ? `${level !== null ? `S${level} · ` : ''}${SEVERITY_LABEL[severity]}` : null,
     answer,
+    onRemeasure: measure.run ? measure.remeasure : null,
   }
   const commsSettled = comms.snapshotId === null || (comms.snapshotStatus !== 'loading' && (comms.basis !== 'fallback' || scenario.status !== 'loading'))
   const ready = cases.status !== 'loading' && commsSettled
+  const packet = packetState(spe?.state ?? null)
 
   // ---- secondary row ----
   const others = useMemo(() => otherOpenCases(cases.cases, SPE_CASE_ID), [cases.cases])
   const crew = useMemo(() => crewStatuses(evaluation.evaluation?.alerts ?? []), [evaluation.evaluation])
+  const unscripted = useMemo(() => unscriptedOpenings(scenario.sim.data), [scenario.sim.data])
 
   // ---- announcements (aria-live): each case that opens or changes status, once ----
   const announce = useAnnouncer(cases.status, speViews, others, primary?.title ?? null)
@@ -137,6 +187,7 @@ export default function Now(_props: FeatureProps) {
       ]
     : [cases.status === 'loading' ? 'Now' : cases.status === 'error' ? 'Case engine unavailable on this build' : 'No case needs action right now']
   const speDefinition = spe?.def ?? speDef()
+  const openedLevel = opening?.value != null ? sLevel(opening.value) : level
 
   return (
     <div className="now">
@@ -154,27 +205,31 @@ export default function Now(_props: FeatureProps) {
         <div className="now-head-side">
           {spe && spe.state.opened_at !== null ? (
             <p className="now-lede">
-              {onboard ? 'The onboard monitor' : "NOAA's proton feed"} reached the{' '}
-              <span className="lf-num">S{opening?.value != null ? sLevel(opening.value) : level}</span> level at{' '}
-              <MetTime t={spe.state.opened_at} label />. LANDFALL opened the shelter case for{' '}
-              {speViews.length === CREW_IDS.length ? 'every crewmember' : `${speViews.length} crew`}
-              {onboard ? ' from onboard data alone' : ' on its own'}
-              {comms.blocked ? '. Houston sees it when the link resumes.' : '. Houston is told too; nobody waits for the reply.'}
+              {onboard ? 'The Mars-orbit space-weather monitor' : "NOAA's GOES proton feed"} reached the <span className="lf-num">S{openedLevel}</span> level at{' '}
+              <MetTime t={spe.state.opened_at} label />. The {onboard ? "habitat's" : "vehicle's"} radiation monitoring system raises the alarm; LANDFALL opened the
+              shelter health case for {speViews.length === CREW_IDS.length ? 'every crewmember' : `${speViews.length} crew`} and guides the crew.{' '}
+              {comms.blocked ? (
+                <>
+                  With no link, the crew acts onboard with the Crew Medical Officer. Ground packet: <strong>{packet.label}</strong>.
+                </>
+              ) : (
+                (autonomyText(comms) ?? 'With the link up, the crew follows Mission Control and flight-surgeon direction.')
+              )}
             </p>
           ) : (
             <p className="now-lede">
               {cases.status === 'loading'
-                ? 'Reading the frozen scenario and the onboard monitor.'
+                ? 'Reading the frozen scenario and the space-weather monitor.'
                 : cases.status === 'error'
                   ? 'The comms figures below are real; the case and crew findings need the engine (each panel says why).'
-                  : 'The onboard monitor is below every case threshold.'}
+                  : 'The proton flux is below every case threshold.'}
             </p>
           )}
           <SimulatedMarker variant="inline">crew and clock · the flux is a replay of a real event</SimulatedMarker>
         </div>
       </header>
 
-      <DualCounter comms={comms} ready={ready} landfall={landfall} />
+      <DualCounter comms={comms} ready={ready} landfall={landfall} packetLabel={spe ? packet.label : null} />
       <RationaleQuote />
 
       {spe ? (
@@ -191,6 +246,7 @@ export default function Now(_props: FeatureProps) {
           replay={replay}
           seriesLabel={feedLabel(evaluation.evaluation?.ops.label ?? null) ?? (variable ? (scenario.index?.variables[variable]?.label ?? null) : null)}
           onboard={onboard}
+          comms={comms}
           t={t}
         />
       ) : cases.status === 'error' ? (
@@ -199,7 +255,7 @@ export default function Now(_props: FeatureProps) {
         </EmptyState>
       ) : cases.status === 'loading' ? (
         <EmptyState kind="loading" title={speDefinition?.title ?? 'Solar particle event: shelter'}>
-          <p>Reading the onboard monitor and the frozen scenario.</p>
+          <p>Reading the space-weather monitor and the frozen scenario.</p>
         </EmptyState>
       ) : (
         <EmptyState kind="placeholder" title={speDefinition?.title ?? 'Solar particle event: shelter'}>
@@ -211,7 +267,7 @@ export default function Now(_props: FeatureProps) {
         <h2 id="now-row-h" className="sr-only">
           Mission status
         </h2>
-        <OtherCases views={others} status={cases.status} error={cases.error} />
+        <OtherCases views={others} status={cases.status} error={cases.error} unscripted={unscripted} />
         <CrewStrip
           crew={crew}
           status={evaluation.status}

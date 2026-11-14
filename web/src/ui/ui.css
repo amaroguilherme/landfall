@@ -128,6 +128,7 @@
 }
 .lf-num data { font: inherit; }
 .lf-num-unit { margin-left: 0.3em; font-size: 0.85em; color: var(--lf-text-muted); }
+.lf-num-sep { font-size: 0; }
 .lf-num[data-missing] { color: var(--lf-data-stale); }
 .lf-num-arrow { display: inline-flex; margin-left: 0.2em; vertical-align: -0.05em; }
 .lf-num[data-severity='caution'] .lf-num-arrow { color: var(--lf-sev-caution); }
@@ -158,7 +159,7 @@
 .lf-fresh[data-state='loading'] { color: var(--lf-data-unavailable); border-style: dashed; }
 
 /* ---- citations ---- */
-.lf-cite { font-style: normal; font-size: var(--lf-text-sm); color: var(--lf-text-2); }
+.lf-cite { font-style: normal; font-size: var(--lf-text-sm); color: var(--lf-text-2); overflow-wrap: anywhere; } /* a URL in a citation must not push a phone layout wide */
 .lf-cite-sec { color: var(--lf-text-muted); }
 .lf-req { font-family: var(--lf-font-mono); font-size: 0.95em; color: var(--lf-text); white-space: nowrap; }
 .lf-ext { display: inline; }

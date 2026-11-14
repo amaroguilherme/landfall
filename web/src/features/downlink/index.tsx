@@ -1,11 +1,14 @@
 // DOWNLINK (#/downlink): the privacy gate and the delay-tolerant ground packet.
-//   - What LANDFALL knows: everything held on this device for the selected crewmember, with a
+//   - Held on board: everything held on this device for the selected crewmember, with a
 //     per-variable sharing switch (store consent). Mood is private by default and only a
 //     separate, explicit "share mood" action with a plain warning can change that.
-//   - What Houston sees: the FHIR R4 Bundle the ENGINE builds for the selected case
-//     (useGroundPacket -> buildGroundPacket), shown as counts, codes, bytes and pretty JSON.
-//   - Queue status from useComms (engine commsEta on the JPL Horizons snapshot): at Mars in
-//     conjunction the packet is QUEUED until the real window ends.
+//   - In the ground packet: the FHIR R4 Bundle the ENGINE builds for the selected case
+//     (useGroundPacket -> buildGroundPacket), shown as counts, codes, bytes and pretty JSON, plus a
+//     case's note for the flight surgeon (D12: the only place a medication is named).
+//   - Packet state: ONE state for every view (app/packet.ts, meta.json packet_states): "Prepared (held
+//     on board)" until the crew releases it or the case escalates, then "Queued"; a queued packet is sent
+//     when a link exists (engine commsEta: at Mars during the modelled conjunction window, when the link
+//     resumes). The escalation tiers (D4) say who has the case now and when the ground gets it.
 // Nothing is transmitted: there is no backend, and "Copy packet" only uses the local clipboard.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -17,17 +20,20 @@ import { CASE_DEFS, CASE_IDS } from '../../app/caseTimeline'
 import { visibleObservations } from '../../app/scenarioData'
 import { formatUtc, useSnapshot } from '../../app/data'
 import type { Snapshot, SnapshotState } from '../../app/data'
-import { useComms, formatCommsLightTime, formatCountdown, formatEarliestReply } from '../../app/comms'
+import { useComms, formatCommsLightTime, formatCountdown, formatEarliestReply, windowModelNote } from '../../app/comms'
 import type { CommsStatus } from '../../app/comms'
 import { consentAllows } from '../../app/engine'
 import type { CaseStatus, FhirBundle } from '../../app/engine'
+import { autonomyText, escalationTiers, packetDelivery, packetState, ESCALATION_BASIS } from '../../app/packet'
+import type { PacketState } from '../../app/packet'
 import { CREW, crewMember, isCrewId } from '../../app/vocab'
-import type { CrewId } from '../../app/vocab'
+import type { CrewId, Observation } from '../../app/vocab'
 import {
   AntennaIcon,
   Button,
   ChevronIcon,
   Chip,
+  Citation,
   EmptyState,
   FreshnessChip,
   MetTime,
@@ -47,8 +53,9 @@ import {
   prettyPacket,
   sentenceContaining,
   summarizePacket,
+  surgeonNoteOf,
 } from './model'
-import type { HoustonRow, KnownRow, PacketSummary, Vol2Requirement } from './model'
+import type { HoustonRow, KnownRow, PacketSummary, SurgeonNote, Vol2Requirement } from './model'
 import './downlink.css'
 
 /** Entries shown in the on-screen JSON preview before "Show all" (a display choice only). */
@@ -71,7 +78,8 @@ interface Vol2Data {
   requirements?: unknown[]
 }
 
-type QueueState = 'queued' | 'ready' | 'not_open' | 'no_packet' | 'unavailable'
+type QueueState = 'queued' | 'prepared' | 'not_open' | 'no_packet' | 'unavailable'
+
 
 // ---------------------------------------------------------------------------------------------
 
@@ -117,7 +125,7 @@ export default function Downlink({ query }: FeatureProps) {
     )
   }
   const casesError = cases.status === 'error' ? (cases.error ?? 'unknown error') : null
-  return <DownlinkView crewId={crewId} caseId={caseId} cases={mine} casesError={casesError} onPickCase={setChosen} />
+  return <DownlinkView crewId={crewId} caseId={caseId} cases={mine} scripted={cases.scripted} casesError={casesError} onPickCase={setChosen} />
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -126,12 +134,15 @@ function DownlinkView({
   crewId,
   caseId,
   cases,
+  scripted,
   casesError,
   onPickCase,
 }: {
   crewId: CrewId
   caseId: string
   cases: CaseView[]
+  /** The seeded crew's answers as observations (useCases().scripted), held on board like a logged answer. */
+  scripted: readonly Observation[]
   /** The shared case model failed (engine error): no case state, so no packet can be built. */
   casesError: string | null
   onPickCase: (id: string) => void
@@ -151,8 +162,8 @@ function DownlinkView({
   const scope = useMemo(() => view?.state.spec.escalation?.observations ?? [], [view])
 
   const known = useMemo(
-    () => knownRows(visibleObservations(index, state.observations, t), crewId, index.variables),
-    [index, state.observations, t, crewId],
+    () => knownRows(visibleObservations(index, scripted.length ? [...state.observations, ...scripted] : state.observations, t), crewId, index.variables),
+    [index, state.observations, scripted, t, crewId],
   )
   const summary = useMemo(() => (packet.bundle ? summarizePacket(packet.bundle, scope, crewId) : null), [packet.bundle, scope, crewId])
   const houston = useMemo(() => houstonRows(scope, packet.consent, summary, known, index.variables), [scope, packet.consent, summary, known, index.variables])
@@ -165,15 +176,15 @@ function DownlinkView({
   const [announce, setAnnounce] = useState('')
   const say = (s: string) => setAnnounce((prev) => (prev === s ? `${s} ` : s))
 
+  // The same packet state as the hero and the case page (app/packet.ts); the link only decides WHEN a queued packet is sent.
+  const pstate = packetState(view?.state ?? null)
   const queue: QueueState = casesError
     ? 'unavailable'
-    : view?.state.spec.escalation?.ground_packet === false
+    : pstate.id === 'no_packet'
       ? 'no_packet'
-      : !packet.caseOpen
+      : pstate.id === 'not_open'
         ? 'not_open'
-        : comms.blocked
-          ? 'queued'
-          : 'ready'
+        : pstate.id
 
   const toggle = (row: KnownRow, shared: boolean) => {
     setConsent(crewId, row.variable, shared)
@@ -186,12 +197,13 @@ function DownlinkView({
         <p className="lf-eyebrow">Downlink · delay-tolerant ground packet · FHIR R4</p>
         <h1>Ground packet</h1>
         <p className="dl-lede">
-          LANDFALL acts on board without waiting for Houston. When a case opens it also prepares a packet for the flight surgeon and
-          holds it until a link exists. The crewmember decides what goes in it.
+          The crew acts on board without waiting for Houston. When a case opens, a packet for the flight surgeon is prepared and held on board
+          (Prepared). It becomes Queued when the crew releases it or the case escalates, and a queued packet is sent when a link exists. The
+          crewmember decides what goes in it.
         </p>
         <SimulatedMarker variant="banner">
-          Crew values on this page are simulated. Light time, the conjunction window and the proton event are real NASA / NOAA data,
-          frozen at build. Nothing leaves this browser.
+          Crew values on this page are simulated. Light time comes from the JPL Horizons ephemeris and the conjunction window is modelled from
+          it; the proton event is a replay of real NOAA data. All frozen at build. Nothing leaves this browser.
         </SimulatedMarker>
       </header>
 
@@ -219,6 +231,7 @@ function DownlinkView({
 
       <QueueCard
         queue={queue}
+        packet={pstate}
         comms={comms}
         t={t}
         crewId={crewId}
@@ -230,6 +243,8 @@ function DownlinkView({
         vol2={vol2}
         onCopied={say}
       />
+
+      {queue !== 'unavailable' && queue !== 'no_packet' ? <EscalationPanel view={view} comms={comms} t={t} /> : null}
 
       {casesError ? (
         <EmptyState kind="error" title="Cases are unavailable right now">
@@ -251,7 +266,7 @@ function DownlinkView({
           <div>
             <p className="lf-eyebrow">Privacy gate · {crew.id} {crew.role}</p>
             <h2 id="dl-gate-h" className="lf-panel-title">
-              What LANDFALL knows, and what Houston sees
+              Held on board, and sent to the ground
             </h2>
           </div>
         </header>
@@ -278,6 +293,7 @@ function DownlinkView({
             scope={scope}
             summary={summary}
             queue={queue}
+            note={surgeonNoteOf(def)}
           />
         </div>
         <footer className="lf-panel-foot dl-gate-foot">
@@ -334,6 +350,7 @@ function Segmented({
 
 function QueueCard({
   queue,
+  packet,
   comms,
   t,
   crewId,
@@ -346,6 +363,7 @@ function QueueCard({
   onCopied,
 }: {
   queue: QueueState
+  packet: PacketState
   comms: CommsStatus
   t: number
   crewId: CrewId
@@ -358,12 +376,13 @@ function QueueCard({
   onCopied: (s: string) => void
 }) {
   const resumes = comms.resumes_at
+  // The packet state's own label (meta.json packet_states), identical on the hero and the case page.
   const tag: Record<QueueState, string> = {
-    queued: 'QUEUED',
-    ready: 'READY TO SEND',
-    not_open: 'NOT QUEUED',
-    no_packet: 'NO PACKET',
-    unavailable: 'UNAVAILABLE',
+    queued: packet.label,
+    prepared: packet.label,
+    not_open: 'Not open',
+    no_packet: 'No packet',
+    unavailable: 'Unavailable',
   }
   const owltUnknown = comms.one_way_s === null
   return (
@@ -383,30 +402,48 @@ function QueueCard({
         </p>
         <p className="dl-queue-status" aria-live="polite">
           <span className="dl-queue-tag">
-            {queue === 'queued' ? <QueuedIcon size={18} /> : queue === 'ready' ? <AntennaIcon size={18} /> : <OnboardIcon size={18} />}
+            {queue === 'queued' ? <QueuedIcon size={18} /> : <OnboardIcon size={18} />}
             {tag[queue]}
           </span>
           <span className="dl-queue-line">
             {queue === 'queued' ? (
-              resumes !== null ? (
-                <>
-                  Transmits when the link resumes in <span className="lf-num dl-big">{formatCountdown(resumes - t)}</span>
-                </>
-              ) : (
-                <>
-                  Transmits when the link resumes.{' '}
-                  <span className="dl-missing">
-                    <UnknownIcon size={13} /> Resume time unknown: the ephemeris is not in this build.
-                  </span>
-                </>
-              )
-            ) : queue === 'ready' ? (
               <>
-                Link up: it would reach Houston in <span className="lf-num dl-big" data-missing={owltUnknown || undefined}>{formatCommsLightTime(comms)}</span>{' '}
-                (one-way light time).
+                Queued at <MetTime t={packet.queuedAt ?? t} label /> ({packet.reason === 'escalated' ? 'the case escalated' : 'released by the crew'}).{' '}
+                {comms.blocked ? (
+                  resumes !== null ? (
+                    <>
+                      Sent when the link resumes, in <span className="lf-num dl-big">{formatCountdown(resumes - t)}</span>
+                    </>
+                  ) : (
+                    <>
+                      Sent when the link resumes.{' '}
+                      <span className="dl-missing">
+                        <UnknownIcon size={13} /> Resume time unknown: the ephemeris is not in this build.
+                      </span>
+                    </>
+                  )
+                ) : (
+                  <>
+                    Sent at once: the link is up, and it reaches Houston in{' '}
+                    <span className="lf-num dl-big" data-missing={owltUnknown || undefined}>
+                      {formatCommsLightTime(comms)}
+                    </span>{' '}
+                    (one-way light time).
+                  </>
+                )}
+              </>
+            ) : queue === 'prepared' ? (
+              <>
+                {packetDelivery(packet, comms, t)}.
+                {comms.blocked && resumes !== null ? (
+                  <>
+                    {' '}
+                    The link is down in any case: it resumes in <span className="lf-num">{formatCountdown(resumes - t)}</span>.
+                  </>
+                ) : null}
               </>
             ) : queue === 'not_open' ? (
-              <>This case is not open for {crewId}, so nothing is queued. Below is what its packet would carry if it opened.</>
+              <>This case is not open for {crewId}, so no packet is prepared. Below is what its packet would carry if it opened.</>
             ) : queue === 'unavailable' ? (
               <>The cases could not be evaluated, so no packet can be built. The link status below is still current.</>
             ) : (
@@ -425,7 +462,7 @@ function QueueCard({
                   <>
                     {' '}
                     from <time className="lf-num">{formatUtc(comms.window.startUtc)}</time> to{' '}
-                    <time className="lf-num">{formatUtc(comms.window.stopUtc)}</time>
+                    <time className="lf-num">{formatUtc(comms.window.stopUtc)}</time>, a window {windowModelNote(comms.windowModel)}
                   </>
                 ) : null}
                 .
@@ -480,7 +517,8 @@ function QueueCard({
               </blockquote>
               <figcaption>
                 <ReqId id={req.id} /> rationale, {req.title} · NASA-STD-3001 Vol. 2 Rev. {vol2.data?.document?.revision ?? '?'} §{req.section}. Verbatim
-                from the frozen standard. LANDFALL has already alerted the crew on board; this packet is how it tells the operations team.
+                from the frozen standard. On board the crew is already acting on the case; this packet is how the flight surgeon and the operations
+                team get it.
               </figcaption>
             </>
           ) : (
@@ -498,6 +536,73 @@ function QueueCard({
             </p>
             <CopyButton text={summary.pretty} entries={summary.entries} bytes={summary.prettyBytes} onCopied={onCopied} />
           </div>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
+// ---- escalation tiers (D4) -----------------------------------------------------------------------
+
+const REASON_TEXT: Record<string, string> = {
+  tripwire: 'the tripwire tripped',
+  red_flag: 'a red-flag question was answered yes',
+}
+
+function EscalationPanel({ view, comms, t }: { view: CaseView | null; comms: CommsStatus; t: number }) {
+  const esc = view?.state.escalation ?? null
+  const tiers = escalationTiers(comms, t)
+  const autonomy = autonomyText(comms)
+  const stepNo = esc?.step_id ? (view?.state.spec.step_ids.indexOf(esc.step_id) ?? -1) + 1 : 0
+  return (
+    <section className="dl-esc lf-panel" aria-labelledby="dl-esc-h" data-escalated={esc ? true : undefined}>
+      <header className="lf-panel-head">
+        <div>
+          <p className="lf-eyebrow">Escalation · two tiers</p>
+          <h2 id="dl-esc-h" className="lf-panel-title">
+            {esc ? 'Escalated' : 'If this case escalates'}
+          </h2>
+        </div>
+        <div className="lf-panel-actions">
+          <Chip kind={ESCALATION_BASIS.chip} />
+        </div>
+      </header>
+      <div className="lf-panel-body">
+        {esc ? (
+          <p className="dl-col-note">
+            Escalated at <MetTime t={esc.t} label />: {REASON_TEXT[esc.reason] ?? esc.reason}
+            {stepNo > 0 ? (
+              <>
+                {' '}
+                (step <span className="lf-num">{stepNo}</span>)
+              </>
+            ) : null}
+            . The ground packet was queued then.
+          </p>
+        ) : (
+          <p className="dl-col-note">A case escalates when its tripwire trips or a red-flag question is answered yes. Then:</p>
+        )}
+        <ol className="dl-tiers">
+          {tiers.map((tier) => (
+            <li key={tier.id}>
+              <span className="dl-tier-n">
+                Tier <span className="lf-num">{tier.tier}</span>
+              </span>
+              <span>
+                <strong>
+                  {tier.label}
+                  {tier.crew ? `, ${tier.crew}` : ''}
+                </strong>
+                : {tier.when}.
+              </span>
+            </li>
+          ))}
+        </ol>
+        {autonomy ? <p className="dl-col-note">{autonomy}</p> : null}
+        {ESCALATION_BASIS.source ? (
+          <p className="dl-col-note dl-fine">
+            <Citation source={ESCALATION_BASIS.source} />
+          </p>
         ) : null}
       </div>
     </section>
@@ -571,9 +676,17 @@ function CopyButton({
   )
 }
 
-// ---- What LANDFALL knows ----------------------------------------------------------------------------
+// ---- Held on board ------------------------------------------------------------------------------------
 
-const UNIT_TEXT: Record<string, string> = { score_1_5: 'of 5' }
+// Display text only: the packet itself keeps the data unit (UCUM in FHIR). µ, not the ASCII "u" of the data files.
+const UNIT_TEXT: Record<string, string> = { score_1_5: 'of 5', 'uGy/day': 'µGy/day', 'uGy/min': 'µGy/min', uGy: 'µGy', uSv: 'µSv' }
+
+/** A record's latest value: a yes/no answer as "yes" / "no", a MET stamp as a MET time, else a number and unit. */
+function LatestValue({ o }: { o: Observation }) {
+  if (o.unit === 'yes/no') return <strong>{o.value === 1 ? 'yes' : o.value === 0 ? 'no' : '?'}</strong>
+  if (o.unit === 'MET') return <MetTime t={o.value} label />
+  return <Num value={o.value} unit={UNIT_TEXT[o.unit] ?? o.unit} />
+}
 
 function sourceText(r: KnownRow): string {
   return r.sources.join(', ')
@@ -634,8 +747,7 @@ function KnownItem({
         ) : null}
       </div>
       <div className="dl-row-data" id={`${id}-d`}>
-        <Num value={r.count} /> {r.count === 1 ? 'record' : 'records'} · latest{' '}
-        <Num value={r.last.value} unit={UNIT_TEXT[r.last.unit] ?? r.last.unit} /> at <MetTime t={r.last.t} /> · {sourceText(r)}{' '}
+        <Num value={r.count} /> {r.count === 1 ? 'record' : 'records'} · latest <LatestValue o={r.last} /> at <MetTime t={r.last.t} /> · {sourceText(r)}{' '}
         <ProvTags r={r} replayTitle={replayTitle} />
       </div>
       <label className="dl-switch">
@@ -691,9 +803,9 @@ function KnowsColumn({
       <p className="lf-eyebrow">
         <OnboardIcon size={12} /> On board, this device
       </p>
-      <h3 id="dl-knows-h">What LANDFALL knows</h3>
+      <h3 id="dl-knows-h">Held on board</h3>
       <p className="dl-col-note">
-        Everything held for {crewId}. Each switch decides whether that variable may leave the vehicle in a ground packet.
+        Everything held for {crewId} on this device. Each switch decides whether that variable may leave the vehicle in a ground packet.
       </p>
       <h4 className="dl-sub">{crewId}’s own records</h4>
       <ul className="dl-list">{own.map(item)}</ul>
@@ -793,7 +905,7 @@ function MoodBlock({ r, crewId, shared, onMood }: { r: KnownRow; crewId: CrewId;
   )
 }
 
-// ---- What Houston sees --------------------------------------------------------------------------------
+// ---- In the ground packet -------------------------------------------------------------------------------
 
 const HSTATE: Record<HoustonRow['state'], { text: string }> = {
   in_packet: { text: 'In packet' },
@@ -809,6 +921,7 @@ function SeesColumn({
   scope,
   summary,
   queue,
+  note,
 }: {
   crewId: CrewId
   caseTitle: string
@@ -817,12 +930,14 @@ function SeesColumn({
   scope: readonly string[]
   summary: PacketSummary | null
   queue: QueueState
+  /** The case's note for the flight surgeon (D12), shown only here, with the ground packet. */
+  note: SurgeonNote | null
 }) {
   const notAsked = known.filter((k) => !scope.includes(k.variable))
   const noRecord = rows.some((r) => r.state === 'no_record')
   const when: Record<QueueState, string> = {
-    queued: 'when the link resumes',
-    ready: 'when sent',
+    queued: 'queued, sent when a link exists',
+    prepared: 'once the packet is released or the case escalates',
     not_open: 'if the case opens',
     no_packet: 'never, for this case',
     unavailable: 'unknown',
@@ -834,7 +949,7 @@ function SeesColumn({
           <p className="lf-eyebrow">
             <AntennaIcon size={12} /> To the ground
           </p>
-          <h3 id="dl-sees-h">What Houston sees</h3>
+          <h3 id="dl-sees-h">In the ground packet</h3>
           <p className="dl-col-note dl-missing">
             <UnknownIcon size={13} /> Unknown right now: the packet is built by the engine from a case state, and the cases could not be
             evaluated. Nothing is sent in the meantime.
@@ -849,7 +964,7 @@ function SeesColumn({
       <p className="lf-eyebrow">
         <AntennaIcon size={12} /> To the ground, {when[queue]}
       </p>
-      <h3 id="dl-sees-h">What Houston sees</h3>
+      <h3 id="dl-sees-h">In the ground packet</h3>
       <p className="dl-col-note">
         Only the packet for <strong>{caseTitle}</strong>: the variables this case asks for, minus what {crewId} keeps on board.
       </p>
@@ -897,6 +1012,21 @@ function SeesColumn({
           ) : null}
           , and nothing else.
         </p>
+      ) : null}
+      {note ? (
+        <div className="dl-fsnote" role="note" aria-labelledby="dl-fsnote-h">
+          <h4 className="dl-sub" id="dl-fsnote-h">
+            Note for the flight surgeon
+          </h4>
+          <p className="dl-fsnote-text">{note.text}</p>
+          <p className="dl-col-note dl-fine">
+            {note.chip ? <Chip kind={note.chip} /> : null} {note.source ? <Citation source={note.source} /> : null}
+          </p>
+          <p className="dl-col-note dl-fine">
+            Shown only here, with the ground packet, for the flight surgeon. No crew-facing view names a medication, and the note is not a FHIR
+            resource in this build.
+          </p>
+        </div>
       ) : null}
       {notAsked.length ? (
         <div className="dl-notasked">

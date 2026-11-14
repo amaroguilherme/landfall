@@ -21,10 +21,13 @@ import {
   pickView,
   primaryOf,
   rollValue,
+  runOnboard,
   sLevelDescriptor,
   sLevelLines,
   sourceRuleOf,
   speDef,
+  triggerLabel,
+  unscriptedOpenings,
   verbatimCheck,
   logRange,
 } from './model'
@@ -44,15 +47,20 @@ const NOW = INDEX.nowMet
 const sources = import.meta.glob<string>('./*.tsx', { eager: true, query: '?raw', import: 'default' })
 
 describe('autoplay sequence', () => {
-  it('runs the counter, then the link state, then LANDFALL, then ends', () => {
-    expect(phaseAt(0)).toBe('eta')
+  it('lights LANDFALL first (action and latency within 0.3 s), then runs Houston, then ends', () => {
+    expect(phaseAt(0)).toBe('landfall')
+    expect(phaseAt(SEQUENCE.rollStart - 1)).toBe('landfall')
+    expect(phaseAt(SEQUENCE.rollStart)).toBe('eta')
     expect(phaseAt(SEQUENCE.queuedAt - 1)).toBe('eta')
     expect(phaseAt(SEQUENCE.queuedAt)).toBe('link')
-    expect(phaseAt(SEQUENCE.landfallAt)).toBe('landfall')
     expect(phaseAt(SEQUENCE.doneAt)).toBe('done')
     expect(phaseAt(Number.POSITIVE_INFINITY)).toBe('done')
-    // the LANDFALL card lights within 5 s (the judge's window)
-    expect(SEQUENCE.landfallAt).toBeLessThan(5000)
+    // the onboard answer is on screen before Houston's counter starts, and within 0.3 s
+    expect(SEQUENCE.landfallAt).toBeLessThan(SEQUENCE.rollStart)
+    expect(SEQUENCE.actionAt + 200).toBeLessThanOrEqual(300)
+    expect(SEQUENCE.rollStart).toBeLessThan(SEQUENCE.rollEnd)
+    expect(SEQUENCE.rollEnd).toBeLessThan(SEQUENCE.queuedAt)
+    expect(SEQUENCE.queuedAt).toBeLessThan(SEQUENCE.doneAt)
   })
   it('counts 0 -> target, monotonic, exactly the target at the end', () => {
     const target = 2381.0049
@@ -115,8 +123,8 @@ describe('onboard monitor window', () => {
     expect(w.last?.value).toBe(ops.flux)
     expect(w.last?.t).toBe(ops.t)
     // the post-"now" replay is not visible at now, and appears as the clock passes it
-    expect(w.replayAfterNow).toBe(0)
-    expect(fluxWindow(obs, NOW + 3600, 8 * 3600, rule.limit).replayAfterNow).toBeGreaterThan(0)
+    expect(fluxWindow(obs, NOW, 8 * 3600, rule.limit, NOW).replayAfterNow).toBe(0)
+    expect(fluxWindow(obs, NOW + 3600, 8 * 3600, rule.limit, NOW).replayAfterNow).toBeGreaterThan(0)
   })
   it('colours only samples at or above the threshold (plus the joining sample)', () => {
     const w = fluxWindow(obs, NOW, 8 * 3600, rule.limit)
@@ -139,17 +147,59 @@ describe('onboard monitor window', () => {
   })
 })
 
+describe('the onboard path the hero times (run on demand)', () => {
+  it('opens the shelter case from the latest monitor reading, with the rule of the environment', () => {
+    let clock = 1000
+    const mars = runOnboard(INDEX, [], 'mars_surface', NOW, 'CM-1', () => clock++)
+    expect(mars.startedAt).toBe(1000)
+    expect(mars.opened).toBe(true)
+    expect(mars.ruleId).toBe('ops_onboard_proton_s3')
+    expect(mars.state?.status).toBe('detected')
+    expect(mars.finding?.severity).toBe('warning')
+    expect(mars.finding?.value).toBe(evaluateOps(INDEX, [], 'mars_surface', NOW).flux)
+    expect(runOnboard(INDEX, [], 'iss', NOW, 'CM-2').ruleId).toBe('ops_noaa_s3')
+  })
+  it('opens nothing before the crossing, so there is nothing to time', () => {
+    const before = runOnboard(INDEX, [], 'mars_surface', NOW - 3600, 'CM-1')
+    expect(before.opened).toBe(false)
+    expect(before.state).toBeNull()
+  })
+})
+
+describe('the simulator\'s own report on unscripted openings', () => {
+  it('reads sim_crew self_check.unscripted_case_openings and names the trigger in plain language', () => {
+    const list = unscriptedOpenings(SIM.data)
+    const raw = (SIM.data as { self_check?: { unscripted_case_openings?: unknown[] } }).self_check?.unscripted_case_openings ?? []
+    expect(list).toHaveLength(raw.length)
+    for (const u of list) {
+      expect(triggerLabel(u.indicator_id)).toBe(getCase(RULES, u.case_id) ? (RULES.personal!.indicators.find((i) => i.id === u.indicator_id)?.label ?? null) : null)
+      expect(triggerLabel(u.indicator_id)).not.toContain('_')
+    }
+    expect(unscriptedOpenings(null)).toEqual([])
+    expect(unscriptedOpenings({ self_check: { unscripted_case_openings: [{ crew_id: 'CM-1' }] } })).toEqual([])
+  })
+})
+
 describe('crew strip', () => {
   const a = (id: string, crew: AlertItem['crew_id'], severity: AlertItem['severity']): AlertItem => ({ id, crew_id: crew, severity, title: id })
   it('takes the worst severity per crewmember, crew-wide alerts included', () => {
-    const s = crewStatuses([a('ALL:ops', 'ALL', 'caution'), a('CM-2:ffd', 'CM-2', 'warning'), a('CM-1:pvt', 'CM-1', 'caution')])
+    const s = crewStatuses([a('ALL:ops', 'ALL', 'warning'), a('CM-2:ffd', 'CM-2', 'caution'), a('CM-1:pvt', 'CM-1', 'warning')])
     const by = Object.fromEntries(s.map((x) => [x.crewId, x]))
-    expect(by['CM-2'].severity).toBe('warning')
-    expect(by['CM-2'].top?.id).toBe('CM-2:ffd')
+    expect(by['CM-2'].severity).toBe('warning') // the crew-wide S3 warning outranks a fitness caution
+    expect(by['CM-2'].top?.id).toBe('ALL:ops')
     expect(by['CM-1'].top?.id).toBe('CM-1:pvt') // own finding preferred over a crew-wide one of equal severity
     expect(by['CM-3'].top?.id).toBe('ALL:ops')
     expect(by['CM-1'].count).toBe(2)
-    expect(crewStatuses([])[0]).toMatchObject({ severity: 'nominal', top: null, count: 0 })
+    expect(crewStatuses([])[0]).toMatchObject({ severity: 'nominal', top: null, count: 0, items: [] })
+  })
+  it('lists the crewmember\'s own finding next to the crew-wide one, so a crew-wide warning never hides it', () => {
+    const s = crewStatuses([a('ALL:ops', 'ALL', 'warning'), a('CM-2:ffd', 'CM-2', 'caution'), a('CM-2:bp', 'CM-2', 'advisory')])
+    const cm2 = s.find((x) => x.crewId === 'CM-2')!
+    expect(cm2.severity).toBe('warning')
+    expect(cm2.items.map((x) => x.id)).toEqual(['ALL:ops', 'CM-2:ffd']) // most severe first; the own worst one shown
+    expect(cm2.count - cm2.items.length).toBe(1) // "+ 1 more"
+    const cm3 = s.find((x) => x.crewId === 'CM-3')!
+    expect(cm3.items.map((x) => x.id)).toEqual(['ALL:ops'])
   })
 })
 

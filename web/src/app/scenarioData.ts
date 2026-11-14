@@ -1,7 +1,8 @@
 // Scenario data -> SPEC section 4 observations (pure; no React). Reads the frozen simulated
-// scenario /data/sim_crew.json and, after scenario "now", the REAL October 1989 GOES-7 proton
+// scenario /data/sim_crew.json and, after scenario "now", the real October 1989 GOES-7 proton
 // event /data/swpc_spe_replay.json, time-shifted exactly as sim_crew documents it
-// (data.spe_day.shape.mapping.replay_utc_at_met_0412_000000).
+// (data.spe_day.shape.mapping.replay_utc_at_met_0412_000000). Each series keeps its own
+// provenance when sim_crew gives one (the proton flux is a replay before "now" too).
 //
 // Timestamps follow sim_crew data.observation_format.t_meaning: an observation's t is the MET
 // second the value became AVAILABLE (end of its measurement window). A series that documents a
@@ -25,6 +26,9 @@ export interface SimSeries {
   n?: number
   /** Documented per series when it differs from observation_format.t_meaning. */
   t_meaning?: string
+  /** The series' own provenance ('replay' for the proton flux), else the observation default 'simulated'. */
+  provenance?: string
+  label?: string
   v: Array<number | null>
   /** Replay continuation after "now" (never an observation at "now"). */
   after_now?: { start_t: number; step_s: number; n?: number; v: Array<number | null> }
@@ -33,7 +37,7 @@ export interface SimSeries {
 export interface SimCrewData {
   met: { day_s: number; first_day: number; last_day: number; baseline_days: [number, number]; now_met_s: number; now: string }
   calendar: { met_epoch_utc: string; now_utc?: string; window_met?: { start_met_s: number; stop_met_s: number } }
-  variables: Record<string, { unit: string; source: string; label?: string; cadence?: string; definition?: string; private?: boolean }>
+  variables: Record<string, { unit: string; source: string; label?: string; cadence?: string; definition?: string; private?: boolean; provenance?: string }>
   crew: Array<{ crew_id: string; role?: string; series: Record<string, SimSeries>; intraday?: Record<string, SimSeries> }>
   vehicle: { series: Record<string, SimSeries> }
   spe_day?: { met_day?: number; shape?: { mapping?: { replay_utc_at_met_0412_000000?: string; replay_utc_of_first_s3_sample?: string } } }
@@ -55,7 +59,7 @@ export const seriesKey = (crewId: string | null | undefined, variable: string): 
 export interface ScenarioIndex {
   /** sim_crew data.calendar.met_epoch_utc (UTC of MET 0). */
   epochIso: string
-  /** sim_crew data.met.now_met_s (MET 0412/14:20:00). */
+  /** sim_crew data.met.now_met_s (MET 412/14:20:00). */
   nowMet: number
   /** Fixed Tier B baseline, MET days [first, last] inclusive (SPEC 7: 368-381). */
   baselineDays: [number, number]
@@ -108,7 +112,7 @@ export function replaySampleMet(replayStartMs: number, stepS: number, i: number,
 }
 
 /**
- * Post-"now" onboard proton flux: the REAL GOES-7 October 1989 >=10 MeV series, time-shifted with
+ * Post-"now" proton flux (the Mars-orbit monitor's reading at Mars, GOES near Earth): the real GOES-7 October 1989 >=10 MeV series, time-shifted with
  * sim_crew's mapping (MET day `spe_day.met_day` 00:00 <-> replay_utc_at_met_0412_000000). Only
  * samples strictly after `nowMet` are returned: before it, sim_crew already carries the same flux.
  */
@@ -145,11 +149,12 @@ export function buildScenarioIndex(sim: SimCrewData, replay: SpeReplayData | nul
   const series = new Map<SeriesKey, Observation[]>()
   for (const member of sim.crew) {
     if (!(CREW_IDS as readonly string[]).includes(member.crew_id)) continue
-    for (const [variable, s] of Object.entries(member.series)) push(series, expandSeries(s, member.crew_id, variable))
-    for (const [variable, s] of Object.entries(member.intraday ?? {})) push(series, expandSeries(s, member.crew_id, variable))
+    for (const [variable, s] of Object.entries(member.series)) push(series, expandSeries(s, member.crew_id, variable, s.provenance ?? 'simulated'))
+    for (const [variable, s] of Object.entries(member.intraday ?? {})) push(series, expandSeries(s, member.crew_id, variable, s.provenance ?? 'simulated'))
   }
+  // sim_crew observation_format.expand: "provenance: the series' own 'provenance' when it has one".
   for (const [variable, s] of Object.entries(sim.vehicle?.series ?? {})) {
-    push(series, expandSeries(s, null, variable))
+    push(series, expandSeries(s, null, variable, s.provenance ?? 'simulated'))
   }
   // After "now": the real replay snapshot; if it is not in this build, sim_crew's own copy of it.
   let after = replayAfterNow(sim, replay)
@@ -157,7 +162,7 @@ export function buildScenarioIndex(sim: SimCrewData, replay: SpeReplayData | nul
   if (!after.length) {
     const s = sim.vehicle?.series?.proton_flux_10mev
     if (s?.after_now) {
-      after = expandSeries({ unit: s.unit, source: 'replay', start_t: s.after_now.start_t, step_s: s.after_now.step_s, v: s.after_now.v }, null, 'proton_flux_10mev', 'replay')
+      after = expandSeries({ unit: s.unit, source: 'replay', start_t: s.after_now.start_t, step_s: s.after_now.step_s, v: s.after_now.v }, null, 'proton_flux_10mev', s.provenance ?? 'replay')
       replaySnap = after.length ? 'sim_crew' : null
     }
   }

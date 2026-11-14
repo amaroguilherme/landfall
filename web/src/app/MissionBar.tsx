@@ -4,21 +4,61 @@
 import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import { AntennaIcon, FreshnessChip, MetTime, PauseIcon, PlayIcon, ResetIcon, SunIcon } from '../ui'
-import { formatCommsLightTime, formatCountdown, formatEarliestReply, useComms } from './comms'
+import { formatCommsLightTime, formatCountdown, formatEarliestReply, useComms, windowModelNote } from './comms'
 import type { CommsStatus } from './comms'
 import { formatUtc } from './data'
 import { ENVIRONMENTS, ENVIRONMENTS_SOURCE, MET_NOW_S } from './scenario'
 import { formatMet } from './engine'
 import { useMetClock, useMission } from './mission'
 import { Annunciator } from './Annunciator'
+import { useOfflineReady } from './offline'
 import { useDismissableDetails } from './useDismissableDetails'
 import { CREW, CREW_IDS, ENV_IDS } from './vocab'
 import type { CrewId, EnvId } from './vocab'
 
+/** Reset with a confirmation (it drops the user's work): a small popover, Reset or Cancel. */
+function ResetControl() {
+  const { resetScenario } = useMission()
+  const ref = useRef<HTMLDetailsElement>(null)
+  useDismissableDetails(ref)
+  const label = `Reset the scenario to MET ${formatMet(MET_NOW_S)}`
+  const close = () => {
+    const el = ref.current
+    if (el) el.open = false
+    el?.querySelector('summary')?.focus()
+  }
+  return (
+    <details className="lf-pop lf-mb-reset" ref={ref}>
+      <summary className="lf-iconbtn" aria-label={`${label}…`} title={`${label}…`}>
+        <ResetIcon size={12} />
+      </summary>
+      <div className="lf-pop-body lf-reset-body" role="group" aria-label="Reset the scenario">
+        <p className="lf-pop-note">
+          <strong>Reset the scenario?</strong> The clock goes back to <MetTime t={MET_NOW_S} label />. Your entries, case actions, Noon Sight
+          checks and acknowledgements are dropped. The environment, the crewmember and the sharing choices stay.
+        </p>
+        <div className="lf-reset-actions">
+          <button
+            type="button"
+            className="lf-btn"
+            onClick={() => {
+              resetScenario()
+              close()
+            }}
+          >
+            Reset scenario
+          </button>
+          <button type="button" className="lf-btn" data-variant="secondary" onClick={close}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </details>
+  )
+}
+
 function MetClock() {
   const { metNow, running, pause, resume } = useMetClock()
-  const { resetScenario } = useMission()
-  const resetLabel = `Reset the scenario to MET ${formatMet(MET_NOW_S)} (drops your entries and case actions)`
   return (
     <div className="lf-mb-met">
       <span className="lf-mb-label" aria-hidden="true">
@@ -35,29 +75,37 @@ function MetClock() {
       >
         {running ? <PauseIcon size={12} /> : <PlayIcon size={12} />}
       </button>
-      <button type="button" className="lf-iconbtn lf-mb-reset" onClick={resetScenario} aria-label={resetLabel} title={resetLabel}>
-        <ResetIcon size={12} />
-      </button>
+      <ResetControl />
       {!running ? <span className="lf-mb-paused">PAUSED</span> : null}
     </div>
   )
 }
 
+/** The place part of an environments.json label ("Mars surface · base" -> "Mars surface"): the bar never truncates it. */
+export function envShortLabel(label: string): string {
+  const i = label.indexOf(' · ')
+  return i > 0 ? label.slice(0, i) : label
+}
+
 function EnvSelector() {
   const { state, setEnv } = useMission()
+  const current = ENVIRONMENTS.find((e) => e.id === state.envId)
   return (
     <label className="lf-mb-field lf-mb-env">
       <span className="lf-mb-label">ENV</span>
       <select
         value={state.envId}
         onChange={(e) => setEnv(e.target.value as EnvId)}
-        title={ENVIRONMENTS_SOURCE === 'rules' ? 'From engine/rules/environments.json' : 'From engine/SPEC.md 3.1 (rules file not in this build)'}
+        title={`${current?.label ?? state.envId} (${ENVIRONMENTS_SOURCE === 'rules' ? 'engine/rules/environments.json' : 'engine/SPEC.md 3.1'})`}
       >
-        {ENV_IDS.map((id) => (
-          <option key={id} value={id}>
-            {ENVIRONMENTS.find((e) => e.id === id)?.label ?? id}
-          </option>
-        ))}
+        {ENV_IDS.map((id) => {
+          const label = ENVIRONMENTS.find((e) => e.id === id)?.label ?? id
+          return (
+            <option key={id} value={id} aria-label={label}>
+              {envShortLabel(label)}
+            </option>
+          )
+        })}
       </select>
     </label>
   )
@@ -65,15 +113,16 @@ function EnvSelector() {
 
 function CrewSelector() {
   const { state, setCrew } = useMission()
+  const current = CREW.find((m) => m.id === state.crewId)
   return (
     <label className="lf-mb-field lf-mb-crew">
       <span className="lf-mb-label">CREW</span>
-      <select value={state.crewId} onChange={(e) => setCrew(e.target.value as CrewId)}>
+      <select value={state.crewId} onChange={(e) => setCrew(e.target.value as CrewId)} title={current ? `${current.id} · ${current.role}` : undefined}>
         {CREW_IDS.map((id) => {
           const c = CREW.find((m) => m.id === id)!
           return (
-            <option key={id} value={id}>
-              {id} · {c.role}
+            <option key={id} value={id} aria-label={`${id}, ${c.role}`}>
+              {id} · {c.short}
             </option>
           )
         })}
@@ -85,7 +134,9 @@ function CrewSelector() {
 function commsSourceNote(c: CommsStatus): string {
   if (c.basis === 'snapshot') {
     return c.env.comms.conjunction
-      ? 'Light time: Earth-Mars range from the frozen JPL Horizons ephemeris divided by c. Conjunction window: the same snapshot. The mission calendar is fictional; the window is real.'
+      ? `Light time: Earth-Mars range from the frozen JPL Horizons ephemeris divided by c. Conjunction window: ${windowModelNote(c.windowModel)}${
+          c.windowModel?.maxAbsDays != null ? `, worst edge ${c.windowModel.maxAbsDays} d` : ''
+        }. It is a model of when commanding stops, not an announced window. The mission calendar is fictional.`
       : 'Light time: Earth-Moon range from the frozen JPL Horizons ephemeris divided by c (daily samples, interpolated). The Moon is never behind the Sun, so there is no conjunction.'
   }
   if (c.basis === 'static') return 'Light time is a constant of this environment (see its chip in Provenance).'
@@ -113,7 +164,10 @@ function CommsStatusCell() {
           </span>
         ) : null}
         <span className="lf-comms-owlt">
-          <span className="lf-mb-label">OWLT</span>
+          <span className="lf-mb-label" aria-hidden="true">
+            OWLT
+          </span>
+          <span className="sr-only">One-way light time</span>
           <span className="lf-num" data-missing={unknownOwlt || undefined}>
             {formatCommsLightTime(c)}
           </span>
@@ -124,8 +178,8 @@ function CommsStatusCell() {
         <p className="lf-pop-note">
           <strong>{c.link === 'LOS' ? 'Loss of signal.' : 'Acquisition of signal.'}</strong>{' '}
           {c.blocked
-            ? 'Houston cannot be reached. LANDFALL evaluates onboard and queues the ground packet.'
-            : 'Ground link available; every LANDFALL evaluation still runs onboard.'}
+            ? 'Houston cannot be reached. The crew acts onboard with the Crew Medical Officer; a ground packet waits on board until a link exists.'
+            : 'Ground link available: the crew follows Mission Control and flight-surgeon direction, and every LANDFALL evaluation still runs onboard.'}
         </p>
         <dl className="lf-dl">
           <dt>One-way light time</dt>
@@ -142,10 +196,16 @@ function CommsStatusCell() {
           </dd>
           {c.window ? (
             <>
-              <dt>Conjunction</dt>
+              <dt>Conjunction (modelled)</dt>
               <dd>
                 <span className="lf-num">{formatUtc(c.window.startUtc)}</span> to{' '}
                 <span className="lf-num">{formatUtc(c.window.stopUtc)}</span>
+                {c.window.edgeRmsDays !== null ? (
+                  <>
+                    {' '}
+                    (edges ±<span className="lf-num">{c.window.edgeRmsDays}</span> d RMS)
+                  </>
+                ) : null}
               </dd>
               <dt>Link resumes</dt>
               <dd>
@@ -173,12 +233,19 @@ function CommsStatusCell() {
           ) : null}
         </dl>
         <p className="lf-pop-note">{commsSourceNote(c)}</p>
+        <OfflineNote />
         {c.snapshotId ? (
           <FreshnessChip meta={c.snapshot} status={c.snapshotStatus ?? 'loading'} id={c.snapshotId} source={c.snapshot?.source} />
         ) : null}
       </div>
     </details>
   )
+}
+
+/** Shown only once the service worker holds a complete copy of this build (app/offline.ts). */
+function OfflineNote() {
+  const ready = useOfflineReady()
+  return ready ? <p className="lf-pop-note lf-offline-note">This build is cached on this device: it works offline after first load.</p> : null
 }
 
 /** Publish the bar's real height as --lf-missionbar-offset so scroll-padding-top tracks it on every viewport. */

@@ -12,7 +12,7 @@
 import { RULES, caseReduce, getIndicator, getRule, newCase, triggerLookup } from './engine'
 import type { CaseDef, CaseEvent, CaseState, Finding } from './engine'
 import { evaluatePersonalAt, evaluateRuleAt, opensCase } from './evaluate'
-import { observationDay, observationsFor } from './scenarioData'
+import { observationDay, observationsFor, seriesKey } from './scenarioData'
 import type { ScenarioIndex } from './scenarioData'
 import { CREW_IDS } from './vocab'
 import type { CrewId, EnvId, Observation } from './vocab'
@@ -112,8 +112,9 @@ const stepInput = (o: Observation | null) => (o ? { variable: o.variable, value:
 /**
  * Crew actions of the simulated scenario (sim_crew episodes), relative to each auto OPEN:
  *   renal_stone (CM-3): hydration selected the morning after it opened (~MET day 399), steps logged,
- *     outcome recorded at 08:00 two days before "now", so at "now" it is in WATCH with its 72-h
- *     tripwire armed (reassess after "now");
+ *     the required red-flag question r4 answered "no" (SPEC 7: the engine refuses the outcome until it
+ *     is answered or declined), outcome recorded at 08:00 two days before "now", so at "now" it is in
+ *     WATCH with its 72-h tripwire armed (reassess after "now");
  *   sleep_circadian (CM-1): light countermeasure selected after the PVT-B of the day it opened
  *     (by MET day 407), first steps logged, no outcome yet: ACTING at "now";
  *   spe_shelter: nothing scripted - the crew acts in the demo.
@@ -143,6 +144,13 @@ export function scenarioScript(
       const opened = urine.find((o) => o.t === open.t && o.crew_id === crewId) ?? null
       push({ type: 'STEP', t: tSelect + 300, step_id: 'r1', input: stepInput(opened) })
       push({ type: 'STEP', t: tSelect + 600, step_id: 'r3' })
+      // The red-flag question (required): the simulated crewmember reports none of the listed symptoms.
+      // Its variable and unit are the step's own declared input (cases.json r4), never typed here.
+      const redFlag = (def.procedure ?? []).find((p) => p.red_flag === true && p.input)
+      const rf = redFlag?.input as { variable?: unknown; unit?: unknown } | undefined
+      if (redFlag && typeof rf?.variable === 'string' && typeof rf.unit === 'string') {
+        push({ type: 'STEP', t: tSelect + 720, step_id: redFlag.id, input: { variable: rf.variable, value: false, unit: rf.unit } })
+      }
       const next = obsAfter(urine, open.t, crewId)
       if (next) push({ type: 'STEP', t: Math.max(next.t + 7.5 * 3600, tSelect + 900), step_id: 'r5', input: stepInput(next) })
       const tOutcome = (nowDay - 2) * DAY_S + 8 * 3600
@@ -168,6 +176,27 @@ export function scenarioScript(
     }
   }
   return out
+}
+
+/**
+ * Observations implied by the seeded crew's ANSWERS: a scripted step input whose variable is not a recorded
+ * series of the scenario (the renal red-flag answer, unit yes/no). The cases page logs the same kind of entry
+ * for a user's answer (yes/no as 1/0), so the ground packet and the on-board record also see the simulated
+ * crew's answer. Inputs that point at a recorded series (urine totals, PVT-B) add nothing: they are already there.
+ */
+export function scriptedAnswers(events: readonly CaseEventRecord[], index: ScenarioIndex): Observation[] {
+  const out: Observation[] = []
+  for (const r of events) {
+    if (r.origin !== 'scenario' || r.event.type !== 'STEP') continue
+    const inp = r.event.input as { variable?: unknown; value?: unknown; unit?: unknown } | undefined
+    if (!inp || typeof inp.variable !== 'string' || typeof inp.unit !== 'string') continue
+    const key = parseCaseKey(r.key)
+    if (!key || index.series.has(seriesKey(key.crewId, inp.variable)) || index.series.has(seriesKey(null, inp.variable))) continue
+    const value = inp.value === true ? 1 : inp.value === false ? 0 : typeof inp.value === 'number' && Number.isFinite(inp.value) ? inp.value : null
+    if (value === null) continue
+    out.push({ crew_id: key.crewId, variable: inp.variable, value, unit: inp.unit, t: r.event.t, source: 'manual', provenance: 'simulated' })
+  }
+  return out.sort((a, b) => a.t - b.t)
 }
 
 // ---- the fold ------------------------------------------------------------------------------------
@@ -261,7 +290,7 @@ export function caseSchedule(index: ScenarioIndex, runtime: readonly Observation
   let seq = 0
   for (const [key, o] of openings) events.push({ key, event: { type: 'OPEN', t: o.t, finding: o.finding }, origin: 'auto', seq: seq++ })
   for (const e of scenarioScript(openings, index, runtime)) events.push({ ...e, seq: seq++ })
-  return { openings, events }
+  return { openings, events, answers: scriptedAnswers(events, index) }
 }
 
 /** Every crewmember x case, folded at input.t. */

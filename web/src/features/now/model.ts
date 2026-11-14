@@ -1,11 +1,13 @@
 // Pure helpers for the Now (hero) view. No React, no NASA numbers typed here: every limit,
 // quote and label is read from the rules (RULES), a frozen snapshot, or the engine's output.
-import { RULES, getCase, thresholdRules } from '../../app/engine'
-import type { CaseDef, Rule } from '../../app/engine'
+import { RULES, caseReduce, getCase, getRule, newCase, thresholdRules, triggerLookup } from '../../app/engine'
+import type { CaseDef, CaseState, Finding, Rule } from '../../app/engine'
 import type { CaseView } from '../../app/caseTimeline'
+import { evaluateRuleAt, opensCase } from '../../app/evaluate'
 import type { AlertItem } from '../../app/mission'
+import type { ScenarioIndex } from '../../app/scenarioData'
 import { CREW_IDS, SEVERITY_RANK } from '../../app/vocab'
-import type { CrewId, Observation, Severity } from '../../app/vocab'
+import type { CrewId, EnvId, Observation, Severity } from '../../app/vocab'
 
 /** The hero case (engine/rules/cases.json id). */
 export const SPE_CASE_ID = 'spe_shelter'
@@ -13,25 +15,76 @@ export const SPE_CASE_ID = 'spe_shelter'
 // ---- the autoplay sequence (presentation timing, ms after the hero is ready) ------------------
 
 /**
- * One ~7-second sequence, played once per page load: the ASK HOUSTON counter runs, fades to
- * QUEUED (when the link is blocked), then the LANDFALL card lights with the countermeasure.
- * These are animation timings (design), not data.
+ * One ~4-second sequence, played once per page load. The LANDFALL card answers FIRST: its action and
+ * its measured latency are on screen within 0.3 s; only then does the ASK HOUSTON counter run up the
+ * round trip and, when the link is blocked, give way to the link-resume countdown. These are
+ * animation timings (design), not data.
  */
 export const SEQUENCE = {
-  rollStart: 300,
-  rollEnd: 2100,
-  queuedAt: 2700,
-  landfallAt: 4100,
-  doneAt: 7000,
+  /** LANDFALL card lit: badge and measured latency. */
+  landfallAt: 0,
+  /** The primary action fades in (done by 300 ms). */
+  actionAt: 100,
+  rollStart: 600,
+  rollEnd: 2400,
+  queuedAt: 2900,
+  doneAt: 3800,
 } as const
 
-export type Phase = 'eta' | 'link' | 'landfall' | 'done'
+export type Phase = 'landfall' | 'eta' | 'link' | 'done'
 
 export function phaseAt(elapsedMs: number): Phase {
+  if (elapsedMs < SEQUENCE.rollStart) return 'landfall'
   if (elapsedMs < SEQUENCE.queuedAt) return 'eta'
-  if (elapsedMs < SEQUENCE.landfallAt) return 'link'
-  if (elapsedMs < SEQUENCE.doneAt) return 'landfall'
+  if (elapsedMs < SEQUENCE.doneAt) return 'link'
   return 'done'
+}
+
+// ---- the onboard path, run on demand (the hero's latency measurement) ------------------------------
+
+export interface OnboardRun {
+  /** performance.now() when the run started (the start of the measured interval). */
+  startedAt: number
+  /** The engine's finding that opened the case (the latest monitor reading), or null. */
+  finding: Finding | null
+  /** The engine's case state after OPEN (status "detected" when the case opens). */
+  state: CaseState | null
+  opened: boolean
+  /** The trigger rule evaluated (ops_onboard_proton_s3 at Mars, ops_noaa_s3 near Earth, ...). */
+  ruleId: string | null
+}
+
+const LOOKUP = triggerLookup(RULES)
+
+/**
+ * The onboard path the hero times, run NOW on the engine (no cache): evaluate each trigger rule of the SPE
+ * case that applies in this environment on its latest reading at MET t, and OPEN a fresh case with the
+ * first finding at caution or above. The hero paints the case's primary action from this run, so the
+ * measured interval (start of this run -> action painted) is what the crew would wait for. `now` is
+ * injectable for tests.
+ */
+export function runOnboard(
+  index: ScenarioIndex,
+  runtime: readonly Observation[],
+  envId: EnvId,
+  t: number,
+  crewId: CrewId,
+  now: () => number = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
+): OnboardRun {
+  const startedAt = now()
+  const def = speDef()
+  if (!def) return { startedAt, finding: null, state: null, opened: false, ruleId: null }
+  for (const trig of def.triggers ?? []) {
+    if (!trig.rule_id || (trig.kind !== 'ops' && trig.kind !== 'rule')) continue
+    const rule = getRule(RULES, trig.rule_id)
+    const applies = (rule.applies_to ?? []).includes('*') || (rule.applies_to ?? []).includes(envId)
+    if (!applies) continue
+    const f = evaluateRuleAt(rule, index, runtime, crewId, envId, t).finding
+    if (!opensCase(f)) continue
+    const state = caseReduce(newCase(def, crewId, LOOKUP, envId), { type: 'OPEN', t: f.t ?? t, finding: f })
+    return { startedAt, finding: f, state, opened: state.status === 'detected', ruleId: rule.id }
+  }
+  return { startedAt, finding: null, state: null, opened: false, ruleId: null }
 }
 
 /** The counter value while it runs: 0 -> target with an ease-out, clamped to the target. */
@@ -232,6 +285,17 @@ export interface CrewStatus {
   top: AlertItem | null
   /** How many annunciated alerts apply to this crewmember (own + crew-wide). */
   count: number
+  /**
+   * What the strip lists: the worst crew-wide alert and the crewmember's own worst alert (most severe
+   * first; own first on a tie), so a crew-wide Warning never hides a crewmember's own finding.
+   */
+  items: AlertItem[]
+}
+
+function worst(list: readonly AlertItem[]): AlertItem | null {
+  let top: AlertItem | null = null
+  for (const a of list) if (!top || SEVERITY_RANK[a.severity] > SEVERITY_RANK[top.severity]) top = a
+  return top
 }
 
 /** Worst severity per crewmember from the annunciator alerts (MissionEngine's policy). */
@@ -247,7 +311,12 @@ export function crewStatuses(alerts: readonly AlertItem[]): CrewStatus[] {
       const d = SEVERITY_RANK[a.severity] - SEVERITY_RANK[top.severity]
       if (d > 0 || (d === 0 && top.crew_id === 'ALL' && a.crew_id === crewId)) top = a
     }
-    return { crewId, severity: top ? top.severity : 'nominal', top, count: mine.length }
+    const own = worst(mine.filter((a) => a.crew_id === crewId))
+    const shared = worst(mine.filter((a) => a.crew_id === 'ALL'))
+    const items = [own, shared]
+      .filter((a): a is AlertItem => a !== null)
+      .sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity] || (a.crew_id === 'ALL' ? 1 : 0) - (b.crew_id === 'ALL' ? 1 : 0))
+    return { crewId, severity: top ? top.severity : 'nominal', top, count: mine.length, items }
   })
 }
 
@@ -260,15 +329,16 @@ export interface FluxSeries {
   over: Array<number | null>
   first: number | null
   last: Observation | null
-  /** How many samples in the window come from the post-"now" replay continuation. */
+  /** How many samples in the window come after scenario "now" (the replay continuing as the clock runs). */
   replayAfterNow: number
 }
 
 /**
  * The monitor readings that EXIST at MET t (t <= clock), over the last `spanS` seconds.
- * Non-positive values are kept as gaps (a log axis cannot draw them).
+ * Non-positive values are kept as gaps (a log axis cannot draw them). `nowMet` (the scenario "now")
+ * counts the samples that only exist because the clock moved past it.
  */
-export function fluxWindow(obs: readonly Observation[], t: number, spanS: number, threshold: number | null): FluxSeries {
+export function fluxWindow(obs: readonly Observation[], t: number, spanS: number, threshold: number | null, nowMet: number | null = null): FluxSeries {
   const from = t - spanS
   const xs: number[] = []
   const ys: Array<number | null> = []
@@ -282,7 +352,7 @@ export function fluxWindow(obs: readonly Observation[], t: number, spanS: number
     xs.push(o.t)
     ys.push(v)
     over.push(v !== null && threshold !== null && v >= threshold ? v : null)
-    if (o.provenance === 'replay') replayAfterNow++
+    if (nowMet !== null && o.t > nowMet) replayAfterNow++
     last = o
   }
   // Join the overlay to the sample just before it crosses, so the coloured segment starts at the line.
@@ -318,4 +388,38 @@ export function logRange(values: Array<number | null>, threshold: number | null)
   }
   if (!Number.isFinite(lo) || hi <= 0) return [0.1, 10]
   return [10 ** Math.floor(Math.log10(lo)), 10 ** Math.ceil(Math.log10(hi))]
+}
+
+// ---- the simulator's own report on case openings (sim_crew data.self_check) -------------------------
+
+export interface UnscriptedOpening {
+  crew_id: string
+  case_id: string
+  day: number
+  indicator_id: string
+  /** The day the scripted episode opens the case, or null when no episode is scripted for this crewmember. */
+  scripted_opening_day: number | null
+}
+
+/**
+ * Case openings the simulator itself reports as UNSCRIPTED: chance flags of real-size day-to-day noise
+ * (sim_crew data.self_check.unscripted_case_openings). The hero labels them so a judge is not misled into
+ * reading them as scripted episodes. Empty when the scenario has none.
+ */
+export function unscriptedOpenings(simData: unknown): UnscriptedOpening[] {
+  const list = (simData as { self_check?: { unscripted_case_openings?: unknown } } | null)?.self_check?.unscripted_case_openings
+  if (!Array.isArray(list)) return []
+  return list.filter(
+    (x): x is UnscriptedOpening =>
+      !!x && typeof x.crew_id === 'string' && typeof x.case_id === 'string' && typeof x.day === 'number' && typeof x.indicator_id === 'string',
+  )
+}
+
+/** The trigger's plain-language label (an indicator or rule label from the rules), never its id. */
+export function triggerLabel(id: string | null | undefined): string | null {
+  if (!id) return null
+  const ind = (RULES.personal?.indicators ?? []).find((i) => i.id === id)
+  if (ind?.label) return ind.label
+  const rule = thresholdRules(RULES).find((r) => r.id === id)
+  return rule?.label ?? null
 }

@@ -1,15 +1,17 @@
 // Section 3 of the hero: the other open cases (renal in WATCH with its tripwire countdown, sleep
-// ACTING), a 4-crew status strip (worst annunciated severity per crewmember, icon + text) and the
+// ACTING; an opening the simulator did not script is labelled as a chance flag, from sim_crew's own
+// self_check), a 4-crew status strip (worst annunciated severity per crewmember, icon + text) and the
 // environment. Everything is read from useCases / useEvaluation / useComms output.
 import type { CaseView } from '../../app/caseTimeline'
 import type { CommsStatus } from '../../app/comms'
-import { formatCountdown } from '../../app/comms'
+import { formatCountdown, windowModelNote } from '../../app/comms'
 import { useMetMinute, useMission } from '../../app/mission'
+import { packetState } from '../../app/packet'
 import type { Environment } from '../../app/scenario'
 import { crewMember } from '../../app/vocab'
-import { EmptyState, FreshnessChip, MetTime, SeverityBadge, SimulatedMarker } from '../../ui'
-import { countermeasureTitle } from './model'
-import type { CrewStatus } from './model'
+import { EmptyState, FreshnessChip, MetTime, SeverityBadge, SeverityIcon, SimulatedMarker } from '../../ui'
+import { countermeasureTitle, triggerLabel } from './model'
+import type { CrewStatus, UnscriptedOpening } from './model'
 import { CaseStatusTag } from './parts'
 
 function Reassess({ at }: { at: number }) {
@@ -38,18 +40,63 @@ function caseLine(v: CaseView) {
     )
   }
   if (s.status === 'acting') {
+    const pending = (s.spec.required_step_ids ?? []).filter(
+      (id) => !s.steps_done.some((d) => d.step_id === id) && !(s.steps_declined ?? []).some((d) => d.step_id === id),
+    ).length
     return (
       <>
         {cm ?? 'Countermeasure selected'} · <span className="lf-num">{s.steps_done.length}</span> of <span className="lf-num">{steps}</span> steps
-        logged
+        logged{pending > 0 ? (
+          <>
+            {' '}
+            · <span className="lf-num">{pending}</span> required still open
+          </>
+        ) : null}
       </>
     )
   }
-  if (s.status === 'escalated') return <>Tripwire met: queued for flight-surgeon review</>
+  if (s.status === 'escalated') {
+    return (
+      <>
+        Escalated: tier 1, the Crew Medical Officer, now; tier 2, the flight surgeon, through the ground packet ({packetState(s).label})
+      </>
+    )
+  }
   return <>Opened {s.opened_at !== null ? <MetTime t={s.opened_at} label /> : null}; no action logged yet</>
 }
 
-export function OtherCases({ views, status, error }: { views: CaseView[]; status: string; error: string | null }) {
+/** The simulator's own note on an opening it did not script (a chance flag of real-size noise), or null. */
+function unscriptedNote(v: CaseView, list: readonly UnscriptedOpening[]) {
+  const u = list.find((x) => x.crew_id === v.crewId && x.case_id === v.caseId)
+  if (!u || v.state.opened_at === null || Math.floor(v.state.opened_at / 86_400) !== u.day) return null
+  const what = triggerLabel(u.indicator_id) ?? 'one indicator'
+  return (
+    <p className="now-open-chance">
+      Chance flag, not a scripted episode: {what} crossed its personal band on MET day <span className="lf-num">{u.day}</span>
+      {u.scripted_opening_day !== null ? (
+        <>
+          , before the scripted episode (day <span className="lf-num">{u.scripted_opening_day}</span>)
+        </>
+      ) : (
+        <>; no episode is scripted for {v.crewId}</>
+      )}
+      . Real-size day-to-day noise does this (the simulator's own report).
+    </p>
+  )
+}
+
+export function OtherCases({
+  views,
+  status,
+  error,
+  unscripted = [],
+}: {
+  views: CaseView[]
+  status: string
+  error: string | null
+  /** sim_crew self_check.unscripted_case_openings: openings the simulator did not script. */
+  unscripted?: readonly UnscriptedOpening[]
+}) {
   return (
     <section className="now-side-block" aria-labelledby="now-other-h">
       <h3 id="now-other-h" className="now-side-h">
@@ -70,6 +117,7 @@ export function OtherCases({ views, status, error }: { views: CaseView[]; status
                 <CaseStatusTag status={v.state.status} />
               </div>
               <p className="now-open-line">{caseLine(v)}</p>
+              {unscriptedNote(v, unscripted)}
             </li>
           ))}
         </ul>
@@ -93,8 +141,7 @@ export function CrewStrip({ crew, status, error, sharedLabel }: { crew: CrewStat
         <ul className="now-crew">
           {crew.map((c) => {
             const m = crewMember(c.crewId)
-            const own = c.top && c.top.crew_id !== 'ALL'
-            const why = c.top ? (own ? c.top.title : `Crew-wide: ${sharedLabel ?? c.top.title}`) : status === 'ready' ? 'No annunciated finding' : ''
+            const more = c.count - c.items.length
             return (
               <li key={c.crewId}>
                 <a href="#/body" className="now-crew-id" onClick={() => setCrew(c.crewId)} title={`${c.crewId} · ${m.role}: open the body map`}>
@@ -106,12 +153,18 @@ export function CrewStrip({ crew, status, error, sharedLabel }: { crew: CrewStat
                 ) : (
                   <span className="now-side-empty">…</span>
                 )}
-                <span className="now-crew-why" title={c.top?.title}>
-                  {why}
-                  {c.count > 1 ? (
+                <span className="now-crew-why">
+                  {c.items.length === 0 ? (status === 'ready' ? 'No annunciated finding' : '') : null}
+                  {c.items.map((a) => (
+                    <span key={a.id} className="now-crew-item" data-severity={a.severity} title={a.detail ?? a.title}>
+                      <SeverityIcon severity={a.severity} size={11} />
+                      <span className="sr-only">{a.severity}: </span>
+                      {a.crew_id === 'ALL' ? `Crew-wide: ${sharedLabel ?? a.title}` : a.title}
+                    </span>
+                  ))}
+                  {more > 0 ? (
                     <span className="now-crew-more">
-                      {' '}
-                      · <span className="lf-num">{c.count - 1}</span> more
+                      + <span className="lf-num">{more}</span> more
                     </span>
                   ) : null}
                 </span>
@@ -136,10 +189,10 @@ export function EnvBlock({ env, comms }: { env: Environment; comms: CommsStatus 
       <p className="now-env-line">
         {env.noaa_scale_available
           ? 'Proton flux judged on the NOAA S-scale (GOES, near Earth).'
-          : 'No NOAA alert reaches this crew: the case runs on the onboard monitor.'}{' '}
+          : 'No NOAA alert reaches this crew: the case reads an external space-weather monitor in Mars orbit, relayed to the habitat with no Earth link.'}{' '}
         {comms.basis === 'snapshot'
           ? comms.env.comms.conjunction
-            ? 'Light time and conjunction windows from the JPL Horizons ephemeris; the mission calendar is fictional, the window is real.'
+            ? `Light time from the JPL Horizons ephemeris; the conjunction window is ${windowModelNote(comms.windowModel)}. The mission calendar is fictional.`
             : 'Light time from the JPL Horizons ephemeris.'
           : comms.basis === 'static'
             ? 'Light time from the environment envelope.'

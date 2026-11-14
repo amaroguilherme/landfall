@@ -60,9 +60,13 @@ export function Num({
         <data value={String(value)}>{formatNumber(value, digits, signed)}</data>
       )}
       {unit ? (
-        <span className="lf-num-unit" title={unitLabel}>
-          {unit}
-        </span>
+        <>
+          {/* A real space for copied and extracted text ("2026 µGy/day"); zero width on screen, where the unit's margin spaces it. */}
+          <span className="lf-num-sep"> </span>
+          <span className="lf-num-unit" title={unitLabel}>
+            {unit}
+          </span>
+        </>
       ) : null}
       {showArrow ? (
         <span className="lf-num-arrow">
@@ -74,7 +78,7 @@ export function Num({
   )
 }
 
-/** MET as "dddd/hh:mm:ss" via the engine's formatMet; `label` prefixes "MET". */
+/** MET as "d/hh:mm:ss" (no leading zeros in the day field, F.6.1 f) via the engine's formatMet; `label` prefixes "MET". */
 export function MetTime({ t, label = false, className }: { t: number; label?: boolean; className?: string }) {
   const s = Math.max(0, Math.floor(t))
   const d = Math.floor(s / 86_400)

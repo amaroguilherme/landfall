@@ -6,6 +6,7 @@ import { MissionEngine } from './app/model'
 import { Nav } from './app/Nav'
 import { RouteOutlet, prefetchRoutes } from './app/router'
 import { prefetchAllSnapshots } from './app/data'
+import { useOfflineReady } from './app/offline'
 
 function skipToMain(e: MouseEvent<HTMLAnchorElement>) {
   // The hash belongs to the router: focus <main> instead of navigating to "#main".
@@ -32,6 +33,23 @@ function useOfflineWarmup() {
   }, [])
 }
 
+/**
+ * Shown only once the service worker holds a complete copy of this build (app/offline.ts): from then on a
+ * reload with the network off works. Never claimed before it is true.
+ */
+function OfflineIndicator() {
+  const ready = useOfflineReady()
+  if (!ready) return null
+  return (
+    <span className="lf-offline" role="status">
+      <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true" focusable="false" className="lf-icon">
+        <path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      Works offline after first load
+    </span>
+  )
+}
+
 export default function App() {
   useOfflineWarmup()
   return (
@@ -51,7 +69,10 @@ export default function App() {
             <strong>LANDFALL</strong> · NASA Space Apps Challenge 2026. Not endorsed by NASA. Not a medical device: no
             diagnosis, no dosing.
           </p>
-          <p>Crew data is simulated. NASA and NOAA data are real, frozen at build. Runs offline; no backend.</p>
+          <p>
+            Crew data is simulated. NASA and NOAA data are real, frozen at build. No backend: everything runs in this browser.{' '}
+            <OfflineIndicator />
+          </p>
         </div>
       </footer>
     </MissionProvider>

@@ -207,6 +207,11 @@ export interface CasesState {
   status: LoadStatus
   /** Every crewmember x case (12 views), folded at `t`; idle ones included. */
   cases: CaseView[]
+  /**
+   * The seeded crew's answers as observations (caseTimeline scriptedAnswers: e.g. the renal red-flag answer
+   * "no" as 0, unit yes/no), all times; filter by t. The ground packet includes them like a user's logged answer.
+   */
+  scripted: Observation[]
   /** The view for one crewmember's case (default crewmember: the store's). */
   get: (caseId: string, crewId?: CrewId) => CaseView | null
   /** Append a user event for one crewmember's case; t defaults to the scenario clock. */
@@ -237,13 +242,13 @@ export function useCases(): CasesState {
   let tFold = minute
   for (const e of userEvents) if (e.event.t > tFold && e.event.t <= metClock.get().metNow) tFold = e.event.t
   const result = useMemo(() => {
-    if (!scenario.index) return { status: scenario.status, cases: [] as CaseView[], error: scenario.error }
+    if (!scenario.index) return { status: scenario.status, cases: [] as CaseView[], scripted: [] as Observation[], error: scenario.error }
     try {
       const schedule = cachedSchedule(scenario.index, runtime, envId)
       const cases = computeCases({ index: scenario.index, runtime, envId, t: tFold, userEvents }, schedule, onOpen)
-      return { status: 'ready' as LoadStatus, cases, error: null }
+      return { status: 'ready' as LoadStatus, cases, scripted: schedule.answers, error: null }
     } catch (e) {
-      return { status: 'error' as LoadStatus, cases: [] as CaseView[], error: (e as Error).message }
+      return { status: 'error' as LoadStatus, cases: [] as CaseView[], scripted: [] as Observation[], error: (e as Error).message }
     }
   }, [scenario, runtime, envId, tFold, userEvents])
   return useMemo(
@@ -298,6 +303,7 @@ export function useGroundPacket(caseId: string, crewId?: CrewId): GroundPacketSt
   const view = cases.get(caseId, who)
   const t = cases.t
   const runtime = state.observations
+  const scripted = cases.scripted
   const envId = state.envId
   return useMemo(() => {
     const base = { caseView: view, caseState: view?.state ?? null, caseOpen: !!view && view.state.status !== 'idle', consent, t }
@@ -307,13 +313,14 @@ export function useGroundPacket(caseId: string, crewId?: CrewId): GroundPacketSt
       return { ...base, status: scenario.status === 'ready' ? 'error' : scenario.status, bundle: null, withheld, missionEpoch: null, error: view ? scenario.error : `no case ${caseId}` }
     }
     try {
-      const obs = visibleObservations(scenario.index, runtime, t)
+      // Runtime entries plus the seeded crew's answers (caseTimeline scriptedAnswers), up to the clock.
+      const obs = visibleObservations(scenario.index, scripted.length ? [...runtime, ...scripted] : runtime, t)
       const bundle = buildGroundPacket(view.state, obs, consent, envId, t, scenario.index.epochIso)
       return { ...base, status: 'ready' as LoadStatus, bundle, withheld, missionEpoch: scenario.index.epochIso, error: null }
     } catch (e) {
       return { ...base, status: 'error' as LoadStatus, bundle: null, withheld, missionEpoch: scenario.index.epochIso, error: (e as Error).message }
     }
-  }, [view, consent, t, scenario, runtime, envId, caseId])
+  }, [view, consent, t, scenario, runtime, scripted, envId, caseId])
 }
 
 // =============================================================================================

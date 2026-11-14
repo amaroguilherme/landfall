@@ -19,6 +19,7 @@ import {
   previewBundle,
   sentenceContaining,
   summarizePacket,
+  surgeonNoteOf,
   utf8Bytes,
 } from './model'
 
@@ -129,6 +130,25 @@ describe('the packet (engine output) as the Downlink view summarizes it', () => 
     expect(consentAllows('mood', { ...defaultConsent(), mood: true })).toBe(true)
     expect(casesRequesting('mood', CASE_DEFS)).toEqual(CASE_DEFS.filter((d) => d.escalation?.observations?.includes('mood')))
     expect(casesRequesting('proton_flux_10mev', CASE_DEFS).map((d) => d.id)).toContain('spe_shelter')
+  })
+
+  it('D12: the flight surgeon\'s note comes from cases.json, addressed to the flight surgeon, and stays out of the packet', () => {
+    for (const def of CASE_DEFS) {
+      const raw = (def.escalation as { flight_surgeon_note?: { audience: string; text: string; chip: string } } | null | undefined)?.flight_surgeon_note
+      const note = surgeonNoteOf(def)
+      if (!raw) {
+        expect(note).toBeNull()
+        continue
+      }
+      expect(raw.audience).toBe('flight_surgeon')
+      expect(note).toMatchObject({ text: raw.text, chip: raw.chip })
+    }
+    expect(CASE_DEFS.some((d) => surgeonNoteOf(d) !== null)).toBe(true)
+    expect(surgeonNoteOf(null)).toBeNull()
+    // the engine's FHIR bundle never carries it
+    const s = opened('renal_stone', 'CM-3', 'target_urine_output_24h', 1200, 'mL')
+    const note = surgeonNoteOf(getCase(RULES, 'renal_stone'))!
+    expect(JSON.stringify(packet(s))).not.toContain(note.text)
   })
 
   it('previewBundle keeps a valid Bundle with the first n entries', () => {

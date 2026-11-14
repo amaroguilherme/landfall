@@ -1,7 +1,9 @@
 // Comms status for the mission bar and any feature: AOS/LOS, one-way light time, conjunction,
 // earliest reply, all from the engine's commsEta (SPEC 5 comms_eta).
-//   - Mars: JPL Horizons snapshot horizons_mars_comms (light time per day + REAL conjunction
-//     windows), mapped to MET through the scenario epoch sim_crew data.calendar.met_epoch_utc.
+//   - Mars: JPL Horizons snapshot horizons_mars_comms (light time per day + conjunction windows
+//     MODELLED from the Horizons Sun-Earth-Mars elongation, edges fitted to NASA/JPL's published
+//     command moratoria: `windowModel` carries the fit, D13; never "the real window"), mapped to MET
+//     through the scenario epoch sim_crew data.calendar.met_epoch_utc.
 //   - Moon (lunar_surface): JPL Horizons snapshot horizons_moon_comms (environments.json
 //     comms_snapshot), real daily light time; no conjunction (the Moon is never behind the Sun).
 //   - ISS / cislunar: the environments.json envelope (commsEta uses its max).
@@ -24,6 +26,20 @@ export interface ConjunctionWindow {
   stop: number
   startUtc: string
   stopUtc: string
+  /** RMS edge uncertainty of this modelled window, days (snapshot edge_uncertainty_days_rms), when given. */
+  edgeRmsDays: number | null
+}
+
+/**
+ * How the conjunction windows are modelled (horizons_mars_comms data.calendar fit, D13): the days the
+ * Sun-Earth-Mars elongation is below one threshold, fitted to NASA/JPL published command moratoria.
+ */
+export interface WindowModel {
+  thresholdDeg: number | null
+  rmsDays: number | null
+  maxAbsDays: number | null
+  /** Published moratoria the fit used (n_edges / 2: each has a start and an end). */
+  moratoria: number | null
 }
 
 export interface CommsStatus {
@@ -49,8 +65,10 @@ export interface CommsStatus {
   basis: 'snapshot' | 'static' | 'fallback'
   /** Static light-time envelope from the environment, when it has one. */
   range: { min: number; max: number; mean?: number } | null
-  /** The conjunction window containing t (or null). */
+  /** The conjunction window containing t (or null). It is modelled, not announced (see windowModel). */
   window: ConjunctionWindow | null
+  /** The fit behind the modelled conjunction windows, when the ephemeris snapshot carries it. */
+  windowModel: WindowModel | null
   /** Scenario MET epoch (UTC ISO) used to map the ephemeris, when known. */
   metEpochUtc: string | null
 }
@@ -58,7 +76,28 @@ export interface CommsStatus {
 interface HorizonsData {
   columns?: string[]
   rows?: unknown[][]
-  conjunctions?: Array<{ id?: string; start?: string; end?: string; stop?: string }>
+  conjunctions?: Array<{ id?: string; start?: string; end?: string; stop?: string; edge_uncertainty_days_rms?: number }>
+  calibration?: {
+    threshold_deg?: { value?: number }
+    residual_rms_days?: number
+    residual_max_abs_days?: number
+    n_edges?: number
+  }
+}
+
+const num = (x: unknown): number | null => (typeof x === 'number' && Number.isFinite(x) ? x : null)
+
+/** The conjunction-window fit of a horizons_*_comms payload (D13), or null when it has none. */
+export function windowModelOf(data: unknown): WindowModel | null {
+  const c = (data as HorizonsData | null)?.calibration
+  if (!c) return null
+  const edges = num(c.n_edges)
+  return {
+    thresholdDeg: num(c.threshold_deg?.value),
+    rmsDays: num(c.residual_rms_days),
+    maxAbsDays: num(c.residual_max_abs_days),
+    moratoria: edges !== null && edges % 2 === 0 ? edges / 2 : null,
+  }
 }
 
 interface SimCalendar {
@@ -108,7 +147,7 @@ export function toCommsTable(
     const s = Date.parse(startUtc)
     const e = Date.parse(stopUtc)
     if (Number.isFinite(s) && Number.isFinite(e)) {
-      windows.push({ id: c.id ?? null, start: (s - epochMs) / 1000, stop: (e - epochMs) / 1000, startUtc, stopUtc })
+      windows.push({ id: c.id ?? null, start: (s - epochMs) / 1000, stop: (e - epochMs) / 1000, startUtc, stopUtc, edgeRmsDays: num(c.edge_uncertainty_days_rms) })
     }
   }
   if (!samples.length) return null
@@ -146,6 +185,7 @@ export function computeComms(env: Environment, t: number, ephem: SnapLike | null
     snapshot: ephem?.snapshot ?? null,
     range: staticRange(env),
     metEpochUtc: epoch?.iso ?? null,
+    windowModel: env.comms.conjunction === true && ephem?.status === 'ready' ? windowModelOf(ephem.snapshot?.data) : null,
   }
   if (table) {
     // An environment with a static range and a comms_snapshot (the Moon) reads its light time
@@ -239,4 +279,22 @@ export function formatCountdown(seconds: number): string {
   if (d > 0) return `${d} d ${String(h).padStart(2, '0')} h`
   if (h > 0) return `${h} h ${String(m).padStart(2, '0')} min`
   return `${m} min`
+}
+
+/** Days for prose: "0.79 d" (two decimals at most, no trailing zeros). */
+function days(x: number): string {
+  return `${Number(x.toFixed(2))} d`
+}
+
+/**
+ * D13 wording of a modelled conjunction window, from its fit: "modelled from JPL Horizons geometry, edges
+ * fitted to 6 NASA/JPL published command moratoria (RMS 0.79 d)". Never "real".
+ */
+export function windowModelNote(m: WindowModel | null): string {
+  if (!m) return 'modelled from JPL Horizons geometry'
+  const fit =
+    m.moratoria !== null
+      ? `edges fitted to ${m.moratoria} NASA/JPL published command moratoria`
+      : 'edges fitted to NASA/JPL published command moratoria'
+  return `modelled from JPL Horizons geometry, ${fit}${m.rmsDays !== null ? ` (RMS ${days(m.rmsDays)})` : ''}`
 }

@@ -268,6 +268,26 @@ export function houstonRows(
   })
 }
 
+// ---- the flight surgeon's note (D12) -----------------------------------------------------------------
+
+/** A case's note for the flight surgeon (cases.json escalation.flight_surgeon_note). */
+export interface SurgeonNote {
+  text: string
+  chip?: string
+  source?: Record<string, unknown>
+}
+
+/**
+ * The case's note addressed to the flight surgeon (audience "flight_surgeon"), or null. D12: this is the
+ * only place a medication may be named, and only the ground-packet view shows it.
+ */
+export function surgeonNoteOf(def: { escalation?: unknown } | null): SurgeonNote | null {
+  const n = (def?.escalation as { flight_surgeon_note?: { audience?: unknown; text?: unknown; chip?: unknown; source?: unknown } } | null | undefined)
+    ?.flight_surgeon_note
+  if (!n || n.audience !== 'flight_surgeon' || typeof n.text !== 'string') return null
+  return { text: n.text, chip: typeof n.chip === 'string' ? n.chip : undefined, source: (n.source as Record<string, unknown> | undefined) ?? undefined }
+}
+
 /** Cases whose packet asks for a variable (e.g. which packets mood could ever join). */
 export function casesRequesting(variable: string, defs: readonly CaseDef[]): CaseDef[] {
   return defs.filter((d) => {

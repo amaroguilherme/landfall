@@ -1,9 +1,10 @@
-// THE DUAL COUNTER: "ASK HOUSTON" (the real round trip from useComms, then QUEUED while the
-// real conjunction window blocks the link) next to "LANDFALL" (the app's own measured latency
-// and the one primary countermeasure). Every number comes from useComms(), the engine's
-// formatMet, or the measurement made in this browser (useHeroTiming); none is typed here.
+// THE DUAL COUNTER: "LANDFALL" (the app's own measured latency and the one primary countermeasure,
+// lit FIRST, within 0.3 s) next to "ASK HOUSTON" (the round trip from useComms, counted up after the
+// onboard answer is already on screen, then the link-resume countdown while the modelled conjunction
+// window blocks the link). Every number comes from useComms(), the engine's formatMet, or the
+// measurement made in this browser on this visit; none is typed here.
 import type { CSSProperties } from 'react'
-import { formatCommsLightTime, formatCountdown, formatEarliestReply } from '../../app/comms'
+import { formatCommsLightTime, formatCountdown, formatEarliestReply, windowModelNote } from '../../app/comms'
 import type { CommsStatus } from '../../app/comms'
 import { formatUtc } from '../../app/data'
 import { formatMet } from '../../app/engine'
@@ -14,18 +15,19 @@ import { SEQUENCE, phaseAt, rollValue } from './model'
 import { useHeroSequence } from './useHeroSequence'
 
 export type AnswerState =
-  | { kind: 'measured'; answerMs: number; pageMs: number | null; firstLoad: boolean }
+  | { kind: 'measured'; answerMs: number; pageMs: number | null }
   | { kind: 'pending' }
-  | { kind: 'not_measured'; reason: string }
   | { kind: 'unavailable'; reason: string }
 
 export interface LandfallAnswer {
-  /** Primary countermeasure title (cases.json), shown once the case is open. */
+  /** Primary countermeasure title (cases.json) of the case the measured run opened. */
   action: string | null
   severity: Severity | null
-  /** "S3 · Caution" style badge text. */
+  /** "S3 · Warning" style badge text. */
   badge: string | null
   answer: AnswerState
+  /** Re-run the onboard path and measure again (null while nothing can be measured). */
+  onRemeasure: (() => void) | null
 }
 
 function ResumeCountdown({ resumesAt }: { resumesAt: number }) {
@@ -54,7 +56,18 @@ function layer(o: number, dy: number): CSSProperties {
   return { opacity: o, transform: o < 1 ? `translateY(${((1 - o) * dy).toFixed(2)}px)` : undefined, visibility: o <= 0 ? 'hidden' : undefined }
 }
 
-export function DualCounter({ comms, ready, landfall }: { comms: CommsStatus; ready: boolean; landfall: LandfallAnswer }) {
+export function DualCounter({
+  comms,
+  ready,
+  landfall,
+  packetLabel,
+}: {
+  comms: CommsStatus
+  ready: boolean
+  landfall: LandfallAnswer
+  /** The SPE ground packet's state label (app/packet.ts), shown where the link is described. */
+  packetLabel: string | null
+}) {
   const seq = useHeroSequence(ready)
   const e = ready ? seq.elapsed : 0
   const phase = ready ? phaseAt(e) : 'loading'
@@ -63,16 +76,19 @@ export function DualCounter({ comms, ready, landfall }: { comms: CommsStatus; re
   const resumesAt = comms.resumes_at
   const rolled = rt === null ? null : !ready ? 0 : seq.reduced || !seq.playing ? rt : rollValue(e, rt)
 
-  // Fades (JS-driven, from the sequence clock).
+  // Fades (JS-driven, from the sequence clock). LANDFALL first, then Houston.
   const f = ready ? seq.fade : () => 0
+  const litIn = f(SEQUENCE.landfallAt, 150)
+  const standbyOut = f(SEQUENCE.landfallAt, 120)
+  const actionIn = f(SEQUENCE.actionAt, 200)
   const linkIn = f(SEQUENCE.queuedAt + 250, 500)
   const etaOut = comms.blocked ? f(SEQUENCE.queuedAt, 450) : 0
-  const standbyOut = f(SEQUENCE.landfallAt, 350)
-  const litIn = f(SEQUENCE.landfallAt + 150, 500)
-  const actionIn = f(SEQUENCE.landfallAt + 650, 550)
-  const linked = linkIn > 0
   const lit = litIn > 0
   const a = landfall.answer
+  const replay = () => {
+    landfall.onRemeasure?.()
+    seq.replay()
+  }
 
   return (
     <section className="now-dual" aria-labelledby="now-dual-h" data-phase={phase}>
@@ -86,7 +102,7 @@ export function DualCounter({ comms, ready, landfall }: { comms: CommsStatus; re
               Skip
             </Button>
           ) : (
-            <Button variant="secondary" className="now-replay" onClick={seq.replay} aria-label="Replay the dual-counter sequence">
+            <Button variant="secondary" className="now-replay" onClick={replay} aria-label="Replay the sequence and measure the onboard answer again">
               {seq.reduced ? <PlayIcon size={12} /> : <ResetIcon size={12} />}
               Replay
             </Button>
@@ -99,11 +115,11 @@ export function DualCounter({ comms, ready, landfall }: { comms: CommsStatus; re
         <article className="now-counter now-houston" data-queued={(comms.blocked && linkIn >= 1) || undefined}>
           <header className="now-counter-head">
             <p className="now-counter-label">Ask Houston</p>
-            <span className="now-link-tag" aria-hidden="true" style={layer(linkIn, -4)}>
+            <span className="now-link-tag" aria-hidden="true" style={layer(comms.blocked ? linkIn : 1, -4)}>
               {comms.blocked ? (
                 <span className="now-queued">
                   <SunIcon size={13} />
-                  {conj ? 'Queued · solar conjunction' : 'Queued · no link'}
+                  {conj ? 'No link · solar conjunction' : 'No link'}
                 </span>
               ) : (
                 <span className="now-aos">
@@ -117,17 +133,17 @@ export function DualCounter({ comms, ready, landfall }: { comms: CommsStatus; re
           <div className="now-layers" aria-hidden="true">
             {/* layer 1: the round trip, counting */}
             <div className="now-layer" style={layer(1 - etaOut, -8)}>
-              <p className="now-counter-cap">{linked && !comms.blocked ? 'Earliest reply, light time only' : 'Round trip at light speed'}</p>
+              <p className="now-counter-cap">{!comms.blocked ? 'Earliest reply, light time only' : 'Round trip at light speed'}</p>
               <p className="now-big lf-num" data-missing={rt === null || undefined}>
                 {rolled === null ? '—' : formatMet(Math.round(rolled))}
               </p>
               <p className="now-counter-sub">
                 <span className="lf-num">{formatCommsLightTime(comms)}</span> each way · {lightTimeSource(comms)}
-                {linked && !comms.blocked ? ', plus time on the ground' : null}
+                {!comms.blocked ? ', plus time on the ground' : null}
               </p>
             </div>
 
-            {/* layer 2: the real conjunction window blocks the link */}
+            {/* layer 2: the modelled conjunction window blocks the link */}
             {comms.blocked ? (
               <div className="now-layer" style={layer(linkIn, 8)}>
                 <p className="now-counter-cap">
@@ -147,8 +163,14 @@ export function DualCounter({ comms, ready, landfall }: { comms: CommsStatus; re
                 <p className="now-counter-sub">
                   {resumesAt !== null ? (
                     <>
-                      Earliest reply <span className="lf-num">{formatEarliestReply(comms)}</span> (round trip{' '}
-                      <span className="lf-num">{formatCommsLightTime(comms, true)}</span> added at link-up) · messages queued
+                      Earliest reply <span className="lf-num">{formatEarliestReply(comms)}</span> (the{' '}
+                      <span className="lf-num">{formatCommsLightTime(comms, true)}</span> round trip added at link-up)
+                      {packetLabel ? (
+                        <>
+                          {' '}
+                          · ground packet: <span className="now-packet">{packetLabel}</span>
+                        </>
+                      ) : null}
                     </>
                   ) : (
                     <>Window end unknown: the ephemeris is not in this build.</>
@@ -162,20 +184,20 @@ export function DualCounter({ comms, ready, landfall }: { comms: CommsStatus; re
           <p className="sr-only">
             Ask Houston: round trip {formatCommsLightTime(comms, true)} at light speed ({lightTimeSource(comms)}).{' '}
             {comms.blocked
-              ? `${conj ? 'Solar conjunction blocks the link' : 'No link'}; messages are queued. ${
+              ? `${conj ? 'Solar conjunction blocks the link' : 'No link'}. ${
                   resumesAt !== null
                     ? `The link resumes at MET ${formatMet(resumesAt)}; earliest reply in ${formatEarliestReply(comms)}.`
                     : 'The end of the window is unknown.'
-                }`
-              : 'The link is up.'}
+                }${packetLabel ? ` Ground packet: ${packetLabel}.` : ''}`
+              : 'The link is up: the ground has the case within the round trip, and the crew follows Mission Control and flight-surgeon direction.'}
           </p>
 
           <footer className="now-counter-foot">
             <span>
               {comms.window ? (
                 <>
-                  Real conjunction window <span className="lf-num">{formatUtc(comms.window.startUtc)}</span> to{' '}
-                  <span className="lf-num">{formatUtc(comms.window.stopUtc)}</span>
+                  Conjunction window <span className="lf-num">{formatUtc(comms.window.startUtc)}</span> to{' '}
+                  <span className="lf-num">{formatUtc(comms.window.stopUtc)}</span>, {windowModelNote(comms.windowModel)}
                   {resumesAt !== null ? (
                     <>
                       {' '}
@@ -186,7 +208,7 @@ export function DualCounter({ comms, ready, landfall }: { comms: CommsStatus; re
               ) : comms.basis === 'fallback' ? (
                 <span className="now-missing">Light time unknown: {comms.snapshotId ?? 'ephemeris'} not loaded</span>
               ) : (
-                <>Ground link up; every LANDFALL evaluation still runs onboard.</>
+                <>Link up: the ground has this case within the round trip. Every LANDFALL evaluation still runs onboard.</>
               )}
             </span>
             {comms.snapshotId ? (
@@ -208,16 +230,22 @@ export function DualCounter({ comms, ready, landfall }: { comms: CommsStatus; re
 
           <div className="now-layers" aria-hidden="true">
             <div className="now-layer" style={layer(1 - standbyOut, -8)}>
-              <p className="now-counter-cap">Onboard monitor → rules → case</p>
-              <p className="now-standby">{ready ? 'Evaluating onboard data. No ground link needed.' : 'Reading the frozen scenario data.'}</p>
+              <p className="now-counter-cap">Space-weather monitor → rules → case</p>
+              <p className="now-standby">Reading the frozen scenario data.</p>
             </div>
             <div className="now-layer" style={layer(litIn, 8)}>
               <p className="now-counter-cap">Guidance on screen in</p>
-              <p className="now-big lf-num" data-missing={a.kind !== 'measured' || undefined}>
-                {a.kind === 'measured' ? <Num value={seconds(a.answerMs)} digits={3} unit="s" /> : '—'}
+              <p className="now-big lf-num" data-missing={a.kind === 'unavailable' || undefined}>
+                {a.kind === 'measured' ? (
+                  <Num value={seconds(a.answerMs)} digits={3} unit="s" />
+                ) : a.kind === 'pending' ? (
+                  <span className="now-measuring">measuring</span>
+                ) : (
+                  '—'
+                )}
               </p>
               {landfall.action ? (
-                <p className="now-action" style={{ opacity: actionIn }}>
+                <p className="now-action" data-hero-answer="" style={{ opacity: actionIn }}>
                   {landfall.action}
                 </p>
               ) : null}
@@ -232,6 +260,11 @@ export function DualCounter({ comms, ready, landfall }: { comms: CommsStatus; re
 
           <footer className="now-counter-foot" style={{ opacity: ready ? Math.max(litIn, 0) : 0 }}>
             <span>{footNote(a)}</span>
+            {landfall.onRemeasure && a.kind === 'measured' ? (
+              <button type="button" className="lf-linkbtn now-remeasure" onClick={landfall.onRemeasure}>
+                Measure again
+              </button>
+            ) : null}
           </footer>
         </article>
       </div>
@@ -245,7 +278,6 @@ function answerCaption(a: AnswerState): string {
       return 'Measured in this browser.'
     case 'pending':
       return 'Measuring in this browser.'
-    case 'not_measured':
     case 'unavailable':
       return a.reason
   }
@@ -255,7 +287,8 @@ function footNote(a: AnswerState) {
   if (a.kind === 'measured') {
     return (
       <>
-        Measured in this browser{a.firstLoad ? '' : ' on first load'}: engine opens the case → action painted.
+        Measured in this browser on this visit: the engine evaluates the latest monitor reading and opens the case, then the action is painted.
+        Software time only; going to the shelter takes the crew minutes.
         {a.pageMs !== null ? (
           <>
             {' '}
@@ -265,6 +298,6 @@ function footNote(a: AnswerState) {
       </>
     )
   }
-  if (a.kind === 'unavailable' || a.kind === 'not_measured') return <span className="now-missing">{a.reason}</span>
+  if (a.kind === 'unavailable') return <span className="now-missing">{a.reason}</span>
   return <>Measuring in this browser…</>
 }

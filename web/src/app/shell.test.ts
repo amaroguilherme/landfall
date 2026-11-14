@@ -15,16 +15,18 @@ import {
 import { computeComms, formatCommsLightTime, formatCountdown, formatLightTime } from './comms'
 import type { Snapshot } from './data'
 
-describe('formatMet (SPEC 5)', () => {
+describe('formatMet (SPEC 5; Vol 2 Appendix F F.6.1 f: no leading zeros in the day field)', () => {
   it('formats the scenario now', () => {
     expect(MET_NOW_S).toBe(35_648_400)
-    expect(formatMet(MET_NOW_S)).toBe('0412/14:20:00')
-    expect(formatMet(MET_NOW_S + 7)).toBe('0412/14:20:07')
+    expect(formatMet(MET_NOW_S)).toBe('412/14:20:00')
+    expect(formatMet(MET_NOW_S + 7)).toBe('412/14:20:07')
   })
-  it('pads and floors', () => {
-    expect(formatMet(0)).toBe('0000/00:00:00')
-    expect(formatMet(86_399.9)).toBe('0000/23:59:59')
-    expect(formatMet(86_400)).toBe('0001/00:00:00')
+  it('suppresses day-field zeros, keeps two digits for h:m:s, and floors', () => {
+    expect(formatMet(0)).toBe('0/00:00:00')
+    expect(formatMet(86_399.9)).toBe('0/23:59:59')
+    expect(formatMet(86_400)).toBe('1/00:00:00')
+    // the same format serves day-count durations (a countdown)
+    expect(formatMet(11 * 86_400 + 5 * 3600 + 59 * 60 + 51)).toBe('11/05:59:51')
   })
   it('rejects non-finite input', () => {
     expect(() => formatMet(Number.NaN)).toThrow()
@@ -75,6 +77,15 @@ describe('matchRoute', () => {
   it('returns null for unknown routes', () => {
     expect(matchRoute('#/nope').route).toBeNull()
     expect(matchRoute('#/case/a/b').route).toBeNull()
+  })
+  it('aliases #/cases to the case views (the natural URL is never a not-found page)', () => {
+    expect(matchRoute('#/cases').route?.id).toBe('case')
+    expect(matchRoute('#/cases').params).toEqual({})
+    const m = matchRoute('#/cases/renal_stone?crew=CM-3')
+    expect(m.route?.feature).toBe('cases')
+    expect(m.params).toEqual({ id: 'renal_stone' })
+    expect(m.query).toEqual({ crew: 'CM-3' })
+    expect(m.path).toBe('/case/renal_stone')
   })
   it('builds hrefs', () => {
     expect(hrefFor('/case/renal_stone')).toBe('#/case/renal_stone')
@@ -147,6 +158,10 @@ describe('mission store', () => {
     s = missionReducer(s, { type: 'acknowledge', ids: ['ALL:spe'], t: MET_NOW_S })
     expect(selectAnnunciator(s).unacknowledged).toBe(1)
   })
+  it('adds the manually measured vitals (D8) to the shareable variables, shared by default', () => {
+    const c = defaultConsent()
+    for (const v of ['bp_systolic', 'bp_diastolic', 'glucose']) expect(c[v]).toBe(true)
+  })
   it('adds Noon Sight observations to the observation list', () => {
     const s = missionReducer(initialMissionState(), {
       type: 'addNoonSight',
@@ -187,7 +202,7 @@ describe('comms from the real frozen snapshots (when present in the build)', () 
   const snaps = import.meta.glob<Snapshot>('../../public/data/{horizons_mars_comms,sim_crew}.json', { eager: true, import: 'default' })
   const ephem = Object.entries(snaps).find(([k]) => k.endsWith('horizons_mars_comms.json'))?.[1]
   const sim = Object.entries(snaps).find(([k]) => k.endsWith('sim_crew.json'))?.[1]
-  it.skipIf(!ephem || !sim)('MET 0412/14:20:00 on Mars is inside the real 2028-03 conjunction, link back in 11 d 06 h', () => {
+  it.skipIf(!ephem || !sim)('MET 412/14:20:00 on Mars is inside the modelled 2028-03 conjunction window, link back in 11 d 06 h', () => {
     const c = computeComms(environment('mars_surface'), MET_NOW_S, { status: 'ready', snapshot: ephem! }, { status: 'ready', snapshot: sim! })
     expect(c.basis).toBe('snapshot')
     expect(c.link).toBe('LOS')

@@ -1,5 +1,5 @@
 /* Now (hero). Tokens only (src/styles/tokens.css). Colour carries meaning, never decoration:
-   neutral surfaces; the case's severity rule and badge (caution yellow); gray = link unavailable;
+   neutral surfaces; the case's severity rule and badge (S3 = warning red); gray = link unavailable;
    cyan = missing data; magenta = the guided step; dark green = buttons. Numbers in DM Mono.
    Sequence fades are computed in JS (useHeroSequence), so no CSS transition is needed here. */
 
@@ -107,6 +107,9 @@
   max-width: 36ch;
 }
 .now-missing { color: var(--lf-data-stale); }
+.now-measuring { font-size: var(--lf-text-md); color: var(--lf-text-muted); letter-spacing: 0.04em; }
+.now-remeasure { flex: none; }
+.now-packet { font-weight: 600; color: var(--lf-text); white-space: nowrap; }
 
 /* ---- [V2 6164] quote ---- */
 .now-quote {
@@ -188,6 +191,24 @@
   max-width: none;
 }
 .now-step-tag { flex: none; font: 500 var(--lf-text-xs) / 1.3 var(--lf-font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--lf-procedure); }
+.now-step-req { color: var(--lf-procedure); }
+.now-case-gate { margin: 0.5em 0 0; font-size: var(--lf-text-xs); color: var(--lf-text-2); max-width: none; }
+
+/* ground packet state + escalation tiers (app/packet.ts: the same words as the case page and Downlink) */
+.now-packet-box {
+  margin-top: var(--lf-space-1-5);
+  padding: var(--lf-space-1) var(--lf-space-1-5);
+  border: 1px dashed var(--lf-border);
+  border-radius: var(--lf-radius);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-2);
+}
+.now-packet-line { margin: 0; max-width: none; }
+.now-packet-line + .now-packet-line { margin-top: 0.35em; }
+.now-packet-when { color: var(--lf-text-2); }
+.now-tiers { list-style: none; margin: 0.25em 0 0; padding: 0; display: grid; gap: 0.2em; }
+.now-tiers li { display: grid; grid-template-columns: 3.6rem minmax(0, 1fr); gap: 0.5em; align-items: baseline; }
+.now-tier-n { font: 500 var(--lf-text-xs) / 1.3 var(--lf-font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--lf-text); }
 
 .now-case-basis { margin: var(--lf-space-1-5) 0 0; font-size: var(--lf-text-xs); color: var(--lf-text-2); max-width: none; line-height: 1.9; }
 
@@ -247,6 +268,7 @@
 .now-open-title { font-weight: 600; font-size: var(--lf-text-sm); }
 .now-open-crew { font-family: var(--lf-font-mono); font-weight: 500; }
 .now-open-line { margin: 0.3em 0 0; font-size: var(--lf-text-xs); color: var(--lf-text-2); }
+.now-open-chance { margin: 0.3em 0 0; padding-left: 0.6em; border-left: 2px dashed var(--lf-border-strong); font-size: var(--lf-text-xs); color: var(--lf-text-muted); }
 
 .now-crew { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6em; }
 .now-crew li { display: grid; grid-template-columns: 5.2rem 6.6rem minmax(0, 1fr); align-items: start; gap: 0.6em; min-width: 0; }
@@ -255,14 +277,19 @@
 .now-crew li > .lf-sev { justify-self: start; }
 .now-crew-why {
   min-width: 0;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
+  display: grid;
+  gap: 0.15em;
   font-size: var(--lf-text-xs);
-  line-height: 1.45;
+  line-height: 1.4;
   color: var(--lf-text-2);
 }
+.now-crew-item { display: flex; gap: 0.4em; align-items: baseline; min-width: 0; }
+.now-crew-item .lf-icon { flex: none; transform: translateY(1px); }
+.now-crew-item[title] { cursor: default; }
+.now-crew-item[data-severity='warning'] .lf-icon,
+.now-crew-item[data-severity='emergency'] .lf-icon { color: var(--lf-sev-warning); }
+.now-crew-item[data-severity='caution'] .lf-icon { color: var(--lf-sev-caution); }
+.now-crew-item[data-severity='advisory'] .lf-icon { color: var(--lf-sev-advisory); }
 .now-crew-more { font-family: var(--lf-font-mono); color: var(--lf-text-muted); }
 
 .now-env { margin: 0 0 0.4em; }
@@ -291,6 +318,8 @@
   .now-h1-part { display: inline; }
   .now-head .lf-sim-extra { display: none; } /* the mission bar's mode strip carries the full sentence */
   .now-dual-grid { grid-template-columns: minmax(0, 1fr); gap: var(--lf-space-1-5); }
+  /* the onboard answer first on a phone: it is the point, and it must sit above the fold */
+  .now-landfall { order: -1; }
   .now-counter { padding: var(--lf-space-1-5) var(--lf-space-2) var(--lf-space-1); }
   .now-big { font-size: clamp(1.8rem, 9vw, 2.4rem); }
   .now-action { font-size: var(--lf-text-md); }

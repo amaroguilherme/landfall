@@ -54,6 +54,12 @@ export const ROUTES: readonly RouteDef[] = [
   { id: 'data', pattern: '/data', feature: 'data', label: 'Data', title: 'Data sources', navHref: '#/data' },
 ]
 
+/**
+ * Path aliases (first segment): a natural URL that is not a nav entry resolves to its route, e.g.
+ * "#/cases" and "#/cases/renal_stone" show the case views (the nav uses "#/case").
+ */
+export const ROUTE_ALIASES: Readonly<Record<string, string>> = { cases: 'case' }
+
 export interface RouteMatch {
   route: RouteDef | null
   /** Path params, e.g. { id: "spe_shelter" } for #/case/spe_shelter. */
@@ -91,7 +97,9 @@ function matchPattern(pattern: string, path: string): Record<string, string> | n
 export function matchRoute(hash: string): RouteMatch {
   const raw = hash.replace(/^#/, '') || '/'
   const [pathPart, queryPart = ''] = raw.split('?')
-  const path = '/' + pathPart.split('/').filter(Boolean).join('/')
+  const segs = pathPart.split('/').filter(Boolean)
+  if (segs.length && Object.prototype.hasOwnProperty.call(ROUTE_ALIASES, segs[0])) segs[0] = ROUTE_ALIASES[segs[0]]
+  const path = '/' + segs.join('/')
   const query: Record<string, string> = {}
   for (const [k, v] of new URLSearchParams(queryPart)) query[k] = v
   for (const route of ROUTES) {

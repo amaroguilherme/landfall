@@ -1,4 +1,4 @@
-// Onboard proton monitor sparkline (uPlot, lazy-loaded so the hero bundle stays light).
+// Proton monitor sparkline (uPlot, lazy-loaded so the hero bundle stays light).
 // Log axis; the series is neutral grey, only the samples at or above the case threshold are drawn
 // in the finding's severity colour; NOAA S1-S5 levels (from the rules) are faint reference lines;
 // a dashed marker shows when LANDFALL opened the case. Colours are read from the design tokens.
@@ -90,7 +90,8 @@ export default function FluxSpark(props: FluxSparkProps) {
             for (let v = Math.ceil(min / step) * step; v <= max; v += step) out.push(v)
             return out
           },
-          values: (_u, splits) => splits.map((v) => formatMet(v).slice(5, 10)),
+          // "hh:mm" of the MET (F.6.1 f: the day field has no fixed width, so split on "/", never slice by position).
+          values: (_u, splits) => splits.map((v) => (formatMet(v).split('/')[1] ?? '').slice(0, 5)),
         },
         {
           stroke: c.muted,

@@ -82,7 +82,7 @@ export const metClock = {
     publishClock({ metNow: anchorMet, running: clock.running })
     schedule()
   },
-  /** Back to the scenario "now" (MET 0412/14:20:00), running. */
+  /** Back to the scenario "now" (MET 412/14:20:00), running. */
   reset(): void {
     anchorMet = MET_NOW_S
     anchorWall = Date.now()
@@ -132,6 +132,9 @@ export const SHAREABLE_VARIABLES = [
   'skin_temp',
   'urine_volume_24h',
   'fluid_intake_24h',
+  'bp_systolic',
+  'bp_diastolic',
+  'glucose',
   'vo2max',
   'proton_flux_10mev',
   'mood',
@@ -177,12 +180,25 @@ export interface AlertItem {
   severity: Severity
   /** Plain-language title, e.g. "Proton flux at S3: shelter recommended". */
   title: string
+  /** Secondary line: the rule or indicator and its status, when the title is an action label. */
+  detail?: string
+  /** One-line action of a finding without a deep case (rules `action.text`, D11). */
+  action_text?: string
   crew_id?: CrewId | 'ALL'
   category?: Category
   /** Hash route for "open", e.g. "#/case/spe_shelter". */
   href?: string
   /** MET seconds when it was raised. */
   t?: number
+  /** The case this finding is a trigger of (cases.json), or null. */
+  case_id?: string | null
+  /**
+   * Annunciator group (D16): `${crew_id}:case:${case_id}` for case triggers of one crewmember; otherwise the
+   * entry's own id. The mission bar counts and acknowledges groups. Absent = its own group.
+   */
+  group?: string
+  /** Title of the group (the case title) when the group gathers a case's findings. */
+  group_title?: string
 }
 
 export interface MissionState {
@@ -321,27 +337,76 @@ export function selectAlerts(s: MissionState): AlertItem[] {
   )
 }
 
+/** One annunciator line (D16): a case's findings for one crewmember, or a single finding. */
+export interface AlertGroup {
+  /** `group` of its members (`${crew_id}:case:${case_id}`), or the single member's id. */
+  id: string
+  /** The most severe member's severity. */
+  severity: Severity
+  /** The case title for a case group, else the single member's title. */
+  title: string
+  crew_id?: CrewId | 'ALL'
+  case_id: string | null
+  href?: string
+  /** Members, most severe first. */
+  alerts: AlertItem[]
+  /** True when every member is acknowledged. A new member makes the group new again. */
+  acknowledged: boolean
+}
+
+/**
+ * Alerts grouped for the annunciator (D16), most severe first: members that share `group` form one line
+ * (a case's findings for one crewmember); every other alert is its own line.
+ */
+export function selectAlertGroups(s: MissionState): AlertGroup[] {
+  const alerts = selectAlerts(s)
+  const byKey = new Map<string, AlertItem[]>()
+  for (const a of alerts) {
+    const k = a.group ?? a.id
+    const list = byKey.get(k)
+    if (list) list.push(a)
+    else byKey.set(k, [a])
+  }
+  const groups: AlertGroup[] = []
+  for (const [id, members] of byKey) {
+    const top = members[0] // selectAlerts sorts most severe first
+    const many = members.length > 1
+    groups.push({
+      id,
+      severity: top.severity,
+      title: many ? (top.group_title ?? top.title) : top.title,
+      crew_id: top.crew_id,
+      case_id: top.case_id ?? null,
+      href: top.href,
+      alerts: members,
+      acknowledged: members.every((a) => a.id in s.acknowledged),
+    })
+  }
+  return groups.sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity] || a.title.localeCompare(b.title))
+}
+
 export interface AnnunciatorCounts {
   emergency: number
   warning: number
   caution: number
   advisory: number
-  /** Alerts not yet acknowledged (F.6.4 d "Unacknowledged/New Event Count"). */
+  /** Alert lines (groups, D16) not yet acknowledged (F.6.4 d "Unacknowledged/New Event Count"). */
   unacknowledged: number
   /** False until at least one publisher has reported (then 0 means "evaluated, none"). */
   evaluated: boolean
 }
 
+/** Counts per severity class of the annunciator's lines (alert groups, D16), and how many are new. */
 export function selectAnnunciator(s: MissionState): AnnunciatorCounts {
-  const alerts = selectAlerts(s)
-  const count = (sev: Severity) => alerts.filter((a) => a.severity === sev).length
+  const groups = selectAlertGroups(s)
+  const count = (sev: Severity) => groups.filter((g) => g.severity === sev).length
   return {
     // LANDFALL never raises Emergency-class alarms (SPEC 1.5); counted anyway for honesty.
     emergency: count('emergency'),
     warning: count('warning'),
     caution: count('caution'),
     advisory: count('advisory'),
-    unacknowledged: alerts.filter((a) => !(a.id in s.acknowledged)).length,
+    unacknowledged: groups.filter((g) => !g.acknowledged).length,
     evaluated: Object.keys(s.alerts).length > 0,
   }
 }

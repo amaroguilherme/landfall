@@ -11,6 +11,10 @@
 //                         for P1D) is taken as is, never summed twice
 //   career             -> a running "to date" record (career_effective_dose) is taken as is;
 //                         otherwise the sum of every report so far
+// A summed window (cumulative, or a career sum) whose record starts AFTER the window opens is a
+// PARTIAL RECORD (input.partial, D15): unlogged time is not zero dose, so the sum is a lower bound.
+// "outside" / "approaching" on it are conclusive; "within" is not (partialRecord() below): it is
+// drawn cyan ("missing or stale data", Table F.5-1) with the logged sum against the limit.
 //   ratio_to_baseline  -> a value already in "% of pre-mission" is taken as is (percentOfPreMission()
 //                         converts raw values); no BMD exists in this scenario
 // A rule whose variable has no observation is honestly insufficient_data (cyan); a rule that does
@@ -75,6 +79,15 @@ export interface Aggregate {
   basis: string
   /** Observations set aside because their unit differs from the rule's (never converted). */
   unit_mismatch: number
+  /**
+   * Summed windows only (cumulative, career sums): true when the record starts after the window opens, so
+   * the sum is a lower bound of the window's dose (D15). Always false for other windows.
+   */
+  partial: boolean
+  /** Summed windows: t of the earliest usable report at or before t (any age), else null. */
+  record_start: number | null
+  /** Summed windows: MET the window opens (t - duration; 0 for a career sum), else null. */
+  window_start: number | null
 }
 
 function windowLabel(seconds: number): string {
@@ -104,11 +117,31 @@ export function aggregateForRule(rule: Pick<Rule, 'variable' | 'unit' | 'window'
     usable.push(o)
     if (onlyLatest) break
   }
-  const none = (basis: string): Aggregate => ({ value: null, unit: rule.unit, t: null, n: 0, basis, unit_mismatch: unitMismatch })
+  // Coverage of a summed window (D15): the earliest usable report at or before t, of any age.
+  const summed = (kind === 'cumulative' && !(ownWindowSeconds(rule.variable) !== null && ownWindowSeconds(rule.variable) === d)) ||
+    (kind === 'career' && !TO_DATE_VARIABLES.has(rule.variable))
+  let recordStart: number | null = null
+  if (summed) {
+    for (let i = 0; i <= last; i++) {
+      const o = observations[i]
+      if (o.unit === rule.unit && typeof o.value === 'number' && Number.isFinite(o.value)) {
+        recordStart = o.t
+        break
+      }
+    }
+  }
+  const windowStart = !summed ? null : kind === 'career' ? 0 : d === null ? null : t - d
+  const coverage = {
+    partial: recordStart !== null && windowStart !== null && recordStart > windowStart,
+    record_start: recordStart,
+    window_start: windowStart,
+  }
+  const none = (basis: string): Aggregate => ({ value: null, unit: rule.unit, t: null, n: 0, basis, unit_mismatch: unitMismatch, ...coverage })
   const newest = usable[0]
   const one = (basis: string): Aggregate =>
-    newest ? { value: newest.value, unit: newest.unit, t: newest.t, n: 1, basis, unit_mismatch: unitMismatch } : none(`no ${rule.variable} value yet`)
+    newest ? { value: newest.value, unit: newest.unit, t: newest.t, n: 1, basis, unit_mismatch: unitMismatch, ...coverage } : none(`no ${rule.variable} value yet`)
   const sum = () => sumLR(usable.slice().reverse().map((o) => o.value))
+  const partialNote = coverage.partial ? '; a partial record: the dose before the first report is not logged, so this sum is a lower bound' : ''
   switch (kind) {
     case 'instant':
       return one('latest value')
@@ -117,19 +150,35 @@ export function aggregateForRule(rule: Pick<Rule, 'variable' | 'unit' | 'window'
     case 'rolling_mean': {
       if (d === null) return none('rolling window without a duration')
       if (!usable.length) return none(`no ${rule.variable} value in the last ${windowLabel(d)}`)
-      return { value: sum() / usable.length, unit: rule.unit, t: newest.t, n: usable.length, basis: `mean of ${usable.length} value(s) available in the last ${windowLabel(d)}`, unit_mismatch: unitMismatch }
+      return { value: sum() / usable.length, unit: rule.unit, t: newest.t, n: usable.length, basis: `mean of ${usable.length} value(s) available in the last ${windowLabel(d)}`, unit_mismatch: unitMismatch, ...coverage }
     }
     case 'cumulative': {
       if (d === null) return none('cumulative window without a duration')
       if (!usable.length) return none(`no ${rule.variable} record in the last ${windowLabel(d)}`)
       const own = ownWindowSeconds(rule.variable)
       if (own !== null && own === d) return one(`latest ${windowLabel(d)} total`)
-      return { value: sum(), unit: rule.unit, t: newest.t, n: usable.length, basis: `sum of ${usable.length} report(s) in the last ${windowLabel(d)}; doses before the first report are not in this record`, unit_mismatch: unitMismatch }
+      return {
+        value: sum(),
+        unit: rule.unit,
+        t: newest.t,
+        n: usable.length,
+        basis: `sum of ${usable.length} report(s) in the last ${windowLabel(d)}${partialNote || '; doses before the first report are not in this record'}`,
+        unit_mismatch: unitMismatch,
+        ...coverage,
+      }
     }
     case 'career': {
       if (TO_DATE_VARIABLES.has(rule.variable)) return one('latest career-to-date record')
       if (!usable.length) return none(`no ${rule.variable} record`)
-      return { value: sum(), unit: rule.unit, t: newest.t, n: usable.length, basis: `sum of ${usable.length} report(s); doses before the first report are not in this record`, unit_mismatch: unitMismatch }
+      return {
+        value: sum(),
+        unit: rule.unit,
+        t: newest.t,
+        n: usable.length,
+        basis: `sum of ${usable.length} report(s)${partialNote || '; doses before the first report are not in this record'}`,
+        unit_mismatch: unitMismatch,
+        ...coverage,
+      }
     }
     default:
       return none(`unknown window kind ${kind}`)
@@ -275,11 +324,15 @@ export function evaluateOps(index: ScenarioIndex, runtime: readonly Observation[
     const best = active ? (typeof active.rule.s_level === 'number' ? active.rule.s_level : sLevel(active.rule.limit)) : -1
     if (lvl > best) active = f
   }
+  // D3: at Mars the reading comes from an external space-weather monitor above the atmosphere, in Mars orbit,
+  // relayed locally ([V2 6165]); sim_crew's own label says so. The vehicle's radiation monitoring system raises
+  // the alarm ([V2 6164]); LANDFALL opens the health case.
+  const monitor = index.variables[OPS_VARIABLE]?.label ?? 'External space-weather monitor in Mars orbit: >=10 MeV proton flux'
   return {
     kind: onboard ? 'onboard_monitor' : 'noaa',
     label: onboard
-      ? 'Onboard proton monitor, >=10 MeV (scenario: time-shifted replay of the real GOES-7 October 1989 event)'
-      : 'NOAA GOES >=10 MeV proton flux (scenario: time-shifted replay of the real GOES-7 October 1989 event)',
+      ? `${monitor} (scenario: the GOES-7 October 1989 replay, time-shifted, with no distance or atmosphere correction)`
+      : 'NOAA GOES >=10 MeV proton flux (scenario: time-shifted replay of the GOES-7 October 1989 event)',
     flux: latest ? latest.value : null,
     t: latest ? latest.t : null,
     s_level: latest ? sLevel(latest.value) : null,
@@ -313,6 +366,17 @@ export function evaluateMission(index: ScenarioIndex, runtime: readonly Observat
   return evaluation
 }
 
+// ---- partial records (D15) -------------------------------------------------------------------------
+
+/**
+ * D15: a summed dose window with incomplete coverage may not claim "within limit". True when the finding
+ * is "within" on a partial record: show it cyan as a partial record, with the logged sum against the limit.
+ * "outside" and "approaching" on a partial record stay as they are (the full sum can only be higher).
+ */
+export function partialRecord(ev: { finding: Pick<Finding, 'status'>; input: Pick<Aggregate, 'partial'> }): boolean {
+  return ev.input.partial === true && ev.finding.status === 'within'
+}
+
 // ---- annunciator ----------------------------------------------------------------------------------
 
 const DATA_QUALITY = new Set(['insufficient_data', 'stale', 'not_applicable'])
@@ -320,14 +384,38 @@ const DATA_QUALITY = new Set(['insufficient_data', 'stale', 'not_applicable'])
 function statusWords(f: Finding): string {
   switch (f.status) {
     case 'outside':
-      return 'outside'
+      return f.category === 'TARGET' ? 'outside the target' : 'outside'
     case 'approaching':
       return 'approaching'
     case 'reliable_change':
-      return 'reliable change'
+      return 'reliable change against own baseline'
     default:
       return f.status.replace('_', ' ')
   }
+}
+
+interface CaseRef {
+  id: string
+  title: string
+}
+
+/** Rule / indicator id -> the case that lists it as a trigger (cases.json triggers), in file order. */
+export const TRIGGER_CASE: ReadonlyMap<string, CaseRef> = (() => {
+  const m = new Map<string, CaseRef>()
+  const defs = (RULES.cases?.cases ?? []) as Array<{ id: string; title?: string; triggers?: Array<{ rule_id?: string; indicator_id?: string }> }>
+  for (const c of defs) {
+    for (const tr of c.triggers ?? []) {
+      const id = tr.rule_id ?? tr.indicator_id
+      if (id && !m.has(id)) m.set(id, { id: c.id, title: c.title ?? c.id })
+    }
+  }
+  return m
+})()
+
+/** The one-line action of a finding without a deep case (rules `action`, D11), when the rule or indicator has one. */
+function actionOf(x: { action?: unknown }): { label: string; text: string } | null {
+  const a = x.action as { label?: unknown; text?: unknown } | undefined
+  return a && typeof a.label === 'string' && typeof a.text === 'string' ? { label: a.label, text: a.text } : null
 }
 
 /**
@@ -336,32 +424,52 @@ function statusWords(f: Finding): string {
  *   - never: role "context" rules, private indicators (mood), data-quality states
  *     (insufficient_data / stale / not_applicable are shown in place, cyan / gray, not annunciated);
  *   - OPS: one crew-wide entry for the highest S-level rule that is outside;
- *   - ids `${crew_id}:${rule_id}` (`ALL:<rule_id>` for OPS), so feature publishers merge with these.
+ *   - ids `${crew_id}:${rule_id}` (`ALL:<rule_id>` for OPS), so feature publishers merge with these;
+ *   - plain-language titles (D7): a finding without a deep case shows its rules `action.label` (D11; the
+ *     VO2max floors read "EVA assignment not cleared"), with the rule label and status as `detail`;
+ *   - grouping (D16): entries whose rule or indicator triggers the same case, for the same crewmember, share
+ *     `group` = `${crew_id}:case:${case_id}`; the mission bar counts and acknowledges groups. Any other
+ *     entry is its own group.
  */
+/** ">=" and "<=" as the mathematical signs, for crew-facing text. */
+const prettyOps = (s: string): string => s.replace(/>=/g, '≥').replace(/<=/g, '≤')
+
 export function alertsFor(e: Pick<MissionEvaluation, 't' | 'ops' | 'crew'>): AlertItem[] {
   const out: AlertItem[] = []
-  const add = (crew: CrewId | 'ALL', f: Finding, title: string, caseId: string | null | undefined) => {
+  const add = (crew: CrewId | 'ALL', f: Finding, rawLabel: string, x: { action?: unknown }, refId: string, related: string | null | undefined) => {
     if (SEVERITY_RANK[f.severity as Severity] < SEVERITY_RANK.advisory || DATA_QUALITY.has(f.status)) return
+    const label = prettyOps(rawLabel)
+    const opens = TRIGGER_CASE.get(refId) ?? null
+    const action = opens ? null : actionOf(x)
+    const id = `${crew}:${f.rule_id}`
+    const caseId = opens?.id ?? related ?? null
+    // An OPS rule's label already names the level it reached ("... at the NOAA S3 level"): no status word.
+    const ops = f.category === 'OPS' && f.status === 'outside'
     out.push({
-      id: `${crew}:${f.rule_id}`,
+      id,
       severity: f.severity as Severity,
-      title,
+      title: action ? action.label : ops ? label : `${label}: ${statusWords(f)}`,
+      detail: action ? `${label}: ${statusWords(f)}` : ops && opens ? `Case open: ${opens.title}` : undefined,
+      action_text: action?.text,
       crew_id: crew,
       category: f.category,
       href: caseId ? `#/case/${caseId}` : '#/body',
       t: f.t ?? e.t,
+      case_id: opens?.id ?? null,
+      group: opens ? `${crew}:case:${opens.id}` : id,
+      group_title: opens?.title,
     })
   }
   if (e.ops.active) {
     const r = e.ops.active.rule
-    add('ALL', e.ops.active.finding, `${r.label ?? r.id}: ${statusWords(e.ops.active.finding)}`, r.case_id ?? 'spe_shelter')
+    add('ALL', e.ops.active.finding, r.label ?? r.id, r, r.id, r.case_id ?? 'spe_shelter')
   }
   for (const crewId of CREW_IDS) {
     const c = e.crew[crewId]
-    for (const ev of c.tierA) add(crewId, ev.finding, `${ev.rule.label ?? ev.rule.id}: ${statusWords(ev.finding)}`, ev.rule.case_id)
+    for (const ev of c.tierA) add(crewId, ev.finding, ev.rule.label ?? ev.rule.id, ev.rule, ev.rule.id, ev.rule.case_id)
     for (const ev of c.tierB) {
       if (ev.indicator.private || ev.finding.status !== 'reliable_change') continue
-      add(crewId, ev.finding, `${ev.indicator.label ?? ev.indicator.id}: reliable change against own baseline`, ev.indicator.case_id)
+      add(crewId, ev.finding, ev.indicator.label ?? ev.indicator.id, ev.indicator, ev.indicator.id, ev.indicator.case_id)
     }
   }
   return out

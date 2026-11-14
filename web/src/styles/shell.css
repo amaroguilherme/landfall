@@ -14,6 +14,7 @@ html { scroll-padding-top: calc(var(--lf-missionbar-offset, var(--lf-missionbar-
 }
 .lf-mb-inner {
   display: flex;
+  flex-wrap: wrap; /* wrap to a second row rather than squeeze (and truncate) a selector */
   align-items: center;
   gap: var(--lf-space-1) var(--lf-space-2);
   max-width: 1440px;
@@ -56,10 +57,10 @@ html { scroll-padding-top: calc(var(--lf-missionbar-offset, var(--lf-missionbar-
 }
 .lf-iconbtn:hover { border-color: var(--lf-border-strong); color: var(--lf-text); }
 
-.lf-mb-field { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.lf-mb-field { display: inline-flex; align-items: center; gap: 6px; flex: none; }
 .lf-mb-field select {
-  min-width: 0;
-  max-width: 15rem;
+  flex: none;
+  width: auto;
   height: 32px;
   padding: 0 28px 0 8px;
   border: 1px solid var(--lf-border);
@@ -73,9 +74,16 @@ html { scroll-padding-top: calc(var(--lf-missionbar-offset, var(--lf-missionbar-
   font-size: var(--lf-text-sm);
   appearance: none;
   cursor: pointer;
-  text-overflow: ellipsis;
 }
 .lf-mb-field select:hover { border-color: var(--lf-border-strong); }
+
+/* reset: an icon summary that opens a confirmation (it drops the user's work) */
+.lf-mb-reset > summary.lf-iconbtn { width: 26px; height: 26px; min-height: 26px; padding: 0; justify-content: center; border-color: var(--lf-border); }
+.lf-mb-reset .lf-pop-body { left: 0; right: auto; width: min(22rem, calc(100vw - 24px)); }
+.lf-reset-actions { display: flex; flex-wrap: wrap; gap: var(--lf-space-1); }
+.lf-mb-met .lf-reset-body .lf-met { font-size: inherit; font-weight: 500; }
+.lf-mb-met .lf-reset-body { white-space: normal; }
+.lf-offline-note { color: var(--lf-text); }
 
 /* ---- popovers built on <details> ---- */
 .lf-pop { position: relative; }
@@ -164,11 +172,20 @@ html { scroll-padding-top: calc(var(--lf-missionbar-offset, var(--lf-missionbar-
   font: 600 0.625rem/1 var(--lf-font-ui);
   letter-spacing: 0.1em;
   color: var(--lf-text);
+  white-space: nowrap;
 }
-.lf-ann-list { list-style: none; margin: 0 0 0.75em; padding: 0; display: grid; gap: 8px; }
-.lf-ann-list li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
-.lf-ann-list li[data-acked] { opacity: 0.8; }
+.lf-ann-new .lf-num { font-size: 0.8125rem; letter-spacing: 0; }
+.lf-ann-new[data-zero] { border-color: var(--lf-border); color: var(--lf-text-muted); }
+.lf-ann-list { list-style: none; margin: 0 0 0.75em; padding: 0; display: grid; gap: 10px; }
+.lf-ann-list > li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+.lf-ann-list > li > .lf-sev { margin-top: 1px; }
+.lf-ann-list > li[data-acked] { opacity: 0.8; }
+.lf-ann-item { min-width: 0; }
 .lf-ann-crew { color: var(--lf-text-muted); }
+.lf-ann-detail { display: block; margin-top: 2px; font-size: var(--lf-text-xs); color: var(--lf-text-2); }
+.lf-ann-action { padding-left: 6px; border-left: 2px solid var(--lf-border-strong); color: var(--lf-text); }
+.lf-ann-members { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; font-size: var(--lf-text-xs); color: var(--lf-text-2); }
+.lf-ann-members li { display: flex; gap: 6px; align-items: center; }
 .lf-ann-acked { font-size: var(--lf-text-xs); color: var(--lf-text-muted); }
 .lf-linkbtn {
   background: none;
@@ -233,9 +250,14 @@ html { scroll-padding-top: calc(var(--lf-missionbar-offset, var(--lf-missionbar-
 .lf-mb-id { display: flex; align-items: center; gap: var(--lf-space-2); }
 .lf-mb-ctx { display: flex; align-items: center; gap: var(--lf-space-1) var(--lf-space-2); min-width: 0; }
 
-/* ---- responsive: below 1180px the bar wraps; below 640px it becomes a compact grid ---- */
-@media (max-width: 1179px) {
-  .lf-mb-inner { flex-wrap: wrap; }
+/* ---- responsive: the bar wraps rather than truncate; 1280-1439 px trims spacing so one row still fits
+   at laptop widths; below 640px it becomes a compact grid ---- */
+@media (min-width: 640px) and (max-width: 1439px) {
+  .lf-mb-inner { column-gap: 12px; }
+  .lf-wordmark { letter-spacing: 0.16em; }
+  .lf-comms-owlt .lf-mb-label { display: none; } /* the value stays; "One-way light time" is read out */
+  .lf-comms-conj { letter-spacing: 0.06em; }
+  .lf-mb-ctx { gap: var(--lf-space-1) 12px; }
 }
 
 @media (max-width: 639px) {
@@ -261,18 +283,45 @@ html { scroll-padding-top: calc(var(--lf-missionbar-offset, var(--lf-missionbar-
   .lf-mb-ctx { grid-area: ctx; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
   .lf-comms { grid-area: comms; }
   .lf-mb-field { gap: 4px; min-width: 0; }
-  .lf-mb-field select { width: 100%; max-width: none; min-width: 0; height: 30px; font-size: 0.75rem; padding-right: 22px; }
+  .lf-mb-field select { flex: 1 1 auto; width: auto; max-width: none; min-width: 0; height: 30px; font-size: 0.75rem; padding-right: 22px; }
   .lf-comms > summary { display: flex; width: 100%; min-height: 28px; overflow: hidden; }
   .lf-comms-owlt { margin-left: auto; }
-  .lf-ann > summary { padding: 0 2px; min-height: 28px; gap: 3px; }
-  .lf-ann-cell { min-width: 0; padding: 0 4px; height: 22px; }
-  .lf-ann-cell[data-severity='emergency'] { display: none; }
-  .lf-ann-new { display: none; }
+  /* F.4.2 f: E, W, C, A and the NEW count stay visible on a phone; the cells only get tighter. */
+  .lf-ann > summary { padding: 0 2px; min-height: 28px; gap: 2px; }
+  .lf-ann-cell { min-width: 0; padding: 0 3px; height: 22px; gap: 2px; }
+  .lf-ann-cell .lf-icon { width: 10px; height: 10px; }
+  .lf-ann-new { height: 22px; padding: 0 4px; letter-spacing: 0.04em; }
   .lf-pop-body { position: fixed; top: auto; left: 10px; right: 10px; width: auto; margin-top: 6px; max-height: 70vh; overflow: auto; }
+  .lf-mb-reset .lf-pop-body { left: 10px; right: 10px; width: auto; }
 }
 
 /* Below ~420 px the clock controls do not fit beside the MET and the annunciator; hide them rather
    than let them slide under the annunciator (an overlapped control would still take focus). */
+/* On a phone the MET and all five annunciator counts (E W C A NEW) share the first row: the wordmark and
+   the clock get compact, and the lit-cell icons give way. The letter and the lit fill remain, so colour is
+   never the only cue (F.5.10 e): each cell names its class. */
 @media (max-width: 419px) {
   .lf-mb-met .lf-iconbtn { display: none; }
+  .lf-wordmark { font-size: 0.625rem; letter-spacing: 0.06em; }
+  .lf-mb-id { gap: 6px; }
+  .lf-mb-met .lf-met { font-size: 0.8125rem; }
+  .lf-ann-cell .lf-icon { display: none; }
+}
+
+/* Narrow phones (360 px): the visible "MET" label goes (screen readers still hear "Mission elapsed time"). */
+@media (max-width: 374px) {
+  .lf-mb-met .lf-mb-label { display: none; }
+  .lf-comms-owlt .lf-mb-label { display: none; } /* the value stays whole; "One-way light time" is read out */
+}
+
+/* Offline indicator (footer): shown only once the service worker holds a complete copy of the build. */
+.lf-offline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.05em 0.5em;
+  border: 1px solid var(--lf-border-strong);
+  border-radius: var(--lf-radius);
+  color: var(--lf-text);
+  white-space: nowrap;
 }

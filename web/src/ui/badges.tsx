@@ -121,13 +121,34 @@ export function StatusBadge({ status }: { status: Status }) {
 
 /**
  * The badge for an engine Finding: data-quality states (cyan / gray) take precedence over the
- * severity colour, so "no data" never looks like "nominal".
+ * severity colour, so "no data" never looks like "nominal". `partial` (a summed dose window whose
+ * record starts after the window opens, app/evaluate partialRecord) turns a "within" into the cyan
+ * "Partial record" tag (D15): a lower bound never reads "within limit".
  */
-export function FindingBadge({ finding, solid }: { finding: { status: Status; severity: Severity; category?: string | null }; solid?: boolean }) {
+export function FindingBadge({
+  finding,
+  solid,
+  partial = false,
+}: {
+  finding: { status: Status; severity: Severity; category?: string | null }
+  solid?: boolean
+  partial?: boolean
+}) {
   if (DATA_STATUS[finding.status]) return <StatusBadge status={finding.status} />
+  if (partial && finding.status === 'within') return <PartialRecordBadge />
   // A TARGET is a countermeasure target, not a limit (SPEC 1.2): never label it "limit".
   const label = (finding.category === 'TARGET' ? TARGET_LABEL[finding.status] : undefined) ?? STATUS_LABEL[finding.status]
   return <SeverityBadge severity={finding.severity} label={label} solid={solid} />
+}
+
+/** Cyan "Partial record" tag (Table F.5-1 "Missing or stale data"): the logged sum is a lower bound (D15). */
+export function PartialRecordBadge() {
+  return (
+    <span className="lf-dq" data-tone="stale" title="The dose record starts after the window opens: the logged sum is a lower bound, not a verdict.">
+      <UnknownIcon size={14} />
+      <span>Partial record</span>
+    </span>
+  )
 }
 
 const TARGET_LABEL: Partial<Record<Status, string>> = {

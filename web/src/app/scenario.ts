@@ -9,7 +9,7 @@ import type { ChipKind, CrewId, EnvId } from './vocab'
 
 const DAY_S = 86_400
 
-/** "Now" in the scenario: MET 0412/14:20:00 (SPEC 7; sim_crew data.met.now_met_s, checked by a test). */
+/** "Now" in the scenario: MET 412/14:20:00 (SPEC 7; sim_crew data.met.now_met_s, checked by a test). */
 export const MET_NOW_S = 412 * DAY_S + 14 * 3600 + 20 * 60
 /** Simulated data window: MET day 368 to day 412; baseline days 368 to 381 (SPEC 7, fixed). */
 export const SIM_FIRST_DAY = 368

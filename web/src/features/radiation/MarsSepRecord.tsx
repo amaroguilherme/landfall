@@ -341,7 +341,7 @@ function WholeRecord({ data }: { data: SepEventsData }) {
   return (
     <>
       <p className="lf-tr-muted">
-        Run over the whole record as an onboard system would (background refit daily, two consecutive samples less than{' '}
+        Run over the whole iSWA record (2012–2026) as an onboard system would (background refit daily, two consecutive samples less than{' '}
         <Num value={data.rule.scan.max_pair_gap_s / 3600} unit="h" /> apart <Chip kind={DESIGN} />, <Num value={r.n_samples} /> samples from{' '}
         {r.first_sample.slice(0, 10)} to {r.last_sample.slice(0, 10)}), the rule triggers <Num value={sc.n_triggers} /> times:{' '}
         <Num value={sc.flag_counts.in_paper_table} /> match rows of the paper’s table;{' '}
@@ -427,12 +427,12 @@ export function MarsSepRecordView({ data, snap, status }: { data: SepEventsData 
   return (
     <section className="lf-rad-sub lf-rad-sep" aria-labelledby="rad-sep-h">
       <h3 id="rad-sep-h" className="lf-tr-card-title">
-        The RAD team’s storm warning, replayed on Curiosity’s whole record <Measured>MEASURED · MSL RAD, GALE CRATER</Measured>
+        The RAD team’s storm warning, replayed on Curiosity’s RAD record at NASA iSWA (2012–2026) <Measured>MEASURED · MSL RAD, GALE CRATER</Measured>
       </h3>
       <p>
         The MSL RAD team published a nowcasting rule for solar particle events ({firstAuthorFamily(data)} et al., {lit.journal.journal}{' '}
         {lit.journal.published?.slice(0, 4)}): alert when detector E’s dose rate passes {data.rule.threshold_factor} × its own {data.rule.background_days}-day
-        background, and confirm on the next sample <Chip kind={LIT} />. Here it runs on NASA’s public RAD record, and every row of the paper’s own table is checked
+        background, and confirm on the next sample <Chip kind={LIT} />. Here it runs on the MSL RAD series NASA’s iSWA serves (sparse before March 2013; the full archive is in NASA’s Planetary Data System), and every row of the paper’s own table is checked
         against the replay <Chip kind={DERIVED} />.
         {beforeReply ? ' On 20 May 2024, the largest storm in the record, the onboard rule confirms before any reply from Earth could arrive:' : ' 20 May 2024, the largest storm in the record:'}
       </p>

@@ -113,7 +113,7 @@ Requirement text is extracted verbatim with a ToUnicode-aware PDF parser and che
 
 ## Use of AI
 
-LANDFALL was built by Guilherme Amaro with Claude Code (Anthropic) as a coding assistant. Claude Code
+LANDFALL was built by its team with Claude Code (Anthropic) as a coding assistant. Claude Code
 wrote code, ran the build-time data ingestion and verification, and drafted documentation. No AI model
 runs in the product's decision path.
 

@@ -1,0 +1,18 @@
+{
+ "schema": "landfall.nearest-coverage/1",
+ "note": "LANDFALL's count, not model output: how many requirements each volume defines, and which of them the ranking in nearest.json leaves out because LANDFALL's PDF parsers miss them. Counted on 15 Nov 2026 in the two cached PDFs whose SHA-256 the snapshots record; ingest/tests/test_nearest.py recounts it there.",
+ "volumes": [
+  {
+   "doc": "NASA-STD-3001 Vol 1 Rev C",
+   "requirements": 77,
+   "not_ranked": ["V1 5002"],
+   "counted": "Distinct [V1 n] tags on PDF pages 1-65 whose own text, before the next tag, has 'shall': 82 tags less [V1 3005], [V1 3011], [V1 4021], [V1 6005] and [V1 6007], which appear only in deletion, merger or change-log entries. Appendix D's compliance matrix (PDF pages 66-86) lists 76 of the 77: it omits [V1 7003]."
+  },
+  {
+   "doc": "NASA-STD-3001 Vol 2 Rev F",
+   "requirements": 468,
+   "not_ranked": ["V2 10157"],
+   "counted": "Distinct [V2 n] tags in Table D.2-1, Requirement Compliance Matrix (PDF pages 296-338)."
+  }
+ ]
+}

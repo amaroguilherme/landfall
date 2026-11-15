@@ -447,8 +447,8 @@
    "adapter": "std_vol2",
    "title": "NASA-STD-3001 Vol 2 Rev F: requirements, tables, Appendix F colours and verified negatives",
    "file": "std_vol2_requirements.json",
-   "bytes": 85513,
-   "sha256": "a63b453f33ca72b64c90717b604f638e9d0b94cc3d030bc70a6de58b5c8367a0",
+   "bytes": 85517,
+   "sha256": "6952d1372d94e722635f56fae4a382b04501af377dbb8b3acede13d56f2345d7",
    "retrieved_at": "2026-11-14T14:47:34Z",
    "provenance": "reference",
    "freshness": {

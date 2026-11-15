@@ -1,0 +1,257 @@
+{
+  "schema": "landfall.nearest_labels/1",
+  "written": "2026-11-15",
+  "note": "Written before the first ranking run. Neither check below is a pass/fail gate: each says how often the model's top five hold a requirement that was named without the model.",
+  "hand_named": {
+    "note": "The requirements the team had already named by hand as nearest to each claim, copied from the files that name them. The labelled check reports each one's rank and counts how many are in the model's top five.",
+    "claims": [
+      {
+        "claim_id": "emc",
+        "ids": [
+          "V2 6102"
+        ],
+        "named_in": "hardware/sensor-map.json negatives[id=emc].nearest"
+      },
+      {
+        "claim_id": "biocompat",
+        "ids": [
+          "V2 7076",
+          "V2 7081"
+        ],
+        "named_in": "hardware/sensor-map.json negatives[id=biocompat].nearest"
+      },
+      {
+        "claim_id": "sensor_set",
+        "ids": [],
+        "named_in": "hardware/sensor-map.json negatives[id=sensor_set].nearest (empty)"
+      },
+      {
+        "claim_id": "battery",
+        "ids": [],
+        "named_in": "hardware/sensor-map.json negatives[id=battery].nearest (empty)"
+      },
+      {
+        "claim_id": "storage",
+        "ids": [],
+        "named_in": "hardware/sensor-map.json negatives[id=storage].nearest (empty)"
+      },
+      {
+        "claim_id": "alert_number",
+        "ids": [
+          "V2 6164",
+          "V2 6022",
+          "V2 11036"
+        ],
+        "named_in": "docs/PROJECT_DESCRIPTION.md, the sentence that quotes 'outside safe limits' and 'exceed predefined thresholds'"
+      }
+    ],
+    "context_not_counted": [
+      {
+        "claim_id": "alert_number",
+        "ids": [
+          "V1 4006",
+          "V1 4008"
+        ],
+        "named_in": "engine/rules/meta.json principles[id=no_nasa_alert_thresholds].requirement_ids",
+        "why": "Cited for leaving in-mission fitness-for-duty limits to operations, not as alert requirements. Their ranks are reported, not counted."
+      }
+    ]
+  },
+  "agent_written_questions": {
+    "note": "Agent-written, not crew-written: 31 plain-language questions with the requirement IDs the agent expected, copied verbatim from the 15 Nov 2026 morning probe (/tmp/lf-probe/gold.py, CREW), where they were first run. Questions written by the same agent that checks them read optimistic.",
+    "items": [
+      {
+        "q": "How much drinking water should each of us get per day?",
+        "ids": [
+          "V2 6109"
+        ]
+      },
+      {
+        "q": "What's the most CO2 allowed in the cabin air?",
+        "ids": [
+          "V2 6004"
+        ]
+      },
+      {
+        "q": "Am I fit enough to do a spacewalk?",
+        "ids": [
+          "V1 4001",
+          "V1 6006"
+        ]
+      },
+      {
+        "q": "Can I walk outside on Mars if my fitness test came out low?",
+        "ids": [
+          "V1 4002",
+          "V1 6006"
+        ]
+      },
+      {
+        "q": "Who decides whether I'm allowed to go outside on an EVA?",
+        "ids": [
+          "V1 6006"
+        ]
+      },
+      {
+        "q": "How much radiation can I get over my whole career?",
+        "ids": [
+          "V1 4030"
+        ]
+      },
+      {
+        "q": "Will the ship warn us when radiation suddenly jumps during a solar storm?",
+        "ids": [
+          "V2 6164"
+        ]
+      },
+      {
+        "q": "Do we have to watch the space weather outside the ship?",
+        "ids": [
+          "V2 6165"
+        ]
+      },
+      {
+        "q": "How many people on board must be trained as medical officers?",
+        "ids": [
+          "V1 3006"
+        ]
+      },
+      {
+        "q": "What if the doctor on board is the one who gets sick?",
+        "ids": [
+          "V2 7045",
+          "V1 3006"
+        ]
+      },
+      {
+        "q": "How bright should the lights be to keep my body clock on schedule?",
+        "ids": [
+          "V2 8055"
+        ]
+      },
+      {
+        "q": "How much bone loss is acceptable before something has to be done?",
+        "ids": [
+          "V1 4027"
+        ]
+      },
+      {
+        "q": "How many calories a day are we supposed to get?",
+        "ids": [
+          "V2 7003"
+        ]
+      },
+      {
+        "q": "Do I get extra food on spacewalk days?",
+        "ids": [
+          "V2 7004"
+        ]
+      },
+      {
+        "q": "How loud is it allowed to be where we sleep?",
+        "ids": [
+          "V2 6079",
+          "V2 6082"
+        ]
+      },
+      {
+        "q": "What should the screen show when a sensor reading is old?",
+        "ids": [
+          "V2 10020"
+        ]
+      },
+      {
+        "q": "Is my medical data kept private?",
+        "ids": [
+          "V2 10125"
+        ]
+      },
+      {
+        "q": "What do we use if the computers go down?",
+        "ids": [
+          "V2 10130"
+        ]
+      },
+      {
+        "q": "How long can I stay in the suit if carbon dioxide builds up in an emergency?",
+        "ids": [
+          "V2 11040"
+        ]
+      },
+      {
+        "q": "Is there a limit on moon dust inside the habitat?",
+        "ids": [
+          "V2 6053"
+        ]
+      },
+      {
+        "q": "Is there a limit on Mars dust getting inside?",
+        "ids": [
+          "V2 6253"
+        ]
+      },
+      {
+        "q": "How much urine does the toilet system have to hold?",
+        "ids": [
+          "V2 7035"
+        ]
+      },
+      {
+        "q": "Can we treat the bends on board?",
+        "ids": [
+          "V2 6009"
+        ]
+      },
+      {
+        "q": "Do we get a private space on a long mission?",
+        "ids": [
+          "V2 7071"
+        ]
+      },
+      {
+        "q": "How much shaking is allowed while we sleep?",
+        "ids": [
+          "V2 6092"
+        ]
+      },
+      {
+        "q": "What sounds and lights should the warning alarms use?",
+        "ids": [
+          "V2 10114"
+        ]
+      },
+      {
+        "q": "Should our mental health be checked during the mission?",
+        "ids": [
+          "V1 4011",
+          "V1 6004"
+        ]
+      },
+      {
+        "q": "How many hours of sleep are planned per day?",
+        "ids": [
+          "V1 4014"
+        ]
+      },
+      {
+        "q": "Is there a volume limit for my headphones?",
+        "ids": [
+          "V2 6106"
+        ]
+      },
+      {
+        "q": "Is the air checked for toxic chemicals after a leak?",
+        "ids": [
+          "V2 6025",
+          "V2 6050"
+        ]
+      },
+      {
+        "q": "Will we be alerted if cabin pressure or oxygen goes off?",
+        "ids": [
+          "V2 6022"
+        ]
+      }
+    ]
+  }
+}

@@ -656,7 +656,7 @@
       "nearest": [], "snapshot": "std_vol2_requirements", "pattern": "batter(y|ies)", "hits": 3
     },
     {
-      "id": "storage", "claim": "No data storage or log-duration requirement in Vol 2 Rev F.",
+      "id": "storage", "claim": "No storage-capacity, retention or log-duration requirement in Vol 2 Rev F.",
       "detail": "Zero hits for storage capacity, retention or log duration. The log-depth target is a design choice.",
       "nearest": [], "snapshot": "std_vol2_requirements", "pattern": "data storage|storage capacity|data retention|retention period|log duration|logging duration", "hits": 0
     }

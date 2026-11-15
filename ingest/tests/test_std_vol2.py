@@ -209,7 +209,7 @@ def test_negative_claims(snap):
     assert neg["No EMI/EMC requirement in Vol 2"]["hit_count"] == 0
     assert neg["No wearable / biosensor / body-worn device requirement"]["hit_count"] == 0
     assert neg["No skin-contact biocompatibility requirement"]["hit_count"] == 0
-    assert neg["No data storage / log duration / retention requirement"]["hit_count"] == 0
+    assert neg["No storage capacity / log duration / retention requirement"]["hit_count"] == 0
     # Verifier finding: 'renal|kidney stone' has 0 hits, but the [V2 6109] rationale says "urinary calculi".
     (renal,) = [n for n in snap["data"]["negatives"] if n["claim"].startswith("No renal/kidney-stone requirement")]
     assert "calculi" in renal["pattern"]

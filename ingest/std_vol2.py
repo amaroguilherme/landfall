@@ -258,7 +258,7 @@ NEGATIVES = [
     ("No skin-contact biocompatibility requirement", r"biocompat|cytotox|ISO 10993"),
     ("'skin contact' appears only in touch-temperature context", r"skin contact"),
     ("No battery endurance requirement (all 'battery' mentions)", r"batter(y|ies)"),
-    ("No data storage / log duration / retention requirement",
+    ("No storage capacity / log duration / retention requirement",
      r"data storage|storage capacity|data retention|retention period|log duration|logging duration"),
     # 'calculi' matters: the [V2 6109] water-quantity rationale names "urinary calculi" (urinary stones), so a
     # bare 'renal|kidney stone' grep (0 hits) would wrongly suggest Vol 2 never mentions stones at all.

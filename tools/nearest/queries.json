@@ -1,0 +1,37 @@
+{
+  "schema": "landfall.nearest_queries/1",
+  "written": "2026-11-15",
+  "note": "One sentence per claim of absence, written before the first ranking run and never reworded after seeing results. Each sentence is the requirement that would contradict the claim if NASA-STD-3001 contained it, in our words, not NASA's. The model ranks the 543 requirements by closeness in meaning to this sentence; the keyword count stays the claim.",
+  "queries": [
+    {
+      "claim_id": "emc",
+      "claim_in": "hardware/sensor-map.json negatives[id=emc]",
+      "query": "Electronic equipment shall meet electromagnetic interference and electromagnetic compatibility (EMI/EMC) limits."
+    },
+    {
+      "claim_id": "biocompat",
+      "claim_in": "hardware/sensor-map.json negatives[id=biocompat]",
+      "query": "Materials in prolonged contact with a crewmember's skin shall be tested for biocompatibility, including skin irritation and cytotoxicity."
+    },
+    {
+      "claim_id": "sensor_set",
+      "claim_in": "hardware/sensor-map.json negatives[id=sensor_set]",
+      "query": "Each crewmember shall wear a body-worn biosensor that continuously monitors physiological signals such as heart rate."
+    },
+    {
+      "claim_id": "battery",
+      "claim_in": "hardware/sensor-map.json negatives[id=battery]",
+      "query": "A battery-powered wearable device shall operate for a minimum number of hours on one charge."
+    },
+    {
+      "claim_id": "storage",
+      "claim_in": "hardware/sensor-map.json negatives[id=storage]",
+      "query": "The system shall store recorded monitoring data with a minimum storage capacity, retention period and log duration."
+    },
+    {
+      "claim_id": "alert_number",
+      "claim_in": "engine/rules/meta.json principles[id=no_nasa_alert_thresholds]",
+      "query": "The system shall alert the crew in flight when a crewmember's vital sign crosses a specified numeric threshold."
+    }
+  ]
+}

@@ -1,0 +1,519 @@
+{
+ "schema": "landfall.nearest/1",
+ "note": "LANDFALL-authored build output, not a NASA snapshot. NASA-STD-3001 statements, verbatim, ranked at build time by a model for closeness in meaning to one sentence we wrote per claim. A ranking, not proof of absence: the keyword count stays the claim. No similarity score is stored.",
+ "generated_by": "tools/nearest/rank.py",
+ "queries_sha256": "3aa9607718954ceb29966471a32829a6b0bea948b11e5c4342ef781cc42bbae2",
+ "labels_sha256": "909ebc2d2e88d3fe05581e682aca679c1dbd49b8f4c29805aace6323562801f2",
+ "corpus_sha256": "5b5fdc8f4738085c605774233c7dd13d20da076cede1c4c55e20fcf30e18b406",
+ "corpus": [
+  {
+   "doc": "NASA-STD-3001 Vol 1 Rev C",
+   "pdf_url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+   "sha256": "e65882af9c9a9861b520268f739baadba08f6225feb14489ff7c46442de26ce9",
+   "count": 76
+  },
+  {
+   "doc": "NASA-STD-3001 Vol 2 Rev F",
+   "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf",
+   "sha256": "2bf853a84de99ce4a14f8a8b58c7566068826e7d399f7ed284507e743f6e7155",
+   "count": 467
+  }
+ ],
+ "input": "title + '. ' + statement, truncated at 512 tokens; ranked by cosine similarity",
+ "gate": [
+  "ends in terminal punctuation (. ! or ?, optionally followed by a closing quote, parenthesis or bracket)",
+  "has no running header 'NASA-STD-3001, VOLUME' (upper case)",
+  "has no numbered heading inside it, such as '] 7.1.2.3 Food ...'",
+  "has no private-use glyph (U+E000 to U+F8FF) and no U+FFFD replacement character",
+  "occurs, with all whitespace removed, in the text of its PDF page (or that page and the next)"
+ ],
+ "labelled_check": {
+  "in_top_five": 1,
+  "of": 6,
+  "items": [
+   {
+    "claim_id": "emc",
+    "id": "V2 6102",
+    "model_rank": 1,
+    "shown": true
+   },
+   {
+    "claim_id": "biocompat",
+    "id": "V2 7076",
+    "model_rank": 151,
+    "shown": false
+   },
+   {
+    "claim_id": "biocompat",
+    "id": "V2 7081",
+    "model_rank": 14,
+    "shown": false
+   },
+   {
+    "claim_id": "alert_number",
+    "id": "V2 6164",
+    "model_rank": 7,
+    "shown": false
+   },
+   {
+    "claim_id": "alert_number",
+    "id": "V2 6022",
+    "model_rank": 165,
+    "shown": false
+   },
+   {
+    "claim_id": "alert_number",
+    "id": "V2 11036",
+    "model_rank": 18,
+    "shown": false
+   }
+  ],
+  "context_not_counted": [
+   {
+    "claim_id": "alert_number",
+    "id": "V1 4006",
+    "model_rank": 38
+   },
+   {
+    "claim_id": "alert_number",
+    "id": "V1 4008",
+    "model_rank": 92
+   }
+  ]
+ },
+ "agent_written_check": {
+  "questions": 31,
+  "top_five": 23,
+  "top_three": 20,
+  "top_one": 13,
+  "note": "Questions and expected IDs written by an agent, not by crew: optimistic."
+ },
+ "claims": [
+  {
+   "claim_id": "emc",
+   "query": "Electronic equipment shall meet electromagnetic interference and electromagnetic compatibility (EMI/EMC) limits.",
+   "model": "minishlab/potion-base-8M",
+   "revision": "bf8b056651a2c21b8d2565580b8569da283cab23",
+   "sha256": "f65d0f325faadc1e121c319e2faa41170d3fa07d8c89abd48ca5358d9a223de2",
+   "corpus_size": 543,
+   "items": [
+    {
+     "rank": 1,
+     "id": "V2 6102",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "6.8.2.1",
+     "title": "RF Non-Ionizing Radiation Exposure Limits",
+     "statement": "The system shall maintain the crew exposure to RF electromagnetic fields to or below the limits stated in Table 6.8-2—Maximum Permissible Exposure (MPE) to RF Electromagnetic Fields and shown graphically in Figure 6.8-1—RF Electromagnetic Field Exposure Limits.",
+     "pdf_page": 113,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=113",
+     "frozen": true,
+     "also_named_by_us": true
+    },
+    {
+     "rank": 2,
+     "id": "V2 9022",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "9.3.3.5",
+     "title": "Body Impedance for Voltage Calculations Utilizing Electrical Current Thresholds",
+     "statement": "The program/project shall use the 5th percentile values for the appropriate conditions (wet/dry, AC/DC, voltage level, large/small contact area) from IEC 60479-1, Effects of current on human beings and livestock - Part 1: General Aspects, to determine the appropriate body impedance to calculate the voltage associated with any current limit analysis.",
+     "pdf_page": 178,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=178",
+     "frozen": true,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 3,
+     "id": "V1 4032",
+     "doc": "NASA-STD-3001 Vol 1 Rev C",
+     "section": "4.8.4",
+     "title": "Crew Radiation Limits for Nuclear Technologies",
+     "statement": "Radiological exposure from nuclear technologies emitting ionizing radiation to crewmembers (e.g., radioisotope power systems, fission reactors, etc.) shall be less than an effective dose of 20 mSv per mission year (prorated/extrapolated to mission durations) utilizing the ALARA principle.",
+     "pdf_page": 42,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf#page=42",
+     "frozen": true,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 4,
+     "id": "V2 9128",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "9.7.9.3",
+     "title": "Dust Tolerance",
+     "statement": "Tool and equipment functionality shall not reduce below minimum performance specifications due to dust exposure when designs cannot prevent its intrusion.",
+     "pdf_page": 194,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=194",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 5,
+     "id": "V2 9018",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "9.3.3.2",
+     "title": "Energized Status",
+     "statement": "The system shall provide and display the de-energized status (interruption of electrical power) of a circuit to the crew and within their fields of regard.",
+     "pdf_page": 176,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=176",
+     "frozen": true,
+     "also_named_by_us": false
+    }
+   ],
+   "skipped": []
+  },
+  {
+   "claim_id": "biocompat",
+   "query": "Materials in prolonged contact with a crewmember's skin shall be tested for biocompatibility, including skin irritation and cytotoxicity.",
+   "model": "minishlab/potion-base-8M",
+   "revision": "bf8b056651a2c21b8d2565580b8569da283cab23",
+   "sha256": "f65d0f325faadc1e121c319e2faa41170d3fa07d8c89abd48ca5358d9a223de2",
+   "corpus_size": 543,
+   "items": [
+    {
+     "rank": 1,
+     "id": "V2 11125",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "11.1.2",
+     "title": "Suit Materials Compatibility",
+     "statement": "Pharmaceuticals, topical treatments and cleaning materials shall be compatible with suit materials (internally and externally).",
+     "pdf_page": 229,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=229",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 2,
+     "id": "V1 3002",
+     "doc": "NASA-STD-3001 Vol 1 Rev C",
+     "section": "3.3",
+     "title": "Pre-Mission Preventive Health Care",
+     "statement": "Pre-mission preventive strategies shall be used to reduce in-mission and long-term health medical risks, including, but not limited to: a. Optimization of nutrition. b. Vitamin D supplementation. c. Assessment of medications needed for in-flight use. d. Triennial imaging of bone mineral density. e. Maintenance of optimal aerobic and strength physical fitness. f. Maintenance of flexibility, agility, and balance. g. Annual and pre-flight physicals/periodic health evaluations. h. Preventive dental care. i. Vaccinations as recommended by CDC and local epidemiological conditions as recommended by flight medicine team (e.g., influenza, tetanus toxoid, varicella zoster vaccine, severe acute respiratory syndrome (SARS), coronavirus (COVID-19), etc.). j. Behavioral health and performance training. k. Flight surgeon monitoring of crewmembers during hazardous training and pre-flight science testing. l. Total radiation dose control/monitoring. m. Pre-mission Health-Stabilization Program (HSP) to reduce the likelihood of contracting an infectious disease before launch. n. Assisted Reproductive Technology (ART) if desired by the crewmember to preserve gametocytes prior to missions with exposure to radiation.",
+     "pdf_page": 17,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf#page=17",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 3,
+     "id": "V1 5003",
+     "doc": "NASA-STD-3001 Vol 1 Rev C",
+     "section": "5.2.1",
+     "title": "Crew Medical Officer Medical Training",
+     "statement": "Crewmembers who have received a mission assignment as a Crew Medical Officer (CMO) shall be provided with detailed and specific medical training, including but not limited to, health issues, space physiology, behavioral health, medical procedures, medical equipment, toxicology, and countermeasures.",
+     "pdf_page": 46,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf#page=46",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 4,
+     "id": "V2 7045",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "7.5.2",
+     "title": "Medical Equipment Usability",
+     "statement": "Medical equipment shall be usable by non-physician crewmembers in the event that a physician crewmember is not present or is the one who requires medical treatment.",
+     "pdf_page": 132,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=132",
+     "frozen": true,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 5,
+     "id": "V2 11024",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "11.2.1",
+     "title": "Ability to Work in Suits",
+     "statement": "Suits shall provide mobility, dexterity, and tactility to enable the crewmember to accomplish suited tasks within acceptable physical workload and fatigue limits while minimizing the risk of injury.",
+     "pdf_page": 235,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=235",
+     "frozen": false,
+     "also_named_by_us": false
+    }
+   ],
+   "skipped": []
+  },
+  {
+   "claim_id": "sensor_set",
+   "query": "Each crewmember shall wear a body-worn biosensor that continuously monitors physiological signals such as heart rate.",
+   "model": "minishlab/potion-base-8M",
+   "revision": "bf8b056651a2c21b8d2565580b8569da283cab23",
+   "sha256": "f65d0f325faadc1e121c319e2faa41170d3fa07d8c89abd48ca5358d9a223de2",
+   "corpus_size": 543,
+   "items": [
+    {
+     "rank": 1,
+     "id": "V2 7038",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "7.4.1",
+     "title": "Physiological Countermeasures Capability",
+     "statement": "The system shall provide countermeasures to meet crew bone, muscle, sensorimotor, thermoregulation, and aerobic/cardiovascular requirements defined in NASA-STD-3001, Volume 1.",
+     "pdf_page": 131,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=131",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 2,
+     "id": "V2 6088",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "6.6.2.2",
+     "title": "Individual Noise Exposure Monitoring",
+     "statement": "Noise exposure levels shall be monitored and quantified for each crewmember as needed for crew health and safety.",
+     "pdf_page": 102,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=102",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 3,
+     "id": "V1 3003",
+     "doc": "NASA-STD-3001 Vol 1 Rev C",
+     "section": "3.4",
+     "title": "In-Mission Preventive Health Care",
+     "statement": "All programs shall provide training, in-mission capabilities, and resources to monitor physiological and psychosocial well-being and enable delivery of in-mission preventive health care, based on epidemiological evidence-based probabilistic risk assessment (PRA), individual crewmember needs, clinical practice guidelines, flight surgeon expertise, historical review, mission parameters, and vehicle-derived limitations. These analyses consider the needs and limitations of each specific vehicle and design reference mission (DRM) with particular attention to parameters such as mission duration, expected return time to Earth, mission route and destination, expected radiation profile, concept of operations, and more. In-mission preventive care includes, but is not limited to: a. Periodic monitoring of general health status. b. Optimization and periodic monitoring of nutrition intake – To include caloric density and macro/micronutrients (including antioxidants, flavonoids, lycopene, omega-3 fatty acids, lutein, sterols, and prebiotics), to support multiple physiological systems such as immune function, bone and muscle health, effectiveness of radiation damage repair mechanisms, cognitive and mental well-being, microbiome, etc. Optimization of nutrition intake also includes aspects such as food palatability and food variety to support psychological well-being and crew morale. c. Vitamin D supplementation – For bone and immune function. d. Maintenance and periodic monitoring of aerobic and strength physical fitness – For maintenance of muscle strength and aerobic capacity (essential for performance of safety-critical physical tasks such as emergency vehicle egress), bone strength, cardiovascular health, immune system performance, sensorimotor function, behavioral health/stress relief, and reduction in renal stone formation. e. Maintenance and periodic monitoring of flexibility, agility, and balance – For sensorimotor function (essential for performance of safety-critical physical tasks such as emergency vehicle egress). f. Maintenance and monitoring of work/rest schedules and optimal sleep/circadian rhythm. g. Maintenance and monitoring of environmental parameters at optimal levels for crew health and performance, as outlined in other technical requirements. h. Prevention of pressure-related illness or injury (dysbarism) by utilizing the appropriate prebreathe and equipment protocols. i. Preventive dental care. j. Hearing conservation and protection (as required in [V2 9057] Hearing Protection Provision), including periodic monitoring. k. Optimization and periodic monitoring of psychosocial countermeasures for team cohesion, privacy, social isolation, and sensory deprivation. l. Preventive measures for orthostatic intolerance and neuro-vestibular challenges during G-transitions and adaptation to a new gravity environment. m. Spaceflight Associated Neuro-Ocular Syndrome (SANS) periodic monitoring, and prevention with to-be-determined countermeasures (to be validated by research in the coming years). n. Periodic monitoring of vascular motility and patency of venous drainage pathways in the neck as well as deep veins in the lower extremities. o. Optimization and periodic monitoring of immune function via implementation of a suite of multi-component countermeasures. p. For missions that land on planetary bodies – Training, capabilities, and resources for rehabilitation on the planetary surface, analogous to the functions of the post-Earth-landing recovery team, rehabilitation team, and flight surgeon team to enable surface mission success. q. Monitoring and management of any future risks as they emerge.",
+     "pdf_page": 18,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf#page=18",
+     "frozen": true,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 4,
+     "id": "V2 7040",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "7.4.2",
+     "title": "Physiological Countermeasure Operations",
+     "statement": "The physiological countermeasure system design shall allow the crew to unstow supplies, perform operations, and stow items within the allotted countermeasure schedule.",
+     "pdf_page": 131,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=131",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 5,
+     "id": "V1 4005",
+     "doc": "NASA-STD-3001 Vol 1 Rev C",
+     "section": "4.2.1",
+     "title": "Pre-Mission Sensorimotor",
+     "statement": "Pre-mission sensorimotor functioning shall be within normal clinical values for age and sex of the crewmember population.",
+     "pdf_page": 33,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf#page=33",
+     "frozen": false,
+     "also_named_by_us": false
+    }
+   ],
+   "skipped": []
+  },
+  {
+   "claim_id": "battery",
+   "query": "A battery-powered wearable device shall operate for a minimum number of hours on one charge.",
+   "model": "minishlab/potion-base-8M",
+   "revision": "bf8b056651a2c21b8d2565580b8569da283cab23",
+   "sha256": "f65d0f325faadc1e121c319e2faa41170d3fa07d8c89abd48ca5358d9a223de2",
+   "corpus_size": 543,
+   "items": [
+    {
+     "rank": 1,
+     "id": "V2 10123",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "10.2.7",
+     "title": "Data Update Rates",
+     "statement": "The system shall operate at a rate that enables the crew to perform tasks effectively and efficiently, e.g., within acceptable error limits and scheduled operating times.",
+     "pdf_page": 202,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=202",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 2,
+     "id": "V2 9043",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "9.7.3.3",
+     "title": "Minimum Number of Fasteners – Item",
+     "statement": "For items that may be serviceable by the crew, the number of fasteners used shall be the minimum required to meet structural engineering integrity requirements.",
+     "pdf_page": 187,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=187",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 3,
+     "id": "V2 9017",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "9.3.3.1",
+     "title": "Power Interruption",
+     "statement": "The system shall provide the crew with capability to control the power to an electrical circuit.",
+     "pdf_page": 175,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=175",
+     "frozen": true,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 4,
+     "id": "V2 9039",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "9.7.3.1",
+     "title": "Maintenance Time",
+     "statement": "Planned maintenance for systems and associated hardware and equipment shall be capable of being performed within the allotted crew schedule while wearing the most encumbering equipment and clothing anticipated.",
+     "pdf_page": 186,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=186",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 5,
+     "id": "V2 9018",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "9.3.3.2",
+     "title": "Energized Status",
+     "statement": "The system shall provide and display the de-energized status (interruption of electrical power) of a circuit to the crew and within their fields of regard.",
+     "pdf_page": 176,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=176",
+     "frozen": true,
+     "also_named_by_us": false
+    }
+   ],
+   "skipped": []
+  },
+  {
+   "claim_id": "storage",
+   "query": "The system shall store recorded monitoring data with a minimum storage capacity, retention period and log duration.",
+   "model": "minishlab/potion-base-8M",
+   "revision": "bf8b056651a2c21b8d2565580b8569da283cab23",
+   "sha256": "f65d0f325faadc1e121c319e2faa41170d3fa07d8c89abd48ca5358d9a223de2",
+   "corpus_size": 543,
+   "items": [
+    {
+     "rank": 1,
+     "id": "V2 9120",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "9.7.7.1",
+     "title": "Condition Monitoring",
+     "statement": "The system shall be designed to provide condition-monitoring data to an information system that can be accessed by the crew, to maintenance data systems or mission control (See also [V2 10124 Data Availability]).",
+     "pdf_page": 191,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=191",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 2,
+     "id": "V2 7071",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "7.9.2",
+     "title": "Behavioral Health and Privacy",
+     "statement": "For long duration missions (>30 days), individual privacy facilities shall be provided.",
+     "pdf_page": 139,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=139",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 3,
+     "id": "V2 6014",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "6.2.3.3",
+     "title": "Crewmember Heat Storage",
+     "statement": "The system shall prevent the energy stored by each crewmember from exceeding the cognitive deficit onset (CDO) limits defined by the range 4.7 kJ/kg (2.0 Btu/lb) > ΔQ stored > -4.1 kJ/kg (-1.8 Btu/lb) during pre-launch operations, ascent, entry, descent, landing, postlanding, contingency, and suited operations longer than 12 hours, where ΔQ stored is calculated using a validated and NASA-approved thermoregulatory model, such as 41-Node Man (JSC-33124, 41-Node Transient Metabolic Man Computer Program Documentation – A thermal regulatory model of the human body with environmental suit applications) or the Wissler model.",
+     "pdf_page": 58,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=58",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 4,
+     "id": "V2 7060",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "7.7.2",
+     "title": "Inventory Operations",
+     "statement": "The system shall be designed to allow inventory management functions to be completed within the allotted schedule.",
+     "pdf_page": 136,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=136",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 5,
+     "id": "V2 6020",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "6.2.5.1",
+     "title": "Atmospheric Data Recording",
+     "statement": "For each isolatable, habitable compartment, the system shall automatically record pressure, humidity, temperature, ppO2, and ppCO2 data during crewed operations.",
+     "pdf_page": 60,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=60",
+     "frozen": false,
+     "also_named_by_us": false
+    }
+   ],
+   "skipped": []
+  },
+  {
+   "claim_id": "alert_number",
+   "query": "The system shall alert the crew in flight when a crewmember's vital sign crosses a specified numeric threshold.",
+   "model": "minishlab/potion-base-8M",
+   "revision": "bf8b056651a2c21b8d2565580b8569da283cab23",
+   "sha256": "f65d0f325faadc1e121c319e2faa41170d3fa07d8c89abd48ca5358d9a223de2",
+   "corpus_size": 543,
+   "items": [
+    {
+     "rank": 1,
+     "id": "V2 6088",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "6.6.2.2",
+     "title": "Individual Noise Exposure Monitoring",
+     "statement": "Noise exposure levels shall be monitored and quantified for each crewmember as needed for crew health and safety.",
+     "pdf_page": 102,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=102",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 2,
+     "id": "V2 6153",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "6.2.6.5",
+     "title": "Celestial Dust Monitoring and Alerting",
+     "statement": "The vehicle shall monitor celestial dust and alert the crew locally and remotely when they are approaching defined limits.",
+     "pdf_page": 63,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=63",
+     "frozen": true,
+     "also_named_by_us": true
+    },
+    {
+     "rank": 3,
+     "id": "V2 6023",
+     "doc": "NASA-STD-3001 Vol 2 Rev F",
+     "section": "6.2.6.2",
+     "title": "Trace Constituent Monitoring and Alerting",
+     "statement": "The system shall monitor trace volatile organic compounds (VOCs) in the cabin atmosphere and alert the crew locally and remotely when they are approaching defined limits.",
+     "pdf_page": 61,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf#page=61",
+     "frozen": false,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 4,
+     "id": "V1 3006",
+     "doc": "NASA-STD-3001 Vol 1 Rev C",
+     "section": "5.2.1.1",
+     "title": "Crew Medical Officers Quantity",
+     "statement": "The program(s) shall train a minimum of two crewmembers per vehicle/platform as Crew Medical Officers (CMOs).",
+     "pdf_page": 47,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf#page=47",
+     "frozen": true,
+     "also_named_by_us": false
+    },
+    {
+     "rank": 5,
+     "id": "V1 4005",
+     "doc": "NASA-STD-3001 Vol 1 Rev C",
+     "section": "4.2.1",
+     "title": "Pre-Mission Sensorimotor",
+     "statement": "Pre-mission sensorimotor functioning shall be within normal clinical values for age and sex of the crewmember population.",
+     "pdf_page": 33,
+     "pdf_url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf#page=33",
+     "frozen": false,
+     "also_named_by_us": false
+    }
+   ],
+   "skipped": []
+  }
+ ]
+}

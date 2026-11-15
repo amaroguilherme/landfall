@@ -6,6 +6,7 @@ import { useSnapshot } from '../../app/data'
 import type { SnapshotState } from '../../app/data'
 import { EmptyState, Expander, FreshnessChip, ReqId } from '../../ui'
 import { isBuildNote } from '../data/buildNotes'
+import { NearestList } from '../nearest/NearestList'
 import { FoldPanel } from './fold'
 import { normReqId, quotedPhrase, sentencesContaining } from './rules'
 import type { MetaFile, Vol1Data, Vol2Data } from './rules'
@@ -200,6 +201,10 @@ export function GapSection({ meta }: { meta: MetaFile }) {
           </ul>
         </div>
       ) : null}
+      <NearestList
+        claim="alert_number"
+        basis={volumeReadings.length > 0 ? 'the requirements and the volume reading above' : 'the requirements above'}
+      />
     </FoldPanel>
   )
 }

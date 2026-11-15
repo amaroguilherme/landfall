@@ -1,0 +1,389 @@
+{
+ "note": "Review of the 48 passages that rank.py --review-out handed to review: the first eight passing passages of each claim, i.e. the 20 shown non-frozen passages, the 13 non-frozen ready replacements at positions 6 to 8, and all 15 frozen ones as a spot-check. PDFs read from .cache/ingest, SHA-256 e65882af9c9a9861b520268f739baadba08f6225feb14489ff7c46442de26ce9 (Vol 1 Rev C) and 2bf853a84de99ce4a14f8a8b58c7566068826e7d399f7ed284507e743f6e7155 (Vol 2 Rev F), equal to the snapshots, with pdfminer.six directly, not through the ingest parsers. 'Verbatim on p. N' means: the statement occurs contiguously in the text of PDF page N (or N and N+1) after whitespace normalisation and joining line-break hyphens, with the running header and 'N of M' footer removed; the section number, title and tag directly precede it; '[Rationale:' or the next numbered heading directly follows it; the tag occurs once on page N; and it contains no private-use, U+FFFD or unmapped glyph. The verdict judges the text only. 'SME' judges the passage against the claim and never changes the verdict: a passage that weakens a claim stays shown.",
+ "passages": [
+  {
+   "claim_id": "emc",
+   "id": "V2 6102",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Shown #1. Verbatim on p. 113, under heading \"6.8.2.1 RF Non-Ionizing Radiation Exposure Limits\"; both em dashes as printed. SME: consistent with the claim, whose detail names it: a limit on crew exposure to RF fields (\"Examples of devices that generate radio frequency radiation include, but are not limited to, antennas and wireless systems.\"), not an EMI/EMC limit. It does apply to a band with a radio."
+  },
+  {
+   "claim_id": "emc",
+   "id": "V2 9022",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Shown #2. Verbatim on p. 178, under heading \"9.3.3.5 Body Impedance for Voltage Calculations Utilizing Electrical Current Thresholds\"; the th of \"5th\" is a superscript in the PDF. SME: does not contradict (electrical shock analysis, not EMI/EMC)."
+  },
+  {
+   "claim_id": "emc",
+   "id": "V1 4032",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Shown #3. Verbatim on p. 42, under heading \"4.8.4 Crew Radiation Limits for Nuclear Technologies\"; it runs over the page break to p. 43 with only the running header and footer between. SME: does not contradict (ionizing dose from nuclear sources, in Vol 1)."
+  },
+  {
+   "claim_id": "emc",
+   "id": "V2 9128",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #4. Verbatim on p. 194, under heading \"9.7.9.3 Dust Tolerance\". SME: does not contradict (equipment robustness to dust, not EMI/EMC)."
+  },
+  {
+   "claim_id": "emc",
+   "id": "V2 9018",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Shown #5. Verbatim on p. 176, under heading \"9.3.3.2 Energized Status\". SME: does not contradict; the \"electromagnetic sensor\" of its rationale is a test tool, not an EMC limit."
+  },
+  {
+   "claim_id": "emc",
+   "id": "V2 12046",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Ready replacement #6, not shown. Verbatim on p. 256, under heading \"12.2.4 Emergency Egress Acceleration Limits\"; the en and em dashes are as printed, and so are the references to Tables 12.1-1 and 12.1-2."
+  },
+  {
+   "claim_id": "emc",
+   "id": "V2 9017",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Ready replacement #7, not shown. Verbatim on p. 175, under heading \"9.3.3.1 Power Interruption\"."
+  },
+  {
+   "claim_id": "emc",
+   "id": "V2 9056",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Ready replacement #8, not shown. Verbatim on p. 196, under heading \"9.8.1.2.1 Use of Hearing Protection\"."
+  },
+  {
+   "claim_id": "biocompat",
+   "id": "V2 11125",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #1. Verbatim on p. 229, under heading \"11.1.2 Suit Materials Compatibility\". SME: does not contradict. It makes medications, topical treatments and cleaners compatible with the suit materials (\"The suit materials selected are expected to be exposed to medications used by the crewmember (i.e., topical medications) that need to be assessed for potential interactions with the materials and atmospheric filtration.\"), the reverse of testing a material against skin."
+  },
+  {
+   "claim_id": "biocompat",
+   "id": "V1 3002",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #2. Verbatim on p. 17, under heading \"3.3 Pre-Mission Preventive Health Care\"; the list a. to n. runs over the page break to p. 18 with only the running header and footer between. SME: does not contradict."
+  },
+  {
+   "claim_id": "biocompat",
+   "id": "V1 5003",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #3. Verbatim on p. 46, under heading \"5.2.1 Crew Medical Officer Medical Training\". SME: does not contradict."
+  },
+  {
+   "claim_id": "biocompat",
+   "id": "V2 7045",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Shown #4. Verbatim on p. 132, under heading \"7.5.2 Medical Equipment Usability\". SME: does not contradict."
+  },
+  {
+   "claim_id": "biocompat",
+   "id": "V2 11024",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #5. Verbatim on p. 235, under heading \"11.2.1 Ability to Work in Suits\". SME: does not contradict (\"minimizing the risk of injury\" concerns suit mobility and workload, not how a material acts on skin)."
+  },
+  {
+   "claim_id": "biocompat",
+   "id": "V1 7002",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Ready replacement #6, not shown. Verbatim on p. 54, under heading \"7.2 Crew Records Transmission\"; the curly apostrophe is as printed."
+  },
+  {
+   "claim_id": "biocompat",
+   "id": "V1 3003",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Ready replacement #7, not shown. Verbatim on p. 18 to p. 19; see its sensor_set entry."
+  },
+  {
+   "claim_id": "biocompat",
+   "id": "V1 3015",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Ready replacement #8, not shown. Verbatim on p. 28, under heading \"3.13 Certification of Training Plans for Launch/Landing Medical Team\"; the list a. to g. is complete."
+  },
+  {
+   "claim_id": "sensor_set",
+   "id": "V2 7038",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #1. Verbatim on p. 131, under heading \"7.4.1 Physiological Countermeasures Capability\". SME: does not contradict (countermeasures, no sensor)."
+  },
+  {
+   "claim_id": "sensor_set",
+   "id": "V2 6088",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #2. Verbatim at the top of p. 102, under heading \"6.6.2.2 Individual Noise Exposure Monitoring\". SME: weakens the claim: \"Noise exposure levels shall be monitored and quantified for each crewmember as needed for crew health and safety.\" Quantifying exposure per crewmember points to a personal dosimeter, which an SME will read as a body-worn device (\"As an example, periodically on ISS, the crew uses acoustic monitors to monitor their environment.\"). It names no device, so the claim stays literally true."
+  },
+  {
+   "claim_id": "sensor_set",
+   "id": "V1 3003",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Shown #3. Verbatim on p. 18, under heading \"3.4 In-Mission Preventive Health Care\"; the list a. to q. runs over the page break to p. 19 with only the running header and footer between, and its rationale opens p. 20. SME: weakens the context, not the Vol 2 scope: \"All programs shall provide training, in-mission capabilities, and resources to monitor physiological and psychosocial well-being and enable delivery of in-mission preventive health care, based on epidemiological evidence-based probabilistic risk assessment (PRA), individual crewmember needs, clinical practice guidelines, flight surgeon expertise, historical review, mission parameters, and vehicle-derived limitations.\" Vol 1 requires the means to monitor physiology in mission, and names no device."
+  },
+  {
+   "claim_id": "sensor_set",
+   "id": "V2 7040",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #4. Verbatim on p. 131, under heading \"7.4.2 Physiological Countermeasure Operations\". SME: does not contradict."
+  },
+  {
+   "claim_id": "sensor_set",
+   "id": "V1 4005",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #5. Verbatim at the foot of p. 33, under heading \"4.2.1 Pre-Mission Sensorimotor\"; the PDF gives it no rationale, and the next heading, \"4.2.2 In-Mission Fitness-for-Duty Sensorimotor\", opens p. 34. SME: does not contradict (pre-mission clinical values, no sensor)."
+  },
+  {
+   "claim_id": "sensor_set",
+   "id": "V1 4009",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Ready replacement #6, not shown. Verbatim on p. 34, under heading \"4.2.5 Sensorimotor Countermeasures\"; the PDF gives it no rationale, and heading 4.2.6 follows."
+  },
+  {
+   "claim_id": "sensor_set",
+   "id": "V1 3016",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Ready replacement #7, not shown. Verbatim on p. 28, under heading \"3.14 Post-Mission Health Care\"; the list a. to i. runs over the page break to p. 29 with only the running header and footer between, and the hyphen of \"deconditioning-related\" at a line end is a real one."
+  },
+  {
+   "claim_id": "sensor_set",
+   "id": "V1 5003",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Ready replacement #8, not shown. Verbatim on p. 46; see its biocompat entry."
+  },
+  {
+   "claim_id": "battery",
+   "id": "V2 10123",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #1. Verbatim on p. 202, under heading \"10.2.7 Data Update Rates\". SME: does not contradict (\"scheduled operating times\" are task timelines, not endurance)."
+  },
+  {
+   "claim_id": "battery",
+   "id": "V2 9043",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #2. Verbatim on p. 187, under heading \"9.7.3.3 Minimum Number of Fasteners – Item\"; the en dash is as printed. SME: does not contradict."
+  },
+  {
+   "claim_id": "battery",
+   "id": "V2 9017",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Shown #3. Verbatim on p. 175, under heading \"9.3.3.1 Power Interruption\". SME: does not contradict (crew control of circuit power, not endurance)."
+  },
+  {
+   "claim_id": "battery",
+   "id": "V2 9039",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #4. Verbatim on p. 186, under heading \"9.7.3.1 Maintenance Time\". SME: does not contradict."
+  },
+  {
+   "claim_id": "battery",
+   "id": "V2 9018",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Shown #5. Verbatim on p. 176, under heading \"9.3.3.2 Energized Status\". SME: does not contradict."
+  },
+  {
+   "claim_id": "battery",
+   "id": "V2 6080",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Ready replacement #6, not shown. Verbatim on p. 99, under heading \"6.6.1.9 Intermittent Noise Limits\"; the Table 6.6-4 title and its parenthesis are cited inside the body paragraph, not spliced from the table."
+  },
+  {
+   "claim_id": "battery",
+   "id": "V2 9036",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Ready replacement #7, not shown. Verbatim at the top of p. 185, under heading \"9.7.1.5 Design for Maintenance\"."
+  },
+  {
+   "claim_id": "battery",
+   "id": "V2 10003",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Ready replacement #8, not shown. Verbatim at the top of p. 41, under the headings \"5.1 Human Performance\" and \"5.1.1 Operability\"."
+  },
+  {
+   "claim_id": "storage",
+   "id": "V2 9120",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #1. Verbatim on p. 191, under heading \"9.7.7.1 Condition Monitoring\"; the closing \"(See also [V2 10124 Data Availability])\" is NASA's own. SME: weakens slightly. Condition-monitoring data must reach \"an information system that can be accessed by the crew, to maintenance data systems or mission control\": a data-availability requirement for equipment data, with no capacity, retention or duration."
+  },
+  {
+   "claim_id": "storage",
+   "id": "V2 7071",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #2. Verbatim on p. 139, under heading \"7.9.2 Behavioral Health and Privacy\". SME: does not contradict (privacy facilities, not data)."
+  },
+  {
+   "claim_id": "storage",
+   "id": "V2 6014",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #3. Verbatim at the foot of p. 58, under heading \"6.2.3.3 Crewmember Heat Storage\", with its rationale on p. 59; \"ΔQ stored\" (U+0394) is as printed, and the hyphen of \"41-Node\" at a line end is a real one. SME: does not contradict; it is heat stored in the body, a word match only."
+  },
+  {
+   "claim_id": "storage",
+   "id": "V2 7060",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #4. Verbatim on p. 136, under heading \"7.7.2 Inventory Operations\". SME: does not contradict."
+  },
+  {
+   "claim_id": "storage",
+   "id": "V2 6020",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #5. Verbatim at the foot of p. 60, under heading \"6.2.5.1 Atmospheric Data Recording\", with its rationale on p. 61; the 2 of ppO2 and ppCO2 is a subscript, flattened. SME: contradicts 'No data storage' as worded: \"For each isolatable, habitable compartment, the system shall automatically record pressure, humidity, temperature, ppO2, and ppCO2 data during crewed operations.\" The rationale adds \"Additionally, the ability to view past recorded data helps to prevent environmental conditions that could harm the crew or vehicle and can aid in the effort to troubleshoot problems.\" It sets no capacity, retention period or log duration: \"during crewed operations\" says when to record, not how long to keep."
+  },
+  {
+   "claim_id": "storage",
+   "id": "V2 10163",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Ready replacement #6, not shown. Verbatim at the top of p. 225, under heading \"10.6.3 Automation Data Availability\". SME, if promoted: it too contradicts 'No data storage' as worded: \"Automated or robotic systems shall record and make available operational and performance data to both crew and ground support personnel.\""
+  },
+  {
+   "claim_id": "storage",
+   "id": "V2 11023",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Ready replacement #7, not shown. Verbatim on p. 234, under heading \"11.1.7 Suit Information Management\". SME, if promoted: the most direct contradiction of 'No data storage' as worded: \"The system shall allow the crewmember to effectively input, store, receive, display, process, distribute, update, monitor and dispose of relevant information on consumable levels, suit status and alerts, and biomedical data.\" It sets no capacity, retention or duration."
+  },
+  {
+   "claim_id": "storage",
+   "id": "V2 11011",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Ready replacement #8, not shown. Verbatim on p. 231, under heading \"11.1.4.5 Suited Crewmember Heat Storage\"; \"ΔQ stored\" is as printed. SME, if promoted: a word match only (heat stored in the body)."
+  },
+  {
+   "claim_id": "alert_number",
+   "id": "V2 6088",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #1. Verbatim at the top of p. 102; see its sensor_set entry. SME: does not contradict (monitoring only, with no alert and no number)."
+  },
+  {
+   "claim_id": "alert_number",
+   "id": "V2 6153",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Shown #2. Verbatim on p. 63, under heading \"6.2.6.5 Celestial Dust Monitoring and Alerting\". SME: weakens the claim: \"The vehicle shall monitor celestial dust and alert the crew locally and remotely when they are approaching defined limits.\" The limits are numbers in Vol 2 itself, not left to the program: its rationale cites \"[V2 6053] Lunar Dust Contamination and [V2 6253] Martian Dust Contamination\", time-weighted averages of 0.3 and 0.1 mg/m3 (p. 65). Only the alert margin ('approaching') is left open: the claim holds for crew physiology, not for crew health in general."
+  },
+  {
+   "claim_id": "alert_number",
+   "id": "V2 6023",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #3. Verbatim on p. 61, under heading \"6.2.6.2 Trace Constituent Monitoring and Alerting\". SME: weakens mildly: \"The system shall monitor trace volatile organic compounds (VOCs) in the cabin atmosphere and alert the crew locally and remotely when they are approaching defined limits.\" The statement sets no number, but its rationale (pp. 61-62) ties the limits to NASA's SMACs or to partner agreements: \"Accepted limits may be based on JSC-20584, Spacecraft Maximum Allowable Concentrations (SMACs), or on agreements from international partners.\""
+  },
+  {
+   "claim_id": "alert_number",
+   "id": "V1 3006",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Shown #4. Verbatim on p. 47, under heading \"5.2.1.1 Crew Medical Officers Quantity\". SME: does not contradict (a number of trained CMOs, not an alert threshold)."
+  },
+  {
+   "claim_id": "alert_number",
+   "id": "V1 4005",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Shown #5. Verbatim at the foot of p. 33; see its sensor_set entry. SME: does not contradict (pre-mission clinical values, not an in-flight alert)."
+  },
+  {
+   "claim_id": "alert_number",
+   "id": "V2 10114",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Ready replacement #6, not shown. Verbatim on p. 204, under heading \"10.3.1 Distinguishable and Consistent Alerts\"; \"Table 10.3-1—Table Alert Type and Annunciation Table\" is as printed."
+  },
+  {
+   "claim_id": "alert_number",
+   "id": "V2 6164",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Frozen; spot-check. Ready replacement #7, not shown. Verbatim on p. 112, under heading \"6.8.1.6 Alerting of Elevated Exposure Rates\"."
+  },
+  {
+   "claim_id": "alert_number",
+   "id": "V2 6024",
+   "reviewer": "Claude Code review agent (team Isaac Clarke)",
+   "date": "2026-11-15",
+   "verdict": "ok",
+   "note": "Ready replacement #8, not shown. Verbatim on p. 62, under heading \"6.2.6.3 Combustion Monitoring and Alerting\"; the hyphen of \"pre-combustion\" at a line end is a real one. SME, if promoted: weakens, since it monitors \"in the ranges and with the accuracy and resolution specified in the table\" (Table 6.2-3), though its alert is only \"in sufficient time for them to take appropriate action\"."
+  }
+ ]
+}

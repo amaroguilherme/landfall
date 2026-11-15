@@ -8,6 +8,7 @@ import { Link } from '../../app/location'
 import { useManifest } from '../../app/data'
 import type { ManifestEntry } from '../../app/data'
 import { Chip, Citation, Expander, FreshnessChip, Num, ReqId, UnknownIcon } from '../../ui'
+import { NearestList } from '../nearest/NearestList'
 import { BandDiagram } from './Diagram'
 import type { Selection } from './Diagram'
 import { BLOCKS, HAND_OFFS, SENSOR_MAP, blockById, handOffById, referencedSnapshots } from './map'
@@ -681,6 +682,7 @@ export default function Band({ query }: FeatureProps) {
                   Search <code>{n.pattern}</code> over all 398 pages: <Num value={n.hits} unit={n.hits === 1 ? 'hit' : 'hits'} />{' '}
                   <FreshnessChip meta={s.entry} status={s.status} id={n.snapshot} compact />
                 </p>
+                <NearestList claim={n.id} />
               </li>
             )
           })}

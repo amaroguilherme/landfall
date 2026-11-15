@@ -1,0 +1,58 @@
+/* The closest NASA comes (NearestList): a closed list of NASA statements beside a claim of absence.
+   Neutral colours only: nothing here is an alert, a caution or an advisory (Appendix F Table F.5-1). */
+.lf-near { margin-top: var(--lf-space-1); min-width: 0; }
+.lf-near .lf-expander { margin-top: 0; }
+.lf-near-lede,
+.lf-near-foot { margin: 0.35em 0; max-width: 74ch; font-size: var(--lf-text-sm); color: var(--lf-text-muted); }
+.lf-near-foot { margin-top: var(--lf-space-1); }
+.lf-near-list { margin: var(--lf-space-1) 0 0; padding-left: 1.4em; display: grid; gap: var(--lf-space-1-5); }
+.lf-near-list > li::marker { font-family: var(--lf-font-mono); color: var(--lf-text-2); }
+.lf-near-item { min-width: 0; overflow-wrap: anywhere; }
+/* One look on both pages: undo the boxed cells that .band-neg li gives every list item on #/band, and
+   separate the cards with a hairline as the method page's requirement list does. */
+.lf-near .lf-near-item {
+  margin: 0;
+  padding: 0 0 var(--lf-space-1-5);
+  border: 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+  background: none;
+}
+.lf-near .lf-near-item:last-child { padding-bottom: 0; border-bottom: 0; }
+.lf-near-path,
+.lf-near-vol { white-space: nowrap; }
+.lf-near-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25em 0.75em; margin: 0 0 0.25em; }
+.lf-near-head .lf-req { font-size: var(--lf-text-md); font-weight: 500; }
+.lf-near-title { font-family: var(--lf-font-heading); font-weight: 700; font-size: var(--lf-text-sm); color: var(--lf-text-2); }
+
+/* Verbatim (method/shared.tsx) also renders on #/band, where method.css is not loaded: the same neutral rule,
+   typographic quotes and citation underneath. */
+.lf-near .lf-m-quote { margin: 0.25em 0 0; max-width: 74ch; }
+.lf-near .lf-m-quote blockquote { margin: 0; padding: 0.15em 0 0.15em var(--lf-space-1-5); border-left: 3px solid var(--lf-border-strong); }
+.lf-near .lf-m-quote blockquote p { margin: 0; max-width: none; color: var(--lf-text); }
+.lf-near .lf-m-quote figcaption {
+  margin-top: 0.35em;
+  padding-left: calc(var(--lf-space-1-5) + 3px);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-muted);
+}
+.lf-near .lf-m-verified { display: inline-flex; align-items: flex-start; gap: 0.3em; white-space: normal; }
+.lf-near .lf-m-verified > .lf-icon { flex: none; margin-top: 0.2em; }
+.lf-near-date { white-space: nowrap; }
+.lf-near-tag {
+  display: inline-block;
+  padding: 0 0.4em;
+  border: 1px solid var(--lf-border);
+  border-radius: var(--lf-radius);
+  color: var(--lf-text-2);
+  white-space: nowrap;
+}
+.lf-near-note {
+  margin: var(--lf-space-1) 0 0;
+  padding: 0.4em 0.7em;
+  max-width: 74ch;
+  border-left: 3px solid var(--lf-border);
+  background: var(--lf-surface-2);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-2);
+}
+.lf-near-note-lead { font-weight: 600; color: var(--lf-text); }

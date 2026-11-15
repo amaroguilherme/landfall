@@ -1,0 +1,24 @@
+{
+ "schema": "landfall.nearest-notes/1",
+ "note": "LANDFALL's words, not model output and not NASA text. Written on 15 Nov 2026, after the ranking and its review, only where the review found a shown passage that weakens or contradicts the claim beside it: one factual sentence per claim. Every phrase inside curly double quotes is NASA's, verbatim, and is listed in quotes[] with the requirement and the part it comes from. A note never changes a rank, a count, a pattern or a claim.",
+ "notes": [
+  {
+   "claim_id": "sensor_set",
+   "about": "V2 6088",
+   "text": "[V2 6088] requires noise exposure levels to be “monitored and quantified for each crewmember”; the requirement names no device, and its rationale’s example is that, on ISS, “the crew uses acoustic monitors to monitor their environment”.",
+   "quotes": [
+    {"id": "V2 6088", "in": "statement", "text": "monitored and quantified for each crewmember"},
+    {"id": "V2 6088", "in": "rationale", "text": "the crew uses acoustic monitors to monitor their environment"}
+   ]
+  },
+  {
+   "claim_id": "storage",
+   "about": "V2 6020",
+   "text": "[V2 6020] requires “pressure, humidity, temperature, ppO2, and ppCO2 data” to be recorded automatically for “each isolatable, habitable compartment”; it sets no capacity, retention or duration. The ranking surfaced it, and we narrowed this claim.",
+   "quotes": [
+    {"id": "V2 6020", "in": "statement", "text": "pressure, humidity, temperature, ppO2, and ppCO2 data"},
+    {"id": "V2 6020", "in": "statement", "text": "each isolatable, habitable compartment"}
+   ]
+  }
+ ]
+}

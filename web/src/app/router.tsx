@@ -1,5 +1,6 @@
 // Hash router (no dependency). Routes: #/ (hero), #/body, #/case/:id, #/radiation, #/noon-sight, #/trends,
-// #/downlink, #/band, #/provenance, #/method, #/data. The hero is bundled eagerly; every other
+// #/downlink, #/band, #/provenance, #/method, #/data, and #/card/:id (printable cue cards, not in the nav).
+// The hero is bundled eagerly; every other
 // feature is React.lazy and pre-fetched on idle so navigation keeps working offline.
 // Features import navigation helpers from './location', not from this file.
 import { Component, Suspense, lazy, useEffect, useRef } from 'react'
@@ -9,7 +10,7 @@ import { EmptyState } from '../ui'
 import { useRoute } from './location'
 import type { FeatureName } from './routes'
 
-export { ROUTES, hrefFor, matchRoute } from './routes'
+export { NAV_ROUTES, ROUTES, hrefFor, matchRoute } from './routes'
 export type { RouteDef, RouteId, RouteMatch, FeatureName } from './routes'
 export { Link, navigate, useRoute } from './location'
 
@@ -33,6 +34,7 @@ const loaders: Record<LazyName, () => Promise<{ default: FeatureComponent }>> = 
   provenance: () => import('../features/provenance'),
   method: () => import('../features/method'),
   data: () => import('../features/data'),
+  cuecard: () => import('../features/cuecard'),
 }
 
 const LAZY = Object.fromEntries(

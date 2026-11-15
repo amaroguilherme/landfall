@@ -7,6 +7,8 @@ __pycache__/
 .cache/
 # Large source documents are referenced by URL + sha256, never committed
 *.pdf
+# ...except LANDFALL's own printed cue cards (scripts/print-card.mjs)
+!docs/landfall-cue-card.pdf
 # OS / editors
 .DS_Store
 .vscode/

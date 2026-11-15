@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useRoute } from './location'
-import { ROUTES } from './routes'
+import { NAV_ROUTES } from './routes'
 
-/** Compact primary navigation to every route; scrolls horizontally on narrow screens. */
+/** Compact primary navigation to every nav route (routes marked nav: false are skipped); scrolls horizontally on narrow screens. */
 export function Nav() {
   const { route } = useRoute()
   const listRef = useRef<HTMLUListElement>(null)
@@ -19,7 +19,7 @@ export function Nav() {
   return (
     <nav className="lf-nav" aria-label="Sections">
       <ul ref={listRef}>
-        {ROUTES.map((r) => (
+        {NAV_ROUTES.map((r) => (
           <li key={r.id}>
             <a href={r.navHref} aria-current={route?.id === r.id ? 'page' : undefined}>
               {r.label}

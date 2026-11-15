@@ -1,0 +1,182 @@
+/* Cue cards (#/card, #/cards). Lazy route CSS stays in the document after the view unmounts (every route chunk
+   is prefetched), so: every screen rule is scoped to .lf-cue* classes that only this view renders, and every
+   print rule is scoped under html[data-print='cuecard'], which the view sets only while it is mounted.
+   Paper: black on white, sizes in em of the paper's base size (screen 15px, print 10pt) and never below 1em,
+   so nothing on a printed card is smaller than 10 pt. Fonts stay within the shipped faces: Inter 400/600,
+   Public Sans 700, DM Mono 400/500. */
+
+/* ---- screen: intro (app colours) ---- */
+.lf-cue-screen { margin-bottom: var(--lf-space-3); }
+.lf-cue-screen h1 { margin-bottom: 0.4em; }
+.lf-cue-screenquote { margin: 0 0 var(--lf-space-2); max-width: 72ch; }
+.lf-cue-screenquote blockquote {
+  margin: 0 0 0.35em;
+  padding: 0.5em 0.9em;
+  border-left: 3px solid var(--lf-border-strong);
+  background: var(--lf-surface-1);
+}
+.lf-cue-screenquote blockquote p { margin: 0 0 0.35em; }
+.lf-cue-screenquote blockquote p:last-child { margin-bottom: 0; }
+.lf-cue-screenrat { color: var(--lf-text-2); }
+.lf-cue-screenquote figcaption { color: var(--lf-text-muted); font-size: var(--lf-text-sm, 0.875rem); }
+.lf-cue-screenlede { color: var(--lf-text-2); }
+.lf-cue-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--lf-space-1) var(--lf-space-3); margin: var(--lf-space-2) 0; }
+.lf-cue-actions .lf-mono { color: var(--lf-text-muted); font-size: var(--lf-text-xs); }
+.lf-cue-others { font-size: var(--lf-text-sm, 0.875rem); color: var(--lf-text-2); line-height: 1.7; }
+
+/* ---- the paper (screen preview; print overrides the size below) ---- */
+.lf-cue-stack { display: flex; flex-direction: column; align-items: center; gap: var(--lf-space-4); }
+.lf-cue-paper {
+  width: 100%;
+  max-width: 8.5in;
+  background: #fff;
+  color: #000;
+  font-family: var(--lf-font-ui);
+  font-size: 15px;
+  line-height: 1.15;
+  padding: 0.4in;
+  border-radius: 2px;
+  box-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
+  color-scheme: light;
+  overflow-wrap: break-word;
+}
+.lf-cue-paper p { margin: 0; max-width: none; color: #000; }
+.lf-cue-paper h2,
+.lf-cue-paper h3 { color: #000; letter-spacing: 0; }
+.lf-cue-paper ul,
+.lf-cue-paper ol { margin: 0; padding: 0; list-style: none; }
+.lf-cue-paper svg { color: #000; }
+
+.lf-cue-band { border-bottom: 2px solid #000; padding-bottom: 0.25em; margin-bottom: 0.3em !important; }
+.lf-cue-header { font-weight: 600; }
+
+.lf-cue-title { font: 700 1.45em/1.1 var(--lf-font-heading); margin: 0 0 0.1em; }
+
+.lf-cue-sec { border-top: 1px solid #000; padding-top: 0.15em; margin-top: 0.25em !important; }
+.lf-cue-h3 { font: 700 1em/1.2 var(--lf-font-heading); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 0.1em; }
+.lf-cue-h { font: 700 1em/1.2 var(--lf-font-heading); text-transform: uppercase; letter-spacing: 0.06em; margin-right: 0.25em; }
+
+.lf-cue-trigger { margin: 0 0 0.08em; padding-left: 1.1em; text-indent: -1.1em; }
+.lf-cue-sev { font-weight: 600; white-space: nowrap; }
+.lf-cue-sev svg { vertical-align: -0.12em; }
+.lf-cue-chip { display: inline-block; border: 1px dashed #000; padding: 0 0.25em; line-height: 1.15; white-space: nowrap; text-indent: 0; }
+.lf-cue-approach,
+.lf-cue-basis { display: block; text-indent: 0; }
+.lf-cue-basis { font-style: italic; } /* Inter Italic 400: a shipped (precached) face */
+.lf-cue-noteref { font-weight: 600; white-space: nowrap; }
+.lf-cue-noteref::before { content: '['; }
+.lf-cue-noteref::after { content: ']'; }
+
+.lf-cue-primary { border: 1.5px solid #000; padding: 0.15em 0.4em; margin-top: 0.35em !important; font-weight: 600; }
+
+.lf-cue-step { display: grid; grid-template-columns: 1.55em minmax(0, 1fr); gap: 0 0.35em; margin: 0 0 0.14em; break-inside: avoid; }
+.lf-cue-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35em;
+  height: 1.35em;
+  border: 1.5px solid #000;
+  border-radius: 50%;
+  font: 500 1em/1 var(--lf-font-mono);
+}
+/* A required step's number gets a heavy ring (no fill: browsers drop backgrounds when printing by default). */
+.lf-cue-step[data-required] .lf-cue-n { border-width: 3px; font-weight: 500; }
+.lf-cue-tag { display: inline-block; max-width: 100%; font-weight: 600; border: 1.5px solid #000; padding: 0 0.25em; line-height: 1.2; }
+.lf-cue-icon { vertical-align: -0.12em; }
+.lf-cue-hint { font-weight: 600; }
+.lf-cue-redflags { columns: 3; column-gap: 1em; margin: 0.06em 0 0.04em !important; }
+.lf-cue-redflags li { break-inside: avoid; }
+.lf-cue-write { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 0.35em; vertical-align: middle; text-indent: 0; }
+.lf-cue-box {
+  display: inline-block;
+  width: 7em;
+  height: 1.25em;
+  border: 1.5px solid #000;
+  vertical-align: middle;
+  flex: none;
+}
+.lf-cue-box[data-kind='met'] { width: 8.5em; }
+.lf-cue-box[data-kind='tick'] { width: 0.9em; height: 0.9em; margin-right: 0.05em; vertical-align: -0.1em; }
+.lf-cue-box[data-kind='cell'] { display: block; width: 100%; height: 1.1em; border: 0; }
+.lf-cue-cue { font-family: var(--lf-font-mono); font-weight: 400; }
+
+.lf-cue-tablewrap { overflow-x: auto; margin-top: 0.15em; }
+.lf-cue-crew { border-collapse: collapse; width: 100%; line-height: 1.1; }
+.lf-cue-crew th,
+.lf-cue-crew td { border: 1px solid #000; padding: 0.08em 0.35em; text-align: left; vertical-align: middle; color: #000; background: #fff; }
+.lf-cue-crew thead th { font-weight: 600; }
+.lf-cue-crew tbody th { font-weight: 400; white-space: nowrap; width: 1%; }
+.lf-cue-crew td { min-width: 6em; }
+
+.lf-cue-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 1em; }
+.lf-cue-tiers li { margin: 0 0 0.08em; padding-left: 1.55em; text-indent: -1.55em; }
+.lf-cue-tiern {
+  display: inline-flex;
+  text-indent: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.2em;
+  height: 1.2em;
+  border: 1.5px solid #000;
+  font: 500 1em/1 var(--lf-font-mono);
+}
+.lf-cue-tierlabel { font-weight: 600; }
+.lf-cue-backup { display: block; text-indent: 0; }
+.lf-cue-applies::before { content: '('; }
+.lf-cue-applies::after { content: ')'; }
+
+.lf-cue-refusals { columns: 2; column-gap: 1em; }
+.lf-cue-refusals li { break-inside: avoid; padding-left: 0.85em; text-indent: -0.85em; }
+.lf-cue-refusals li::before { content: '✕ '; font-weight: 600; }
+
+.lf-cue-foot { border-top: 2px solid #000; margin-top: 0.3em; padding-top: 0.2em; }
+/* A card the model refused (never-print hit or a broken rule): printed as its own page, so it cannot go missing. */
+.lf-cue-failed { border: 3px solid #000; }
+.lf-cue-failed h2 { font: 700 1.3em/1.2 var(--lf-font-heading); margin: 0 0 0.3em; }
+.lf-cue-footer { font-weight: 600; }
+
+@media screen and (max-width: 639px) {
+  .lf-cue-paper { padding: 14px 12px; font-size: 14px; }
+  .lf-cue-crew tbody th { white-space: normal; }
+  .lf-cue-crew td { min-width: 4.5em; }
+  .lf-cue-cols { grid-template-columns: minmax(0, 1fr); }
+  .lf-cue-redflags { columns: 1; }
+  .lf-cue-refusals { columns: 1; }
+}
+
+/* ---- print: only while the cue card view is mounted ---- */
+@media print {
+  html[data-print='cuecard'],
+  html[data-print='cuecard'] body {
+    background: #fff !important;
+    color: #000 !important;
+    color-scheme: light;
+    min-height: 0 !important;
+  }
+  html[data-print='cuecard'] .lf-missionbar,
+  html[data-print='cuecard'] .lf-nav,
+  html[data-print='cuecard'] .lf-footer,
+  html[data-print='cuecard'] .lf-skip,
+  html[data-print='cuecard'] .lf-cue-screen { display: none !important; }
+  html[data-print='cuecard'] .lf-main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+  }
+  html[data-print='cuecard'] .lf-cue-stack { display: block; }
+  html[data-print='cuecard'] .lf-cue-paper {
+    font-size: 10pt;
+    max-width: none;
+    width: auto;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    page-break-inside: avoid; /* older engines */
+    break-inside: avoid;
+  }
+  html[data-print='cuecard'] .lf-cue-paper + .lf-cue-paper { page-break-before: always; break-before: page; }
+  html[data-print='cuecard'] .lf-cue-tablewrap { overflow: visible; }
+}

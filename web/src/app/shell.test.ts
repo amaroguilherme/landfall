@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ENGINE_IS_SHIM, expectedFalseAlarms, formatMet, sLevel } from './engine'
-import { matchRoute, hrefFor } from './routes'
+import { NAV_ROUTES, ROUTES, matchRoute, hrefFor } from './routes'
 import { freshnessOf, parseIsoDuration } from './data'
 import type { SnapshotMeta } from './data'
 import { MET_NOW_S, ENVIRONMENTS, environment } from './scenario'
@@ -90,6 +90,26 @@ describe('matchRoute', () => {
   it('builds hrefs', () => {
     expect(hrefFor('/case/renal_stone')).toBe('#/case/renal_stone')
     expect(hrefFor('trends')).toBe('#/trends')
+  })
+  it('opens the printable cue cards: #/card/<case_id> one card, #/card and #/cards all of them', () => {
+    const one = matchRoute('#/card/spe_shelter')
+    expect(one.route?.id).toBe('card')
+    expect(one.route?.feature).toBe('cuecard')
+    expect(one.params).toEqual({ id: 'spe_shelter' })
+    expect(one.path).toBe('/card/spe_shelter')
+    const all = matchRoute('#/cards')
+    expect(all.route?.id).toBe('card')
+    expect(all.params).toEqual({})
+    expect(all.path).toBe('/card')
+    expect(matchRoute('#/card').params).toEqual({})
+    expect(matchRoute('#/cards/renal_stone').params).toEqual({ id: 'renal_stone' })
+    expect(matchRoute('#/card/spe_shelter?basis=inline').query).toEqual({ basis: 'inline' })
+    expect(matchRoute('#/card/a/b').route).toBeNull()
+  })
+  it('keeps the cue cards out of the nav: still the same 11 nav items', () => {
+    expect(ROUTES.find((r) => r.id === 'card')?.nav).toBe(false)
+    expect(NAV_ROUTES.map((r) => r.id)).toEqual(['now', 'body', 'case', 'radiation', 'noon-sight', 'trends', 'downlink', 'band', 'provenance', 'method', 'data'])
+    expect(NAV_ROUTES).toHaveLength(11)
   })
 })
 

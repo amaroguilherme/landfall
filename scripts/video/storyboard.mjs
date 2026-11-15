@@ -43,8 +43,6 @@ export const MAX_SECONDS = 29.5
 const FOOTER = 'Not endorsed by NASA. Not a medical device: no diagnosis, no dosing. Crew data is simulated. NASA and NOAA data are real, frozen at build. No backend: everything runs in this browser.'
 /** The event, as the app's own footer names it (factsPass checks it). */
 const EVENT = 'NASA Space Apps Challenge 2026'
-/** The app's tagline, as its own meta description words it (factsPass checks it). */
-const TAGLINE = 'Earth-independent health navigation for exploration crews'
 
 // ---- placeholders: on screen, marked, and listed so a render cannot pass for the final cut --------
 /**
@@ -75,9 +73,17 @@ const HERO_SWAP_S = 2.9
 const HERO_KICKER = '#/ · Now'
 /** "Real data: JPL Horizons light time and the / <replay_of>." (replay_of from swpc_spe_replay.json). */
 export const heroDataCaption = (facts) => `Real data: JPL Horizons light time and the\n${facts.heroData.replayOf}.`
-/** The future line of the final card (gap id and status from hrp_roadmap.json gap 724). */
+/**
+ * The words the NEXT line quotes from EIHSO-301 (hrp_roadmap.json gap 724), which factsPass() requires to be in the
+ * gap's title verbatim. The gap reads "We need to determine the on-board, intelligent systems that will support crew
+ * health and performance, and we need to establish the thresholds that will define how these systems should be
+ * implemented": the line keeps its own verb (determine) and quotes what is to be determined, not "the thresholds",
+ * which are the thresholds for implementing such systems, not alert thresholds.
+ */
+export const FUTURE_QUOTE = 'the on-board, intelligent systems that will support crew health and performance'
+/** The future line of the final card (gap id and status from hrp_roadmap.json gap 724, the quote checked in it). */
 export const futureLine = (facts) =>
-  `Next: NASA's open gap ${facts.eihso301.id} asks to “establish the thresholds”.\nHere every threshold is data a program can replace.`
+  `Next: NASA's open gap ${facts.eihso301.id} asks to determine\n“${FUTURE_QUOTE}”.\nLANDFALL proposes one; its thresholds are data a program can replace.`
 
 function setCaption(kicker, text) {
   window.__lfv.caption(kicker, text)
@@ -87,6 +93,11 @@ function setCaption(kicker, text) {
 /** The overlay's caption box top in viewport CSS px (null when no overlay is installed, e.g. make-figures). */
 function captionTop() {
   return window.__lfv ? window.__lfv.box().top : null
+}
+
+/** The top of the caption's feathered edge in viewport CSS px (null when no overlay is installed). */
+function captionFeatherTop() {
+  return window.__lfv ? window.__lfv.box().featherTop : null
 }
 
 // ---- the hero's measured latency under the capture clock -----------------------------------------
@@ -267,6 +278,82 @@ export function readWhy() {
 /** A number from a grid cell ("1050 pfu", "≥ 1000 pfu", "50 pfu"), or NaN. */
 const cellNumber = (s) => Number(/(-?\d+(?:\.\d+)?)/.exec((s ?? '').replace(/[,−]/g, (c) => (c === ',' ? '' : '-')))?.[1] ?? NaN)
 
+/**
+ * The Sol 242 panel of #/radiation (Mars surface only), as text: its title, JPL's planned Curiosity moratorium
+ * (the quote and the window line under it), the sentence that names the sol, the RAD peak line and Hassler et
+ * al.'s Fig. 5 caption, with the geometry of each part (document CSS px) for the framing. It tags the sol sentence
+ * with data-lfv for the caption-clearance check.
+ */
+export function readSol242() {
+  const norm = (x) => (x ?? '').replace(/[\s​  ]+/g, ' ').trim()
+  const el = document.getElementById('rad-sol242')
+  if (!el) return null
+  const title = el.querySelector('.lf-panel-head .lf-panel-title')
+  const jpl = el.querySelector('[data-sol242-jpl]')
+  const sol = [...el.querySelectorAll('p')].find((p) => /^On sol \d+,/.test(norm(p.textContent)))
+  sol?.setAttribute('data-lfv', 'sol242-sol')
+  const peak = el.querySelector('[data-sol242-peak]')
+  const doc = (e) => (e ? { top: Math.round(e.getBoundingClientRect().top + window.scrollY), bottom: Math.round(e.getBoundingClientRect().bottom + window.scrollY) } : null)
+  return {
+    eyebrow: norm(el.querySelector('.lf-panel-head .lf-eyebrow')?.textContent) || null,
+    title: norm(title?.textContent) || null,
+    jpl: norm(jpl?.querySelector('blockquote')?.textContent) || null,
+    jplSource: norm(jpl?.querySelector('figcaption')?.textContent) || null,
+    window: norm(jpl?.querySelector('.lf-s242-jpl-span')?.textContent) || null,
+    sol: norm(sol?.textContent) || null,
+    peak: norm(peak?.textContent) || null,
+    fig5: norm(el.querySelector('[data-sol242-caption] blockquote')?.textContent) || null,
+    canvases: el.querySelectorAll('canvas').length,
+    geo: { panel: doc(el), title: doc(title), jpl: doc(jpl), sol: doc(sol), het: doc(el.querySelector('canvas')), peak: doc(peak) },
+    bar: Math.round(document.querySelector('.lf-missionbar')?.getBoundingClientRect().bottom ?? 0),
+    env: document.querySelector('.lf-mb-env select')?.value ?? null,
+    viewH: window.innerHeight,
+  }
+}
+
+/**
+ * The head of the #/eva evidence board, as text: the eyebrow (crew, role, environment), NASA's [V1 6006] requirement
+ * and its citation, the ground link (its state, the earliest review, the "from now" line), LANDFALL's own "never
+ * clears" sentences, and every rendered sentence outside NASA's verbatim quotes, for the no-clearance check. Geometry
+ * in document CSS px.
+ */
+export function readEva() {
+  const norm = (x) => (x ?? '').replace(/[\s​  ]+/g, ' ').trim()
+  const main = document.querySelector('main')
+  const req = document.querySelector('[data-eva-v16006]')
+  const ground = document.querySelector('[data-eva-ground]')
+  const review = document.querySelector('[data-eva-earliest-review]')
+  const reqPanel = req?.closest('section')
+  // LANDFALL's own words: the page without NASA's verbatim text (the requirement, its rationale, quoted phrases)
+  const own = main?.cloneNode(true)
+  own?.querySelectorAll('[data-eva-v16006], blockquote, q, .lf-eva-rationale, [data-eva-req]').forEach((x) => x.remove())
+  const doc = (e) => (e ? { top: Math.round(e.getBoundingClientRect().top + window.scrollY), bottom: Math.round(e.getBoundingClientRect().bottom + window.scrollY) } : null)
+  return {
+    eyebrow: norm(document.querySelector('.lf-eva-head .lf-eyebrow')?.textContent) || null,
+    h1: norm(document.querySelector('.lf-eva-head h1')?.textContent) || null,
+    never: [...document.querySelectorAll('.lf-eva-never')].map((x) => norm(x.textContent)),
+    requirement: norm(req?.querySelector('blockquote')?.textContent) || null,
+    citation: norm(req?.querySelector('figcaption')?.textContent) || null,
+    ground: ground?.dataset.ground ?? null,
+    groundHead: norm(ground?.querySelector('.lf-eva-ground-head')?.textContent) || null,
+    review: norm(review?.querySelector('dd')?.textContent) || null,
+    roundTrip: norm(document.querySelector('[data-eva-round-trip-los] dd')?.textContent) || null,
+    reviewFrom: norm([...(ground?.querySelectorAll('.lf-eva-fine') ?? [])].map((x) => x.textContent).find((x) => /earliest review is/i.test(x))) || null,
+    ownText: norm(own?.textContent),
+    geo: { reqPanel: doc(reqPanel), requirement: doc(req?.querySelector('blockquote')), review: doc(review), ground: doc(ground) },
+    bar: Math.round(document.querySelector('.lf-missionbar')?.getBoundingClientRect().bottom ?? 0),
+    env: document.querySelector('.lf-mb-env select')?.value ?? null,
+    crew: document.querySelector('.lf-mb-crew select')?.value ?? null,
+    link: document.querySelector('.lf-comms-link')?.textContent.trim() ?? null,
+    viewH: window.innerHeight,
+  }
+}
+
+/** "It has happened: <month year>, Mars behind the Sun. / …" (the month and year from the panel's own title). */
+export const sol242Caption = (facts) => `It has happened: ${facts.sol242.when}, Mars behind the Sun.\nCuriosity measured a solar storm at Gale crater.`
+/** Gap (CSS px) between the mission bar and the top of the panel a shot frames. */
+const PANEL_GAP = 12
+
 // ---- the storyboard ----------------------------------------------------------------------------
 
 export const SHOTS = [
@@ -301,21 +388,52 @@ export const SHOTS = [
     }),
     stills: [{ at: 2.8, name: 'still-1-problem-card' }],
   },
-  {
-    id: 'card-name',
-    kind: 'card',
-    dur: 2.0,
-    // the tagline is the app's own (its meta description), checked in factsPass()
-    card: () => ({
-      layout: 'brand',
-      blocks: [
-        { cls: 'wordmark', text: 'LANDFALL', in: 0 },
-        { cls: 'sub', text: TAGLINE, in: 0.3 },
-      ],
-    }),
-  },
 
   // ---- the product: real app, fresh page per shot, app clock frozen and stepped 1/30 s per frame ----
+  {
+    // "It has happened": the April 2013 storm Curiosity's RAD measured at Gale crater while Mars was in solar
+    // conjunction. The frame holds the panel's head: its title, JPL's planned moratorium (quote and window), the
+    // sentence that names the sol, and the STEREO-B chart. The RAD peak line starts about 860 CSS px below the
+    // title's top, more than the 576 px between the mission bar and the caption, so it is read and checked but not
+    // framed.
+    id: 'sol242',
+    kind: 'app',
+    dur: 2.0,
+    route: '#/radiation?env=mars_surface',
+    kicker: '#/radiation · Mars surface',
+    // set from the panel's own title in prepare (sol242Caption), before the first frame
+    caption: 'It has happened: <month year from the panel title>, Mars behind the Sun.\nCuriosity measured a solar storm at Gale crater.',
+    ready: () => document.querySelectorAll('#rad-sol242 canvas').length === 2 && !!document.querySelector('#rad-sol242 [data-sol242-jpl]') && !!document.querySelector('#rad-sol242 [data-sol242-peak]'),
+    prepare: async (page, ctx) => {
+      const v = await page.call(readSol242)
+      if (!v) throw new Error('sol242: no #rad-sol242 panel on #/radiation at the Mars surface')
+      const when = /\(([A-Z][a-z]+ \d{4})\)$/.exec(v.title ?? '')?.[1] ?? null
+      const solN = /^On sol (\d+),/.exec(v.sol ?? '')?.[1] ?? null
+      const peak = /^Peak at Gale crater: ([\d.,]+ µGy\/day) at ([^,]+), ([\d.]+) × the background/.exec(v.peak ?? '')
+      ctx.fact('sol242', { when, sol: solN, peakValue: peak?.[1] ?? null, peakAt: peak?.[2] ?? null, peakRatio: peak?.[3] ?? null, eyebrow: v.eyebrow, title: v.title, jpl: v.jpl, jplSource: v.jplSource, window: v.window, solSentence: v.sol, peak: v.peak, fig5: v.fig5, geo: v.geo })
+      ctx.assert(v.env === 'mars_surface', "sol242 kicker: 'Mars surface' (the mission bar's environment)", v.env)
+      ctx.assert(/^It has happened: a solar storm at Gale crater\b/.test(v.title ?? '') && !!when, "sol242 caption: 'It has happened' and its month and year (the panel's own title: 'It has happened: a solar storm at Gale crater … (<month year>)')", v.title)
+      ctx.assert(/\bin solar conjunction\b/.test(v.title ?? '') && /while Mars was in solar conjunction/.test(v.fig5 ?? ''), "sol242 caption: 'Mars behind the Sun' (the title: 'in solar conjunction'; Hassler et al.'s Fig. 5 caption: 'while Mars was in solar conjunction')", { title: v.title, fig5: (v.fig5 ?? '').slice(0, 160) })
+      ctx.assert(!!solN && /^On sol \d+, Curiosity’s RAD measured a solar particle event at Gale crater\./.test(v.sol ?? '') && new RegExp(`by RAD on sol ${solN}\\b`).test(v.fig5 ?? ''), "sol242 caption: 'Curiosity measured a solar storm at Gale crater' (the panel: 'On sol <n>, Curiosity’s RAD measured a solar particle event at Gale crater'; the same sol in Hassler et al.'s Fig. 5 caption)", { sol: v.sol, fig5: (v.fig5 ?? '').slice(0, 120) })
+      ctx.assert(!!peak && Number(peak[3]) > 1, "sol242: RAD measured it (the panel's peak line: the dose-rate peak at Gale crater and its multiple of the background, read here, below the frame)", v.peak)
+      ctx.assert(/^“Curiosity's controllers plan to suspend commanding from [A-Z][a-z]+ \d+ to [A-Z][a-z]+ \d+\.”$/.test(v.jpl ?? '') && /^NASA Jet Propulsion Laboratory\b/.test(v.jplSource ?? '') && /lies inside JPL’s planned Curiosity moratorium \(\d+ [A-Z][a-z]+ to \d+ [A-Z][a-z]+\)/.test(v.window ?? ''), "sol242 frame: JPL's planned Curiosity moratorium, quoted from JPL, and the window line that puts the span shown inside it", { jpl: v.jpl, source: (v.jplSource ?? '').slice(0, 80), window: v.window })
+      ctx.assert(v.canvases === 2 && /^HISTORICAL · MEASURED$/.test(v.eyebrow ?? ''), "sol242 frame: the panel is labelled HISTORICAL · MEASURED and draws the measured records (2 charts)", { eyebrow: v.eyebrow, canvases: v.canvases })
+      await page.call(setCaption, '#/radiation · Mars surface', sol242Caption(ctx.facts))
+      ctx.fact('sol242.caption', sol242Caption(ctx.facts))
+      // the panel's top PANEL_GAP under the mission bar; shot.clear checks that the title, the JPL quote and window
+      // and the sol sentence end above the caption box on the last frame
+      return { panelY: v.bar + PANEL_GAP }
+    },
+    // anchored, not scrolled: the long page above the panel keeps the panel's top at panelY on every frame
+    frame: (_t, s) => ({ anchor: { sel: '#rad-sol242', y: s.panelY } }),
+    clear: [
+      { sel: '#rad-sol242 .lf-panel-title', what: "the panel title 'It has happened: …'" },
+      { sel: '#rad-sol242 [data-sol242-jpl] blockquote', what: "JPL's planned Curiosity moratorium, quoted" },
+      { sel: '#rad-sol242 .lf-s242-jpl-span', what: 'the moratorium window line' },
+      { sel: '[data-lfv=sol242-sol]', what: "the 'On sol …' sentence" },
+    ],
+    stills: [{ at: 1.9, name: 'still-1a-sol242' }],
+  },
   {
     id: 'hero',
     kind: 'app',
@@ -341,6 +459,11 @@ export const SHOTS = [
       ctx.assert(!!d && Number(d[1]) >= 2, "hero caption: Houston's reply is days away", v.houston)
       ctx.assert(/^\d+\.\d+\s*s$/.test(v.guidance ?? ''), "hero caption: LANDFALL's guidance is on screen (latency measured in this browser)", v.guidance)
       ctx.assert(!!v.action, 'hero: the primary action is painted', v.action)
+      // The earliest-reply line as this build prints it, read and never assumed: its parenthetical names the round
+      // trip at link-up (the EVA shot checks that the board prints the same round trip for when the link resumes).
+      // No check pins its wording; the shot's checks read only the days and the ground packet from it.
+      const line = /Earliest reply [^|]*?(?=\s*· ground packet:|\s*\||$)/.exec(v.houston)?.[0]?.trim() ?? null
+      ctx.fact('hero.earliestReply', { line, linkUpRoundTrip: /\(the (\d+ min \d+ s) round trip added at link-up\)/.exec(line ?? '')?.[1] ?? null })
 
       // the current UI, which the frames show (the round-2 video was captured from an older build)
       const now = await page.call(heroNow)
@@ -498,6 +621,62 @@ export const SHOTS = [
     stills: [{ at: 2.9, name: 'still-4-env-flip-iss' }],
   },
   {
+    // The EVA evidence board's head for CM-2 at the Mars base (a fresh page: the scenario's Mars, not the ISS the
+    // flip ended on): NASA's [V1 6006] requirement, verbatim, and the ground link with its earliest review. The
+    // page's own "LANDFALL never clears anyone for EVA." sits above the requirement panel; the head from it to the
+    // earliest review is taller than the 576 CSS px between the mission bar and the caption, so the caption carries
+    // it, checked against the page's sentence and against every other sentence the page prints.
+    id: 'eva',
+    kind: 'app',
+    dur: 2.0,
+    route: '#/eva?crew=CM-2',
+    kicker: '#/eva · CM-2 Flight Engineer',
+    caption: 'NASA: the ground clears the crew before each EVA.\nLANDFALL clears no one.',
+    ready: () => !!document.querySelector('[data-eva-v16006] blockquote') && /MET \d+\/\d{2}:\d{2}:\d{2}/.test(document.querySelector('[data-eva-earliest-review]')?.textContent ?? '') && document.querySelector('.lf-mb-crew select')?.value === 'CM-2',
+    prepare: async (page, ctx) => {
+      const v = await page.call(readEva)
+      const { ownText, ...seen } = v
+      ctx.fact('eva', seen)
+      ctx.assert(v.env === 'mars_surface' && v.crew === 'CM-2' && v.link === 'LOS' && /^CM-2 · Flight Engineer · Mars surface\b/.test(v.eyebrow ?? ''), "eva kicker: 'CM-2 Flight Engineer', at the Mars base with the link down (the board's own eyebrow and the mission bar)", { env: v.env, crew: v.crew, link: v.link, eyebrow: v.eyebrow })
+      ctx.assert(/^“All crewmembers shall be medically cleared to perform an EVA by ground medical support personnel prior to each EVA\.”$/.test(v.requirement ?? '') && /^\[V1 6006\] NASA-STD-3001 Vol 1\b/.test(v.citation ?? '') && /verbatim/.test(v.citation ?? ''), "eva caption: 'NASA: the ground clears the crew before each EVA' ([V1 6006], verbatim on the board)", { requirement: v.requirement, citation: v.citation })
+      ctx.assert(v.ground === 'unreachable' && /^No ground link: solar conjunction\. No answer from Earth can reach the crew before the link resumes\.$/.test(v.groundHead ?? ''), "eva frame: the ground link is down for the solar conjunction ('No ground link: solar conjunction')", { ground: v.ground, head: v.groundHead })
+      const review = /^MET (\d+\/\d{2}:\d{2}:\d{2}) \(light time only, before any review time\)$/.exec(v.review ?? '')
+      const from = /^The earliest review is (\d+ d \d+ h) from now: the same “Earliest reply” as the Now page\./.exec(v.reviewFrom ?? '')
+      ctx.fact('eva.review', { met: review?.[1] ?? null, fromNow: from?.[1] ?? null })
+      ctx.assert(!!review && !!from, "eva frame: the earliest ground review, a MET labelled 'light time only, before any review time', and how far it is from now", { review: v.review, from: v.reviewFrom })
+      // the same wait the hero's Ask Houston card prints (facts.hero, from the hero shot earlier in this run)
+      const hero = /Earliest reply (\d+ d \d+ h)\b/.exec(ctx.facts.hero?.houston ?? '')?.[1] ?? null
+      if (ctx.facts.hero) ctx.assert(hero === from?.[1], "eva frame: the earliest review is the hero's 'Earliest reply'", { eva: from?.[1] ?? null, hero })
+      // the round trip the board prints for link-up is the one the hero's earliest-reply line adds at link-up
+      const atResume = /(\d+ min \d+ s) when the link resumes/.exec(v.roundTrip ?? '')?.[1] ?? null
+      const heroLinkUp = ctx.facts['hero.earliestReply']?.linkUpRoundTrip ?? null
+      if (heroLinkUp) ctx.assert(atResume === heroLinkUp, "eva frame: the round trip when the link resumes is the one the hero adds at link-up", { eva: v.roundTrip, hero: heroLinkUp })
+      else if (ctx.facts.hero) ctx.warn(`eva: the hero's earliest-reply line names no round trip at link-up (${ctx.facts['hero.earliestReply']?.line ?? 'not read'}); the cross-check was skipped`)
+      ctx.assert(v.never.length >= 2 && v.never.every((x) => x.startsWith('LANDFALL never clears anyone for EVA.')) && /The decision belongs to the program and to ground medical support\./.test(v.never[0]), "eva caption: 'LANDFALL clears no one' (the board's own words, at its head and under the program options: 'LANDFALL never clears anyone for EVA.')", v.never)
+      const verdicts = (ownText.match(/[^.]*\b(cleared for|go for EVA|no-go|clear(?:ed)? to EVA|is cleared|are cleared)\b[^.]*/gi) ?? []).map((x) => x.trim())
+      ctx.assert(verdicts.length === 0, "eva caption: 'LANDFALL clears no one' (outside NASA's quoted text, the board prints no clearance: no 'cleared for', 'go for EVA', 'no-go' or 'cleared to EVA')", verdicts)
+      // The requirement panel's top PANEL_GAP under the mission bar, unless the earliest review would then reach the
+      // caption's feathered edge: then up just enough that the review (and its ring) ends above the feather, as long
+      // as the panel's eyebrow stays below the bar (its top border may pass under the bar). shot.clear checks it.
+      const feather = (await page.call(captionFeatherTop)) ?? v.viewH
+      const top = v.geo.reqPanel?.top ?? v.geo.requirement.top
+      const y = Math.max(v.bar - PANEL_GAP, Math.min(v.bar + PANEL_GAP, feather - 8 - (v.geo.review.bottom - top)))
+      return { reqY: Math.round(y) }
+    },
+    frame: (t, s) => ({
+      anchor: { sel: 'section.lf-panel:has([data-eva-v16006])', y: s.reqY },
+      // where to look once the requirement is read: the earliest review
+      ring: { sel: '[data-eva-earliest-review]', o: pulse(t, 0.85, 2.2), pad: 6 },
+    }),
+    clear: [
+      { sel: '[data-eva-v16006] blockquote', what: 'the [V1 6006] requirement, verbatim' },
+      { sel: '[data-eva-v16006] figcaption', what: 'its [V1 6006] citation' },
+      { sel: '[data-eva-ground] .lf-eva-ground-head', what: "'No ground link: solar conjunction'" },
+      { sel: '[data-eva-earliest-review]', what: 'the earliest ground review' },
+    ],
+    stills: [{ at: 1.9, name: 'still-4a-eva' }],
+  },
+  {
     id: 'band',
     kind: 'app',
     dur: 1.5,
@@ -567,21 +746,24 @@ export const SHOTS = [
   {
     id: 'card-final',
     kind: 'card',
-    dur: 7.0,
+    dur: 5.0,
     // Claims checked in factsPass() against the provenance page, the app footer and the frozen roadmap
     // (the NEXT line quotes an open NASA gap; it never says LANDFALL closes it).
+    // Every block is in within 1.6 s (each fades in over 0.4 s), top to bottom, so each line then stays on
+    // screen for the rest of the card: the claims 4.5 and 4.2 s, the NEXT line 4.0 s, the URL 3.6 s, the
+    // small print 3.4 s, all of it together for the last 3.4 s.
     card: (facts) => ({
       layout: 'final',
       blocks: [
         { cls: 'wordmark', text: 'LANDFALL', in: 0 },
         { cls: 'claim', text: 'Every NASA limit links to the standard it came from.', in: 0.1 },
-        { cls: 'claim', text: 'Every number with no published basis is labelled as ours.', in: 0.8 },
-        { cls: 'next', text: futureLine(facts), in: 1.6 },
-        { cls: 'url', text: PUBLIC_URL, in: 2.6 },
-        { cls: 'foot', text: FOOTER, in: 3.1 },
+        { cls: 'claim', text: 'Every number with no published basis is labelled as ours.', in: 0.4 },
+        { cls: 'next', text: futureLine(facts), in: 0.6 },
+        { cls: 'url', text: PUBLIC_URL, in: 1.0 },
+        { cls: 'foot', text: FOOTER, in: 1.2 },
       ],
     }),
-    stills: [{ at: 6.9, name: 'still-6-final-card' }],
+    stills: [{ at: 4.9, name: 'still-6-final-card' }],
   },
 ]
 
@@ -609,7 +791,6 @@ export async function factsPass(newAppPage, ctx) {
     ctx.assert(!!page.onboard, "problem card: 'the crew has to act on its own' (the hero: 'With no link, the crew acts onboard ...')", page.onboard)
     ctx.assert((page.footer ?? '').includes(FOOTER), "final card: the small print is the app's own footer, word for word", page.footer)
     ctx.assert((page.footer ?? '').includes(`LANDFALL · ${EVENT}`), `title card: '${EVENT}' (the app's own footer names the event)`, page.footer)
-    ctx.assert((page.description ?? '').includes(`LANDFALL: ${TAGLINE}.`), `name card: '${TAGLINE}' (the app's own description)`, page.description)
 
     // [0:10] data caption: the hero names JPL Horizons as its light-time source and labels the flux a
     // replay of the real event that the frozen snapshot names (replay_of)
@@ -630,14 +811,14 @@ export async function factsPass(newAppPage, ctx) {
     ctx.assert(typeof data.replayOf === 'string' && data.replayOf.length > 0, 'hero caption: the replayed event is named by the frozen snapshot (swpc_spe_replay.json data.replay_of)', data.replayOf)
     ctx.assert((data.replayNote ?? '').includes(`Replay of a real event: ${data.replayOf}`), "hero caption: the hero itself labels the flux 'Replay of a real event: <replay_of>'", data.replayNote)
 
-    // [0:20-0:30] future line: EIHSO-301 is open and asks to "establish the thresholds" (frozen roadmap)
+    // [0:20-0:30] future line: EIHSO-301 is open and asks to determine FUTURE_QUOTE, verbatim (frozen roadmap)
     const gap = await hero.call(async () => {
       const j = await (await fetch('/data/hrp_roadmap.json')).json()
       for (const r of j?.data?.risks ?? []) for (const g of r.gaps ?? []) if (g.gap_id === 724) return { risk: r.hrr_id, riskTitle: r.title, gapId: g.gap_id, title: g.title, status: g.status, retrievedAt: j.retrieved_at ?? null }
       return null
     })
     ctx.fact('eihso301', gap && { ...gap, id: /^([A-Z]+-\d+):/.exec(gap.title)?.[1] ?? null })
-    ctx.assert(!!gap && gap.title.startsWith('EIHSO-301:') && gap.title.includes('establish the thresholds'), "final card: NASA's gap EIHSO-301 asks to “establish the thresholds” (hrp_roadmap.json gap 724, verbatim)", gap)
+    ctx.assert(!!gap && gap.title.startsWith('EIHSO-301:') && gap.title.includes(`We need to determine ${FUTURE_QUOTE}`), `final card: NASA's gap EIHSO-301 asks to determine “${FUTURE_QUOTE}” (hrp_roadmap.json gap 724, the quote verbatim, after its own 'We need to determine')`, gap)
     ctx.assert(gap?.status === 'Open', "final card: EIHSO-301 is an 'open' gap (hrp_roadmap.json gap 724 status)", gap?.status)
   } finally {
     await hero.close()
@@ -657,7 +838,7 @@ export async function factsPass(newAppPage, ctx) {
     ctx.fact('provenanceClaims', v)
     ctx.assert(!!v.nasa, "final card: 'Every NASA limit links to the standard it came from' (provenance: NASA-published numbers open to the verbatim requirement text)", v.nasa)
     ctx.assert(!!v.ours, "final card: 'Every number with no published basis is labelled as ours' (provenance: listed here as ours)", v.ours)
-    ctx.assert(!!v.rulesData, "final card: 'every threshold is data' (provenance: every number is generated from the rules files the engine reads)", v.rulesData)
+    ctx.assert(!!v.rulesData, "final card: 'its thresholds are data a program can replace' (provenance: every number is generated from the rules files the engine reads)", v.rulesData)
   } finally {
     await prov.close()
   }

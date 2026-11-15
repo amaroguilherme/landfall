@@ -587,8 +587,10 @@ async function main() {
     await factsPass(openApp, ctx)
 
     sink = startMaster(master)
-    // One continuous mission clock across the cuts: each app shot's first frame shows the MET where
-    // the previous one ended. pauseAt is fixed on the first attempt so a recapture lands identically.
+    // The mission clock carries across the cuts: each app shot's first frame shows the MET where the
+    // previous one ended (a declared `preroll` is taken off pauseAt). What a shot steps in onPaused is not,
+    // so the hero's 1.5 s moves the clock on 1.5 s at the cut into it. pauseAt is fixed on the first
+    // attempt so a recapture lands identically.
     const plan = { metCursor: null, pauseAt: {} }
     let at = 0
     for (const shot of shots) {
@@ -607,7 +609,7 @@ async function main() {
       for (const png of r.frames) await sink.write(png)
       for (const [name, png] of r.stills) writeFileSync(join(stillDir, `${name}.png`), png)
       if (r.metStart !== null) plan.metCursor = r.metStart + shot.dur
-      timeline.push({ id: shot.id, kind: shot.kind, start: +at.toFixed(3), end: +(at + shot.dur).toFixed(3), frames: r.frames.length, route: shot.route ?? null, caption: shot.caption ?? null, metStart: r.metStart === null ? null : formatMet(r.metStart) })
+      timeline.push({ id: shot.id, kind: shot.kind, start: +at.toFixed(3), end: +(at + shot.dur).toFixed(3), frames: r.frames.length, route: shot.route ?? null, caption: facts[`${shot.id}.caption`] ?? shot.caption ?? null, metStart: r.metStart === null ? null : formatMet(r.metStart) })
       log(`${shot.id.padEnd(12)} ${at.toFixed(1).padStart(4)}-${(at + shot.dur).toFixed(1).padStart(4)} s  ${String(r.frames.length).padStart(3)} frames in ${((Date.now() - started) / 1000).toFixed(1)} s${r.metStart === null ? '' : `  (MET ${formatMet(r.metStart)})`}`)
       at += shot.dur
     }

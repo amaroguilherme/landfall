@@ -16,10 +16,12 @@
 //       only; checks fail the run if the strip does not meet the card, another limit card enters the clip,
 //       or the clip leaves the viewport.
 //   F4  the provenance summary (intro and the per-chip counts), element-clipped.
+//   F5  #/verify after pressing Run: the four check cards (vectors, snapshots, rules digest, requests to other
+//       origins), element-clipped; the rules digest is also read from the cue card #/card/spe_shelter prints.
 // Element figures are measured only after the page has settled (warmup window and network idle).
 //
 // Every figure runs the ctx.assert checks of its shot in storyboard.mjs (and factsPass) before it is
-// written; a failed check aborts the run. The run also fails when the GIF is 4 MB or more, any file is
+// written (F5, which has no shot, runs its own); a failed check aborts the run. The run also fails when the GIF is 4 MB or more, any file is
 // 10 MB or more (the project page's image limit), or figures.md prints a number that facts-figures.json
 // does not hold. Captions and alt text are built from the facts read in this run, never typed.
 //
@@ -49,7 +51,7 @@ const OG_CROP = { x: 0, y: 0, w: 1920, h: 1008 }
 const OG_STILL = 'still-2b-hero-no-caption.png'
 /** Page age before an element figure is measured: past App.tsx's warmup, as in make-video.mjs. */
 const SETTLE_AFTER_LOAD_MS = 6500
-const FIGURES = ['F1', 'F2', 'F3', 'F4']
+const FIGURES = ['F1', 'F2', 'F3', 'F4', 'F5']
 
 // ---- arguments ------------------------------------------------------------------------------------
 
@@ -62,7 +64,7 @@ function parseArgs(argv) {
     else if (k === 'chrome') opts.chrome = v
     else if (k === 'only') opts.only = v.split(',').map((x) => x.trim().toUpperCase()).filter(Boolean)
     else if (k === 'help' || k === 'h') {
-      console.log('usage: node scripts/video/make-figures.mjs [base-url] [--out=DIR] [--chrome=PATH] [--only=F1,F2,F3,F4]')
+      console.log('usage: node scripts/video/make-figures.mjs [base-url] [--out=DIR] [--chrome=PATH] [--only=F1,F2,F3,F4,F5]')
       process.exit(0)
     } else throw new Error(`unknown option --${k}`)
   }
@@ -331,7 +333,7 @@ async function main() {
     log(`F1: GIF ${g.width}x${g.height}, ${g.frames} frames, ${outputs.F1.gif.MB} MB (palette ${used.colors}); PNG ${outputs.F1.png.width}x${outputs.F1.png.height}; og.png ${outputs.og.width}x${outputs.og.height}`)
   }
 
-  const needBrowser = ['F2', 'F3', 'F4'].some(want)
+  const needBrowser = ['F2', 'F3', 'F4', 'F5'].some(want)
   if (needBrowser || !want('F1')) {
     const { browser, close } = await launchChrome({ chromePath: opts.chrome, width: WIDTH, height: HEIGHT })
     const openApp = async (route) => {
@@ -497,6 +499,93 @@ async function main() {
         outputs.F4.MB = mb(outputs.F4.bytes)
         log(`F4: ${outputs.F4.width}x${outputs.F4.height}, ${outputs.F4.MB} MB`)
       }
+
+      if (want('F5')) {
+        await track('F5', async () => {
+          // the digest a cue card prints, read from the card itself (the verify page compares against its own hook)
+          const cardRoute = '#/card/spe_shelter'
+          log(`F5: ${cardRoute} (the rules digest the cue card prints)`)
+          const card = await openApp(cardRoute)
+          let printed
+          try {
+            printed = await card.waitUntil(() => /\brules ([0-9a-f]{12}) · built\b/.exec((document.querySelector('main')?.textContent ?? '').replace(/\s+/g, ' '))?.[1] ?? null, [], { what: 'F5: the cue card digest', timeoutMs: 45000 })
+          } finally {
+            await card.close()
+          }
+          const route = '#/verify'
+          log(`F5: ${route} (press Run, then the four check cards, element-clipped)`)
+          const page = await openApp(route)
+          try {
+            await page.waitUntil(() => [...document.querySelectorAll('.lfv-run button')].some((b) => b.textContent.trim() === 'Run'), [], { what: 'F5: the Run button', timeoutMs: 45000 })
+            await settle(page)
+            // A Run keeps its vector files for offline use only when LANDFALL's service worker serves the page, and the
+            // engine card says so when it does not: wait for the worker (skipWaiting + clients.claim) before pressing Run.
+            const served = await page.waitUntil(() => !!navigator.serviceWorker?.controller, [], { what: 'F5: the service worker to serve the page', timeoutMs: 30000 }).catch(() => false)
+            if (!served) ctx.warn('F5: the service worker did not serve #/verify within 30 s; the engine card shows its offline note')
+            const pressed = await page.call(() => {
+              const b = [...document.querySelectorAll('.lfv-run button')].find((x) => x.textContent.trim() === 'Run')
+              b?.click()
+              return !!b
+            })
+            if (!pressed) throw new Error('F5: no Run button on #/verify')
+            await page.waitUntil(() => !!document.querySelector('[data-verify-done]') && document.querySelectorAll('section[aria-labelledby=lfv-checks-h] .lfv-row-body[data-verdict]:not([data-verdict=running]):not([data-verdict=idle])').length === 4, [], { what: 'F5: the Run to finish', timeoutMs: 90000 })
+            await page.painted(3)
+            const v = await page.call(() => {
+              const norm = (x) => (x ?? '').replace(/\s+/g, ' ').trim()
+              const row = (id) => {
+                const b = document.querySelector(`section[aria-labelledby=lfv-checks-h] .lfv-row-body[data-check=${id}]`)
+                const li = b?.closest('li')
+                return {
+                  verdict: b?.dataset.verdict ?? null,
+                  badge: norm(li?.querySelector('.lf-sev-text, .lf-dq, .lf-status')?.textContent) || null,
+                  eyebrow: norm(li?.querySelector('.lf-eyebrow')?.textContent) || null,
+                  big: norm(b?.querySelector('.lfv-big')?.textContent) || null,
+                  facts: [...(b?.querySelectorAll('.lfv-facts > li') ?? [])].map((x) => norm(x.textContent)),
+                }
+              }
+              return {
+                progress: norm(document.querySelector('.lfv-progress')?.textContent) || null,
+                engine: row('engine'),
+                snapshots: row('snapshots'),
+                digest: row('digest'),
+                origins: row('origins'),
+                served: !!navigator.serviceWorker?.controller,
+                rows: document.querySelectorAll('section[aria-labelledby=lfv-checks-h] ol.lfv-rows > li').length,
+              }
+            })
+            const eng = /^(\d+) of (\d+) vectors agree with the Python reference within (\S+)$/.exec(v.engine.big ?? '')
+            const snp = /^(\d+) of (\d+) snapshots match the SHA-256 and size in manifest\.json$/.exec(v.snapshots.big ?? '')
+            const dig = /^Recomputed now: rules ([0-9a-f]{12})$/.exec(v.digest.big ?? '')
+            const cards = /^The cue cards print: rules ([0-9a-f]{12}) \(the same value\)/.exec(v.digest.facts[0] ?? '')
+            const org = /^(\d+) requests to other origins since this page loaded \((\d+) requests recorded by the browser\)$/.exec(v.origins.big ?? '')
+            ctx.fact('F5', {
+              route,
+              vectors: eng ? { agree: eng[1], total: eng[2], tolerance: eng[3] } : null,
+              snapshots: snp ? { match: snp[1], total: snp[2] } : null,
+              digest: dig?.[1] ?? null,
+              cardsDigest: cards?.[1] ?? null,
+              printedOnCard: printed,
+              cardRoute,
+              origins: org ? { other: org[1], recorded: org[2] } : null,
+              progress: v.progress,
+              served: v.served,
+              cards: v,
+            })
+            ctx.assert(v.rows === 4 && ['engine', 'snapshots', 'digest', 'origins'].every((k) => v[k].verdict === 'pass'), 'F5: after Run, all four check cards pass', { verdicts: ['engine', 'snapshots', 'digest', 'origins'].map((k) => `${k}: ${v[k].verdict} (${v[k].badge})`), rows: v.rows })
+            ctx.assert(!!eng && eng[1] === eng[2] && Number(eng[2]) > 0, 'F5 caption: N of N vectors agree with the Python reference (the engine card)', v.engine.big)
+            ctx.assert(!!snp && snp[1] === snp[2] && Number(snp[2]) > 0, 'F5 caption: N of N snapshots match manifest.json (the data card)', v.snapshots.big)
+            ctx.assert(!!dig && dig[1] === cards?.[1] && dig[1] === printed, 'F5 caption: the rules digest recomputed in the browser is the one the cue cards print (the rules card, and the digest #/card/spe_shelter prints)', { recomputed: dig?.[1] ?? null, cards: cards?.[1] ?? null, printedOnCard: printed })
+            ctx.assert(!!org && org[1] === '0', 'F5 caption: 0 requests to other origins (the network card)', v.origins.big)
+            outputs.F5 = { ...(await shootRegion(page, ['section[aria-labelledby=lfv-checks-h] ol.lfv-rows'], join(stage, 'F5-verify-run.png'), { pad: 16, padTop: 4 })), file: 'F5-verify-run.png' }
+            ctx.assert(outputs.F5.inView, 'F5 crop: the clip is inside the viewport, below the mission bar', { clip: outputs.F5.clipCss })
+          } finally {
+            await page.close()
+          }
+        })
+        outputs.F5.bytes = statSync(join(stage, outputs.F5.file)).size
+        outputs.F5.MB = mb(outputs.F5.bytes)
+        log(`F5: ${outputs.F5.width}x${outputs.F5.height}, ${outputs.F5.MB} MB`)
+      }
     } finally {
       await close()
     }
@@ -585,7 +674,8 @@ function figuresMd(report, figs) {
   }
   if (figs.includes('F1')) {
     const h = f.hero ?? {}
-    const earliest = /Earliest reply ([^(·|]+?)\s*\(/.exec(h.houston ?? '')?.[1]?.trim() ?? null
+    // "Earliest reply 11 d 06 h (the … round trip added at link-up) · ground packet: …": the wait, whatever follows it
+    const earliest = /Earliest reply (\d[^(·|]*?)\s*(?:\(|·|\||$)/.exec(h.houston ?? '')?.[1]?.trim() ?? null
     // the number the last frame shows (the storyboard checks it is the real-clock measurement of this visit)
     const latency = (f['hero.end']?.guidance ?? '').replace(/\s*s$/, ' s')
     add('F1', 'Ask Houston, or act onboard', [o.F1.gif, o.F1.png],
@@ -621,11 +711,19 @@ function figuresMd(report, figs) {
       `${s.total} entries in the rules, each with a chip that names its basis: ${chips}. The ones with no published basis are listed as ours.`,
       [f.F4?.route ?? '#/provenance'], 'select a chip to filter the table')
   }
+  if (figs.includes('F5')) {
+    const v = f.F5 ?? {}
+    const c = v.cards ?? {}
+    add('F5', 'Re-run our checks in your browser', [o.F5],
+      `LANDFALL's Verify page after pressing Run: four check cards, each marked as passing. "${c.engine?.big}" (${c.engine?.badge}). "${c.snapshots?.big}" (${c.snapshots?.badge}). "${c.digest?.big}", the same value the cue cards print (${c.digest?.badge}). "${c.origins?.big}" (${c.origins?.badge}).`,
+      `One click, in the judge's own browser: ${v.vectors?.agree} of ${v.vectors?.total} conformance vectors, replayed through the TypeScript engine that draws every view, agree with the Python reference engine within ${v.vectors?.tolerance}; ${v.snapshots?.match} of ${v.snapshots?.total} frozen data snapshots match the SHA-256 and size in manifest.json; the rules digest recomputed in the browser, ${v.digest}, is the one the cue cards print; ${v.origins?.other} requests went to other origins.`,
+      [v.route ?? '#/verify'], 'press Run')
+  }
   const files = Object.values(report.outputs).flatMap((x) => [x, x.gif, x.png]).filter((x) => x?.file)
   const md = [
     '# LANDFALL figures for the project page',
     '',
-    `Captured from ${report.base} on ${report.generatedAt} by \`scripts/video/make-figures.mjs\` (public URL ${report.publicUrl}). Every number in the alt text and captions was read from the app in this run (\`facts-figures.json\`), and each figure passed the claim checks of its shot in the demo video before it was written. Images are PNG or GIF, each under ${report.limits.fileMaxMB} MB (the project page accepts JPG, PNG and GIF up to that size); the GIF is under ${report.limits.gifMaxMB} MB. Element figures are captured at ${report.figureDsf} device pixels per CSS pixel.`,
+    `Captured from ${report.base} on ${report.generatedAt} by \`scripts/video/make-figures.mjs\` (public URL ${report.publicUrl}). Every number in the alt text and captions was read from the app in this run (\`facts-figures.json\`), and each figure passed the claim checks of its shot in the demo video (F5, which has no shot, its own checks) before it was written. Images are PNG or GIF, each under ${report.limits.fileMaxMB} MB (the project page accepts JPG, PNG and GIF up to that size); the GIF is under ${report.limits.gifMaxMB} MB. Element figures are captured at ${report.figureDsf} device pixels per CSS pixel.`,
     '',
     '| File | Pixels | MB |',
     '|---|---|---|',

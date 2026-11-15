@@ -2,14 +2,17 @@
 // executes this file. Rules this storyboard keeps:
 //   - every claim on screen is either READ from the live app at capture time (facts) or CHECKED
 //     against it (ctx.assert) before a single frame of it is written; a failed check aborts the run;
-//   - no number is typed here: the only figures on screen are the app's own pixels and facts.owlt;
+//   - no number is typed here: the only figures on screen are the app's own pixels and facts read
+//     from the app or its frozen snapshots (the one-way light time, the replayed event's name, the
+//     roadmap gap id);
 //   - English only, no audio, no logos, no generated imagery: app screen capture + typographic cards.
 //
 // Shot fields
 //   kind 'card'  card(facts) -> { layout, blocks: [{ cls, text, in }] }   (scripts/video/card.html)
 //   kind 'app'   route, kicker + caption (overlay), ready (page predicate), check / prepare (real
 //                time, before the clock is frozen), onPaused, preroll (virtual ms before frame 0),
-//                events [{ at, run }], frame(t, state) -> overlay spec, after (checks the end state)
+//                events [{ at, run(page, state, ctx) }], frame(t, state) -> overlay spec, after
+//                (checks the end state)
 //   overlay spec { caption: opacity, scrollY, anchor: { sel, text?, y }, ring: { sel, text?, o, pad } }
 //                (text = case-insensitive regex the element's text must match)
 //   stills       [{ at, name }]: PNG frames saved for review, `at` in seconds into the shot
@@ -34,6 +37,54 @@ const easeInOut = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) 
 const ramp = (t, t0, t1) => easeInOut(clamp01((t - t0) / (t1 - t0)))
 /** Highlight-ring opacity: in at `a`, out by `b`. */
 const pulse = (t, a, b, f = 0.15) => Math.min(fadeIn(t, a, f), 1 - fadeIn(t, b - f, f))
+
+// ---- the two lines the Submission Guide's timed script asks for ---------------------------------
+// [0:10] "share how using NASA's free and open data ... made your proposed solution possible": the hero's
+// second caption names the data on screen. [0:20-0:30] "Look into the future": the final card's NEXT line.
+// Both are built from facts that factsPass() reads and checks, so no year, satellite or gap id is typed here.
+
+/** Seconds into the hero shot when its caption changes from what the counter shows to which data it runs on. */
+const HERO_SWAP_S = 2.9
+const HERO_KICKER = '#/ · Now'
+/** "Real data: JPL Horizons light time and the / <replay_of>." (replay_of from swpc_spe_replay.json). */
+export const heroDataCaption = (facts) => `Real data: JPL Horizons light time and the\n${facts.heroData.replayOf}.`
+/** The future line of the final card (gap id and status from hrp_roadmap.json gap 724). */
+export const futureLine = (facts) =>
+  `Next: NASA's open gap ${facts.eihso301.id} asks to “establish the thresholds”.\nHere every threshold is data a program can replace.`
+
+function setCaption(kicker, text) {
+  window.__lfv.caption(kicker, text)
+  return true
+}
+
+// ---- the hero's measured latency under the capture clock -----------------------------------------
+// Replay restarts the dual counter AND re-measures the onboard answer. Under the frozen capture clock that
+// re-measure would read whole capture steps (exactly 1/30 s), not the browser's real time. So the shot reads
+// the latency the app measured on the real clock when this page loaded, clicks Replay, lets React render the
+// click (the engine run reads the frozen clock), and steps the clock by exactly that latency before the
+// browser paints: the frames show the measurement of this visit, and a check compares the two.
+
+/** Virtual ms for the replayed measurement plus the realignment step: 6 frames at 30 fps (see onPaused). */
+const HERO_ALIGN_MS = 200
+/** Where frame 0 starts in the 7 s dual-counter sequence: the round trip is almost counted up. */
+const HERO_PREROLL_MS = 1500
+
+/** The LANDFALL card's latency as printed ("0.039 s"), or null while it is measuring. */
+function guidanceText() {
+  const t = document.querySelector('.now-landfall .now-big')?.textContent.replace(/\s+/g, ' ').trim() ?? ''
+  return /^\d+\.\d+\s*s$/.test(t) ? t : null
+}
+
+/** Click Replay; after React has rendered the click (a microtask), step the frozen clock by `ms`, same task. */
+async function replayAndStep(ms) {
+  const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Replay')
+  if (!b) return false
+  delete document.documentElement.dataset.onboardAnswerMs
+  b.click()
+  for (let i = 0; i < 8; i++) await Promise.resolve()
+  window.__lfvClock.advance(ms)
+  return true
+}
 
 // ---- page-side helpers (run in the page) -------------------------------------------------------
 
@@ -128,7 +179,7 @@ export const SHOTS = [
   {
     id: 'card-name',
     kind: 'card',
-    dur: 2.5,
+    dur: 2.0,
     card: () => ({
       layout: 'brand',
       blocks: [
@@ -142,12 +193,15 @@ export const SHOTS = [
   {
     id: 'hero',
     kind: 'app',
-    dur: 5.0,
+    dur: 5.5,
     route: '#/',
-    kicker: '#/ · Now',
+    kicker: HERO_KICKER,
+    // two captions: what the counter shows, then (from HERO_SWAP_S, about 0:10 into the video) which
+    // real data it runs on; factsPass() checks that the hero names both and reads replay_of
     caption: "Houston's reply is days away.\nLANDFALL's guidance is already on screen.",
-    // the in-browser latency must be measured (in real time) before the clock is frozen
-    ready: () => !!document.querySelector('.now-landfall .now-big:not([data-missing])') && !!document.querySelector('.now-dual-head button'),
+    // the in-browser latency must be measured (in real time) before the clock is frozen: wait for the number
+    // itself, since the card renders "measuring" in the same element first and check() reads it right after this
+    ready: () => /^\d+\.\d+\s*s$/.test(document.querySelector('.now-landfall .now-big')?.textContent.replace(/\s+/g, ' ').trim() ?? '') && !!document.querySelector('.now-dual-head button'),
     check: async (page, ctx) => {
       const v = await page.call(() => ({
         queued: document.querySelector('.now-houston .now-queued')?.textContent.trim() ?? null,
@@ -156,25 +210,50 @@ export const SHOTS = [
         action: document.querySelector('.now-landfall .now-action')?.textContent.trim() ?? null,
       }))
       ctx.fact('hero', v)
-      ctx.assert(/solar conjunction/i.test(v.queued ?? ''), 'hero: Ask Houston is queued by the solar conjunction', v.queued)
+      ctx.assert(/no link/i.test(v.queued ?? '') && /solar conjunction/i.test(v.queued ?? ''), 'hero: Ask Houston has no link during the solar conjunction', v.queued)
       const d = /Earliest reply (\d+)\s*d\b/.exec(v.houston)
       ctx.assert(!!d && Number(d[1]) >= 2, "hero caption: Houston's reply is days away", v.houston)
       ctx.assert(/^\d+\.\d+\s*s$/.test(v.guidance ?? ''), "hero caption: LANDFALL's guidance is on screen (latency measured in this browser)", v.guidance)
       ctx.assert(!!v.action, 'hero: the primary action is painted', v.action)
     },
-    onPaused: async (page) => {
-      // Restart the dual-counter sequence under the frozen clock (Skip first if the autoplay runs).
+    onPaused: async (page, _state, ctx) => {
+      // Restart the dual-counter sequence under the frozen clock (Skip first if the autoplay runs), keeping
+      // the latency the app measured on the real clock (see replayAndStep above).
       let advanced = 0
+      const before = await page.call(guidanceText)
+      if (!before) throw new Error('hero: the LANDFALL card shows no measured latency before Replay')
+      const ms = Math.round(parseFloat(before) * 1000)
       if (await page.call(clickButton, 'Skip')) {
         await page.tick(100)
         advanced += 100
       }
-      if (!(await page.call(clickButton, 'Replay'))) throw new Error('hero: no Replay button on the dual counter')
-      return advanced
+      if (!(await page.call(replayAndStep, ms))) throw new Error('hero: no Replay button on the dual counter')
+      await page.waitUntil(() => document.documentElement.dataset.onboardAnswerMs !== undefined && /^\d+\.\d+\s*s$/.test(document.querySelector('.now-landfall .now-big')?.textContent.replace(/\s+/g, ' ').trim() ?? ''), [], { what: 'hero: the replayed measurement' })
+      const after = await page.call(guidanceText)
+      ctx.fact('hero.frames', { measuredMs: ms, before, after })
+      ctx.assert(after === before, 'hero: the frames show the latency LANDFALL measured on the real clock on this visit, not a capture-clock step', { before, after })
+      // One step to a fixed 200 ms, so the sequence's 16 ms timer re-arms frame-aligned whatever `ms` was,
+      // then the preroll proper: frame 0 lands 1.5 s into the sequence, on the same frames every run.
+      let stepped = ms
+      if (ms + 16 <= HERO_ALIGN_MS) {
+        await page.tick(HERO_ALIGN_MS - ms, HERO_ALIGN_MS - ms)
+        stepped = HERO_ALIGN_MS
+      } else ctx.warn(`hero: measured ${ms} ms, above the ${HERO_ALIGN_MS - 16} ms realignment window; the sequence may land a frame off`)
+      await page.tick(Math.max(0, HERO_PREROLL_MS - stepped))
+      return advanced + Math.max(HERO_PREROLL_MS, stepped)
     },
-    preroll: 1500, // start 1.5 s into the 7 s sequence: the round trip is almost counted up
-    frame: (t) => ({ caption: fadeIn(t, 0.1, 0.2) }),
-    stills: [{ at: 4.9, name: 'still-2-hero-dual-counter' }],
+    preroll: 0, // the 1.5 s preroll runs in onPaused (above), around the replayed measurement
+    events: [{ at: HERO_SWAP_S, run: (page, _state, ctx) => page.call(setCaption, HERO_KICKER, heroDataCaption(ctx.facts)) }],
+    frame: (t) => ({ caption: t < HERO_SWAP_S ? Math.min(fadeIn(t, 0.1, 0.2), 1 - fadeIn(t, HERO_SWAP_S - 0.2, 0.2)) : fadeIn(t, HERO_SWAP_S, 0.2) }),
+    after: async (page, ctx) => {
+      const end = await page.call(guidanceText)
+      ctx.fact('hero.end', { guidance: end })
+      ctx.assert(end !== null && end === ctx.facts.hero?.guidance, "hero: the last frame's latency is the one measured on the real clock on this visit", { end, measured: ctx.facts.hero?.guidance })
+    },
+    stills: [
+      { at: 2.6, name: 'still-2a-hero-caption' },
+      { at: 5.4, name: 'still-2-hero-dual-counter' },
+    ],
   },
   {
     id: 'case',
@@ -305,15 +384,17 @@ export const SHOTS = [
     id: 'card-final',
     kind: 'card',
     dur: 7.0,
-    // Claims checked in factsPass() against the provenance page and the app footer.
-    card: () => ({
+    // Claims checked in factsPass() against the provenance page, the app footer and the frozen roadmap
+    // (the NEXT line quotes an open NASA gap; it never says LANDFALL closes it).
+    card: (facts) => ({
       layout: 'final',
       blocks: [
         { cls: 'wordmark', text: 'LANDFALL', in: 0 },
         { cls: 'claim', text: 'Every NASA limit links to the standard it came from.', in: 0.1 },
         { cls: 'claim', text: 'Every number with no published basis is labelled as ours.', in: 0.8 },
-        { cls: 'url', text: PUBLIC_URL, in: 1.5 },
-        { cls: 'foot', text: FOOTER, in: 2.0 },
+        { cls: 'next', text: futureLine(facts), in: 1.6 },
+        { cls: 'url', text: PUBLIC_URL, in: 2.6 },
+        { cls: 'foot', text: FOOTER, in: 3.1 },
       ],
     }),
     stills: [{ at: 6.9, name: 'still-6-final-card' }],
@@ -340,6 +421,35 @@ export async function factsPass(newAppPage, ctx) {
     ctx.assert(owltS >= 19 * 60 && owltS < 20 * 60, "problem card: 'Nearly twenty light-minutes' (one-way light time in the mission bar is 19 to 20 min)", bar.owlt)
     ctx.assert(bar.link === 'LOS' && bar.conjunction && /behind the Sun/.test(page.headline ?? ''), "problem card: 'behind the Sun' (LOS, solar conjunction; the hero reads 'Houston is behind the Sun')", { link: bar.link, conjunction: bar.conjunction, headline: page.headline })
     ctx.assert((page.footer ?? '').includes(FOOTER), "final card: the small print is the app's own footer, word for word", page.footer)
+
+    // [0:10] data caption: the hero names JPL Horizons as its light-time source and labels the flux a
+    // replay of the real event that the frozen snapshot names (replay_of)
+    await hero.waitUntil(() => /Replay of a real event: /.test(document.querySelector('main')?.textContent ?? ''), [], { what: 'the hero replay note' })
+    const data = await hero.call(async () => {
+      const text = (document.querySelector('main')?.textContent ?? '').replace(/\s+/g, ' ')
+      const snap = await (await fetch('/data/swpc_spe_replay.json')).json()
+      return {
+        horizons: /[^.]*JPL Horizons[^.]*/.exec(text)?.[0].trim() ?? null,
+        replayNote: /Replay of a real event[^.]*/.exec(text)?.[0] ?? null,
+        replayOf: snap?.data?.replay_of ?? null,
+        replaySnapshot: snap?.id ?? null,
+        replayPublisher: snap?.source?.publisher ?? null,
+      }
+    })
+    ctx.fact('heroData', data)
+    ctx.assert(!!data.horizons, "hero caption: 'Real data: JPL Horizons light time' (the hero names the JPL Horizons ephemeris as its light-time source)", data.horizons)
+    ctx.assert(typeof data.replayOf === 'string' && data.replayOf.length > 0, 'hero caption: the replayed event is named by the frozen snapshot (swpc_spe_replay.json data.replay_of)', data.replayOf)
+    ctx.assert((data.replayNote ?? '').includes(`Replay of a real event: ${data.replayOf}`), "hero caption: the hero itself labels the flux 'Replay of a real event: <replay_of>'", data.replayNote)
+
+    // [0:20-0:30] future line: EIHSO-301 is open and asks to "establish the thresholds" (frozen roadmap)
+    const gap = await hero.call(async () => {
+      const j = await (await fetch('/data/hrp_roadmap.json')).json()
+      for (const r of j?.data?.risks ?? []) for (const g of r.gaps ?? []) if (g.gap_id === 724) return { risk: r.hrr_id, riskTitle: r.title, gapId: g.gap_id, title: g.title, status: g.status, retrievedAt: j.retrieved_at ?? null }
+      return null
+    })
+    ctx.fact('eihso301', gap && { ...gap, id: /^([A-Z]+-\d+):/.exec(gap.title)?.[1] ?? null })
+    ctx.assert(!!gap && gap.title.startsWith('EIHSO-301:') && gap.title.includes('establish the thresholds'), "final card: NASA's gap EIHSO-301 asks to “establish the thresholds” (hrp_roadmap.json gap 724, verbatim)", gap)
+    ctx.assert(gap?.status === 'Open', "final card: EIHSO-301 is an 'open' gap (hrp_roadmap.json gap 724 status)", gap?.status)
   } finally {
     await hero.close()
   }
@@ -351,12 +461,14 @@ export async function factsPass(newAppPage, ctx) {
       return {
         nasa: /NASA-published numbers open to the verbatim requirement text[^\n]*/.exec(main)?.[0] ?? null,
         ours: /Where we needed a number NASA does not publish, it is listed here as ours\./.exec(main)?.[0] ?? null,
+        rulesData: /Every number LANDFALL uses, generated from the same rules files the engine reads\./.exec(main)?.[0] ?? null,
         summary: /Summary\n([\s\S]*?)\n\n/.exec(main)?.[1]?.replace(/\s+/g, ' ') ?? null,
       }
     })
     ctx.fact('provenanceClaims', v)
     ctx.assert(!!v.nasa, "final card: 'Every NASA limit links to the standard it came from' (provenance: NASA-published numbers open to the verbatim requirement text)", v.nasa)
     ctx.assert(!!v.ours, "final card: 'Every number with no published basis is labelled as ours' (provenance: listed here as ours)", v.ours)
+    ctx.assert(!!v.rulesData, "final card: 'every threshold is data' (provenance: every number is generated from the rules files the engine reads)", v.rulesData)
   } finally {
     await prov.close()
   }

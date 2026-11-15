@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { MissionBar } from './app/MissionBar'
 import { MissionProvider } from './app/mission'
@@ -7,6 +7,7 @@ import { Nav } from './app/Nav'
 import { RouteOutlet, prefetchRoutes } from './app/router'
 import { prefetchAllSnapshots } from './app/data'
 import { useOfflineReady } from './app/offline'
+import { CopyViewLink, UrlState, envFromHash } from './app/UrlState'
 
 function skipToMain(e: MouseEvent<HTMLAnchorElement>) {
   // The hash belongs to the router: focus <main> instead of navigating to "#main".
@@ -52,8 +53,12 @@ function OfflineIndicator() {
 
 export default function App() {
   useOfflineWarmup()
+  // A deep link's ?env= (app/UrlState.tsx) is the store's starting environment, so the first render, the
+  // first evaluation and the annunciator are already in it. Without ?env this is undefined: the default.
+  const [linkedEnv] = useState(() => envFromHash(window.location.hash))
   return (
-    <MissionProvider>
+    <MissionProvider initial={linkedEnv ? { envId: linkedEnv } : undefined}>
+      <UrlState />
       <MissionEngine />
       <a className="lf-skip" href="#main" onClick={skipToMain}>
         Skip to content
@@ -73,6 +78,7 @@ export default function App() {
             Crew data is simulated. NASA and NOAA data are real, frozen at build. No backend: everything runs in this browser.{' '}
             <OfflineIndicator />
           </p>
+          <CopyViewLink />
         </div>
       </footer>
     </MissionProvider>

@@ -78,7 +78,7 @@
         text-wrap: balance;
       }
 
-      /* final: two claims, the URL, the app's own footer line */
+      /* final: two claims, the NEXT line, the URL, the app's own footer line */
       .final .wordmark {
         font-size: 34px;
         margin-bottom: 64px;
@@ -91,6 +91,15 @@
       }
       .final .claim + .claim {
         margin-top: 28px;
+      }
+      /* the "look into the future" line: smaller than the claims, larger than the small print */
+      .final .next {
+        margin-top: 44px;
+        max-width: 1500px;
+        font: 600 34px/1.32 'Inter', sans-serif;
+        letter-spacing: -0.006em;
+        color: var(--text-2);
+        white-space: pre-line; /* one sentence per line: the quote is never split */
       }
       .final .url {
         margin-top: 80px;
@@ -143,7 +152,7 @@
 
       /** True once every face the card uses is defined and loaded (fonts.check alone passes undefined faces). */
       window.fontsReady = async () => {
-        const faces = ['700 136px "Public Sans Web"', '500 42px "Inter"', '400 26px "Inter"', '500 26px "DM Mono"']
+        const faces = ['700 136px "Public Sans Web"', '500 42px "Inter"', '600 34px "Inter"', '400 26px "Inter"', '500 26px "DM Mono"']
         const loaded = await Promise.all(faces.map((f) => document.fonts.load(f)))
         await document.fonts.ready
         return loaded.every((list) => list.length > 0)

@@ -26,6 +26,7 @@ import {
   windowSeconds,
 } from './model'
 import type { DonkiData, HapiDoseData, IssTrackData, ReplayData, SpeListData } from './model'
+import { ENVIRONMENTS } from '../../app/scenario'
 
 const snap = (id: string) => JSON.parse(readFileSync(new URL(`../../../public/data/${id}.json`, import.meta.url), 'utf8'))
 
@@ -296,5 +297,25 @@ describe('On this page', () => {
   it('keeps MeV in mixed case inside the uppercased kickers', () => {
     expect(src).toContain("<span style={{ textTransform: 'none' }}>MeV</span>")
     expect(src).not.toMatch(/lf-rad-label">[^<]*MeV/)
+  })
+})
+
+describe('Earth’s proton lists against the storms at Gale: mounted at Mars only', () => {
+  const src = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
+  it('mounts <EarthVsMars /> once, in ProtonPanel’s onboard branch, after the scenario assumption and before the [V2 6165] quote', () => {
+    expect(src).toContain("import EarthVsMars from './EarthVsMars'")
+    expect(src.match(/<EarthVsMars \/>/g)?.length).toBe(1)
+    const role = src.indexOf('<h3 className="lf-tr-card-title">Who watches the Sun here, and who raises the alarm</h3>')
+    const onboard = src.indexOf('{onboard ? (', role)
+    const assumption = src.indexOf('Scenario assumption: the monitor’s values are the GOES-7 October 1989', onboard)
+    const mount = src.indexOf('<EarthVsMars />')
+    const otherwise = src.indexOf(') : (', onboard)
+    const quote = src.indexOf('<Quote req={r6165} doc={vol2.doc} />', role)
+    expect(role).toBeGreaterThan(0)
+    expect([role < onboard, onboard < assumption, assumption < mount, mount < otherwise, otherwise < quote]).toEqual([true, true, true, true, true])
+    expect(src).toContain("const onboard = ops?.kind === 'onboard_monitor'")
+  })
+  it('the onboard branch is Mars only: the one environment without the NOAA scale', () => {
+    expect(ENVIRONMENTS.filter((e) => e.noaa_scale_available === false).map((e) => e.id)).toEqual(['mars_surface'])
   })
 })

@@ -64,6 +64,7 @@ import {
   windowSeconds,
 } from './model'
 import type { DonkiData, HapiDoseData, IssTrackData, ProtonsLiveData, ReplayData, RequirementRec, SScaleData, SpeListData, TepcData, Transition } from './model'
+import EarthVsMars from './EarthVsMars'
 import MarsSepRecord, { MarsSepContext } from './MarsSepRecord'
 import DesignReferenceCheck from './DesignRefCheck'
 import StormWitnesses from './StormWitnesses'
@@ -548,6 +549,7 @@ function ProtonPanel({
               Scenario assumption: the monitor’s values are the GOES-7 October 1989 ≥10 MeV record, time-shifted, with no correction for
               distance from the Sun or for the atmosphere. The habitat dose rate further down is a separate, simulated confirmation.
             </p>
+            <EarthVsMars />
           </>
         ) : (
           <p>

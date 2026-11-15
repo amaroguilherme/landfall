@@ -356,10 +356,10 @@ export interface StormOnRow {
   gapDays: number
 }
 
-const utcDay = (iso: string) => Math.floor(Date.parse(`${iso.slice(0, 10)}T00:00:00Z`) / DAY_MS)
+export const utcDay = (iso: string) => Math.floor(Date.parse(`${iso.slice(0, 10)}T00:00:00Z`) / DAY_MS)
 
 /** The time a storm is placed at: its maximum, else (a list without maxima) its start. */
-const stormTime = (e: SpeListLike['events'][number]): string => e.max ?? e.start
+export const stormTime = (e: SpeListLike['events'][number]): string => e.max ?? e.start
 
 /**
  * NOAA's S3-or-above storms at Earth whose maximum falls inside Curiosity's RAD record, and those whose maximum falls

@@ -15,7 +15,6 @@ import { unitText } from './model'
 import {
   SEP_SNAPSHOT_ID,
   STATUS_TEXT,
-  STORM_MATCH_DAYS,
   donkiGap,
   firstAuthorFamily,
   fmtDhm,
@@ -27,14 +26,13 @@ import {
   quoteById,
   rowsWithStatus,
   ruleQuotes,
-  s3StormsOnTable,
   tableRows,
   tableSummary,
   triggersWith,
   unconfirmedOf,
   unconfirmedText,
 } from './marsSep'
-import type { SepEventsData, SpeListLike, Table1Row, TriggerFlag } from './marsSep'
+import type { SepEventsData, Table1Row, TriggerFlag } from './marsSep'
 
 const chipFor = (kind: string, fallback: string) => CHIP_DEFS.find((c) => c.source_kind === kind)?.id ?? fallback
 const LIT = chipFor('literature', 'literature')
@@ -42,6 +40,8 @@ const DERIVED = chipFor('derived', 'derived')
 const DESIGN = chipFor('design_choice', 'design choice')
 const UNIT = 'µGy/day'
 const VISIBLE_ROWS = 3
+/** Where the Earth-list table sits: the proton panel's title and its "who raises the alarm" heading (index.tsx), in words. */
+export const EVM_POINTER = 'Earth’s proton lists against the storms measured at Gale are in the first panel, “Proton flux and the NOAA S-scale”, under “Who watches the Sun here, and who raises the alarm”.'
 
 function Measured({ children }: { children: ReactNode }) {
   return (
@@ -518,57 +518,31 @@ export default function MarsSepRecord() {
   return <MarsSepRecordView data={s.status === 'ready' ? (s.data ?? null) : null} snap={(s.snapshot as Snapshot<SepEventsData> | null) ?? null} status={s.status} />
 }
 
-type StormsOnTable = ReturnType<typeof s3StormsOnTable>
-
 /**
- * The measured context lines under the habitat dose panel's assumed scaling (the scaling stays a design choice): the
- * range of the rule's peaks at Gale, then NOAA's S3 storms at Earth that fall on rows of the RAD team's table. No dose
- * in µGy is printed, and a date match is never called the same event.
+ * The measured context line under the habitat dose panel's assumed scaling (the scaling stays a design choice): the
+ * range of the rule's peaks at Gale. Earth's proton lists against the storms at Gale have their own table in the proton
+ * panel (EarthVsMars.tsx); this line only points there, in words (a link to ./index would be circular). No dose in µGy
+ * is printed here.
  */
-export function MarsSepContextView({ data, storms, multiple }: { data: SepEventsData; storms: StormsOnTable | null; multiple: number | null }) {
+export function MarsSepContextView({ data, multiple }: { data: SepEventsData; multiple: number | null }) {
   const range = peakRatioRange(data)
   if (!range) return null
-  const design =
-    multiple !== null ? (
-      <>
-        {' '}
-        The {formatNumber(multiple)}× above stays a design choice <Chip kind={DESIGN} />.
-      </>
-    ) : null
-  const ms = storms?.matches ?? []
   return (
     <>
       <p className="lf-tr-muted lf-rad-sep-context">
         For context, not a calibration: at Gale crater, the peak of each of the <Num value={range.n} /> triggers of the RAD team’s rule above in the MSL RAD record was{' '}
         <Num value={Number(oneDecimal(range.min))} digits={1} unit="×" /> to <Num value={Number(oneDecimal(range.max))} digits={1} unit="×" /> its own 5-day
         background (measured) <Chip kind={DERIVED} />.
-        {ms.length ? null : design}
+        {multiple !== null ? (
+          <>
+            {' '}
+            The {formatNumber(multiple)}× above stays a design choice <Chip kind={DESIGN} />.
+          </>
+        ) : null}
       </p>
-      {storms && ms.length ? (
-        <p className="lf-tr-muted lf-rad-sep-context" data-storms-on-rows="">
-          At Earth, NOAA’s list of solar proton events has <Num value={storms.inRecord} /> storms at S3 or above during Curiosity’s record
-          {storms.listEnd ? <> (this copy of the list ends on {storms.listEnd.slice(0, 10)})</> : null}. Of these, <Num value={ms.length} />{' '}
-          {ms.length === 1 ? 'has its' : 'have their'} maximum within <Num value={STORM_MATCH_DAYS} /> days of a row of the RAD team’s surface table{' '}
-          <Chip kind={DESIGN} />:{' '}
-          {ms.map((m, i) => (
-            <span key={`${m.start}|${m.max}`}>
-              {i ? (i === ms.length - 1 ? ' and ' : ', ') : ''}
-              maximum {m.max.slice(0, 10)} (<Num value={m.peak_pfu} unit="pfu" digits={0} /> at Earth;{' '}
-              {m.row.paper_date !== m.max.slice(0, 10) ? `Table 1 row ${m.row.paper_date}, ` : ''}
-              {m.row.replay.triggered ? (
-                <>
-                  peak <Num value={m.row.replay.peak.ratio_to_background} digits={3} unit="×" /> background at Gale
-                </>
-              ) : (
-                'not triggered at Gale'
-              )}
-              )
-            </span>
-          ))}{' '}
-          <Chip kind={DERIVED} />. Matching dates is not identity.
-          {design}
-        </p>
-      ) : null}
+      <p className="lf-tr-muted lf-rad-sep-context" data-evm-pointer="">
+        {EVM_POINTER}
+      </p>
     </>
   )
 }
@@ -576,8 +550,6 @@ export function MarsSepContextView({ data, storms, multiple }: { data: SepEvents
 /** Mounted under the Mars habitat dose panel. */
 export function MarsSepContext({ multiple }: { multiple: number | null }) {
   const s = useSnapshot<SepEventsData>(SEP_SNAPSHOT_ID)
-  const list = useSnapshot<SpeListLike>('swpc_spe_list')
   const data = s.status === 'ready' ? (s.data ?? null) : null
-  const storms = useMemo(() => (data && list.status === 'ready' && list.data ? s3StormsOnTable(data, list.data) : null), [data, list.status, list.data])
-  return data ? <MarsSepContextView data={data} storms={storms} multiple={multiple} /> : null
+  return data ? <MarsSepContextView data={data} multiple={multiple} /> : null
 }

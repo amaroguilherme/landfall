@@ -91,6 +91,22 @@
 .lf-rad-sep-verbatim li { font-family: var(--lf-font-mono); overflow-wrap: anywhere; }
 .lf-rad-sep-context { margin-top: var(--lf-space-1); max-width: 90ch; }
 
+/* Mars: Earth's proton lists against the storms measured at Gale (EarthVsMars.tsx). */
+.lf-rad-evm { margin: var(--lf-space-1-5) 0 var(--lf-space-1); }
+.lf-rad-evm-wrap.lf-tr-table-wrap { max-height: none; margin-bottom: var(--lf-space-1); }
+/* Sized to its content (not the panel width); on a phone the headers and the share wrap, so the table fits 390 px. */
+.lf-rad-evm-table { width: auto; }
+.lf-rad-evm-table th, .lf-rad-evm-table td { vertical-align: top; }
+.lf-rad-evm-table thead th { text-align: left; vertical-align: bottom; }
+.lf-rad-evm-table thead th.lf-rad-evm-wide { min-width: 7em; }
+.lf-rad-evm-table tbody th[scope='row'] { font-weight: 600; }
+.lf-rad-evm-table td.num { white-space: nowrap; text-align: left; }
+.lf-rad-evm-table td.lf-rad-evm-share { white-space: normal; min-width: 8em; }
+.lf-rad-evm-keep { white-space: nowrap; }
+.lf-rad-evm-span { display: block; font-size: var(--lf-text-xs); color: var(--lf-text-muted); font-weight: 400; }
+.lf-rad-evm-table tr[data-current] th, .lf-rad-evm-table tr[data-current] td { background: var(--lf-surface-3); }
+.lf-rad-evm-method { margin: 0 0 var(--lf-space-1); padding-left: 1.2em; display: grid; gap: 0.3em; font-size: var(--lf-text-sm); max-width: 90ch; }
+
 /* "This storm had witnesses" (StormWitnesses.tsx): four numbered lines, kept short. */
 .lf-rad-witness-lines { margin: 0; padding-left: 1.4em; display: grid; gap: var(--lf-space-1); max-width: 95ch; }
 .lf-rad-witness-lines li { padding-left: 0.2em; }

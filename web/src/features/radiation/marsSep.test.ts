@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { MarsSepContextView, MarsSepRecordView } from './MarsSepRecord'
+import { RAD_TITLES } from './index'
+import { EVM_POINTER, MarsSepContextView, MarsSepRecordView } from './MarsSepRecord'
 import { STORM_MATCH_DAYS, donkiGap, fmtDhm, isoMinute, mayTimeline, oneDecimal, peakRatioRange, ruleQuotes, s3StormsOnTable, tableRows, tableSummary, triggersWith, unconfirmedOf, unconfirmedText } from './marsSep'
 import type { SepEventsData, SpeListLike } from './marsSep'
 
@@ -173,19 +174,26 @@ describe("NOAA's S3 storms at Earth on rows of the RAD team's table", () => {
       ['2017-09-10', 1],
     ])
   })
-  it('prints the one storm by its maximum, no dose in µGy, and says a date match is not identity', () => {
-    const html = renderToStaticMarkup(createElement(MarsSepContextView, { data, storms, multiple: 10 }))
+  it('the context line under the habitat dose panel keeps the measured range and the design choice, and only points to the Earth-list table', () => {
+    const html = renderToStaticMarkup(createElement(MarsSepContextView, { data, multiple: 10 }))
     const t = text(html)
-    expect(t).toContain('NOAA’s list of solar proton events has 4 storms at S3 or above during Curiosity’s record (this copy of the list ends on 2017-09-10). Of these, 1 has its maximum within 2 days of a row of the RAD team’s surface table')
-    expect(t).toMatch(/: maximum 2017-09-11 \(\s?1490\s?pfu at Earth; Table 1 row 2017-09-10, peak 2\.235\s?× background at Gale\)/)
-    expect(t).not.toContain('2014-01-06')
-    expect(t).toContain('Matching dates is not identity.')
+    // the S3-only paragraph is retired: the storms at Earth against Table 1 are EarthVsMars.tsx's table now
+    expect(html).not.toContain('data-storms-on-rows')
+    expect(t).not.toContain('NOAA’s list')
+    expect(t).not.toContain('2017-09-11')
+    expect(t).toContain('For context, not a calibration')
     expect(t).toContain('The 10× above stays a design choice')
     expect(t).not.toMatch(/µGy|uGy/)
-    // without the NOAA list the measured range still renders, with the design-choice sentence
-    const alone = text(renderToStaticMarkup(createElement(MarsSepContextView, { data, storms: null, multiple: 10 })))
+    // the pointer names the panel and the heading the table sits under, both as index.tsx prints them
+    expect(html).toContain('data-evm-pointer=""')
+    expect(t).toContain(EVM_POINTER)
+    expect(EVM_POINTER).toContain(`“${RAD_TITLES.protons}”`)
+    const index = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
+    expect(index).toContain('<h3 className="lf-tr-card-title">Who watches the Sun here, and who raises the alarm</h3>')
+    expect(EVM_POINTER).toContain('“Who watches the Sun here, and who raises the alarm”')
+    // without a multiple the measured range still renders, with no design-choice sentence
+    const alone = text(renderToStaticMarkup(createElement(MarsSepContextView, { data, multiple: null })))
     expect(alone).toContain('For context, not a calibration')
-    expect(alone).toContain('The 10× above stays a design choice')
-    expect(alone).not.toContain('NOAA’s list')
+    expect(alone).not.toContain('stays a design choice')
   })
 })

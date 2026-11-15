@@ -14,6 +14,7 @@ import { Chip, Num, SeverityIcon, SimulatedMarker } from '../../ui'
 import type { Severity } from '../../app/vocab'
 import { dayRanges, detectEpisodes, noiseEntry, onlyTierA } from './episodes'
 import { PERSONAL } from './rules'
+import { measuredMultiplier } from './stats'
 import type { PersonalFile } from './rules'
 
 interface Calibration {
@@ -129,6 +130,8 @@ interface McEntry {
   tests?: number
   worse_direction_flags?: number
   flags?: number
+  nominal_caution_rate?: number
+  nominal_flag_rate?: number
   caution_multiplier?: number
   flag_multiplier?: number
   within_band?: boolean
@@ -177,6 +180,8 @@ export function ChanceRateTable({ personal }: { personal: PersonalFile }) {
               const mc = check?.per_indicator?.[ind.id] ?? null
               const r = chanceRateOf(ind.id)
               const outside = mc?.within_band === false
+              const cm = measuredMultiplier(mc?.worse_direction_flags, mc?.tests, mc?.nominal_caution_rate, mc?.caution_multiplier, band)
+              const fm = measuredMultiplier(mc?.flags, mc?.tests, mc?.nominal_flag_rate, mc?.flag_multiplier, band)
               return (
                 <tr key={ind.id} data-outside={outside || undefined}>
                   <th scope="row">
@@ -190,10 +195,10 @@ export function ChanceRateTable({ personal }: { personal: PersonalFile }) {
                     <Num value={mc?.tests ?? null} />
                   </td>
                   <td className="num" data-label="Cautions, × nominal">
-                    {ind.alerting ? <Num value={mc?.caution_multiplier ?? null} digits={2} /> : <span className="lf-m-small">never alerts</span>}
+                    {ind.alerting ? <Num value={cm.value} digits={cm.digits} /> : <span className="lf-m-small">never alerts</span>}
                   </td>
                   <td className="num" data-label="Flags, × nominal">
-                    <Num value={mc?.flag_multiplier ?? null} digits={2} />
+                    <Num value={fm.value} digits={fm.digits} />
                   </td>
                   <td data-label="Printed rate (engine)">
                     {r ? (

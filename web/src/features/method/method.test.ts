@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { tCdf, tCritical } from '../../app/engine'
 import { META, THRESHOLDS, PERSONAL, compliant, normReqId, quotedPhrase, sentencesContaining, windowLabel } from './rules'
-import { chanceRates, countsEither, criticalRow, sdInterval95, unlimitedRow } from './stats'
+import { chanceRates, countsEither, criticalRow, measuredMultiplier, sdInterval95, unlimitedRow } from './stats'
 
 const round3 = (x: number): number => Math.round(x * 1000) / 1000
 
@@ -127,4 +127,29 @@ describe('no NASA or NOAA number is typed into the Method TSX', () => {
       }
     })
   }
+})
+
+describe('the measured multipliers of the Tier B evidence table (SPEC 3.3: 0.495 never prints 0.50)', () => {
+  interface Mc { tests: number; flags: number; worse_direction_flags: number; nominal_caution_rate: number; nominal_flag_rate: number; caution_multiplier: number; flag_multiplier: number; within_band: boolean }
+  const sim = Object.values(import.meta.glob<{ data: { self_check: { chance_rates: { band: [number, number]; per_indicator: Record<string, Mc> } } } }>('../../../public/data/sim_crew.json', { eager: true, import: 'default' }))[0]
+  const study = sim.data.self_check.chance_rates
+  const shown = (m: { value: number | null; digits: number }) => (m.value === null ? null : m.value.toFixed(m.digits))
+  it('prints every multiplier as personal.json declares it, and the stored 2-decimal value where that is not borderline', () => {
+    for (const [id, mc] of Object.entries(study.per_indicator)) {
+      const cm = measuredMultiplier(mc.worse_direction_flags, mc.tests, mc.nominal_caution_rate, mc.caution_multiplier, study.band)
+      const fm = measuredMultiplier(mc.flags, mc.tests, mc.nominal_flag_rate, mc.flag_multiplier, study.band)
+      const decl = PERSONAL?.indicators.find((i) => i.id === id)?.chance_rate
+      if (decl) expect([Number(shown(cm)), Number(shown(fm))], id).toEqual([decl.caution_multiplier, decl.flag_multiplier])
+      for (const [m, stored] of [[cm, mc.caution_multiplier], [fm, mc.flag_multiplier]] as const) if (m.digits === 2) expect(Number(shown(m)), id).toBe(stored)
+    }
+    const mood = study.per_indicator.mood
+    expect(shown(measuredMultiplier(mood.flags, mood.tests, mood.nominal_flag_rate, mood.flag_multiplier, study.band))).toBe('0.495')
+    expect(mood.within_band).toBe(false)
+  })
+  it('falls back to the stored value without counts, and reports no value without either', () => {
+    expect(measuredMultiplier(undefined, undefined, undefined, 1.07, [0.5, 2])).toEqual({ value: 1.07, digits: 2 })
+    expect(measuredMultiplier(undefined, 0, 0.001, undefined, null)).toEqual({ value: null, digits: 2 })
+    expect(measuredMultiplier(1999, 1_000_000, 0.001, undefined, [0.5, 2]).digits).toBe(3) // 1.999 would print 2.00, a band edge
+    expect(measuredMultiplier(500, 1_000_000, 0.001, undefined, [0.5, 2]).digits).toBe(2) // exactly on the edge: 0.50 is true
+  })
 })

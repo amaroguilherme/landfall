@@ -8,6 +8,7 @@ import type { FeatureProps } from '../../app/router'
 import { useManifest, useSnapshot } from '../../app/data'
 import { Button, EmptyState } from '../../ui'
 import { ArchitectureSection } from './ArchitectureSection'
+import { CoverageSection } from './CoverageSection'
 import { DataSection } from './DataSection'
 import { FoldContext } from './fold'
 import type { Fold } from './fold'
@@ -140,6 +141,7 @@ export default function Method({ query }: FeatureProps) {
         {META ? <RefusalsSection meta={META} /> : null}
         <DataSection />
         {META ? <ArchitectureSection meta={META} /> : null}
+        {META && PERSONAL && THRESHOLDS ? <CoverageSection meta={META} personal={PERSONAL} thresholds={THRESHOLDS} /> : null}
         {PERSONAL && THRESHOLDS ? <LimitationsSection personal={PERSONAL} thresholds={THRESHOLDS} /> : null}
       </article>
     </FoldContext.Provider>

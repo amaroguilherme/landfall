@@ -154,6 +154,8 @@
 .lf-m-table th,
 .lf-m-table td { padding: 0.45em 0.6em 0.45em 0; border-bottom: 1px solid var(--lf-border-subtle); text-align: left; vertical-align: top; }
 .lf-m-table thead th { font-weight: 600; color: var(--lf-text-muted); font-size: var(--lf-text-xs); letter-spacing: 0.04em; text-transform: uppercase; }
+/* DM Mono is loaded at 400/500 only: a numeric column head uses the 500 face, never a synthesized bold. */
+.lf-m-table thead th.num { font-weight: 500; }
 .lf-m-table tbody th { font-weight: 600; color: var(--lf-text); }
 .lf-m-table .num { text-align: right; white-space: nowrap; }
 .lf-m-caption { caption-side: top; text-align: left; padding-bottom: 0.4em; font-weight: 600; color: var(--lf-text); }

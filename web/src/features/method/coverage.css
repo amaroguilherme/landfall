@@ -1,0 +1,90 @@
+/* Method section "Coverage of NASA's sample IMM output" (CoverageSection.tsx).
+   The four fills are an ordinal grey ramp, light = more done with a condition. Checked with the dataviz
+   palette validator (--ordinal --mode dark) against the panel surface --lf-surface-1 (#1e1e23): lightness
+   monotone, adjacent steps at least 0.06 apart, the dark end at 2.50:1. Greys only, because in this app red,
+   yellow and blue mean Warning, Caution and Advisory, and cyan means missing data (Appendix F). */
+.lf-cov-figure { margin: var(--lf-space-2) 0 var(--lf-space-1); }
+.lf-cov-cap { margin: 0 0 var(--lf-space-1); max-width: 80ch; font-size: var(--lf-text-sm); color: var(--lf-text-2); }
+.lf-cov-chips { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.25em 0.4em; }
+
+/* A tall segmented bar: 28 px, 4 px corners, a 2 px surface gap between parts, widths proportional to the
+   summed likelihood (flex-grow is set per part). A share is printed inside its part only where it fits. */
+.lf-cov-bar { display: flex; gap: 2px; height: 28px; margin: var(--lf-space-1) 0 var(--lf-space-1-5); }
+.lf-cov-block {
+  flex-basis: 0;
+  min-width: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  container-type: inline-size;
+  cursor: default;
+}
+.lf-cov-share {
+  padding: 0 4px;
+  font: 500 var(--lf-text-xs) / 1 var(--lf-font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* A DM Mono glyph is 0.6 em (7.2 px at 12 px), plus 4 px either side: a label of n glyphs needs 7.2n + 8 px.
+   Below that the part prints no label (the table under the bar has every share). */
+@container (max-width: 36.7px) { .lf-cov-share[data-len='4'] { display: none; } }
+@container (max-width: 43.9px) { .lf-cov-share[data-len='5'] { display: none; } }
+@container (max-width: 51.1px) { .lf-cov-share[data-len='6'] { display: none; } }
+
+.lf-cov-block[data-cat='case'], .lf-cov-swatch[data-cat='case'] { background: #ececee; color: #17171b; }
+.lf-cov-block[data-cat='asked_daily'], .lf-cov-swatch[data-cat='asked_daily'] { background: #c0c0c4; color: #17171b; }
+.lf-cov-block[data-cat='asked_symptom'], .lf-cov-swatch[data-cat='asked_symptom'] { background: #909096; color: #17171b; }
+.lf-cov-block[data-cat='not_measurable'], .lf-cov-swatch[data-cat='not_measurable'] { background: #5c5c62; color: #ffffff; }
+
+.lf-cov-swatch {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-right: 0.45em;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+
+/* Legend, in block order: the name and what it means. */
+.lf-cov-legend { list-style: none; margin: 0 0 var(--lf-space-1); padding: 0; display: grid; gap: 0.3em; font-size: var(--lf-text-sm); color: var(--lf-text-2); }
+.lf-cov-legend li { display: flex; align-items: baseline; padding: 0.1em 0.25em; border-radius: var(--lf-radius); max-width: 86ch; }
+.lf-cov-legend strong { color: var(--lf-text); }
+
+/* Hovering or focusing a part lights its legend line and its table row (focus keeps the global ring). */
+.lf-cov-legend li[data-active],
+.lf-cov-sum tr[data-active] > * { background: var(--lf-surface-2); }
+
+.lf-cov-sum .lf-cov-which { color: var(--lf-text-2); }
+@media (min-width: 601px) {
+  /* Table layout: keep the columns apart, and the row labels of the summary on one line. */
+  .lf-cov-sum .lf-cov-which,
+  .lf-cov-sum thead th:last-child,
+  .lf-cov-rows th.num,
+  .lf-cov-rows td.num,
+  .lf-cov-rows thead th:last-child,
+  .lf-cov-rows td.lf-m-stack-wide,
+  .lf-cov-e22 th.num,
+  .lf-cov-e22 td.num,
+  .lf-cov-e22 thead th:last-child,
+  .lf-cov-e22 td.lf-m-stack-wide { padding-left: 1.5em; }
+  .lf-cov-sum tbody th { white-space: nowrap; }
+}
+.lf-cov-total > * { font-weight: 600; border-bottom: 0; }
+/* In a table cell the tag is its own line, the detail under it. */
+.lf-cov-tag { display: flex; align-items: center; margin: 0 0 0.15em; font-weight: 600; color: var(--lf-text); white-space: nowrap; }
+.lf-cov-rank { display: inline-block; min-width: 2ch; margin-right: 0.35em; text-align: right; color: var(--lf-text-muted); }
+.lf-cov-tcap { caption-side: top; text-align: left; margin: 0 0 0.4em; }
+.lf-cov-rows td.num,
+.lf-cov-e22 td.num { white-space: nowrap; }
+.lf-cov-rows tbody th { font-weight: 600; }
+/* DM Mono is loaded at 400/500 only: its numbers in a bold row use the 500 face, never a synthesized bold. */
+.lf-cov-total > .num,
+.lf-cov-total .lf-num,
+.lf-cov-rank { font-weight: 500; }
+.lf-cov-lead { color: var(--lf-text); }
+
+/* Phones: "4.37 per mission" would squeeze the condition names, so "per mission" goes under the number. */
+@media (max-width: 600px) {
+  .lf-cov-per { display: block; font-size: var(--lf-text-xs); color: var(--lf-text-muted); }
+}

@@ -67,3 +67,23 @@ export function sdInterval95(n: number): { lo: number; hi: number } {
 export function round1(x: number): number {
   return Math.round(x * 10) / 10
 }
+
+/**
+ * A measured multiplier from the study's own counts (hits / tests / nominal rate), falling back to its stored
+ * 2-decimal value, with the digits personal.json uses for a declaration (SPEC 3.3): 2 decimals, or 3 for a borderline
+ * value whose 2-decimal rounding would land on a band edge it is not on. So mood's 0.495 never prints 0.50, inside
+ * the band it is outside of.
+ */
+export function measuredMultiplier(
+  hits: number | undefined,
+  tests: number | undefined,
+  nominal: number | undefined,
+  stored: number | undefined,
+  band: readonly [number, number] | null,
+): { value: number | null; digits: number } {
+  const x = typeof hits === 'number' && typeof tests === 'number' && tests > 0 && typeof nominal === 'number' && nominal > 0 ? hits / tests / nominal : (stored ?? null)
+  if (x === null || !Number.isFinite(x)) return { value: null, digits: 2 }
+  const r2 = Math.round(x * 100) / 100
+  const borderline = band !== null && (r2 === band[0] || r2 === band[1]) && x !== r2
+  return { value: x, digits: borderline ? 3 : 2 }
+}

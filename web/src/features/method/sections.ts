@@ -9,6 +9,7 @@ export const SECTIONS = [
   { s: 'refusals', label: 'Refusals' },
   { s: 'data', label: 'Data honesty' },
   { s: 'architecture', label: 'Architecture' },
+  { s: 'coverage', label: "Coverage of NASA's sample IMM output" },
   { s: 'limitations', label: 'Limitations' },
 ] as const
 

@@ -224,15 +224,15 @@ function ChanceCalc({ personal }: { personal: PersonalFile }) {
               <span key={r.indicator_id}>
                 {i ? '; ' : ''}
                 {measured.length > 1 ? `${label(r.indicator_id)} ` : ''}
-                <Num value={r.caution_multiplier} digits={2} />× the nominal caution rate
+                <span className="lf-num">{r.caution_multiplier_text}</span>× the nominal caution rate
               </span>
             ))}
-            ), not the nominal one. If every indicator flagged at exactly its nominal rate (the engine’s expected_false_alarms, which assumes{' '}
+            ), not the nominal one. If every indicator flagged at exactly its nominal rate (the engine’s nominal false-alarm arithmetic, which assumes{' '}
             {nominal?.assumes ?? 'independent, normal noise'}), the cautions would be <Num value={nominal?.expected_cautions ?? null} digits={3} />.
           </p>
         ) : (
           <p className="lf-m-small">
-            Every alerting indicator counts at its nominal rate here (the engine’s expected_false_alarms gives the same{' '}
+            Every alerting indicator counts at its nominal rate here (the engine’s nominal false-alarm arithmetic gives the same{' '}
             <Num value={nominal?.expected_cautions ?? null} digits={3} />), which assumes {nominal?.assumes ?? 'independent, normal noise'}.
           </p>
         )}

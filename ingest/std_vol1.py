@@ -1,5 +1,6 @@
 """NASA-STD-3001 Volume 1 Revision C (Crew Health): verbatim requirements, glossary,
-Table 4.8-1 and document history, frozen as one reference snapshot.
+Table 4.8-1, Appendix E Table E.2-1 (Sample IMM Output) with its verbatim context, and
+document history, frozen as one reference snapshot.
 
 Pipeline (all at build time, never in the judged page):
   1. Fetch the OCHMO "Human Spaceflight Standards" page, find the Vol 1 PDF link there.
@@ -16,14 +17,22 @@ Pipeline (all at build time, never in the judged page):
 
 FFD / PEL / POL category: taken from the title of the enclosing level-2 section
 (e.g. "4.7 Permissible Outcome Limit for ...") so the classification is NASA's, not ours.
+
+Appendix E: Table E.2-1 is read with the same glyph-position cells as Table 4.8-1, across its
+page break, and checked against known answers (row 1, the last row, ranks without gaps). Its
+verbatim context (the E.2.2 input sentence, the E.2.3 limitation, the Table E.2-2 note and
+footnote, and four named Table E.2-2 rows) is frozen in data.appendix_e. The rest of the
+four-page Table E.2-2 is deliberately not parsed.
 """
 
 from __future__ import annotations
 
+import json
 import re
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
-from ingest._std_vol1_pdf import Line, Page, join_lines, page_count, paragraph_breaks, read_pages
+from ingest._std_vol1_pdf import (PARAGRAPH_GAP_EM, Line, Page, join_lines, page_count, paragraph_breaks,
+                                  read_pages)
 from ingest.common import RunContext, make_snapshot, sha256_hex
 
 ADAPTER_ID = "std_vol1"
@@ -89,6 +98,14 @@ TARGETS: dict[str, dict] = {
          "unit": "mSv/day", "verbatim": "rate of 1.3 mSv/day for systems in free space"},
         {"quantity": "GCR NASA effective dose rate, systems on planetary surfaces", "op": "<", "value": 0.9,
          "unit": "mSv/day", "verbatim": "less than 0.9 mSv/day for systems on planetary surfaces"}]},
+    # Appended after the 18 above (so their entries keep their place). Two Crew Medical Officers per vehicle
+    # (5.2.1.1; section 3.5 prints "Requirement [V1 3006] moved to section 5.2.") and ground clearance before
+    # each EVA (6.4). Anchors read from the cached PDF, p. 47 and p. 52; each rationale is checked too.
+    "3006": {"in_plan": False, "expect": ["a minimum of two crewmembers per vehicle/platform"],
+             "expect_rationale": ["a backup is available for medical treatment"]},
+    "6006": {"in_plan": False,
+             "expect": ["medically cleared to perform an EVA by ground medical support personnel prior to each EVA"],
+             "expect_rationale": ["recent medical evaluations, fitness sessions"]},
 }
 # Extra sub-items of 3003/3004 that back the three LANDFALL deep cases (not in the plan list).
 EXTRA_ITEMS = {"3003": ["d", "f"], "3004": ["p", "s", "t"]}
@@ -319,6 +336,10 @@ def verify_requirement(rid: str, req: dict | None, spec: dict) -> dict:
         ok = frag in text
         ok_all &= ok
         out["checks"].append({"check": f"statement contains {frag!r}", "ok": ok})
+    for frag in spec.get("expect_rationale", []):
+        ok = frag in (req.get("rationale") or "")
+        ok_all &= ok
+        out["checks"].append({"check": f"rationale contains {frag!r}", "ok": ok})
     for v in spec.get("values", []):
         ok = v["verbatim"] in text and number_in(v["verbatim"]) == float(v["value"])
         ok_all &= ok
@@ -401,6 +422,218 @@ def parse_table_481(doc: Doc) -> dict | None:
         "units_found": units,
         "extraction_method": "cells assigned to columns by glyph x-position (nearest header centre)",
     }
+
+
+# ----------------------------------------------------------------------------- Appendix E
+E21_CAPTION = "Table E.2-1—Sample IMM Output"
+E21_LIKELIHOOD_RE = re.compile(r"^(\d+(?:\.\d+)?) (per mission)$")
+# Known answers read from the cached PDF (p. 81 and p. 82): the first and the last printed row.
+E21_FIRST = (1, "Late Insomnia", "13.85 per mission")
+E21_LAST = (48, "Dental Abscess", "0.068 per mission")
+
+E22_CAPTION_START = "Table E.2-2—"
+# The only Table E.2-2 rows frozen (scope cut: the four-page table is not parsed). Names as printed, without
+# the trailing asterisk; whether a row carries one is read from the PDF.
+E22_ROWS = ["Insomnia/sleep disturbances/circadian misalignment", "Headache (CO2 related)",
+            "Urinary retention (space-adaptation related)", "Nephrolithiasis"]
+
+# Verbatim context: (key, section, words that open the sentence, how many sentences to keep from there).
+E_CONTEXT = [
+    ("e_2_2_inputs", "E.2.2", "The IMM requires the user to provide", 1),
+    ("e_2_3_limitation", "E.2.3", "One limitation is that IMM was developed for application to ISS missions", 1),
+]
+
+
+def _page_ref(doc: Doc, pidx: int) -> dict:
+    return {"pdf_page_index": pidx, "pdf_page_number": pidx + 1, "printed_page": doc.printed.get(pidx)}
+
+
+def _is_running_line(text: str) -> bool:
+    return bool(HEADER_RE.match(text) or FOOTER_RE.match(text))
+
+
+def _line_block(lines: list[Line], i: int) -> list[Line]:
+    """The run of lines around line i that share its font size with no paragraph-sized gap between them
+    (a paragraph, or a table note set in a smaller size than the rows around it)."""
+    def joined(a: Line, b: Line) -> bool:
+        return abs(a.size - b.size) < 0.2 and (a.y0 - b.y0) <= PARAGRAPH_GAP_EM * max(a.size, b.size)
+
+    lo, hi = i, i
+    while lo > 0 and joined(lines[lo - 1], lines[lo]):
+        lo -= 1
+    while hi + 1 < len(lines) and joined(lines[hi], lines[hi + 1]):
+        hi += 1
+    return lines[lo:hi + 1]
+
+
+def _sentences(text: str) -> list[str]:
+    return re.split(r"(?<=\.)\s+(?=[A-Z])", text)
+
+
+def _find_caption(doc: Doc, start: str, header_first_cell: str, first_page: int = 0) -> tuple[int, int, int] | None:
+    """(page, caption line, header line) of a table: the caption is also printed in the List of Tables and in
+    sentences that cite it, but only the real table has its column header within three lines below it."""
+    for pg in doc.pages[first_page:]:
+        for i, ln in enumerate(pg.lines):
+            if ln.text.startswith(start):
+                head = next((k for k in range(i + 1, min(i + 4, len(pg.lines)))
+                             if pg.lines[k].segments[0].text == header_first_cell), None)
+                if head is not None:
+                    return pg.index, i, head
+    return None
+
+
+def parse_table_e21(doc: Doc) -> dict | None:
+    """Table E.2-1 (Sample IMM Output): every row's rank, condition and likelihood, across the page break.
+
+    The rank column has no header; its cells sit left of the 'Medical Condition' header. The other cells go to
+    the nearest header centre, as in Table 4.8-1. The table ends at the first line that is not a row; it goes
+    on to the next page only when that page repeats the column header."""
+    found = _find_caption(doc, E21_CAPTION, "Medical Condition")
+    if found is None:
+        return None
+    pidx, cap_i, head_i = found
+    head = doc.pages[pidx].lines[head_i].segments
+    header = [s.text for s in head]
+    cols = ["condition", "likelihood"]
+    if len(header) != len(cols):
+        return None
+    centers = [(s.x0 + s.x1) / 2 for s in head]
+    rank_right_edge = head[0].x0
+
+    def row_of(ln: Line, page: int) -> dict | None:
+        cells: dict[str, list[str]] = {}
+        for s in ln.segments:
+            if s.x1 <= rank_right_edge:
+                cells.setdefault("rank", []).append(s.text)
+            else:
+                c = (s.x0 + s.x1) / 2
+                cells.setdefault(cols[min(range(len(cols)), key=lambda n: abs(centers[n] - c))], []).append(s.text)
+        if sorted(cells) != ["condition", "likelihood", "rank"] or any(len(v) != 1 for v in cells.values()):
+            return None
+        rank, cond, like = cells["rank"][0], cells["condition"][0], cells["likelihood"][0]
+        m = E21_LIKELIHOOD_RE.match(like)
+        if not re.fullmatch(r"\d{1,3}", rank) or m is None:
+            return None
+        return {"rank": int(rank), "condition": cond,
+                "likelihood": {"text": like, "value": float(m.group(1)), "unit": m.group(2)},
+                **_page_ref(doc, page)}
+
+    rows: list[dict] = []
+    page, k = pidx, head_i + 1
+    while True:
+        lines = doc.pages[page].lines
+        ended = False
+        while k < len(lines):
+            if _is_running_line(lines[k].text):
+                k += 1
+                continue
+            row = row_of(lines[k], page)
+            if row is None:
+                ended = True
+                break
+            rows.append(row)
+            k += 1
+        if ended or page + 1 >= len(doc.pages):
+            break
+        nxt = doc.pages[page + 1].lines
+        first = next((n for n, ln in enumerate(nxt) if not _is_running_line(ln.text)), None)
+        if first is None or [s.text for s in nxt[first].segments] != header:
+            break
+        page, k = page + 1, first + 1
+
+    pages = []
+    for r in rows:
+        if not pages or pages[-1]["pdf_page_index"] != r["pdf_page_index"]:
+            pages.append({**_page_ref(doc, r["pdf_page_index"]), "first_rank": r["rank"], "last_rank": r["rank"]})
+        pages[-1]["last_rank"] = r["rank"]
+    values = [r["likelihood"]["value"] for r in rows]
+    first, last = rows[0] if rows else None, rows[-1] if rows else None
+    checks = [
+        {"check": f"row 1 is {E21_FIRST[1]!r}, {E21_FIRST[2]!r}",
+         "ok": bool(first) and (first["rank"], first["condition"], first["likelihood"]["text"]) == E21_FIRST},
+        {"check": f"the last row is {E21_LAST[0]} {E21_LAST[1]!r}, {E21_LAST[2]!r}",
+         "ok": bool(last) and (last["rank"], last["condition"], last["likelihood"]["text"]) == E21_LAST},
+        {"check": "ranks run 1, 2, 3, ... with no gap or repeat",
+         "ok": bool(rows) and [r["rank"] for r in rows] == list(range(1, len(rows) + 1))},
+        {"check": "no likelihood is larger than the one in the row above it",
+         "ok": all(a >= b for a, b in zip(values, values[1:]))},
+        {"check": "every likelihood unit is 'per mission'", "ok": all(r["likelihood"]["unit"] == "per mission" for r in rows)},
+    ]
+    return {
+        "id": "Table E.2-1",
+        "caption": doc.pages[pidx].lines[cap_i].text,
+        "note": None,
+        "header_verbatim": header,
+        "columns": cols,
+        "rank_column": "rank: the unlabelled left column (no header cell in the PDF)",
+        **_page_ref(doc, pidx),
+        "pages": pages,
+        "rows": rows,
+        "row_count": len(rows),
+        "footnotes": [],
+        "extraction_method": "cells assigned to columns by glyph x-position: left of the first header cell = rank, "
+                             "otherwise the nearest header centre; continued across the page break where the next "
+                             "page repeats the column header",
+        "checks": checks,
+        "verified": all(c["ok"] for c in checks),
+    }
+
+
+def parse_appendix_e(doc: Doc, imm_page: int | None) -> dict:
+    """Verbatim context for Table E.2-1: E.2.2 (what IMM needs as input), E.2.3 (its ISS limitation), and from
+    Table E.2-2 its note, its asterisk footnote and the four rows in E22_ROWS. Each text is the run of lines
+    (same font size, no paragraph gap) that holds it, cut to the sentence(s) asked for."""
+    start = imm_page if imm_page is not None else 0
+    out: dict = {"appendix": "E", "section": "E.2"}
+    checks = []
+    for key, section, opening, n in E_CONTEXT:
+        hits = [(pg.index, i) for pg in doc.pages[start:] for i, ln in enumerate(pg.lines) if opening in ln.text]
+        entry = None
+        if len(hits) == 1:
+            pidx, i = hits[0]
+            text = join_lines([ln.text for ln in _line_block(doc.pages[pidx].lines, i)])
+            at = text.find(opening)
+            sents = _sentences(text[at:])
+            entry = {"section": section, "text": " ".join(sents[:n]), **_page_ref(doc, pidx)}
+        out[key] = entry
+        checks.append({"check": f"{section}: exactly one sentence opens {opening!r}", "ok": entry is not None})
+
+    e22 = _find_caption(doc, E22_CAPTION_START, "Category", start)
+    table: dict = {"id": "Table E.2-2", "caption": None, "intro_note": None, "footnote": None, "rows": [],
+                   "scope": f"only the {len(E22_ROWS)} rows named here are frozen; the rest of the table is not parsed"}
+    if e22 is not None:
+        pidx, cap_i, head_i = e22
+        lines = doc.pages[pidx].lines
+        table["caption"] = join_lines([ln.text for ln in lines[cap_i:head_i]])
+        table.update(_page_ref(doc, pidx))
+        # The note printed between Table E.2-1 and the Table E.2-2 caption, in a smaller size (it names the table).
+        note_i = next((i for i in range(cap_i) if lines[i].text.startswith(E22_CAPTION_START) and lines[i].size < 10.5), None)
+        if note_i is not None:
+            table["intro_note"] = {"text": join_lines([ln.text for ln in _line_block(lines, note_i)]), **_page_ref(doc, pidx)}
+        end_page = next((pg.index for pg in doc.pages[pidx:] if any(ln.text.startswith("E.2.3") for ln in pg.lines)),
+                        len(doc.pages) - 1)
+        for pg in doc.pages[pidx:end_page + 1]:
+            for i, ln in enumerate(pg.lines):
+                if ln.text.startswith("Conditions noted with an asterisk") and table["footnote"] is None:
+                    table["footnote"] = {"text": join_lines([x.text for x in _line_block(pg.lines, i)]),
+                                         **_page_ref(doc, pg.index)}
+                for s in ln.segments:
+                    name = re.sub(r"\s*\*$", "", s.text)
+                    if name in E22_ROWS:
+                        table["rows"].append({"condition": name, "text_verbatim": s.text, "asterisk": s.text.endswith("*"),
+                                              **_page_ref(doc, pg.index)})
+    table["rows"].sort(key=lambda r: E22_ROWS.index(r["condition"]))
+    found = [r["condition"] for r in table["rows"]]
+    checks += [
+        {"check": "Table E.2-2 found (caption with its 'Category' header)", "ok": e22 is not None},
+        {"check": "Table E.2-2 asterisk footnote found", "ok": table["footnote"] is not None},
+        {"check": f"each of the {len(E22_ROWS)} named Table E.2-2 rows found exactly once", "ok": found == E22_ROWS},
+    ]
+    out["table_e_2_2"] = table
+    out["checks"] = checks
+    out["verified"] = all(c["ok"] for c in checks)
+    return out
 
 
 def parse_history(doc: Doc) -> dict:
@@ -597,6 +830,12 @@ def build(pdf: bytes, *, pdf_url: str, landing_url: str, retrieved_at: str,
         ]
         table["verified"] = all(c["ok"] for c in table["checks"])
         tables.append(table)
+    imm = parse_table_e21(doc)
+    if imm:
+        # Which shipped requirements point to this table (their rationale names it by its caption).
+        imm["cited_by"] = [r["label"] for r in requirements if imm["caption"] in (r.get("rationale") or "")]
+        tables.append(imm)
+    appendix_e = parse_appendix_e(doc, imm["pdf_page_index"] if imm else None)
 
     history = parse_history(doc)
     if history["cover_revision"] != "C":
@@ -634,6 +873,11 @@ def build(pdf: bytes, *, pdf_url: str, landing_url: str, retrieved_at: str,
         "'4.1 Fitness-for-Duty Aerobic Capacity' although its form (>= 80% of pre-mission) is baseline-relative.",
         "Glossary headwords are plural in the source ('Space Permissible Exposure Limits (SPEL)', 'Permissible "
         "Outcome Limits (POL)'); the abbreviation list expands PEL as 'permissible exposure limit'.",
+        "Table E.2-1 is NASA's 'Sample IMM Output': it prints a likelihood 'per mission' for each condition but not "
+        "the mission duration, location, number of EVAs or crew attributes that E.2.2 says IMM takes as input, and "
+        "E.2.3 says IMM was developed for application to ISS missions. LANDFALL reads its numbers as a sample, never "
+        "as a forecast for a given mission. Of Table E.2-2 only four named rows, its note and its asterisk footnote "
+        "are frozen (data.appendix_e).",
     ] + (extra_caveats or [])
 
     data = {
@@ -663,6 +907,7 @@ def build(pdf: bytes, *, pdf_url: str, landing_url: str, retrieved_at: str,
         "tables": tables,
         "context_quotes": quotes,
         "change_history": history,
+        "appendix_e": appendix_e,
     }
     return make_snapshot(
         id=f"{ADAPTER_ID}_requirements",
@@ -694,6 +939,17 @@ def citation(pdf_url: str, sha: str, retrieved_at: str, approved: str | None) ->
             f"(retrieved {retrieved_at[:10]}; SHA-256 {sha}).")
 
 
+def shipped_retrieved_at(ctx: RunContext, sha: str) -> str | None:
+    """retrieved_at of the snapshot already in out_dir, when it was built from these same PDF bytes."""
+    try:
+        shipped = json.loads((ctx.out_dir / f"{ADAPTER_ID}_requirements.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if ((shipped.get("data") or {}).get("document") or {}).get("sha256") != sha:
+        return None
+    return shipped.get("retrieved_at")
+
+
 def run(ctx: RunContext) -> list[dict]:
     extra = []
     landing_url, pdf_url = LANDING_URL, PINNED_PDF_URL
@@ -714,5 +970,8 @@ def run(ctx: RunContext) -> list[dict]:
     if sha != PINNED_SHA256:
         extra.append(f"PDF sha256 {sha} differs from the one first verified ({PINNED_SHA256}); the document "
                      "changed since 2026-11-14 and every verbatim check below was re-run against the new bytes.")
-    snap = build(pdf, pdf_url=pdf_url, landing_url=landing_url, retrieved_at=ctx.retrieved_at, extra_caveats=extra)
+    # An --offline run replays the cached bytes and retrieves nothing, so when they are the bytes the shipped
+    # snapshot was built from it keeps that snapshot's retrieval time (and its citation date).
+    retrieved_at = (shipped_retrieved_at(ctx, sha) if ctx.offline else None) or ctx.retrieved_at
+    snap = build(pdf, pdf_url=pdf_url, landing_url=landing_url, retrieved_at=retrieved_at, extra_caveats=extra)
     return [snap]

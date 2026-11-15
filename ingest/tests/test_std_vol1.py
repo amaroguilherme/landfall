@@ -112,6 +112,28 @@ def test_no_expectation_is_never_vacuously_verified():
     assert sv.TARGETS["4028"].get("expect"), "every shipped requirement needs a known-answer check"
 
 
+def test_expect_rationale_is_checked_against_the_rationale_only():
+    spec = {"expect": ["shall train"], "expect_rationale": ["a backup is available"]}
+    good = {"text": "The program shall train two.", "items": {}, "rationale": "[Rationale: so that a backup is available.]"}
+    assert sv.verify_requirement("9998", good, spec)["verified"] is True
+    # the phrase in the statement but not in the rationale does not count; no rationale at all fails too
+    wrong_place = {"text": "The program shall train two: a backup is available.", "items": {}, "rationale": "[Rationale: none.]"}
+    out = sv.verify_requirement("9998", wrong_place, spec)
+    assert out["verified"] is False and {"check": "rationale contains 'a backup is available'", "ok": False} in out["checks"]
+    assert sv.verify_requirement("9998", {**good, "rationale": None}, spec)["verified"] is False
+
+
+def test_offline_run_keeps_the_shipped_retrieval_time(tmp_path):
+    ctx = RunContext(out_dir=tmp_path, offline=True)
+    assert sv.shipped_retrieved_at(ctx, "abc") is None                       # nothing shipped yet
+    (tmp_path / "std_vol1_requirements.json").write_text(json.dumps(
+        {"retrieved_at": "2026-11-14T19:05:55Z", "data": {"document": {"sha256": "abc"}}}))
+    assert sv.shipped_retrieved_at(ctx, "abc") == "2026-11-14T19:05:55Z"     # same bytes: same retrieval
+    assert sv.shipped_retrieved_at(ctx, "def") is None                       # other bytes: a new retrieval
+    (tmp_path / "std_vol1_requirements.json").write_text("{not json")
+    assert sv.shipped_retrieved_at(ctx, "abc") is None
+
+
 # ----------------------------------------------------------------------------- 2. frozen snapshot
 @pytest.fixture(scope="module")
 def snap():
@@ -334,6 +356,125 @@ def test_snapshot_size_budget():
     assert SNAP_PATH.stat().st_size < 150_000
 
 
+# Appendix E and [V1 3006] / [V1 6006] were added on 2026-11-14 by an --offline re-run. Everything that shipped
+# before must be unchanged: the first 16 hex digits of the SHA-256 of each entry's compact JSON (the snapshot
+# is written with the same separators, so this is its bytes), taken from the file as it shipped before.
+PRE_APPENDIX_E_SHA256 = {
+    "V1 3003": "feeafce09a530a3f", "V1 3004": "d7ae2ac09120d78e", "V1 4001": "c06aa312182295cd",
+    "V1 4002": "5bada61dfd2081c4", "V1 4003": "db42b98a9295b69f", "V1 4006": "a60540083b0cbfbb",
+    "V1 4008": "3ed427152ee4e360", "V1 4011": "c468f4caa0603eca", "V1 4014": "1aad690e76ea2260",
+    "V1 4024": "21203b8114887772", "V1 4026": "60b65eca97f1a98f", "V1 4027": "e9b0965ade66b135",
+    "V1 4028": "fdca8388078bde45", "V1 4029": "7996f77c5649a382", "V1 4030": "f6b9846cd6f36957",
+    "V1 4031": "d2285102a2be8b34", "V1 4032": "226c8ec66020a9ea", "V1 4033": "7d486ab666b61b88",
+    "Table 4.8-1": "16ce077fc0660c8e", "glossary": "4f15909aec6023a5", "acronyms": "c7705c6f0ab4a538",
+    "context_quotes": "53467ddf40e39158", "change_history": "7ad9532d98f14b26",
+}
+
+
+def _digest(x) -> str:
+    import hashlib
+    return hashlib.sha256(json.dumps(x, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()[:16]
+
+
+def test_pre_existing_entries_are_byte_identical(snap):
+    reqs = snap["data"]["requirements"]
+    old = [k for k in PRE_APPENDIX_E_SHA256 if k.startswith("V1 ")]
+    assert [r["id"] for r in reqs[:len(old)]] == old            # same 18 entries, same order, first
+    assert [r["id"] for r in reqs[len(old):]] == ["V1 3006", "V1 6006"]   # only appended after them
+    for r in reqs[:len(old)]:
+        assert _digest(r) == PRE_APPENDIX_E_SHA256[r["id"]], r["id"]
+    t481 = next(t for t in snap["data"]["tables"] if t["id"] == "Table 4.8-1")
+    assert snap["data"]["tables"][0] is t481 and _digest(t481) == PRE_APPENDIX_E_SHA256["Table 4.8-1"]
+    for key in ("glossary", "acronyms", "context_quotes", "change_history"):
+        assert _digest(snap["data"][key]) == PRE_APPENDIX_E_SHA256[key], key
+
+
+def test_cmo_and_eva_clearance_requirements(snap):
+    r6 = _req(snap, "3006")
+    assert r6["text"] == ("The program(s) shall train a minimum of two crewmembers per vehicle/platform as Crew Medical "
+                          "Officers (CMOs).")
+    assert (r6["section"], r6["section_title"], r6["pdf_page_number"]) == ("5.2.1.1", "Crew Medical Officers Quantity", 47)
+    assert "It is critical to have two CMOs for each vehicle/platform to ensure that a backup is available for medical " \
+           "treatment." in r6["rationale"]
+    e6 = _req(snap, "6006")
+    assert e6["text"] == ("All crewmembers shall be medically cleared to perform an EVA by ground medical support "
+                          "personnel prior to each EVA.")
+    assert (e6["section"], e6["section_title"], e6["pdf_page_number"]) == ("6.4", "Extravehicular Activities (EVAs)", 52)
+    assert ("Flight Surgeon on ground evaluates available data from recent medical evaluations, fitness sessions, and "
+            "other metrics of health and performance to determine readiness for EVA.") in e6["rationale"]
+    for r, phrase in ((r6, "a backup is available for medical treatment"), (e6, "recent medical evaluations, fitness sessions")):
+        assert r["verified"] is True and r["values"] == [] and r["in_plan_appendix"] is False
+        assert {"check": f"rationale contains {phrase!r}", "ok": True} in r["checks"]
+        assert all(c["ok"] for c in r["checks"]) and len(r["checks"]) == 2
+        assert r["appendix_d"]["same_as_body"] is True
+
+
+def _imm(snap):
+    (t,) = [t for t in snap["data"]["tables"] if t["id"] == "Table E.2-1"]
+    return t
+
+
+def test_table_e21_rows_ranks_and_known_answers(snap):
+    t = _imm(snap)
+    assert t["caption"] == "Table E.2-1—Sample IMM Output" and t["verified"] is True and all(c["ok"] for c in t["checks"])
+    assert t["header_verbatim"] == ["Medical Condition", "Likelihood"]
+    rows = t["rows"]
+    assert len(rows) == t["row_count"] == 48
+    assert [r["rank"] for r in rows] == list(range(1, 49))
+    assert (rows[0]["condition"], rows[0]["likelihood"]) == ("Late Insomnia", {"text": "13.85 per mission", "value": 13.85,
+                                                                               "unit": "per mission"})
+    assert (rows[47]["condition"], rows[47]["likelihood"]["text"], rows[47]["likelihood"]["value"]) == \
+        ("Dental Abscess", "0.068 per mission", 0.068)
+    total = 0.0
+    for r in rows:                     # left to right, as the web app sums it
+        assert r["likelihood"]["unit"] == "per mission"
+        assert r["likelihood"]["text"] == f"{r['likelihood']['text'].split()[0]} per mission"
+        assert float(r["likelihood"]["text"].split()[0]) == r["likelihood"]["value"]
+        total = total + r["likelihood"]["value"]
+    assert abs(total - 101.808) <= 0.001          # derived: the sum of the 48 printed likelihoods
+    # the page break falls after row 36 (PDF pages 81 and 82)
+    assert [(p["pdf_page_number"], p["first_rank"], p["last_rank"]) for p in t["pages"]] == [(81, 1, 36), (82, 37, 48)]
+    assert {r["pdf_page_number"] for r in rows[:36]} == {81} and {r["pdf_page_number"] for r in rows[36:]} == {82}
+    assert all(r["printed_page"] == r["pdf_page_number"] for r in rows)
+    names = [r["condition"] for r in rows]
+    assert len(set(names)) == 48
+    for n in ("Insomnia (SAS)", "Back Pain (SAS)", "Urinary Tract Infection", "Urinary Retention", "CO2 Headache",
+              "Spaceflight Associated Neuro-ocular Syndrome (SANS)", "Space Motion Sickness (SAS)"):
+        assert n in names, n
+    # [V1 3003] (whose rationale the plan follows) and [V1 3004] both point to this table by its caption
+    assert t["cited_by"] == ["[V1 3003]", "[V1 3004]"]
+    assert "Appendix E, Table E.2-1—Sample IMM Output." in _req(snap, "3003")["rationale"]
+
+
+def test_appendix_e_context_verbatim(snap):
+    e = snap["data"]["appendix_e"]
+    assert e["verified"] is True and all(c["ok"] for c in e["checks"])
+    assert e["e_2_3_limitation"]["text"] == (
+        "One limitation is that IMM was developed for application to ISS missions, but it may be applied to other "
+        "design reference missions if the appropriate limitations are considered during interpretation of results.")
+    assert (e["e_2_3_limitation"]["section"], e["e_2_3_limitation"]["pdf_page_number"]) == ("E.2.3", 85)
+    assert e["e_2_2_inputs"]["text"] == (
+        "The IMM requires the user to provide the mission duration, location, number of EVAs and crew attributes (for "
+        "example quantity or sex) and will generate the type and probability of occurrence (likelihood) of medical events.")
+    assert e["e_2_2_inputs"]["pdf_page_number"] == 81
+    t22 = e["table_e_2_2"]
+    assert t22["caption"] == ("Table E.2-2—Medical Conditions Considered of High Likelihood or High Consequence for "
+                              "Spaceflight Missions")
+    assert t22["footnote"]["text"] == ("Conditions noted with an asterisk (*) should be addressed on every mission "
+                                       "regardless of the DRM parameters.")
+    assert t22["footnote"]["pdf_page_number"] == 85
+    assert "summarizes the most common conditions that need to be assessed for missions up to 6 months." in \
+        t22["intro_note"]["text"]
+    rows = {r["condition"]: r for r in t22["rows"]}
+    assert list(rows) == sv.E22_ROWS
+    assert rows["Nephrolithiasis"]["text_verbatim"] == "Nephrolithiasis" and rows["Nephrolithiasis"]["asterisk"] is False
+    for name in ("Insomnia/sleep disturbances/circadian misalignment", "Headache (CO2 related)",
+                 "Urinary retention (space-adaptation related)"):
+        assert rows[name]["text_verbatim"] == f"{name} *" and rows[name]["asterisk"] is True, name
+    assert [rows[n]["pdf_page_number"] for n in sv.E22_ROWS] == [85, 82, 82, 84]
+    assert any("Sample IMM Output" in c and "never as a forecast" in c for c in snap["caveats"])
+
+
 # ----------------------------------------------------------------------------- 3. offline re-parse
 def test_offline_reparse_matches_frozen_snapshot(snap):
     ctx = RunContext(offline=True)
@@ -345,4 +486,49 @@ def test_offline_reparse_matches_frozen_snapshot(snap):
                        retrieved_at=snap["retrieved_at"])
     assert rebuilt["data"]["requirements"] == snap["data"]["requirements"]
     assert rebuilt["data"]["tables"] == snap["data"]["tables"]
+    assert rebuilt["data"]["appendix_e"] == snap["data"]["appendix_e"]
     assert rebuilt["data"]["document"]["sha256"] == sv.PINNED_SHA256
+
+
+@pytest.fixture(scope="module")
+def pdf_pages():
+    """(glyph-assembled pages, pdfminer's own plain text per page), from the cached PDF."""
+    import io
+
+    from pdfminer.high_level import extract_text
+
+    from ingest._std_vol1_pdf import read_pages
+    try:
+        pdf = RunContext(offline=True).fetch_bytes(sv.PINNED_PDF_URL)
+    except RuntimeError:
+        pytest.skip("Vol 1 PDF not in .cache/ingest (run the adapter online once)")
+    pages = read_pages(pdf)
+    plain = {i: " ".join(extract_text(io.BytesIO(pdf), page_numbers=[i]).split()) for i in (80, 81, 83, 84)}
+    return pages, plain
+
+
+def test_every_table_e21_row_occurs_in_its_pdf_page_text(snap, pdf_pages):
+    pages, plain = pdf_pages
+    rows = _imm(snap)["rows"]
+    for r in rows:
+        idx = r["pdf_page_index"]
+        # 1. the glyph-assembled line of the page reads exactly "<rank> <condition> <likelihood>"
+        assert f"{r['rank']} {r['condition']} {r['likelihood']['text']}" in [ln.text for ln in pages[idx].lines], r["rank"]
+        # 2. pdfminer's own text extraction (independent of the glyph assembly) has both cells on that page
+        assert r["condition"] in plain[idx] and r["likelihood"]["text"] in plain[idx], r["rank"]
+    # 3. and as many 'per mission' cells per page as rows taken from it (no row missed, none invented)
+    for idx in (80, 81):
+        assert plain[idx].count(" per mission") == sum(1 for r in rows if r["pdf_page_index"] == idx), idx
+
+
+def test_appendix_e_texts_occur_in_their_pdf_page_text(snap, pdf_pages):
+    _, plain = pdf_pages
+    e = snap["data"]["appendix_e"]
+    t22 = e["table_e_2_2"]
+    for item in (e["e_2_2_inputs"], e["e_2_3_limitation"], t22["footnote"], t22["intro_note"]):
+        assert item["text"] in plain[item["pdf_page_index"]], item["text"][:60]
+    for r in t22["rows"]:
+        hit = plain[r["pdf_page_index"]]
+        assert r["text_verbatim"] in hit, r["condition"]
+    # "Nephrolithiasis" is followed by the next row's name, never by an asterisk
+    assert "Nephrolithiasis *" not in plain[83] and "Nephrolithiasis Urinary tract infection *" in plain[83]

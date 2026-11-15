@@ -14,7 +14,7 @@ LANDFALL is offline-first health-monitoring software for crews who cannot wait f
 
 Each link opens one view. `?env=` sets the environment (`iss`, `cislunar`, `lunar_surface` or `mars_surface`), and the footer's "Copy link to this view" makes a link to any view.
 
-1. https://landfall.landfall-web.workers.dev/ : the scenario plays unprompted. Houston's earliest reply is 11 d 06 h away; LANDFALL's guidance is on screen in hundredths of a second.
+1. https://landfall.landfall-web.workers.dev/ : the scenario plays unprompted. Houston's earliest reply is 11 d 06 h away; LANDFALL's guidance is on screen in a fraction of a second (the app prints the time it measured on your device).
 2. https://landfall.landfall-web.workers.dev/#/case/spe_shelter?env=mars_surface : open "Why this fired" for the reading, the NOAA S3 threshold it reached, how far above it, and the requirement behind the rule.
 3. https://landfall.landfall-web.workers.dev/#/method?s=gap : NASA-STD-3001's alert requirements leave the number to the program, verbatim.
 4. https://landfall.landfall-web.workers.dev/#/provenance?chip=design+choice : the 54 of 107 rule entries that are ours.

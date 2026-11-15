@@ -35,5 +35,6 @@ each under its own license. This file is kept current as dependencies are added.
 ## Data
 
 NASA and NOAA data are U.S. Government works. NASA does not endorse this project.
-Canadian Space Agency (CSA) content is linked and cited, not redistributed, per the
-challenge's instruction to comply with the data-use terms of non-U.S. Government websites.
+Canadian Space Agency (CSA) content is quoted only in short factual extracts, with attribution
+and a link to the original page (never the full text), per the challenge's instruction to
+comply with the data-use terms of non-U.S. Government websites.

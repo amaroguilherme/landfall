@@ -23,6 +23,11 @@ page break, and checked against known answers (row 1, the last row, ranks withou
 verbatim context (the E.2.2 input sentence, the E.2.3 limitation, the Table E.2-2 note and
 footnote, and four named Table E.2-2 rows) is frozen in data.appendix_e. The rest of the
 four-page Table E.2-2 is deliberately not parsed.
+
+Table 4.8-3 (the design reference SPE spectrum, sum of the October 1989 events): its 100
+energy/fluence pairs are read from the glyph rows (10 numbers per printed row: five column pairs)
+and must equal what pdfminer's own text extraction of the page gives (five blocks of 20 energies
+followed by 20 fluences). It is appended after Table E.2-1, so every earlier entry is unchanged.
 """
 
 from __future__ import annotations
@@ -636,6 +641,116 @@ def parse_appendix_e(doc: Doc, imm_page: int | None) -> dict:
     return out
 
 
+# ----------------------------------------------------------------------------- Table 4.8-3
+T483_ID = "Table 4.8-3"
+T483_CAPTION_START = "Table 4.8-3—"
+T483_NUM = r"\d\.\d{3}E[+-]\d{2}"
+T483_NUM_RE = re.compile(T483_NUM)
+# A glyph row of the table, or a run of numbers in pdfminer's text: numbers separated by whitespace only.
+T483_RUN_RE = re.compile(rf"{T483_NUM}(?:\s+{T483_NUM})*")
+T483_BLOCKS, T483_ROWS = 5, 20
+# Known answers read from the cached PDF (p. 42): the first and the last printed pair.
+T483_FIRST = ("1.000E-02", "7.761E+14")
+T483_LAST = ("2.500E+03", "3.891E+01")
+UNIT_IN_PARENS_RE = re.compile(r"\(([^()]+)\)$")
+
+
+def page_plain_text(pdf: bytes, pidx: int) -> str:
+    """pdfminer's own text extraction of one page (its layout analysis, independent of the glyph rows)."""
+    import io
+
+    from pdfminer.high_level import extract_text
+
+    return extract_text(io.BytesIO(pdf), page_numbers=[pidx])
+
+
+def plain_runs(text: str) -> list[tuple[str, list[str]]]:
+    """A page's text as (words before the run, run of d.dddE±dd numbers) pairs: each maximal run of numbers
+    separated only by whitespace, with the text between it and the previous run (whitespace collapsed)."""
+    out, pos = [], 0
+    for m in T483_RUN_RE.finditer(text):
+        out.append((" ".join(text[pos:m.start()].split()), T483_NUM_RE.findall(m.group(0))))
+        pos = m.end()
+    return out
+
+
+def parse_table_483(doc: Doc, pdf: bytes) -> dict | None:
+    """Table 4.8-3 (Design Reference SPE Environment Proton Energy Spectrum): 100 energy/fluence pairs.
+
+    The page prints five column pairs side by side, 20 rows each; the energies run down one pair, then on down
+    the next pair to the right. The pairs are read from the glyph rows (10 numbers per row, in x order) and must
+    equal those of pdfminer's own text extraction of the page, which gives each pair as a block of 20 energies
+    followed by 20 fluences under their two header cells. The header cells are read there: the glyph rows set
+    the superscript of 'cm2' on a line of its own."""
+    found = _find_caption(doc, T483_CAPTION_START, "Energy")
+    if found is None:
+        return None
+    pidx, cap_i, head_i = found
+    lines = doc.pages[pidx].lines
+    head = [s.text for s in lines[head_i].segments]
+    k = head_i + 1
+    while k < len(lines) and k <= head_i + 3 and not T483_RUN_RE.fullmatch(lines[k].text):
+        k += 1                                  # the header's unit line and its superscript line
+    grid: list[list[str]] = []
+    while k < len(lines) and T483_RUN_RE.fullmatch(lines[k].text):
+        grid.append(T483_NUM_RE.findall(lines[k].text))
+        k += 1
+    shape_ok = len(grid) == T483_ROWS and all(len(r) == 2 * T483_BLOCKS for r in grid)
+    pairs = [(grid[r][2 * b], grid[r][2 * b + 1]) for b in range(T483_BLOCKS) for r in range(T483_ROWS)] if shape_ok else []
+
+    caption = join_lines([ln.text for ln in lines[cap_i:head_i]])
+    runs = plain_runs(page_plain_text(pdf, pidx))
+    blocks_ok = len(runs) == 2 * T483_BLOCKS and all(len(nums) == T483_ROWS for _, nums in runs)
+    plain_pairs = [p for b in range(T483_BLOCKS) for p in zip(runs[2 * b][1], runs[2 * b + 1][1])] if blocks_ok else []
+    e_head = runs[2][0] if blocks_ok else None      # the words between a fluence block and the next energy block
+    f_head = runs[1][0] if blocks_ok else None      # the words between an energy block and its fluence block
+    heads_ok = blocks_ok and runs[0][0].endswith(f"{caption} {e_head}") and all(
+        words == (e_head if i % 2 == 0 else f_head) for i, (words, _) in enumerate(runs) if i)
+    units = {}
+    for col, words in (("energy", e_head), ("fluence", f_head)):
+        m = UNIT_IN_PARENS_RE.search(words or "")
+        units[col] = m.group(1) if m else None
+
+    energies = [float(e) for e, _ in pairs]
+    fluences = [float(f) for _, f in pairs]
+    n = 2 * T483_BLOCKS * T483_ROWS
+    checks = [
+        {"check": f"{n} numbers d.dddE±dd below the header, {2 * T483_BLOCKS} in each of {T483_ROWS} glyph rows",
+         "ok": shape_ok},
+        {"check": f"the header row prints 'Energy' and 'Proton Fluence' {T483_BLOCKS} times",
+         "ok": head == ["Energy", "Proton Fluence"] * T483_BLOCKS},
+        {"check": f"pdfminer's own text of the page has the same {n} numbers in {T483_BLOCKS} blocks of {T483_ROWS} "
+                  f"energies followed by {T483_ROWS} fluences, each under the same two header cells",
+         "ok": bool(pairs) and heads_ok and plain_pairs == pairs},
+        {"check": f"the first pair is {T483_FIRST[0]} / {T483_FIRST[1]}", "ok": bool(pairs) and pairs[0] == T483_FIRST},
+        {"check": f"the last pair is {T483_LAST[0]} / {T483_LAST[1]}", "ok": bool(pairs) and pairs[-1] == T483_LAST},
+        {"check": "the energies strictly rise", "ok": bool(pairs) and all(a < b for a, b in zip(energies, energies[1:]))},
+        {"check": "the fluences strictly fall", "ok": bool(pairs) and all(a > b for a, b in zip(fluences, fluences[1:]))},
+        {"check": "both header cells end in a unit in parentheses", "ok": None not in units.values()},
+    ]
+    return {
+        "id": T483_ID,
+        "caption": caption,
+        "note": None,
+        "header_verbatim": [e_head, f_head],
+        "columns": ["energy", "fluence"],
+        "units": units,
+        "layout": f"{T483_BLOCKS} column pairs of {T483_ROWS} rows side by side; the energies rise down each pair, "
+                  "then on down the next pair to the right",
+        **_page_ref(doc, pidx),
+        "rows": [{"energy": e, "energy_mev": float(e), "fluence": {"text": f, "value": float(f), "unit": units["fluence"]}}
+                 for e, f in pairs],
+        "row_count": len(pairs),
+        "footnotes": [],
+        "extraction_method": "numbers read from the glyph-assembled rows, 10 per printed row in x order (five "
+                             "energy/fluence column pairs), and cross-checked against pdfminer's own text extraction "
+                             "of the page (five blocks of 20 energies followed by 20 fluences); the header cells as "
+                             "that extraction prints them",
+        "checks": checks,
+        "verified": all(c["ok"] for c in checks),
+    }
+
+
 def parse_history(doc: Doc) -> dict:
     cover = doc.pages[0]
     # The cover is two columns; the document identity block is the right-hand one (x0 > 400 pt).
@@ -836,6 +951,12 @@ def build(pdf: bytes, *, pdf_url: str, landing_url: str, retrieved_at: str,
         imm["cited_by"] = [r["label"] for r in requirements if imm["caption"] in (r.get("rationale") or "")]
         tables.append(imm)
     appendix_e = parse_appendix_e(doc, imm["pdf_page_index"] if imm else None)
+    spe = parse_table_483(doc, pdf)
+    if spe:
+        # Which shipped requirements name this table (the [V1 4031] rationale names it by its number only).
+        spe["cited_by"] = [r["label"] for r in requirements
+                           if re.search(rf"{re.escape(T483_ID)}(?![\d.-])", r.get("rationale") or "")]
+        tables.append(spe)                      # appended after Table E.2-1: the earlier entries keep their bytes
 
     history = parse_history(doc)
     if history["cover_revision"] != "C":

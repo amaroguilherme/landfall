@@ -426,8 +426,8 @@
    "adapter": "std_vol1",
    "title": "NASA-STD-3001 Vol 1 Rev C: verbatim requirements, FFD/PEL/POL glossary, Table 4.8-1",
    "file": "std_vol1_requirements.json",
-   "bytes": 90411,
-   "sha256": "689d5197e40ea2d786e388dc6fb573c37f987967e15b403e8b2b2de48bb15ff8",
+   "bytes": 103164,
+   "sha256": "1d8ce5846c7c10354c4dfb1dcf4d056e3a9e16d41c7a1134ec14a6aafef52b66",
    "retrieved_at": "2026-11-14T19:05:55Z",
    "provenance": "reference",
    "freshness": {

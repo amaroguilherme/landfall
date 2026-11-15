@@ -369,6 +369,15 @@ PRE_APPENDIX_E_SHA256 = {
     "Table 4.8-1": "16ce077fc0660c8e", "glossary": "4f15909aec6023a5", "acronyms": "c7705c6f0ab4a538",
     "context_quotes": "53467ddf40e39158", "change_history": "7ad9532d98f14b26",
 }
+# Table 4.8-3 was appended on 2026-11-15 by another --offline re-run (retrieval time kept: the PDF was not
+# re-fetched). What the 2026-11-14 re-run added must be unchanged too: digests of the file as it shipped before.
+PRE_TABLE_483_SHA256 = {
+    "V1 3006": "664fadd1e0e6c8d6", "V1 6006": "8fa060e69672b2ea", "Table E.2-1": "b0890cbc9c632373",
+    "appendix_e": "541da26777977752", "document": "734d40e13b3fe57d", "self_test": "1434b13567c61e56",
+    # top-level fields: the snapshot's title, source, caveats and retrieval time did not move either
+    "title": "018cc69abffdf543", "source": "f8b414bac0f9f981", "caveats": "95c9ce07925f54ab",
+    "retrieved_at": "c412da2b9930d762",
+}
 
 
 def _digest(x) -> str:
@@ -387,6 +396,61 @@ def test_pre_existing_entries_are_byte_identical(snap):
     assert snap["data"]["tables"][0] is t481 and _digest(t481) == PRE_APPENDIX_E_SHA256["Table 4.8-1"]
     for key in ("glossary", "acronyms", "context_quotes", "change_history"):
         assert _digest(snap["data"][key]) == PRE_APPENDIX_E_SHA256[key], key
+    # the 2026-11-14 additions, and the tables only appended to: 4.8-1, E.2-1, then 4.8-3
+    assert [t["id"] for t in snap["data"]["tables"]] == ["Table 4.8-1", "Table E.2-1", "Table 4.8-3"]
+    for r in reqs[len(old):]:
+        assert _digest(r) == PRE_TABLE_483_SHA256[r["id"]], r["id"]
+    assert _digest(snap["data"]["tables"][1]) == PRE_TABLE_483_SHA256["Table E.2-1"]
+    for key in ("appendix_e", "document", "self_test"):
+        assert _digest(snap["data"][key]) == PRE_TABLE_483_SHA256[key], key
+    for key in ("title", "source", "caveats", "retrieved_at"):
+        assert _digest(snap[key]) == PRE_TABLE_483_SHA256[key], key
+    assert snap["retrieved_at"] == "2026-11-14T19:05:55Z"
+
+
+def _t483(snap):
+    (t,) = [t for t in snap["data"]["tables"] if t["id"] == "Table 4.8-3"]
+    return t
+
+
+def test_table_483_pairs_as_printed(snap):
+    t = _t483(snap)
+    assert t["caption"] == ("Table 4.8-3—Design Reference SPE Environment Proton Energy Spectrum (Sum of the "
+                            "October 1989 Events)")
+    assert t["header_verbatim"] == ["Energy (MeV)", "Proton Fluence (#/cm2-MeV)"]
+    assert t["columns"] == ["energy", "fluence"] and t["units"] == {"energy": "MeV", "fluence": "#/cm2-MeV"}
+    assert (t["pdf_page_index"], t["pdf_page_number"], t["printed_page"]) == (41, 42, 42)
+    assert t["verified"] is True and len(t["checks"]) == 8 and all(c["ok"] for c in t["checks"])
+    rows = t["rows"]
+    assert len(rows) == t["row_count"] == 100
+    assert (rows[0]["energy"], rows[0]["fluence"]["text"]) == ("1.000E-02", "7.761E+14")
+    assert (rows[-1]["energy"], rows[-1]["fluence"]["text"]) == ("2.500E+03", "3.891E+01")
+    assert (rows[0]["energy_mev"], rows[0]["fluence"]["value"]) == (0.01, 7.761e14)
+    assert (rows[-1]["energy_mev"], rows[-1]["fluence"]["value"]) == (2500.0, 38.91)
+    for r in rows:                     # the shape web/src/features/provenance/snapshots.ts indexes
+        assert set(r) == {"energy", "energy_mev", "fluence"} and set(r["fluence"]) == {"text", "value", "unit"}
+        assert float(r["energy"]) == r["energy_mev"] and float(r["fluence"]["text"]) == r["fluence"]["value"]
+        assert r["fluence"]["unit"] == "#/cm2-MeV"
+    e = [r["energy_mev"] for r in rows]
+    f = [r["fluence"]["value"] for r in rows]
+    assert all(a < b for a, b in zip(e, e[1:])) and all(a > b for a, b in zip(f, f[1:]))
+    # the [V1 4031] rationale is the one shipped requirement that names the table
+    assert t["cited_by"] == ["[V1 4031]"]
+    assert "Table 4.8-3 contains the Design Reference SPE Environment Proton Energy Spectrum." in _req(snap, "4031")["rationale"]
+
+
+def test_table_483_integrals_within_a_hundredth_of_a_percent(snap):
+    from ingest.tests.test_design_reference import integral_above
+    pairs = [(r["energy_mev"], r["fluence"]["value"]) for r in _t483(snap)["rows"]]
+    for e0, want in ((10.0, 1.92034e10), (100.0, 4.47579e8)):
+        assert abs(integral_above(pairs, e0) - want) <= 1e-4 * want, e0
+
+
+def test_plain_runs_splits_number_runs_from_the_words_before_them():
+    text = "Cap\n\nEnergy\n(MeV)\n1.000E-02\n2.000E-02\n\nProton Fluence\n(#/cm2-MeV)\n3.000E+01\n1.000E+01\n\n42 of 86"
+    assert sv.plain_runs(text) == [("Cap Energy (MeV)", ["1.000E-02", "2.000E-02"]),
+                                   ("Proton Fluence (#/cm2-MeV)", ["3.000E+01", "1.000E+01"])]
+    assert sv.plain_runs("10 cm (or g/cm2) 42 of 86") == []
 
 
 def test_cmo_and_eva_clearance_requirements(snap):
@@ -503,7 +567,7 @@ def pdf_pages():
     except RuntimeError:
         pytest.skip("Vol 1 PDF not in .cache/ingest (run the adapter online once)")
     pages = read_pages(pdf)
-    plain = {i: " ".join(extract_text(io.BytesIO(pdf), page_numbers=[i]).split()) for i in (80, 81, 83, 84)}
+    plain = {i: " ".join(extract_text(io.BytesIO(pdf), page_numbers=[i]).split()) for i in (41, 80, 81, 83, 84)}
     return pages, plain
 
 
@@ -532,3 +596,18 @@ def test_appendix_e_texts_occur_in_their_pdf_page_text(snap, pdf_pages):
         assert r["text_verbatim"] in hit, r["condition"]
     # "Nephrolithiasis" is followed by the next row's name, never by an asterisk
     assert "Nephrolithiasis *" not in plain[83] and "Nephrolithiasis Urinary tract infection *" in plain[83]
+
+
+def test_table_483_pairs_occur_in_the_pdf_page_text_block_by_block(snap, pdf_pages):
+    # Independent of the adapter's parser: every d.dddE±dd number of pdfminer's text of the page, sliced the way
+    # the synthesizer read it (5 blocks of 20 energies followed by 20 fluences), gives the shipped pairs.
+    import re
+    _, plain = pdf_pages
+    t = _t483(snap)
+    toks = re.findall(r"\d\.\d{3}E[+-]\d{2}", plain[t["pdf_page_index"]])
+    assert len(toks) == 200
+    pairs = [p for b in range(5) for p in zip(toks[40 * b:40 * b + 20], toks[40 * b + 20:40 * b + 40])]
+    assert pairs == [(r["energy"], r["fluence"]["text"]) for r in t["rows"]]
+    assert t["caption"] in plain[t["pdf_page_index"]]
+    assert plain[t["pdf_page_index"]].count("Energy (MeV)") == 5
+    assert plain[t["pdf_page_index"]].count("Proton Fluence (#/cm2-MeV)") == 5

@@ -65,6 +65,7 @@ import {
 } from './model'
 import type { DonkiData, HapiDoseData, IssTrackData, ProtonsLiveData, ReplayData, RequirementRec, SScaleData, SpeListData, TepcData, Transition } from './model'
 import MarsSepRecord, { MarsSepContext } from './MarsSepRecord'
+import DesignReferenceCheck from './DesignRefCheck'
 import StormWitnesses from './StormWitnesses'
 import Sol242Panel, { SOL242_ID, SOL242_TITLE } from './Sol242'
 import '../trends/trends.css'
@@ -1378,6 +1379,7 @@ function LimitsPanel({ index, runtime, envId, t, crewId, vol1 }: { index: Scenar
             a requirement on the vehicle’s shielding, shown as context and never as an alert.
           </p>
           <Quote req={req4031} doc={vol1.doc} />
+          <DesignReferenceCheck />
         </section>
       ) : null}
     </Panel>

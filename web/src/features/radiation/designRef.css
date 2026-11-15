@@ -1,0 +1,27 @@
+/* NASA's design reference SPE, re-derived (DesignRefCheck.tsx): Table 4.8-3 against the replayed GOES-7 record. */
+.lf-dr { margin-top: var(--lf-space-2); }
+.lf-dr p { max-width: 90ch; }
+.lf-dr-wrap.lf-tr-table-wrap { max-height: none; margin-bottom: var(--lf-space-1); }
+.lf-dr-pairs-wrap.lf-tr-table-wrap { margin-bottom: var(--lf-space-1); }
+.lf-dr-figure { margin: var(--lf-space-1) 0 var(--lf-space-1-5); max-width: 720px; }
+.lf-dr-figure figcaption { max-width: 90ch; }
+.lf-dr-table { width: auto; font-size: var(--lf-text-sm); }
+.lf-dr-table th, .lf-dr-table td { white-space: nowrap; padding: 0.3em 0.75em; }
+.lf-dr-table th:first-child { padding-left: 0; }
+/* Column headers in the UI font (td.num / th.num set the mono face for the numbers themselves). */
+.lf-dr-table thead th.num { font-family: var(--lf-font-ui); }
+/* The exponent sits above the line without opening a gap between rows. */
+.lf-dr-sci sup { font-size: 0.72em; line-height: 0; vertical-align: 0.55em; }
+.lf-dr-choices { list-style: none; padding: 0; margin: var(--lf-space-1) 0; display: flex; flex-wrap: wrap; gap: 0.4em 1.25em; font-size: var(--lf-text-sm); }
+.lf-dr-choices li { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.4em; }
+.lf-dr-hindsight { margin: var(--lf-space-1) 0; }
+.lf-dr-hindsight .lf-tr-kind { font-size: var(--lf-text-xs); font-weight: 600; letter-spacing: 0.04em; }
+.lf-dr-facts { margin: 0 0 var(--lf-space-1); padding-left: 1.2em; display: grid; gap: 0.4em; max-width: 90ch; }
+.lf-dr-facts time { white-space: nowrap; }
+
+@media (max-width: 640px) {
+  /* Four columns on a phone: smaller type, tighter cells, and headers that may wrap ("Table / 4.8-3"). */
+  .lf-dr-table { font-size: var(--lf-text-xs); }
+  .lf-dr-table th, .lf-dr-table td { padding: 0.3em 0.35em; }
+  .lf-dr-table thead th { white-space: normal; vertical-align: bottom; }
+}

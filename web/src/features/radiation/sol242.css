@@ -1,0 +1,32 @@
+/* Sol 242 (April 2013) panel on #/radiation, Mars surface only. Neutral greys only: nothing here is a caution or a
+   warning, so no severity colour is used (Appendix F); numbers use the mono font through .lf-num. */
+.lf-s242 .lf-panel-body > p { max-width: 90ch; }
+
+/* JPL's planned moratorium, as a caption strip above the charts. */
+.lf-s242-jpl {
+  margin: 0 0 var(--lf-space-1-5);
+  padding: var(--lf-space-1) var(--lf-space-1-5);
+  border: 1px solid var(--lf-border-strong);
+  border-left-width: 3px;
+  background: var(--lf-surface-2);
+}
+.lf-s242-jpl blockquote { margin: 0; }
+.lf-s242-jpl blockquote p { margin: 0 0 0.35em; font-size: var(--lf-text-md); max-width: 90ch; }
+.lf-s242-jpl figcaption { font-size: var(--lf-text-xs); color: var(--lf-text-muted); overflow-wrap: anywhere; }
+.lf-s242-jpl .lf-tr-muted { font-size: inherit; }
+.lf-s242-jpl-span { margin: 0.5em 0 0; font-size: var(--lf-text-sm); color: var(--lf-text-2); max-width: 90ch; }
+
+/* The two charts share one UTC axis: each sits in its own row with a heading and a legend line. */
+.lf-s242-row { margin-top: var(--lf-space-1-5); }
+.lf-s242-row .lf-rad-h4 { margin-top: 0; }
+
+.lf-s242-peak, .lf-s242-earth { font-size: var(--lf-text-sm); max-width: 90ch; }
+.lf-s242-earth .lf-rad-label { margin-right: 0.5em; }
+.lf-s242-caption blockquote { margin: 0; }
+.lf-s242-caption figcaption { font-size: var(--lf-text-xs); color: var(--lf-text-muted); overflow-wrap: anywhere; }
+.lf-s242-limits { margin: 0; padding-left: 1.2em; display: grid; gap: var(--lf-space-1); max-width: 90ch; font-size: var(--lf-text-sm); }
+/* The quoted ISO date never breaks at its hyphens. */
+.lf-s242-date { white-space: nowrap; }
+.lf-s242 a, .lf-s242 figcaption, .lf-s242 .lf-rad-sep-axis { overflow-wrap: anywhere; }
+/* Its "On this page" entry is the longest: when it wraps (390 px), its lines start at the left like the others. */
+.lf-rad-toc [data-jump='rad-sol242'] { text-align: left; }

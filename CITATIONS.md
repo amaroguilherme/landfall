@@ -146,6 +146,10 @@ runs in the product's decision path.
 - NASA GSFC Community Coordinated Modeling Center (CCMC), Integrated Space Weather Analysis system (iSWA), HAPI dataset 'msl_rad_dosimetry' ('MSL RAD Dosimetry', startDate 2011-11-20T18:29:59Z, stopDate 2026-11-12T16:19:14Z), HAPI server https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi, retrieved 2026-11-14T21:58:12Z. *(snapshots: `hapi_msl_rad_dose`)*
 - NASA GSFC Community Coordinated Modeling Center (CCMC), Integrated Space Weather Analysis system (iSWA), HAPI dataset 'msl_rad_dosimetry' ('MSL RAD Dosimetry'), parameter dose_e_total, 2012-08-17T00:00:00Z to 2026-11-13T00:00:00Z (pinned), HAPI server https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi, retrieved 2026-11-15T01:19:32Z. Event rule: Löwe JL et al., Nowcasting Solar Energetic Particle Events for Mars Missions, Space Weather 23, e2025SW004372 (2025), doi:10.1029/2025SW004372; numbers from arXiv:2502.02469v1. *(snapshots: `hapi_msl_rad_sep_events`)*
 
+**NASA GSFC Space Physics Data Facility (CDAWeb HAPI) and CCMC (iSWA HAPI)**
+
+- NASA GSFC Space Physics Data Facility, CDAWeb HAPI dataset 'STB_L1_HET' (STEREO-B HET), parameter Proton_Flux, 2013-04-08T00:00:00Z to 2013-04-15T00:00:00Z, HAPI server https://cdaweb.gsfc.nasa.gov/hapi; NASA GSFC CCMC iSWA HAPI dataset 'msl_rad_dosimetry', parameter dose_e_total; retrieved 2026-11-15T15:28:13Z. Event and quotations: Hassler DM, Zeitlin C, Wimmer-Schweingruber RF, et al. Mars' Surface Radiation Environment Measured with the Mars Science Laboratory's Curiosity Rover. Science 343(6169):1244797 (2014). doi:10.1126/science.1244797. *(snapshots: `sep_conjunction_2013`)*
+
 **NASA Goddard Space Flight Center, Space Physics Data Facility (SSCWeb), served via hapi-server.org**
 
 - NASA GSFC Space Physics Data Facility, Satellite Situation Center Web (SSCWeb), ISS ephemeris (dataset 'iss', cadence PT60S, startDate 1998-11-21T00:00:00Z, stopDate 2026-11-29T00:00:00Z), accessed through the SSCWeb HAPI server https://hapi-server.org/servers/SSCWeb/hapi (HAPI 2.0), retrieved 2026-11-14T21:58:12Z. https://sscweb.gsfc.nasa.gov/ *(snapshots: `hapi_iss_track`)*

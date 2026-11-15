@@ -380,6 +380,27 @@
    "url": "https://osdr.nasa.gov/bio/repo/data/studies/OSD-656"
   },
   {
+   "id": "sep_conjunction_2013",
+   "adapter": "sep_conjunction",
+   "title": "Sol 242: a solar particle event at Gale crater during the April 2013 Mars solar conjunction (MSL RAD, STEREO-B HET)",
+   "file": "sep_conjunction_2013.json",
+   "bytes": 23705,
+   "sha256": "9c8b46def1f9ab25842360713740e883303eda4f238a069200b2b40cdd31d7b3",
+   "retrieved_at": "2026-11-15T15:28:13Z",
+   "provenance": "derived",
+   "freshness": {
+    "kind": "historical",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "2013-04-05T00:00:00Z",
+    "stop": "2013-04-15T00:00:00Z",
+    "cadence": null
+   },
+   "publisher": "NASA GSFC Space Physics Data Facility (CDAWeb HAPI) and CCMC (iSWA HAPI)",
+   "url": "https://cdaweb.gsfc.nasa.gov/misc/NotesS.html#STB_L1_HET"
+  },
+  {
    "id": "sim_crew",
    "adapter": "sim",
    "title": "Simulated crew scenario: 4 fictional crewmembers, MET days 368-412 (seeded, labelled)",

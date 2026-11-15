@@ -66,6 +66,7 @@ import {
 import type { DonkiData, HapiDoseData, IssTrackData, ProtonsLiveData, ReplayData, RequirementRec, SScaleData, SpeListData, TepcData, Transition } from './model'
 import MarsSepRecord, { MarsSepContext } from './MarsSepRecord'
 import StormWitnesses from './StormWitnesses'
+import Sol242Panel, { SOL242_ID, SOL242_TITLE } from './Sol242'
 import '../trends/trends.css'
 import './radiation.css'
 
@@ -140,6 +141,7 @@ function useMeta<T>(id: string | null) {
 export const RAD_TITLES = {
   protons: 'Proton flux and the NOAA S-scale',
   witnesses: 'This storm had witnesses',
+  sol242: SOL242_TITLE,
   measured: 'Dose rate measured in this environment',
   limits: 'Cumulative dose against the NASA limits',
   goes: 'Real conditions when this site was built',
@@ -151,6 +153,7 @@ export type RadSection = keyof typeof RAD_TITLES
 export const RAD_IDS: Record<RadSection, string> = {
   protons: 'rad-protons',
   witnesses: 'rad-witnesses',
+  sol242: SOL242_ID,
   measured: 'rad-measured',
   limits: 'rad-limits',
   goes: 'rad-goes',
@@ -1509,7 +1512,7 @@ export default function Radiation(_props: FeatureProps) {
         replay of a real 1989 event; simulated values are labelled where they appear). Absorbed dose (Gy) is never converted into effective
         dose (Sv): each quantity is compared only with a limit in its own unit.
       </p>
-      <OnThisPage sections={index ? ['protons', 'witnesses', 'measured', 'limits', 'goes'] : ['protons', 'witnesses', 'measured', 'goes']} />
+      <OnThisPage sections={(index ? (['protons', 'witnesses', 'sol242', 'measured', 'limits', 'goes'] as const) : (['protons', 'witnesses', 'sol242', 'measured', 'goes'] as const)).filter((k) => k !== 'sol242' || envId === 'mars_surface')} />
       <EnvPicker envId={envId} onPick={setEnv} />
       <ProtonPanel
         ops={ops}
@@ -1527,6 +1530,7 @@ export default function Radiation(_props: FeatureProps) {
       <div id={RAD_IDS.witnesses}>
         <StormWitnesses />
       </div>
+      {envId === 'mars_surface' ? <Sol242Panel /> : null}
       <MeasuredPanel envId={envId} index={index} runtime={runtime} t={t} sim={scenario.sim.data} />
       {index ? <LimitsPanel index={index} runtime={runtime} envId={envId} t={t} crewId={state.crewId} vol1={vol1} /> : null}
       <LiveGoesPanel

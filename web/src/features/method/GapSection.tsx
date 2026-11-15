@@ -1,5 +1,5 @@
-// Section: NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew health; its alert
-// requirements leave the number to the program. The requirement IDs come from meta.json (principle
+// Section: NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew physiology (vital signs);
+// its alert requirements leave the alert point to the program. The requirement IDs come from meta.json (principle
 // no_nasa_alert_thresholds); the text, the rationale and the "verified" flags come from the frozen
 // std_vol1/std_vol2 snapshots.
 import { useSnapshot } from '../../app/data'
@@ -124,9 +124,10 @@ function SnapshotFooter({ v1, v2 }: { v1: SnapshotState<Vol1Data>; v2: SnapshotS
 }
 
 // Scoped to the standard (a program can still set numbers): the claim is about NASA-STD-3001.
-const TITLE = 'NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew health'
+const TITLE = 'NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew physiology (vital signs)'
 
-/** The principle text after its first clause (which the title already says), capitalised. */
+/** The principle text after its first clause (which the title restates, scoped to crew physiology), capitalised.
+ * The principle itself is frozen in meta.json (rules digest), so its first clause still says 'crew health'. */
 function ledeOf(text: string): string {
   const m = /^[^.;]*publishes no numeric in-flight alert thresholds for crew health[.;]\s*/i.exec(text)
   const rest = m ? text.slice(m[0].length) : text
@@ -150,7 +151,7 @@ export function GapSection({ meta }: { meta: MetaFile }) {
       s="gap"
       eyebrow="The gap"
       title={TITLE}
-      abstract="Its alert requirements leave the number to the program. The requirements, verbatim, with the phrases checked on the PDF page."
+      abstract="Its alert requirements leave the alert point to the program, even where Vol 2 sets the limit itself. The requirements, verbatim, with the phrases checked on the PDF page."
       footer={<SnapshotFooter v1={v1} v2={v2} />}
     >
       {lede ? (
@@ -159,7 +160,8 @@ export function GapSection({ meta }: { meta: MetaFile }) {
         </p>
       ) : null}
       <p>
-        Every requirement below asks a system to alert the crew, and each one leaves the number to the program.
+        Every requirement below asks a system to alert the crew, and each one leaves the alert point to the program, even
+        where Vol 2 sets the limit itself.
         Highlighted words are the phrases the snapshot builder re-checked on the PDF page.
       </p>
       {loading ? (

@@ -104,8 +104,8 @@ API documentation (datatype registry and data resource) and product page, NASA's
 - **No battery-endurance, storage-capacity, retention or log-duration requirement** for wearables in Vol 2 Rev F. The
   72 h autonomy target (one whole case tripwire window) and the 14-day log target (one whole Tier B baseline window)
   are design choices.
-- **No numeric in-flight alert thresholds for crew health:** NASA-STD-3001's alert requirements leave the number to
-  the program, so LANDFALL has no SpO2, blood pressure or glucose limit. Blood pressure and glucose are compared only
+- **No numeric in-flight alert thresholds for crew physiology (vital signs):** NASA-STD-3001's alert requirements leave
+  the alert point to the program, so LANDFALL has no SpO2, blood pressure or glucose limit. Blood pressure and glucose are compared only
   with the crewmember's own baseline (Tier B, caution at most).
 
 Every Vol 1 and Vol 2 quote, and every negative, is checked against the frozen snapshots in `web/public/data/` by

@@ -139,7 +139,7 @@
         { "kind": "personal", "id": "hrv_sdnn", "as": "reliable change vs own baseline: PRV against a PRV baseline" },
         { "kind": "case", "id": "sleep_circadian", "as": "ground packet (resting HR, PRV)" },
         { "kind": "case", "id": "renal_stone", "as": "ground packet (resting HR)" },
-        { "kind": "none", "id": "spo2", "as": "NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew health; its alert requirements leave the number to the program. LANDFALL invents none for SpO2" }
+        { "kind": "none", "id": "spo2", "as": "NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew physiology (vital signs); its alert requirements leave the alert point to the program. LANDFALL invents none for SpO2" }
       ],
       "justified_by": [
         { "id": "V1 3004", "item": "h", "relation": "direct", "snapshot": "std_vol1_requirements",

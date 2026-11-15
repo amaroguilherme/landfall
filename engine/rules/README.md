@@ -23,7 +23,7 @@ Every number has a `chip` and a `source` (on the object itself or the object tha
 - `literature`: a paper or another public document (for example a NASA fact sheet or presentation), cited in full.
 - `derived`: arithmetic on published values; `from` lists the inputs and `arithmetic` shows the sum.
 - `design choice`: our number, with `rationale`. NASA-STD-3001 publishes no numeric in-flight alert thresholds for
-  crew health (its alert requirements leave the number to the program), so every "approaching" level and tripwire
+  crew physiology (vital signs; its alert requirements leave the alert point to the program), so every "approaching" level and tripwire
   is ours, and it says so.
 
 ## Things that look odd and are deliberate

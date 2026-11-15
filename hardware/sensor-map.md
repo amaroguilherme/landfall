@@ -22,7 +22,7 @@ Every block carries three labels: (a) the indicator it produces, (b) the LANDFAL
 
 | Block | Part | (a) Indicator produced | (b) LANDFALL rule / baseline / case fed | (c) NASA requirement |
 |---|---|---|---|---|
-| `ppg` Optical pulse (PPG): HR, PRV, SpO2 | MAX86141 | `resting_hr`, `hrv_sdnn`, `heart_rate`, `spo2` | indicator resting_hr (reliable change vs own baseline); indicator hrv_sdnn (reliable change vs own baseline: PRV against a PRV baseline); case sleep_circadian (ground packet (resting HR, PRV)); case renal_stone (ground packet (resting HR)); no rule: NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew health; its alert requirements leave the number to the program. LANDFALL invents none for SpO2 | `[V1 3004](h)` requires; `[V2 9023]` constrains; `[V2 9103]` constrains |
+| `ppg` Optical pulse (PPG): HR, PRV, SpO2 | MAX86141 | `resting_hr`, `hrv_sdnn`, `heart_rate`, `spo2` | indicator resting_hr (reliable change vs own baseline); indicator hrv_sdnn (reliable change vs own baseline: PRV against a PRV baseline); case sleep_circadian (ground packet (resting HR, PRV)); case renal_stone (ground packet (resting HR)); no rule: NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew physiology (vital signs); its alert requirements leave the alert point to the program. LANDFALL invents none for SpO2 | `[V1 3004](h)` requires; `[V2 9023]` constrains; `[V2 9103]` constrains |
 | `ecg` Spot ECG: finger of other hand | MAX30003 | `ecg_spot_check` | no rule: LANDFALL reads no ECG: no rule uses the strip and nothing classifies its rhythm | `[V1 3004](i)` requires; `[V2 9023]` constrains; `[V2 11023]` pattern borrowed |
 | `light` Spectral light sensor | AS7341 | `light_exposure_daytime` | indicator light_exposure_daytime (context only, never alerts); case sleep_circadian (ground packet; closes the loop from sensor to the lighting countermeasure) | `[V2 8055]` pattern borrowed; `ARCHeR (Artemis II)` NASA names it; `Standard Measures` NASA names it |
 | `temp` Skin temperature, 2 sites | MAX30208 x2 | `skin_temp` | indicator skin_temp (context only, never alerts); case renal_stone (ground packet) | `[V1 3004](h)` requires; `[V2 9102]` constrains |
@@ -59,7 +59,7 @@ Optical front end and the band's heart-rate source: red and infrared LEDs and a 
 - indicator hrv_sdnn (reliable change vs own baseline: PRV against a PRV baseline)
 - case sleep_circadian (ground packet (resting HR, PRV))
 - case renal_stone (ground packet (resting HR))
-- no rule: NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew health; its alert requirements leave the number to the program. LANDFALL invents none for SpO2
+- no rule: NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew physiology (vital signs); its alert requirements leave the alert point to the program. LANDFALL invents none for SpO2
 
 (c) Justified or constrained by:
 - `[V1 3004](h)` (requires; frozen in `std_vol1_requirements`): "Assessing, recording, monitoring, and trending vital signs and additional physiological and behavioral health signs."

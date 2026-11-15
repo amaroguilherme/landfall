@@ -329,7 +329,7 @@ function ConstantsTable({ rows, targetIds }: { rows: readonly ProvRow[]; targetI
           <th scope="col" className="num">
             Value
           </th>
-          <th scope="col">Compliant when</th>
+          <th scope="col">Condition</th>
           <th scope="col">Category</th>
           <th scope="col">Basis</th>
           <th scope="col">Source</th>
@@ -375,7 +375,7 @@ function ConstantRow({ row, target }: { row: ProvRow; target: boolean }) {
         <td data-label="Value" className="num">
           <ValueCell value={row.value} />
         </td>
-        <td data-label="Compliant when">
+        <td data-label="Condition">
           <ConditionCell condition={row.condition} />
         </td>
         <td data-label="Category">

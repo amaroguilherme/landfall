@@ -6,8 +6,8 @@ themselves live in test_rules.py; this file checks that the engine can evaluate 
 
 import pytest
 
-from engine import (PRIVATE_VARIABLES, case_reduce, comms_eta, evaluate_personal, evaluate_rule,
-                    load_rules, new_case, trigger_lookup)
+from engine import (NOAA_S_THRESHOLDS_PFU, PRIVATE_VARIABLES, case_reduce, comms_eta, evaluate_personal,
+                    evaluate_rule, fmt_num, load_rules, new_case, trigger_lookup)
 from engine.thresholds import CEILING_OPS
 
 RULES = load_rules()
@@ -135,6 +135,33 @@ def test_every_threshold_rule_on_both_sides_of_its_limit(rule):
     for other in _env_ids():
         if "*" not in rule["applies_to"] and other not in rule["applies_to"]:
             assert evaluate_rule(rule, bad_value, other, NOW)["status"] == "not_applicable"
+
+
+def test_ops_findings_state_a_scale_threshold_never_a_compliance_limit():
+    """SPEC 1.2 and 5: an OPS level is not a limit. Every real OPS rule (NOAA S1-S5 and the Mars-orbit
+    monitor rule) says whether its scale threshold is reached, never "compliant"; the limits keep it."""
+    _need("thresholds")
+    ops = [r for r in _threshold_rules() if r["category"] == "OPS"]
+    assert {"ops_noaa_s1", "ops_noaa_s3", "ops_noaa_s5", "ops_onboard_proton_s3"} <= {r["id"] for r in ops}
+    for r in ops:
+        assert r["op"] == "lt" and r["unit"] == "pfu" and r["limit"] in NOAA_S_THRESHOLDS_PFU, r["id"]
+        n = NOAA_S_THRESHOLDS_PFU.index(r["limit"]) + 1
+        assert n == r["s_level"], r["id"]
+        threshold = f"the NOAA S{n} threshold of ≥ {fmt_num(r['limit'])} pfu"
+        env = _applicable_env(r)
+        above = evaluate_rule(r, r["limit"] * 1.05, env, NOW)
+        at = evaluate_rule(r, r["limit"], env, NOW)
+        below = evaluate_rule(r, r["limit"] * 0.5, env, NOW)
+        for f in (above, at):
+            assert f["status"] == "outside" and f"; at or above {threshold}. Basis: " in f["why"], f["why"]
+        assert below["status"] == "within" and f"; below {threshold}. Basis: " in below["why"], below["why"]
+        for f in (above, at, below):
+            assert not any(w in f["why"].lower() for w in ("compliant", "outside", "within")), f["why"]
+        for text in [r.get("label") or ""] + list(r.get("notes") or []):  # #/provenance prints the notes
+            assert not any(w in text.lower() for w in ("compliant", "outside", "within")), (r["id"], text)
+    for r in _threshold_rules():
+        if r["category"] in ("FFD", "PEL", "POL"):
+            assert "; compliant when " in evaluate_rule(r, r["limit"], _applicable_env(r), NOW)["why"], r["id"]
 
 
 def test_rules_apply_only_to_known_environments():

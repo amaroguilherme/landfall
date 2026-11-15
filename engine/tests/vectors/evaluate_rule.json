@@ -2055,7 +2055,7 @@
    "tier": "A",
    "unit": "pfu",
    "value": 50,
-   "why": "NOAA S1 (Minor): 50 pfu; compliant when < 10 pfu; outside. Basis: NOAA-published."
+   "why": "NOAA S1 (Minor): 50 pfu; at or above the NOAA S1 threshold of ≥ 10 pfu. Basis: NOAA-published."
   },
   "fn": "evaluate_rule",
   "name": "ops_s1_outside_advisory"
@@ -2125,7 +2125,7 @@
    "tier": "A",
    "unit": "pfu",
    "value": 600,
-   "why": "NOAA S3 (Strong): 600 pfu; compliant when < 1000 pfu; approaching (watch level 500 pfu). Basis: NOAA-published."
+   "why": "NOAA S3 (Strong): 600 pfu; below the NOAA S3 threshold of ≥ 1000 pfu; approaching (watch level 500 pfu). Basis: NOAA-published."
   },
   "fn": "evaluate_rule",
   "name": "ops_s3_approaching_advisory"
@@ -2195,7 +2195,7 @@
    "tier": "A",
    "unit": "pfu",
    "value": 2500,
-   "why": "NOAA S3 (Strong): 2500 pfu; compliant when < 1000 pfu; outside. Basis: NOAA-published."
+   "why": "NOAA S3 (Strong): 2500 pfu; at or above the NOAA S3 threshold of ≥ 1000 pfu. Basis: NOAA-published."
   },
   "fn": "evaluate_rule",
   "name": "ops_s3_outside_no_eva_warning"
@@ -2268,7 +2268,7 @@
    "tier": "A",
    "unit": "pfu",
    "value": 2500,
-   "why": "NOAA S3 (Strong): 2500 pfu; compliant when < 1000 pfu; outside. Basis: NOAA-published."
+   "why": "NOAA S3 (Strong): 2500 pfu; at or above the NOAA S3 threshold of ≥ 1000 pfu. Basis: NOAA-published."
   },
   "fn": "evaluate_rule",
   "name": "ops_s3_outside_eva_warning"
@@ -2341,7 +2341,7 @@
    "tier": "A",
    "unit": "pfu",
    "value": 2500,
-   "why": "NOAA S3 (Strong): 2500 pfu; compliant when < 1000 pfu; outside. Basis: NOAA-published."
+   "why": "NOAA S3 (Strong): 2500 pfu; at or above the NOAA S3 threshold of ≥ 1000 pfu. Basis: NOAA-published."
   },
   "fn": "evaluate_rule",
   "name": "ops_s3_outside_eva_false_still_warning"
@@ -2884,7 +2884,7 @@
    "tier": "A",
    "unit": "pfu",
    "value": 50,
-   "why": "NOAA S1 (Minor): 50 pfu; compliant when < 10 pfu; outside. Basis: NOAA-published."
+   "why": "NOAA S1 (Minor): 50 pfu; at or above the NOAA S1 threshold of ≥ 10 pfu. Basis: NOAA-published."
   },
   "fn": "evaluate_rule",
   "name": "ops_explicit_s_level_field"

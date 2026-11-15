@@ -21,6 +21,7 @@ import {
   commsEta,
   evaluatePersonal,
   evaluateRule,
+  fmtNum,
   getCase,
   getEnvironment,
   getIndicator,
@@ -31,6 +32,7 @@ import {
   triggerLookup,
 } from './index'
 import type { CaseState, Observation, Rule } from './index'
+import { MATH_SYMBOL, REACHED_OP, SIDE_WORDS } from './thresholds'
 
 const NOW = 412 * 86400 + 14 * 3600 + 20 * 60 // MET 0412/14:20:00 (SPEC section 7)
 const SIM_EPOCH = '2027-01-31T02:40:00Z' // sim_crew.json data.calendar.met_epoch_utc
@@ -110,6 +112,34 @@ describe('real rules (engine/rules/*.json)', () => {
       expect(f.why).toContain('Non-alerting indicator: never alerts.')
     }
     expect(evaluatePersonal(mood, high.slice(0, 4), 1, cfg, NOW)).toMatchObject({ status: 'insufficient_data', severity: 'advisory' })
+  })
+
+  it('an OPS finding states its scale threshold reached or not, never a compliance limit (SPEC 1.2 and 5)', () => {
+    const ops = thresholdRules(RULES).filter((r) => r.category === 'OPS')
+    expect(ops.map((r) => r.id)).toEqual(expect.arrayContaining(['ops_noaa_s1', 'ops_noaa_s3', 'ops_noaa_s5', 'ops_onboard_proton_s3']))
+    const envOf = (r: Rule) => (r.applies_to.includes('*') ? envIds[0] : r.applies_to[0])
+    for (const r of ops) {
+      const n = (NOAA_S_THRESHOLDS_PFU as readonly number[]).indexOf(r.limit) + 1
+      expect([r.op, r.unit, n], r.id).toEqual(['lt', 'pfu', r.s_level])
+      const threshold = `the NOAA S${n} threshold of ≥ ${fmtNum(r.limit)} pfu`
+      const above = evaluateRule(r, r.limit * 1.05, envOf(r), NOW)
+      const at = evaluateRule(r, r.limit, envOf(r), NOW)
+      const below = evaluateRule(r, r.limit * 0.5, envOf(r), NOW)
+      for (const f of [above, at]) {
+        expect(f.status, r.id).toBe('outside')
+        expect(f.why, r.id).toContain(`; at or above ${threshold}. Basis: `)
+      }
+      expect(below.status, r.id).toBe('within')
+      expect(below.why, r.id).toContain(`; below ${threshold}. Basis: `)
+      for (const f of [above, at, below]) expect(f.why, r.id).not.toMatch(/compliant|outside|within/i)
+    }
+    const mars = getRule(RULES, 'ops_onboard_proton_s3')
+    expect(evaluateRule(mars, 1050, 'mars_surface', NOW).why).toBe(
+      `${mars.label}: 1050 pfu; at or above the NOAA S3 threshold of ≥ 1000 pfu. Basis: ${mars.chip}.`,
+    )
+    for (const r of thresholdRules(RULES).filter((x) => ['FFD', 'PEL', 'POL'].includes(x.category))) {
+      expect(evaluateRule(r, r.limit, envOf(r), NOW).why, r.id).toContain('; compliant when ')
+    }
   })
 
   it('CM-2 VO2max 35.1 flips with the environment ([V1 4001] vs [V1 4002])', () => {
@@ -330,5 +360,18 @@ describe('constants match the Python engine', () => {
     expect([...ERROR_CODES]).toEqual(strings(block(py('errors.py'), 'ERROR_CODES')))
     const noaa = /^NOAA_S_THRESHOLDS_PFU = \(([^)]*)\)/m.exec(py('thresholds.py'))![1]
     expect([...NOAA_S_THRESHOLDS_PFU]).toEqual(noaa.split(',').map((x) => Number(x.trim())).filter((x) => !Number.isNaN(x) && x > 0))
+  })
+
+  it('the OPS wording tables of thresholds.py (an OPS why says reached or not)', () => {
+    const src = py('thresholds.py')
+    const table = (name: string): Record<string, string> => {
+      const m = new RegExp(`^${name} = \\{([^}]*)\\}`, 'm').exec(src)
+      if (m === null) throw new Error(`${name} not found in the Python source`)
+      return Object.fromEntries([...m[1].matchAll(/"([^"]*)":\s*"([^"]*)"/g)].map((x) => [x[1], x[2]]))
+    }
+    for (const [name, ts] of [['REACHED_OP', REACHED_OP], ['SIDE_WORDS', SIDE_WORDS], ['MATH_SYMBOL', MATH_SYMBOL]] as const) {
+      expect(Object.keys(ts), name).toHaveLength(4)
+      expect({ ...ts }, name).toEqual(table(name))
+    }
   })
 })

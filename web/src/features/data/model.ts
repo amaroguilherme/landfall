@@ -1,7 +1,10 @@
 // Pure helpers for the Data sources page (no React). Every number the page shows is computed
-// here from /data/manifest.json or from engine/rules/*.json; nothing NASA-numeric is typed in.
+// here from /data/manifest.json, from engine/rules/*.json or (the entry split) from the snapshot
+// file itself; nothing NASA-numeric is typed in.
 import { freshnessOf } from '../../app/data'
 import type { ManifestEntry, SnapshotProvenance } from '../../app/data'
+import { isModelEntry } from '../radiation/model'
+import type { DonkiSep } from '../radiation/model'
 
 // ---- provenance kinds (ingest/common.py PROVENANCE_KINDS) -------------------------------------
 
@@ -30,6 +33,50 @@ export function isProvenance(p: string): p is SnapshotProvenance {
 
 export function isSimulated(e: Pick<ManifestEntry, 'id' | 'provenance'>): boolean {
   return e.provenance === 'simulated' || e.id.startsWith('sim_')
+}
+
+// ---- entry-level provenance -------------------------------------------------------------------
+// manifest.json gives a snapshot ONE provenance. DONKI's SEP list (swpc_sep_events, "measured") mixes
+// events an instrument observed with events a model forecast (an instrument written "MODEL: …"), so
+// its card counts both kinds from the file's own entries instead of letting the badge cover them all.
+
+/** Snapshots whose entries are not all of the snapshot-level provenance: their card shows the split. */
+export const ENTRY_SPLIT_IDS: readonly string[] = ['swpc_sep_events']
+
+export function hasEntrySplit(snapshotId: string): boolean {
+  return ENTRY_SPLIT_IDS.includes(snapshotId)
+}
+
+export interface EntrySplit {
+  /** Every entry in the file. */
+  total: number
+  /** Entries naming at least one observing instrument (one not written "MODEL: …"). */
+  observed: number
+  /** Entries whose every instrument is a model ("MODEL: …"): forecasts, not observations. */
+  model: number
+  /** Entries naming no instrument: neither kind. */
+  unlisted: number
+}
+
+const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x)
+
+export type EntryKind = 'observed' | 'model' | 'unlisted'
+
+/** What produced one DONKI SEP entry, read from its `instruments` (radiation's isModelEntry decides "model"). */
+export function entryKind(e: unknown): EntryKind {
+  const raw = isRecord(e) ? e.instruments : undefined
+  const instruments = Array.isArray(raw) ? raw.filter((i): i is string => typeof i === 'string' && i.trim() !== '') : []
+  if (instruments.length === 0) return 'unlisted'
+  return isModelEntry({ ...(e as unknown as DonkiSep), instruments }) ? 'model' : 'observed'
+}
+
+/** The observed / model-forecast split of a DONKI SEP snapshot's `data.events`; null without an events list. */
+export function entrySplit(data: unknown): EntrySplit | null {
+  const events = isRecord(data) ? data.events : undefined
+  if (!Array.isArray(events)) return null
+  const split: EntrySplit = { total: events.length, observed: 0, model: 0, unlisted: 0 }
+  for (const e of events) split[entryKind(e)] += 1
+  return split
 }
 
 // ---- publishers ---------------------------------------------------------------------------------

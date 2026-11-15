@@ -5,6 +5,7 @@ import type { Snapshot } from '../../app/data'
 import { Num } from '../../ui'
 import { isModelEntry } from '../radiation/model'
 import type { DonkiData } from '../radiation/model'
+import { entryKind } from './model'
 
 interface MarsCommsData {
   conjunctions?: Array<{ id: string; start_date?: string; end_date?: string; threshold_deg?: number }>
@@ -18,12 +19,15 @@ interface MarsCommsData {
 }
 
 function DonkiDigest({ data }: { data: DonkiData }) {
+  // the same classification as the card's entry split (model.ts entryKind), so the two never disagree
   const events = data.events ?? []
-  const model = events.filter(isModelEntry)
-  const observed = events.filter((e) => !isModelEntry(e))
+  const model = events.filter((e) => entryKind(e) === 'model')
+  const observed = events.filter((e) => entryKind(e) === 'observed')
+  const unlisted = events.length - model.length - observed.length
   const bySpacecraft = new Map<string, number>()
   for (const e of observed) {
     for (const i of e.instruments) {
+      if (typeof i !== 'string' || !i.trim() || isModelEntry({ ...e, instruments: [i] })) continue
       const craft = i.split(':')[0].trim() || i
       bySpacecraft.set(craft, (bySpacecraft.get(craft) ?? 0) + 1)
     }
@@ -39,7 +43,13 @@ function DonkiDigest({ data }: { data: DonkiData }) {
           {c} <Num value={n} />
         </span>
       ))}
-      ); <Num value={model.length} /> are model forecasts, with an instrument written “MODEL: …”. A forecast is not an observation:
+      ); <Num value={model.length} /> are model forecasts, with an instrument written “MODEL: …”
+      {unlisted ? (
+        <>
+          ; <Num value={unlisted} /> name no instrument
+        </>
+      ) : null}
+      . A forecast is not an observation:
       LANDFALL never counts one as a confirmation. <a href="#/radiation">Radiation</a> uses the observed entries as a timing cross-check of
       the lunar-orbit dose record (choose Cislunar there).
     </p>

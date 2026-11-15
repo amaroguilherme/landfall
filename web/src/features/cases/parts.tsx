@@ -289,7 +289,7 @@ export function RuleWhy({ rule, finding, input, open = false }: { rule: Rule; fi
           Approach level: <Citation source={approach.source} />
         </p>
       ) : null}
-      {/* The engine's own line, verbatim (its "compliant when < 1000 pfu" is how the engine states every rule). */}
+      {/* The engine's own line, verbatim (an OPS scale threshold reads "at or above the NOAA S3 threshold"; limits read "compliant when ..."). */}
       <p className="lfc-engine">
         <span className="lfc-engine-tag">{ops ? 'Engine audit text' : 'Engine'}</span> {prettyOps(finding.why)}
       </p>

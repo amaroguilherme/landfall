@@ -150,6 +150,39 @@ def test_ops_level_prefers_explicit_s_level_field():
     assert evaluate_rule(dict(s1, s_level=3), 50, "iss", NOW)["severity"] == "warning"
 
 
+def test_ops_why_states_a_scale_threshold_reached_or_not_never_compliance():
+    # SPEC 1.2: an OPS level is an operational scale, not a limit; SPEC 5: its why says reached or not.
+    assert ev("ops_noaa_s3", 2500)["why"] == (
+        "NOAA S3 (Strong): 2500 pfu; at or above the NOAA S3 threshold of ≥ 1000 pfu. Basis: NOAA-published.")
+    f = ev("ops_noaa_s3", 1000)  # NOAA: a level is reached at its threshold
+    assert f["status"] == "outside" and "1000 pfu; at or above the NOAA S3 threshold of ≥ 1000 pfu." in f["why"]
+    assert ev("ops_noaa_s3", 600)["why"] == (
+        "NOAA S3 (Strong): 600 pfu; below the NOAA S3 threshold of ≥ 1000 pfu; approaching (watch level 500 pfu). "
+        "Basis: NOAA-published.")
+    assert ev("ops_noaa_s1", 5)["why"] == "NOAA S1 (Minor): 5 pfu; below the NOAA S1 threshold of ≥ 10 pfu. Basis: NOAA-published."
+    assert ev("ops_onboard_proton_s3", 1050, "mars_surface")["why"] == (
+        "Onboard monitor at the NOAA S3 level (fixture): 1050 pfu; at or above the NOAA S3 threshold of ≥ 1000 pfu. "
+        "Basis: design choice.")
+    # NOAA's name only where it is true of the number: not for another limit, unit or op, nor from s_level alone
+    s1, s3 = RULES["ops_noaa_s1"], RULES["ops_noaa_s3"]
+    why = lambda rule, v: evaluate_rule(rule, v, "iss", NOW)["why"]  # noqa: E731
+    assert "; at or above the threshold of ≥ 1500 pfu. Basis" in why(dict(s3, limit=1500), 1600)
+    assert "; at or above the threshold of ≥ 10 mSv. Basis" in why(dict(s1, unit="mSv"), 50)
+    assert "; at or above the NOAA S1 threshold of ≥ 10 pfu. Basis" in why(dict(s1, s_level=3), 50)
+    # every op: the level is reached where the compliant condition fails
+    assert "; above the threshold of > 5 pfu. " in why(dict(s1, op="le", limit=5), 6)
+    assert "; at or below the threshold of > 5 pfu. " in why(dict(s1, op="le", limit=5), 5)
+    assert "; at or below the threshold of ≤ 5 pfu. " in why(dict(s1, op="gt", limit=5), 5)
+    assert "; above the threshold of ≤ 5 pfu. " in why(dict(s1, op="gt", limit=5), 6)
+    assert "; below the threshold of < 5 pfu. " in why(dict(s1, op="ge", limit=5), 4)
+    assert "; at or above the threshold of < 5 pfu. " in why(dict(s1, op="ge", limit=5), 5)
+    for rid in ("ops_noaa_s1", "ops_noaa_s3"):
+        for v in (5, 600, 1000, 2500):
+            assert "compliant" not in ev(rid, v)["why"]
+    # a limit keeps its compliant condition (FFD / PEL / POL)
+    assert "750 mSv; compliant when < 600 mSv; outside. Basis" in ev("pel_career_effective_dose", 750)["why"]
+
+
 def test_stale_has_null_margin_because_nothing_was_compared():
     obs = {"variable": "cabin_ppco2_1h_mean", "value": 2.0, "unit": "mmHg"}
     f = ev("pel_cabin_ppco2_1h", dict(obs, t=NOW - 7201))

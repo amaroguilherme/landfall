@@ -1502,7 +1502,7 @@
    "action_id": null,
    "case_id": "spe_shelter",
    "notes": [
-    "Compliant (within) while the ≥10 MeV integral proton flux is below this level; 'outside' means S1 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "A scale threshold, not a limit: S1 is reached when the ≥10 MeV integral proton flux is at or above this level (S1 or higher) and not reached below it. pfu = particles cm^-2 s^-1 sr^-1.",
     "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID."
    ]
   },
@@ -1541,7 +1541,7 @@
    "action_id": null,
    "case_id": "spe_shelter",
    "notes": [
-    "Compliant (within) while the ≥10 MeV integral proton flux is below this level; 'outside' means S2 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "A scale threshold, not a limit: S2 is reached when the ≥10 MeV integral proton flux is at or above this level (S2 or higher) and not reached below it. pfu = particles cm^-2 s^-1 sr^-1.",
     "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID."
    ]
   },
@@ -1580,9 +1580,9 @@
    "action_id": "spe_shelter",
    "case_id": "spe_shelter",
    "notes": [
-    "Compliant (within) while the ≥10 MeV integral proton flux is below this level; 'outside' means S3 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "A scale threshold, not a limit: S3 is reached when the ≥10 MeV integral proton flux is at or above this level (S3 or higher) and not reached below it. pfu = particles cm^-2 s^-1 sr^-1.",
     "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID.",
-    "Outside (S3 or higher) is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
+    "Reaching S3 or higher is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
    ]
   },
   {
@@ -1620,9 +1620,9 @@
    "action_id": "spe_shelter",
    "case_id": "spe_shelter",
    "notes": [
-    "Compliant (within) while the ≥10 MeV integral proton flux is below this level; 'outside' means S4 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "A scale threshold, not a limit: S4 is reached when the ≥10 MeV integral proton flux is at or above this level (S4 or higher) and not reached below it. pfu = particles cm^-2 s^-1 sr^-1.",
     "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID.",
-    "Outside (S3 or higher) is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
+    "Reaching S3 or higher is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
    ]
   },
   {
@@ -1660,9 +1660,9 @@
    "action_id": "spe_shelter",
    "case_id": "spe_shelter",
    "notes": [
-    "Compliant (within) while the ≥10 MeV integral proton flux is below this level; 'outside' means S5 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "A scale threshold, not a limit: S5 is reached when the ≥10 MeV integral proton flux is at or above this level (S5 or higher) and not reached below it. pfu = particles cm^-2 s^-1 sr^-1.",
     "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID.",
-    "Outside (S3 or higher) is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
+    "Reaching S3 or higher is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
    ]
   },
   {
@@ -1706,7 +1706,7 @@
    "notes": [
     "Same variable as the NOAA rules; applies_to keeps exactly one of the two rule sets active.",
     "Scenario assumption: the demo values are the GOES-7 October 1989 ≥10 MeV replay, with no radial-distance or atmospheric correction. A monitor on the surface would read less, because the atmosphere stops the lower-energy protons; that is why the scenario's monitor sits above it, in orbit.",
-    "Outside (S3 or higher) is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
+    "Reaching S3 or higher is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
    ]
   },
   {

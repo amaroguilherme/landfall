@@ -25,6 +25,13 @@ export const OP_SYMBOL: Readonly<Record<Op, string>> = { lt: '<', le: '<=', gt: 
 /** NOAA S-scale, >=10 MeV integral proton flux in pfu (snapshot swpc_s_scale). Level = highest met. */
 export const NOAA_S_THRESHOLDS_PFU = [10, 100, 1000, 10000, 100000] as const
 
+// An OPS rule is an operational scale, not a limit (SPEC 1.2), so its `why` says whether the scale
+// threshold is reached, never "compliant" (SPEC 5). Its level is reached when the rule's compliant
+// condition fails: REACHED_OP[op] is that condition ("lt" 1000 is reached at or above 1000).
+export const REACHED_OP: Readonly<Record<Op, Op>> = { lt: 'ge', le: 'gt', gt: 'le', ge: 'lt' }
+export const SIDE_WORDS: Readonly<Record<Op, string>> = { lt: 'below', le: 'at or below', gt: 'above', ge: 'at or above' }
+export const MATH_SYMBOL: Readonly<Record<Op, string>> = { lt: '<', le: '≤', gt: '>', ge: '≥' }
+
 export function isOp(x: unknown): x is Op {
   return x === 'lt' || x === 'le' || x === 'gt' || x === 'ge'
 }
@@ -146,6 +153,20 @@ function opsLevel(rule: Rule): number {
 }
 
 /**
+ * "the NOAA S3 threshold of ≥ 1000 pfu", or "the threshold of ≥ 1500 pfu" when the number is not NOAA's.
+ * NOAA's name is printed only where it is true of the number itself: a limit in pfu that is NOAA's
+ * threshold for a level, reached at or above it (op "lt"), whatever the rule's own s_level says.
+ */
+function opsThreshold(rule: Rule): string {
+  const op = rule.op
+  const limit = rule.limit
+  let name = 'threshold'
+  const i = (NOAA_S_THRESHOLDS_PFU as readonly number[]).indexOf(limit)
+  if (op === 'lt' && rule.unit === 'pfu' && i >= 0) name = `NOAA S${i + 1} threshold`
+  return `the ${name} of ${MATH_SYMBOL[REACHED_OP[op]]} ${fmtNum(limit)} ${pyStr(rule.unit)}`
+}
+
+/**
  * SPEC section 2 mapping (rules/meta.json severity_mapping), after NASA-STD-3001 Vol 2 Table 10.3-1.
  * Warning is "Event that requires immediate action because it has the potential to become a
  * life/mission threat"; Caution is "Event that needs attention, but not immediate action". The only
@@ -244,9 +265,16 @@ export function evaluateRule(
         status = 'within'
         stateTxt = 'within'
       }
-      why =
-        `${label}: ${fmtNum(v)} ${unitS}; compliant when ${OP_SYMBOL[op]} ${fmtNum(limit)} ${unitS}; ` +
-        `${stateTxt}. Basis: ${basis}.`
+      if (rule.category === 'OPS') {
+        // a scale threshold reached or not, never a compliance limit (SPEC 5)
+        const side = compliant ? SIDE_WORDS[op] : SIDE_WORDS[REACHED_OP[op]]
+        const tail = status === 'approaching' ? `; ${stateTxt}` : ''
+        why = `${label}: ${fmtNum(v)} ${unitS}; ${side} ${opsThreshold(rule)}${tail}. Basis: ${basis}.`
+      } else {
+        why =
+          `${label}: ${fmtNum(v)} ${unitS}; compliant when ${OP_SYMBOL[op]} ${fmtNum(limit)} ${unitS}; ` +
+          `${stateTxt}. Basis: ${basis}.`
+      }
     }
   }
 

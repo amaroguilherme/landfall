@@ -20,6 +20,13 @@ OP_SYMBOL = {"lt": "<", "le": "<=", "gt": ">", "ge": ">="}
 # S level = highest level whose threshold is met (flux >= threshold).
 NOAA_S_THRESHOLDS_PFU = (10.0, 100.0, 1000.0, 10000.0, 100000.0)
 
+# An OPS rule is an operational scale, not a limit (SPEC 1.2), so its `why` says whether the scale
+# threshold is reached, never "compliant" (SPEC 5). Its level is reached when the rule's compliant
+# condition fails: REACHED_OP[op] is that condition ("lt" 1000 is reached at or above 1000).
+REACHED_OP = {"lt": "ge", "le": "gt", "gt": "le", "ge": "lt"}
+SIDE_WORDS = {"lt": "below", "le": "at or below", "gt": "above", "ge": "at or above"}
+MATH_SYMBOL = {"lt": "<", "le": "≤", "gt": ">", "ge": "≥"}
+
 
 def severity_rank(severity: str) -> int:
     return SEVERITIES.index(severity)
@@ -153,6 +160,20 @@ def _ops_level(rule: dict) -> int:
     return s_level(rule["limit"]) if rule["op"] in CEILING_OPS else 0
 
 
+def _ops_threshold(rule: dict) -> str:
+    """'the NOAA S3 threshold of ≥ 1000 pfu', or 'the threshold of ≥ 1500 pfu' when the number is not NOAA's.
+
+    NOAA's name is printed only where it is true of the number itself: a limit in pfu that is NOAA's
+    threshold for a level, reached at or above it (op "lt"), whatever the rule's own s_level says.
+    """
+    op = rule["op"]
+    limit = rule["limit"]
+    name = "threshold"
+    if op == "lt" and rule["unit"] == "pfu" and limit in NOAA_S_THRESHOLDS_PFU:
+        name = f"NOAA S{NOAA_S_THRESHOLDS_PFU.index(limit) + 1} threshold"
+    return f"the {name} of {MATH_SYMBOL[REACHED_OP[op]]} {fmt_num(limit)} {rule['unit']}"
+
+
 def evaluate_rule(rule: dict, value: object, env_id: str, t: float | None, ctx: dict | None = None) -> dict:
     """Evaluate one Tier A / context / OPS rule.
 
@@ -211,8 +232,14 @@ def evaluate_rule(rule: dict, value: object, env_id: str, t: float | None, ctx: 
             else:
                 status = "within"
                 state_txt = "within"
-            why = (f"{label}: {fmt_num(v)} {unit}; compliant when {OP_SYMBOL[op]} {fmt_num(limit)} {unit}; "
-                   f"{state_txt}. Basis: {basis}.")
+            if rule["category"] == "OPS":
+                # a scale threshold reached or not, never a compliance limit (SPEC 5)
+                side = SIDE_WORDS[op] if compliant else SIDE_WORDS[REACHED_OP[op]]
+                tail = f"; {state_txt}" if status == "approaching" else ""
+                why = f"{label}: {fmt_num(v)} {unit}; {side} {_ops_threshold(rule)}{tail}. Basis: {basis}."
+            else:
+                why = (f"{label}: {fmt_num(v)} {unit}; compliant when {OP_SYMBOL[op]} {fmt_num(limit)} {unit}; "
+                       f"{state_txt}. Basis: {basis}.")
 
     return {
         "rule_id": rule["id"],

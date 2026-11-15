@@ -52,6 +52,9 @@ chanceRate(getIndicator(RULES, 'sleep_midpoint_shift'), RULES.personal!.rci).tex
   - `PRIVATE_VARIABLES` equals the `private: true` indicators;
   - mood (non-alerting) shows a reliable change at severity `nominal`, and missing data stays `advisory`;
   - the critical values quoted in `rci.method` are the engine's, and an indicator's `reliability_r` changes nothing;
+  - every OPS rule (NOAA S1-S5 and the Mars-orbit monitor rule) states its scale threshold reached or not ("at or above
+    the NOAA S3 threshold of ≥ 1000 pfu", "below …"), at, above and below its number, and never says compliant, while
+    every FFD, PEL and POL rule keeps "compliant when";
   - the CM-2 VO2max 35.1 verdict flips between `[V1 4001]` and `[V1 4002]` when the environment changes, and outside
     it is a caution labelled "EVA fitness floor not met";
   - all three cases open with `triggerLookup`, and in every environment each one watches a tripwire rule that
@@ -63,7 +66,7 @@ chanceRate(getIndicator(RULES, 'sleep_midpoint_shift'), RULES.personal!.rci).tex
   - every count indicator declares the Anscombe transform, and every indicator's `chanceRate` text is well formed;
   - a resolved sleep case opens again as instance 2 (case instances, S4).
 
-  It also checks the tables the port copies (UCUM, LOINC vital signs, local displays, private/boolean/MET units, error codes and NOAA thresholds) against the Python source text, so a change on one side alone fails.
+  It also checks the tables the port copies (UCUM, LOINC vital signs, local displays, private/boolean/MET units, error codes, NOAA thresholds and the OPS wording tables) against the Python source text, so a change on one side alone fails.
 - Run: `cd web && npx vitest run src/engine` (or `npm test`), then `npx tsc -p tsconfig.app.json --noEmit`.
 
 ## Student's t (`tdist.ts`)
@@ -102,6 +105,7 @@ the same snake_case keys, so a value can pass between the two languages unchange
 | `thresholds.s_level(flux_pfu)` | `sLevel(fluxPfu)` |
 | `thresholds.coerce_value`, `basis_text`, `cap_severity`, `severity_rank`, `compare` | `coerceValue`, `basisText`, `capSeverity`, `severityRank`, `compare` |
 | `thresholds.SEVERITIES`, `STATUSES`, `CEILING_OPS`, `FLOOR_OPS`, `OP_SYMBOL`, `NOAA_S_THRESHOLDS_PFU` | same names (`S_THRESHOLDS_PFU` is an alias for the shell facade) |
+| `thresholds.REACHED_OP`, `SIDE_WORDS`, `MATH_SYMBOL` (the OPS `why` tables; not in `engine/__init__`) | same names in `thresholds.ts` (not in `index.ts`) |
 | `rci.rci(baseline, current, alpha=0.001, min_baseline_n=7)` | `rci(baseline, current, alpha = 0.001, minBaselineN = 7)` |
 | `rci.evaluate_personal(indicator, baseline, current, cfg, t=None)` | `evaluatePersonal(indicator, baseline, current, cfg, t = null)` |
 | `rci.min_detectable_change(sd, n, alpha=0.001)` | `minDetectableChange(sd, n, alpha = 0.001)` |
@@ -184,6 +188,12 @@ shapes differ from the shim in six ways, and the compiler flags each one:
 - Severity (SPEC section 2, NASA-STD-3001 Vol 2 Table 10.3-1): the only `warning` is an OPS level of S3 or above
   (the shelter action); FFD / PEL / POL are `caution` outside or approaching; `evaluateRule`'s `ctx` is accepted but
   no longer changes anything (`{eva}` has no effect).
+- An OPS finding's `why` (SPEC 5) states the scale threshold reached or not, never a compliance limit:
+  `"NOAA S3 (Strong) solar radiation storm: 2500 pfu; at or above the NOAA S3 threshold of ≥ 1000 pfu. Basis: NOAA-published."`,
+  `"…: 940 pfu; below the NOAA S3 threshold of ≥ 1000 pfu. …"`, and at Mars `"Mars-orbit space-weather monitor: … 1050 pfu; at
+  or above the NOAA S3 threshold of ≥ 1000 pfu. Basis: design choice."` It used to read `"…; compliant when < 1000 pfu;
+  outside."`; FFD, PEL, POL, TARGET and context lines keep that form. NOAA's name is printed only when the limit is NOAA's
+  number for a level (`lt`, pfu); another OPS limit reads `"the threshold of ≥ 1500 pfu"`.
 - `formatMet` prints `d/hh:mm:ss` with no leading zeros in the day field (F.6.1 f): `412/14:20:00`, a countdown
   `11/05:59:51`. Code that sliced fixed character positions of the old `0412/...` string must split on `/` instead.
 - Case states have `steps_declined`, `escalation {t, reason, step_id, tiers}` and `packet_queued_at`; their

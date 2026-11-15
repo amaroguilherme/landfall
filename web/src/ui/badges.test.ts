@@ -208,7 +208,7 @@ describe('"Why this fired" of an OPS rule shows the threshold, not a limit and a
     expect(rows[2][1]).toBe('50 pfu')
     const t = whyText(r, f)
     expect(t).toContain('Engine audit text')
-    expect(t).toContain('compliant when < 1000 pfu') // the engine's own audit line is kept verbatim
+    expect(t).toContain('at or above the NOAA S3 threshold of ≥ 1000 pfu') // the engine's own audit line is kept verbatim
     expect(t).toContain('Provenance of this rule')
     expect(t).not.toMatch(/Limit \(compliant|Margin|Provenance of ops_|Outside limit/)
   })

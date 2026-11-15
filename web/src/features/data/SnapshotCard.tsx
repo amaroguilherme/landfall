@@ -1,6 +1,7 @@
 // One card per frozen snapshot. Everything above the expanders comes from manifest.json (already
-// loaded for the whole page); the snapshot file itself is fetched only when a reader opens its
-// caveats or its access URLs.
+// loaded for the whole page), except the entry split of a snapshot whose entries are not all of its
+// provenance (hasEntrySplit: DONKI SEP), whose file is read at once to count them. Otherwise the file
+// is fetched only when a reader opens its caveats or its access URLs.
 import { useEffect, useId, useRef, useState } from 'react'
 import type { MouseEvent, ReactNode } from 'react'
 import { formatUtc, parseIsoDuration, snapshotUrl, useSnapshot } from '../../app/data'
@@ -12,7 +13,8 @@ import { Ext } from './Ext'
 import { LazyDetails } from './LazyDetails'
 import { ProvenanceBadge } from './ProvenanceBadge'
 import { Duration } from './Duration'
-import { PROVENANCE_WHAT, cardDomId, classifyAccessUrl, dataHref, isProvenance, isSimulated } from './model'
+import { EntrySplitNote } from './EntrySplit'
+import { PROVENANCE_WHAT, cardDomId, classifyAccessUrl, dataHref, hasEntrySplit, isProvenance, isSimulated } from './model'
 import { citationCount } from './rulesIndex'
 import type { RuleCitation } from './rulesIndex'
 
@@ -165,8 +167,10 @@ export function SnapshotCard({
     }
   }
 
-  // Lazy: nothing is fetched until a reader opens an expander (then the shared cache serves it).
-  const snap = useSnapshot(requested ? entry.id : null)
+  // Lazy: nothing is fetched until a reader opens an expander (then the shared cache serves it), except
+  // for a card that counts its entries (the app's idle prefetch has usually cached that file already).
+  const split = hasEntrySplit(entry.id)
+  const snap = useSnapshot(requested || split ? entry.id : null)
   const ready = requested && snap.status === 'ready' ? snap.snapshot : null
 
   useEffect(() => {
@@ -223,6 +227,7 @@ export function SnapshotCard({
         </header>
 
         <p className="lfd-what">{isProvenance(entry.provenance) ? PROVENANCE_WHAT[entry.provenance] : 'Provenance not stated.'}</p>
+        {split ? <EntrySplitNote entry={entry} state={snap} /> : null}
 
         <dl className="lfd-meta">
           <div>

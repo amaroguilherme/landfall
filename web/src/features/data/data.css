@@ -145,6 +145,10 @@
 .lfd-card-id { margin: 0; font-size: var(--lf-text-xs); color: var(--lf-text-muted); }
 .lfd-card-id code { color: var(--lf-text); font-size: var(--lf-text-sm); }
 .lfd-what { margin: 0; font-size: var(--lf-text-sm); color: var(--lf-text-2); }
+/* The entry split of a snapshot whose entries are not all of its provenance (DONKI: "MODEL: …" forecasts). */
+.lfd-split { margin: 0; font-size: var(--lf-text-sm); border-left: 3px solid var(--lf-border-strong); padding-left: var(--lf-space-1-5); }
+.lfd-split-counts { margin: 0; color: var(--lf-text); }
+.lfd-split .lfd-note { margin-top: 2px; }
 
 .lfd-meta { display: grid; gap: 6px; margin: 0; font-size: var(--lf-text-sm); }
 .lfd-meta > div { display: grid; grid-template-columns: 8.25rem minmax(0, 1fr); gap: 2px 12px; }

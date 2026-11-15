@@ -2,11 +2,11 @@
 
 **Earth-independent health navigation for exploration crews.**
 
-Live app: https://landfall.landfall-web.workers.dev · Code: https://github.com/amaroguilherme/landfall (Apache-2.0) · Demo video: [VIDEO-TBC] · NASA Space Apps Challenge 2026, *Create Health Monitoring Software for Astronauts on Space Missions*
+Live app: https://landfall.landfall-web.workers.dev · Code: https://github.com/amaroguilherme/landfall (Apache-2.0) · Demo video: https://youtu.be/pze4zeZBs6I · NASA Space Apps Challenge 2026, *Create Health Monitoring Software for Astronauts on Space Missions*
 
 > **Paste notes, not part of the page: do not paste this block.**
 >
-> Open markers, keep until resolved: [VIDEO-TBC] = the final video is not uploaded yet; put its public link in the "Link to Project Demo" field and in place of the marker.
+> Demo video: https://youtu.be/pze4zeZBs6I (uploaded 15 Nov 2026); paste it into the "Link to Project Demo" field. No open markers remain.
 >
 > Form fields: "High-Level Project Summary" (120 words or fewer here); "Detailed Project Description"; "NASA Data" = Use of NASA Data; "Space Agency Partner Data and Other References" = Space Agency Partner & Other Data plus References; "Use of Super Intelligence (SI)" = Use of Artificial Intelligence.
 >
@@ -195,4 +195,4 @@ No AI is in the decision path: every rule is data you can read at #/provenance, 
 - **At build time**, for each searched negative and for the missing vital-sign alert threshold, it ranked 543 of the 545 requirements of NASA-STD-3001 Vol 1 Rev C and Vol 2 Rev F (our PDF parsers miss [V1 5002] and [V2 10157]) by closeness in meaning to one sentence we wrote before running it, to show where those claims come closest to being wrong. #/band and #/method?s=gap list the five closest, verbatim and by rank only, under the deterministic keyword count, which stays the claim. It is a ranking, not proof of absence. Where we had already named the nearest requirement by hand, it ranked 1 of those 6 in its top five; on the 31 test questions, the expected requirement was among its five for 23.
 - **In the browser**, on #/method?s=find ("Find it in NASA's words"), it ranks the 57 frozen NASA-STD-3001 requirements by closeness to your words, beside a keyword search that is shown first, and returns only NASA's text. Its 8-bit copy (7.9 MB) is not precached and loads on the first search. A fixed word list runs on the same words, model or not: renal red flags and urgent symptoms get "tell your Crew Medical Officer now (if that is you, the Commander)", and medication, diagnosis and cancer-risk words get the refusals written in the rules. Its hand-written TypeScript tokenizer was tested equal to the original on every fixture string and, for normalising and splitting, on all 1,112,064 code points under Node 25.4 (tools/find/README.md). On the 24 test questions, written blind to the search tool before its first run, the expected requirement was in its top three for 20 (keywords alone: 16; either column: 22). A ranking is not an answer.
 
-No image, audio or video generator was used: the body figure and the BAND diagram are SVG drawn by code, the figures are screen captures of the app, and the demo video is captured from the app by a script, with HTML title cards and no audio [VIDEO-TBC]. AI-assisted checking does not replace review by subject-matter experts, which is why every number links to its source.
+No image, audio or video generator was used: the body figure and the BAND diagram are SVG drawn by code, the figures are screen captures of the app, and the demo video is captured from the app by a script, with HTML title cards and no audio (https://youtu.be/pze4zeZBs6I). AI-assisted checking does not replace review by subject-matter experts, which is why every number links to its source.

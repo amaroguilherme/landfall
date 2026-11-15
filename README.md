@@ -7,7 +7,7 @@
 LANDFALL is offline-first health-monitoring software for crews who cannot wait for Houston. It checks each crewmember against NASA's limits and NOAA's storm-scale thresholds (Tier A: NASA-STD-3001 requirements frozen verbatim, an HRP evidence report's urine target and the NOAA S-scale) and against their own baseline (Tier B: a single-case test whose chance rate is measured and printed). A trigger reaching Caution or Warning opens one of three guided cases (radiation shelter, renal stone risk, sleep): one countermeasure, required steps, a reassessment tripwire, and escalation to the onboard Crew Medical Officer now (the Commander, the crew's second Crew Medical Officer, when the CMO is the patient) and to the flight surgeon through a consent-filtered FHIR packet that waits for the link. Escalations and overdue reassessments also raise annunciator alerts. NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew physiology (vital signs) and leaves the alert point to the program, so every number LANDFALL chose is labelled "design choice", and every case also prints as a paper cue card for when the screen is lost. The demo is a simulated Mars crew inside a solar conjunction modelled from JPL Horizons, during a replay of the real October 1989 proton event.
 
 - **Live app:** https://landfall.landfall-web.workers.dev (static files, no backend; it reloads offline after one visit)
-- **Demo video (30 s):** [VIDEO-TBC]
+- **Demo video (30 s):** https://youtu.be/pze4zeZBs6I
 - **Printed cue cards:** [docs/landfall-cue-card.pdf](docs/landfall-cue-card.pdf)
 
 ## A two-minute audit path

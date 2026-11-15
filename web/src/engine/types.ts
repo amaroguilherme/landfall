@@ -57,7 +57,7 @@ export type RuleValue = number | null | ObservationValue
 
 /**
  * A one-line action for a finding without a deep case (SPEC 3.2 / 3.3, D11): the crew-facing label
- * (e.g. "EVA assignment not cleared") and text. Present on every alerting rule or indicator that no
+ * (e.g. "EVA fitness floor not met") and text. Present on every alerting rule or indicator that no
  * case lists as a trigger.
  */
 export interface FindingAction extends Basis {

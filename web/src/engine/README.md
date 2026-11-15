@@ -53,7 +53,7 @@ chanceRate(getIndicator(RULES, 'sleep_midpoint_shift'), RULES.personal!.rci).tex
   - mood (non-alerting) shows a reliable change at severity `nominal`, and missing data stays `advisory`;
   - the critical values quoted in `rci.method` are the engine's, and an indicator's `reliability_r` changes nothing;
   - the CM-2 VO2max 35.1 verdict flips between `[V1 4001]` and `[V1 4002]` when the environment changes, and outside
-    it is a caution labelled "EVA assignment not cleared";
+    it is a caution labelled "EVA fitness floor not met";
   - all three cases open with `triggerLookup`, and in every environment each one watches a tripwire rule that
     applies there (`spe_shelter`: `ops_onboard_proton_s3` at Mars, `ops_noaa_s3` near Earth);
   - the SPE case opens as a warning, refuses an outcome until the shelter confirmations p2 and p3 are done, queues

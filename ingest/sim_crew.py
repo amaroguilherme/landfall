@@ -373,7 +373,7 @@ VARIABLE_META: dict[str, dict] = {
         "definition": "Integral proton flux above 10 MeV in pfu (particles cm^-2 s^-1 sr^-1), the quantity the NOAA "
                       "S-scale is defined on, as reported by the scenario's external space-weather monitor above the "
                       "Martian atmosphere (in Mars orbit) and relayed to the habitat locally, with no Earth link: the "
-                      "in-situ monitoring [V2 6165] requires ('" + V2_6165_TEXT + "'). Scenario values are the GOES-7 "
+                      "an external monitor of the kind [V2 6165] describes, reporting one ≥10 MeV channel rather than the full proton flux spectra the requirement asks for ('" + V2_6165_TEXT + "'). Scenario values are the GOES-7 "
                       "October 1989 ≥10 MeV replay, time-shifted only, with NO radial-distance or atmospheric "
                       "correction (a labelled scenario assumption). The rules apply NOAA's S3 level to it at Mars as "
                       "a design choice (engine/rules/thresholds.json).",
@@ -553,7 +553,7 @@ def self_check(timelines: dict[str, dict]) -> dict:
         summary.append(f"{ep['id']} ({ep['crew_id']}, case {ep['case_id']}): " + "; ".join(parts) + ".")
     ch = rep["chance_flags"]
     if ch:
-        summary.append("Unscripted reliable changes (chance, from real-size noise): " + "; ".join(
+        summary.append("Unscripted reliable changes (chance, from realistic day-to-day noise): " + "; ".join(
             f"{c['crew_id']} {c['variable']} day {c['day']} (t = {c['t']}, critical {c['critical']}, {c['direction']}, "
             f"{c['severity']})" for c in ch) + ".")
     else:
@@ -678,7 +678,7 @@ def _proton_calibration(spe: dict) -> list[dict]:
                     _dc("A monitor on the surface would not read this flux: the Martian atmosphere absorbs most "
                         "lower-energy protons, so the ≥10 MeV flux at the surface follows only the high-energy tail. "
                         "The scenario therefore takes the S3 reading from an external monitor above the atmosphere, "
-                        "the in-situ space-weather monitoring [V2 6165] requires, relayed to the habitat without an "
+                        "an external monitor of the kind [V2 6165] describes (one ≥10 MeV channel, not the full spectra), relayed to the habitat without an "
                         "Earth link. The habitat dose rate is a separate simulated confirmation.")))
     out.append(_cal("external monitoring requirement", V2_6165_TEXT, "NASA-published", V2_6165))
     out.append(_cal("no radial-distance or atmospheric correction", "Earth-orbit (GOES) flux used as is",
@@ -728,7 +728,7 @@ def _caveats(spe: dict, cal: dict, sc: dict) -> list[str]:
                    "from swpc_spe_replay) and only time-shifted, so its first S3-level sample lands at MET "
                    "412/14:15:00. vehicle.series.proton_flux_10mev carries that replayed flux unchanged as the "
                    "reading of an EXTERNAL space-weather monitor above the Martian atmosphere (in Mars orbit, "
-                   "relayed to the habitat locally, no Earth link needed; the monitoring [V2 6165] requires). "
+                   "relayed to the habitat locally, no Earth link needed; an external monitor of the kind [V2 6165] describes, reporting one ≥10 MeV channel). "
                    "Scenario assumption: NO radial-distance and NO atmospheric correction is applied; GOES measured "
                    "in Earth orbit, and a real event at Mars would give a different flux. A monitor on the surface "
                    "would read far less, because the atmosphere absorbs most lower-energy protons. Every replayed "

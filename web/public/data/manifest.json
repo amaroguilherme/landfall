@@ -384,9 +384,9 @@
    "adapter": "sim",
    "title": "Simulated crew scenario: 4 fictional crewmembers, MET days 368-412 (seeded, labelled)",
    "file": "sim_crew.json",
-   "bytes": 159516,
-   "sha256": "ee85a9e6719b0a2b33b98776ebc05eb8adea8dfff22e1b9515713f27af5cf9a0",
-   "retrieved_at": "2026-11-14T23:10:43Z",
+   "bytes": 159744,
+   "sha256": "373fb84315f458f8fdd07ab5f7663e66fd9d1eec3b73a8b6922c4c118d5899b3",
+   "retrieved_at": "2026-11-15T07:35:16Z",
    "provenance": "simulated",
    "freshness": {
     "kind": "historical",

@@ -693,7 +693,7 @@
     },
     {
      "what": "Proton energy spectrum outside the vehicle (the demo uses only the ≥10 MeV channel)",
-     "via": "the external space-weather monitor's full spectrum, read with ground radiation analysts",
+     "via": "a spectral external space-weather monitor, the kind [V2 6165] asks for (proton flux spectra), read with ground radiation analysts; the demo's Mars-orbit monitor reports only one ≥10 MeV channel",
      "requirement_id": "V2 6165",
      "requirement_quote": "The program shall monitor the in-situ extravehicular space weather environment including the external exposure rates, electron flux spectra, and proton flux spectra."
     },

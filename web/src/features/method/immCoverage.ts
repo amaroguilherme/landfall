@@ -138,7 +138,7 @@ const MIN_BASELINE_N: number | null = PERSONAL?.rci.min_baseline_n ?? null
  * Why space-adaptation insomnia is asked, not watched: it comes in the first days of flight, before Tier B has the
  * in-mission baseline days it needs (the scenario's baseline is in-mission; no pre-flight baseline is used).
  */
-export const SAS_INSOMNIA_NOTE = `SAS: space adaptation syndrome. During adaptation the crewmember may not yet have the ${MIN_BASELINE_N ?? 'minimum number of'} in-mission baseline days Tier B needs; a pre-flight baseline would be needed and is not used here.`
+export const SAS_INSOMNIA_NOTE = `SAS: Space Adaptation Syndrome (NASA-STD-3001 Vol 1 Rev C acronym list, p. 60). During adaptation the crewmember may not yet have the ${MIN_BASELINE_N ?? 'minimum number of'} in-mission baseline days Tier B needs; a pre-flight baseline would be needed and is not used here.`
 
 /** Table E.2-1, condition (verbatim) -> category. Exactly the 48 printed rows; the test checks both ways. */
 export const IMM_COVERAGE: Readonly<Record<string, CoverageEntry>> = {

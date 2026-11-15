@@ -529,7 +529,7 @@ lists, `steps_declined: []`, `escalation` and `packet_queued_at` null, `instance
   detectable changes, same flagged episode days, the same chance flags, no other caution). Episodes the
   noise hides from Tier B are caught only by Tier A: CM-3's urine output below 1,500 mL (`TARGET`),
   CM-2's VO₂max (`FFD`) and the solar particle event (`OPS`). Chance flags are real consequences of
-  real-size noise and open cases like any other caution; the seed is the project seed, fixed before the
+  realistic day-to-day noise and open cases like any other caution; the seed is the project seed, fixed before the
   noise model, and is never re-drawn to hide them. At that seed Tier B flags, after the baseline: CM-1's
   sleep midpoint shift on every scripted day 404–412 (t 5.17–5.69 against the critical 4.221), which opens
   CM-1's sleep case on day 404; CM-3's sleep midpoint shift on day 407 alone (t 4.305, a chance flag), which

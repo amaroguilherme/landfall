@@ -128,7 +128,7 @@ describe('the mapping of the 48 conditions (design choice)', () => {
     expect([sas.category, sas.caseId, sas.symptoms, sas.note]).toEqual(['asked_daily', undefined, ['trouble_sleeping'], SAS_INSOMNIA_NOTE])
     // the number of baseline days comes from personal.json, never typed into the note
     expect(SAS_INSOMNIA_NOTE).toBe(
-      `SAS: space adaptation syndrome. During adaptation the crewmember may not yet have the ${PERSONAL!.rci.min_baseline_n} in-mission baseline days Tier B needs; a pre-flight baseline would be needed and is not used here.`,
+      `SAS: Space Adaptation Syndrome (NASA-STD-3001 Vol 1 Rev C acronym list, p. 60). During adaptation the crewmember may not yet have the ${PERSONAL!.rci.min_baseline_n} in-mission baseline days Tier B needs; a pre-flight baseline would be needed and is not used here.`,
     )
     expect(IMM_COVERAGE['Late Insomnia']).toEqual({ category: 'case', caseId: 'sleep_circadian', symptoms: ['trouble_sleeping'] })
     expect(of('asked_symptom').sort()).toEqual(['Space Motion Sickness (SAS)', 'Spaceflight Associated Neuro-ocular Syndrome (SANS)'])

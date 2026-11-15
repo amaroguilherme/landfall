@@ -103,7 +103,7 @@
  "tiers": [
   {
    "id": "A",
-   "definition": "A fixed number NASA or NOAA publishes: a NASA standard (with its requirement ID, or a Table 4.8-1 row and column), a NASA report without a requirement ID (the renal TARGET rule, from the HRP evidence report), or the NOAA S-scale. The chip says which. One Tier A rule, ops_onboard_proton_s3, reuses NOAA's S3 number at Mars, on the reading of a space-weather monitor in Mars orbit, where NOAA does not define its scale, so its chip is design choice."
+   "definition": "A fixed number NASA or NOAA publishes: a NASA standard (with its requirement ID, or a Table 4.8-1 row and column), a NASA report without a requirement ID (the renal TARGET rule, from the HRP evidence report), or the NOAA S-scale. The chip says which. One Tier A rule, the Mars-orbit monitor rule, reuses NOAA's S3 number at Mars, on the reading of a space-weather monitor in Mars orbit, where NOAA does not define its scale, so its chip is design choice."
   },
   {
    "id": "B",

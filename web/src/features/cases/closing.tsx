@@ -5,17 +5,17 @@
 import { useState } from 'react'
 import { useEvaluation, useGroundPacket } from '../../app/model'
 import type { CaseView } from '../../app/caseTimeline'
-import type { Finding, PersonalFinding } from '../../app/engine'
+import type { CaseState, Finding, PersonalFinding } from '../../app/engine'
 import type { MissionEvaluation } from '../../app/evaluate'
 import type { CrewId } from '../../app/vocab'
 import { Button, ButtonLink, Chip, Expander, MetTime, Num, Panel, SeverityBadge } from '../../ui'
 import { NumberEntry } from './entry'
-import { OP_WORDS, formatSpan, isOpen, meetsCondition, packetLabel, packetStateOf, refLabel, stepList, tripwireProgress, variableLabel } from './model'
+import { OP_WORDS, formatSpan, isOpen, meetsCondition, nextOpenStep, packetLabel, packetStateOf, refLabel, stepList, tripwireProgress, variableLabel } from './model'
 import { BandRange, SourceBlock, TMinus } from './parts'
-import { sharedReadingSource } from './procedure'
+import { heldByRedFlag, openRedFlagSteps, sharedReadingSource, tierOneWho } from './procedure'
 import type { ActCtx } from './procedure'
 import { deliveryText } from './helpers'
-import { EscalationTiers, OverdueNote } from './status'
+import { EscalationTiers, OverdueNote, readingsSinceOpened } from './status'
 import type { CaseDefFull } from './types'
 
 const qty = (unit: string) => (unit === 'count' ? undefined : unit)
@@ -217,7 +217,7 @@ export function TripwirePanel({
       ) : (
         <>
           <p className="lfc-fine">Not armed yet: it arms when the outcome is logged.</p>
-          <OverdueNote view={view} t={c.t} />
+          <OverdueNote view={view} t={c.t} readings={readingsSinceOpened(c.recent, s)} />
         </>
       )}
       {obs.length || watch ? (
@@ -274,6 +274,47 @@ export function TripwirePanel({
 }
 
 // ---- 7. Resolve or escalate, and the ground packet --------------------------------------------------------
+
+/**
+ * Before a dismiss, while a red-flag question is neither answered nor declined: ask it first, since its "yes" escalates
+ * the case (D4) and a dismiss would close it unasked. A design choice; dismissing stays possible. Nothing otherwise.
+ */
+export function DismissRedFlagNote({ def, state }: { def: CaseDefFull; state: CaseState }) {
+  const open = openRedFlagSteps(def, state)
+  if (!open.length) return null
+  const many = open.length > 1
+  return (
+    <div className="lfc-redflag" role="note" data-dismiss-red-flag="">
+      <p>
+        The red-flag question{many ? 's' : ''} ({stepList(def, open)}) {many ? 'are' : 'is'} not answered yet. Ask {many ? 'them' : 'it'} before you
+        dismiss: a “yes” escalates this case instead. <Chip kind="design choice" />
+      </p>
+    </div>
+  )
+}
+
+/**
+ * The first line of an escalated case's close panel. Nothing needs an answer from the ground first; after a red-flag
+ * "yes" with steps still open, the remaining steps wait for tier 1, as the status card and the procedure say (a design
+ * choice), so the line does not tell the crew to keep following the procedure.
+ */
+export function EscalatedLine({ view, t }: { view: Pick<CaseView, 'state' | 'tier1'>; t: number }) {
+  const s = view.state
+  const held = heldByRedFlag(s) && nextOpenStep(s) !== null
+  return (
+    <p data-escalated-line="">
+      Escalated <MetTime t={s.closed_at ?? t} label />
+      {s.escalation?.reason === 'red_flag' ? ' by a red-flag answer' : ' by the tripwire'}. You do not need to wait for an answer from the ground
+      {held ? (
+        <>
+          ; the remaining steps wait for {tierOneWho(view.tier1)}. <Chip kind="design choice" />
+        </>
+      ) : (
+        ' to keep following the case’s instructions.'
+      )}
+    </p>
+  )
+}
 
 export function PacketBlock({ c, def, view, delivery = true }: { c: ActCtx; def: CaseDefFull; view: CaseView; delivery?: boolean }) {
   const s = view.state
@@ -337,11 +378,7 @@ export function ClosePanel({ c, def, view, onDismiss }: { c: ActCtx; def: CaseDe
         </p>
       ) : s.status === 'escalated' ? (
         <div className="lfc-escalated">
-          <p>
-            Escalated <MetTime t={s.closed_at ?? c.t} label />
-            {s.escalation?.reason === 'red_flag' ? ' by a red-flag answer' : ' by the tripwire'}. You do not need to wait for an answer from the ground to keep
-            following the case’s instructions.
-          </p>
+          <EscalatedLine view={view} t={c.t} />
           <EscalationTiers c={c} view={view} idSuffix="close" packetLink={false} />
         </div>
       ) : (
@@ -361,6 +398,7 @@ export function ClosePanel({ c, def, view, onDismiss }: { c: ActCtx; def: CaseDe
               setReason('')
             }}
           >
+            <DismissRedFlagNote def={def} state={s} />
             <label htmlFor="lfc-dismiss">Why is this case not needed?</label>
             <input id="lfc-dismiss" value={reason} onChange={(e) => setReason(e.target.value)} autoComplete="off" />
             <p className="lfc-fine">

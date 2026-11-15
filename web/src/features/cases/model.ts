@@ -8,7 +8,7 @@ import { tierOneFor } from '../../app/caseTimeline'
 import type { CaseView } from '../../app/caseTimeline'
 import { CHIP_DEFS, CREW, CREW_IDS, SEVERITY_RANK, isCrewId } from '../../app/vocab'
 import type { CrewId, Observation, Severity } from '../../app/vocab'
-import type { CaseDefFull, EscalationMeta, HrrRisk, PacketStateDef, SimSelfCheck, StepDef, UnscriptedOpening } from './types'
+import type { CaseDefFull, CmDef, EscalationMeta, HrrRisk, PacketStateDef, SimSelfCheck, StepDef, UnscriptedOpening } from './types'
 
 const DAY_S = 86_400
 
@@ -25,6 +25,53 @@ export const OP_WORDS: Record<Op, string> = {
 
 /** The op that breaks a compliant condition: a ceiling "below 1000" is outside "at or above 1000". */
 export const OUTSIDE_OP: Record<Op, Op> = { lt: 'ge', le: 'gt', gt: 'le', ge: 'lt' }
+
+// ---- the renal TARGET: a case floor and a countermeasure target ------------------------------------
+
+/**
+ * Where a TARGET reading sits against the case floor (the rule's limit) and the countermeasure target (its
+ * approach_at), and how far: below the floor, below the target, at it, or above it. Null when the engine compared
+ * nothing (its margin is null: no value, stale data, not applicable here). Presentation only: the verdict is the
+ * engine's; this names the nearer line and the distance to it.
+ */
+export function targetDistance(value: number | null, margin: number | null, floor: number, target: number | null): { label: string; by: number | null } {
+  if (margin === null || value === null) return { label: target !== null ? 'Distance from the target' : 'Distance from the case floor', by: null }
+  if (value < floor) return { label: 'Below the case floor by', by: floor - value }
+  if (target === null) return value === floor ? { label: 'At the case floor', by: 0 } : { label: 'Above the case floor by', by: value - floor }
+  if (value < target) return { label: 'Below the target by', by: target - value }
+  if (value === target) return { label: 'At the target', by: 0 }
+  return { label: 'Above the target by', by: value - target }
+}
+
+// ---- the basis of a countermeasure -------------------------------------------------------------------
+
+/** The kinds of source behind a countermeasure: its own source, its chip and its citations. */
+function basisKinds(cm: CmDef): Set<string> {
+  const kinds = new Set<string>()
+  for (const x of [cm.source, ...(cm.citations ?? [])]) {
+    const k = (x as { kind?: unknown } | undefined)?.kind
+    if (typeof k === 'string') kinds.add(k)
+  }
+  if (cm.chip === 'design choice') kinds.add('design_choice')
+  return kinds
+}
+
+/**
+ * "Why this countermeasure: the NASA and NOAA text, and our design choice": names only the kinds of basis this
+ * countermeasure carries (the sleep case's light schedule is NASA text alone, so it never says "design choice").
+ */
+export function basisSummary(cm: CmDef): string {
+  const k = basisKinds(cm)
+  const agencies = [k.has('nasa_standard') || k.has('nasa_brief') ? 'NASA' : null, k.has('noaa') ? 'NOAA' : null].filter(Boolean).join(' and ')
+  const parts = [agencies ? `the ${agencies} text` : null, k.has('literature') ? 'the literature' : null, k.has('design_choice') ? 'our design choice' : null].filter(
+    (x): x is string => !!x,
+  )
+  if (!parts.length) return 'Why this countermeasure: its basis'
+  // "the NASA and NOAA text, and our design choice": a comma once a part has its own "and"
+  const glue = parts.slice(0, -1).some((p) => p.includes(' and ')) ? ', and ' : ' and '
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')}${glue}${parts[parts.length - 1]}` : parts[0]
+  return `Why this countermeasure: ${list}`
+}
 
 // ---- crew selection ----------------------------------------------------------------------------
 

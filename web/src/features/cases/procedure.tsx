@@ -3,17 +3,24 @@
 // an outcome; a red-flag question answered "yes" escalates the case at once, the Crew Medical Officer
 // first and the flight surgeon through the ground packet (D4). This file only dispatches STEP, DECLINE and
 // OUTCOME events: the engine's caseReduce decides, and a rejected event stays in the log with its reason.
-import { useState } from 'react'
+// Two rules are the UI's own. A red-flag question offers no decline, it is answered yes or no (canDecline): the
+// engine still accepts DECLINE on any step (engine/cases.py), the UI never sends one for a red flag. A step that
+// releases the ground packet asks first, inline, whose packets go (ReleaseControl).
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { tierOneFor } from '../../app/caseTimeline'
+import type { TierOne } from '../../app/caseTimeline'
 import { formatCountdown } from '../../app/comms'
 import type { CommsStatus } from '../../app/comms'
 import type { CaseState } from '../../app/engine'
 import { metClock } from '../../app/mission'
+import { useCases } from '../../app/model'
+import { crewList } from '../../app/procedureAlerts'
 import { ENVIRONMENTS } from '../../app/scenario'
 import type { CrewId, Observation } from '../../app/vocab'
 import { Button, ButtonLink, Chip, Expander, MetTime, Num, Panel } from '../../ui'
 import { NumberEntry } from './entry'
-import { answerOf, formatSpan, packetLabel, pendingRequired, stepList, stepNumber, stepState, tierOneLine, variableLabel } from './model'
+import { answerOf, formatSpan, nextOpenStep, packetLabel, pendingRequired, stepList, stepNumber, stepState, tierOneLine, variableLabel } from './model'
 import { jumpTo, stepAnchor } from './helpers'
 import { SourceBlock } from './parts'
 import type { CaseDefFull, StepDef } from './types'
@@ -62,6 +69,62 @@ export function sharedReadingSource(variable: string, envId: string | null | und
   }
   if (variable === 'onboard_dose_rate') return 'habitat dosimeter (simulated)'
   return 'vehicle sensor'
+}
+
+// ---- procedure safety: red flags, the hold after a red-flag escalation, dose entries (pure) -------------
+
+/** A red-flag question: the case definition or the engine's spec says so (both are read from cases.json). */
+export function isRedFlagStep(step: Pick<StepDef, 'id' | 'red_flag'>, state: Pick<CaseState, 'spec'>): boolean {
+  return step.red_flag === true || state.spec.red_flag_step_ids.includes(step.id)
+}
+
+/**
+ * Does a step offer "Decline it with a reason"? Only a required step that is still open and is not a red-flag
+ * question: a red flag is a yes/no the crewmember can always answer, and its "yes" is what escalates the case (D4),
+ * so a decline would let the outcome be logged with the question never asked.
+ */
+export function canDecline(step: Pick<StepDef, 'id' | 'required' | 'red_flag'>, state: CaseState): boolean {
+  return step.required === true && !isRedFlagStep(step, state) && stepState(state, step.id) === 'open'
+}
+
+/** The red-flag questions of a case that are neither answered nor declined, in procedure order. */
+export function openRedFlagSteps(def: CaseDefFull, state: CaseState): string[] {
+  return (def.procedure ?? []).filter((st) => isRedFlagStep(st, state) && stepState(state, st.id) === 'open').map((st) => st.id)
+}
+
+/** The case escalated on a red-flag "yes" (D4): the rest of its procedure waits for tier 1. */
+export function heldByRedFlag(state: Pick<CaseState, 'status' | 'escalation'>): boolean {
+  return state.status === 'escalated' && state.escalation?.reason === 'red_flag'
+}
+
+/**
+ * Tier 1 inside a sentence: "the Crew Medical Officer (CM-4)"; on the Crew Medical Officer's own cases "the crew's
+ * second Crew Medical Officer, the Commander (CM-1)" (meta.json escalation tier 1 and its backup, via tierOneFor).
+ */
+export function tierOneWho(t1: Pick<TierOne, 'name' | 'roleText' | 'crewId' | 'backup'>): string {
+  const who = `${t1.name}${t1.crewId ? ` (${t1.crewId})` : ''}`
+  return t1.backup ? `${t1.roleText}, ${who}` : who
+}
+
+/**
+ * The label of a vehicle reading typed by hand. A dose report is this crewmember's own, and the app adds each one to
+ * the dose record (app/evaluate.ts: a cumulative window sums the reports, each the dose since the previous one), so
+ * the label names the crewmember and says so. Any other vehicle reading (the proton flux) keeps the plain label.
+ */
+export function vehicleEntryLabel(variable: string, crewId: string): string {
+  const label = variableLabel(variable)
+  return variable.startsWith('dose_')
+    ? `Type ${crewId}’s ${label} since the previous entry, as the vehicle reports it (each entry is added to the dose record)`
+    : `Type the value the vehicle reports (${label})`
+}
+
+/**
+ * The question a packet-release step asks before it is done: whose packets go, and the change of state they make
+ * (meta.json packet_states: Prepared (held on board) -> Queued, sent when a link exists).
+ */
+export function releaseQuestion(crews: readonly CrewId[]): string {
+  const change = `changes from ${packetLabel('prepared')} to ${packetLabel('queued')} and is sent when a link exists.`
+  return crews.length > 1 ? `Release the ground packet of ${crewList(crews)}? Each ${change}` : `Release ${crews[0] ?? 'this crewmember'}’s ground packet? It ${change}`
 }
 
 // ---- step tags, done / declined lines ---------------------------------------------------------------
@@ -125,14 +188,67 @@ function RedFlagPreview({ c }: { c: ActCtx }) {
   )
 }
 
+/** The release question for a crew-wide step: the crewmembers the STEP goes to, as CaseDetail's onStep picks them. */
+function SharedReleaseQuestion({ c, step, id }: { c: ActCtx; step: StepDef; id: string }) {
+  const { cases } = useCases()
+  const crews = cases.filter((v) => v.caseId === c.def.id && v.state.status === 'acting' && stepState(v.state, step.id) !== 'done').map((v) => v.crewId)
+  return (
+    <p id={id} className="lfc-confirm-q">
+      {releaseQuestion(crews.length ? crews : [c.crewId])}
+    </p>
+  )
+}
+
+/** A packet-release step asks first, inline (no disclosure): Release does the step, Cancel goes back. */
+function ReleaseControl({ c, step, where }: { c: ActCtx; step: StepDef; where: string }) {
+  const [asking, setAsking] = useState(false)
+  const moved = useRef(false)
+  const qid = `lfc-release-${where}-${step.id}`
+  // focus follows the question (and back on Cancel), never on the first render
+  useEffect(() => {
+    if (moved.current) document.getElementById(asking ? `${qid}-yes` : `${qid}-start`)?.focus()
+  }, [asking, qid])
+  const set = (v: boolean) => {
+    moved.current = true
+    setAsking(v)
+  }
+  if (!asking) {
+    return (
+      <Button id={`${qid}-start`} variant="secondary" onClick={() => set(true)}>
+        Release the ground packet (step done){sharedSuffix(c)}
+      </Button>
+    )
+  }
+  return (
+    <div className="lfc-confirm" role="group" aria-labelledby={qid} data-release-ask="">
+      {c.sharedAll ? (
+        <SharedReleaseQuestion c={c} step={step} id={qid} />
+      ) : (
+        <p id={qid} className="lfc-confirm-q">
+          {releaseQuestion([c.crewId])}
+        </p>
+      )}
+      <div className="lfc-entry-actions">
+        <Button id={`${qid}-yes`} variant="secondary" onClick={() => c.onStep(step)}>
+          Release
+        </Button>
+        <Button variant="ghost" onClick={() => set(false)}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export function StepAction({ c, step, where }: { c: ActCtx; step: StepDef; where: string }) {
   const [answer, setAnswer] = useState<'yes' | 'no' | null>(null)
   const inp = step.input
   const label = inp ? variableLabel(inp.variable) : ''
+  if (!inp && step.releases_packet) return <ReleaseControl c={c} step={step} where={where} />
   if (!inp) {
     return (
       <Button variant="secondary" onClick={() => c.onStep(step)}>
-        {step.releases_packet ? 'Release the ground packet (step done)' : 'Mark step done'}
+        Mark step done
         {sharedSuffix(c)}
       </Button>
     )
@@ -206,7 +322,7 @@ export function StepAction({ c, step, where }: { c: ActCtx; step: StepDef; where
             </ButtonLink>
           ) : null}
         </div>
-        {inp.source === 'vehicle' && !last ? entry(`Type the value the vehicle reports (${label})`, 'Log value and mark done') : null}
+        {inp.source === 'vehicle' && !last ? entry(vehicleEntryLabel(inp.variable, c.crewId), 'Log value and mark done') : null}
       </div>
     )
   }
@@ -277,14 +393,14 @@ export function DeclineControl({ c, step, where }: { c: ActCtx; step: StepDef; w
   )
 }
 
-/** A step's live controls: its action, plus the decline control when it is required. */
+/** A step's live controls: its action, plus the decline control when it is required and not a red-flag question. */
 export function StepControls({ c, step, where }: { c: ActCtx; step: StepDef; where: string }) {
   const st = stepState(c.state, step.id)
   return (
     <>
       {st === 'declined' ? <p className="lfc-fine">You can still do it:</p> : null}
       <StepAction c={c} step={step} where={where} />
-      {step.required && st === 'open' ? <DeclineControl c={c} step={step} where={where} /> : null}
+      {canDecline(step, c.state) ? <DeclineControl c={c} step={step} where={where} /> : null}
     </>
   )
 }
@@ -296,14 +412,29 @@ export function ProcedurePanel({ c, sharedNote, current }: { c: ActCtx; sharedNo
   const s = c.state
   const acting = s.status === 'acting'
   const pending = pendingRequired(s)
+  const hasRedFlag = steps.some((st) => isRedFlagStep(st, s))
+  // after a red-flag "yes" the steps left wait for tier 1 (a design choice: cases.json says nothing about them)
+  const held = heldByRedFlag(s) && nextOpenStep(s) !== null
   return (
     <Panel title="4. Guided procedure" eyebrow="Procedure" id="case-procedure" className="lfc-proc-panel">
+      {held ? (
+        <div className="lfc-redflag" role="note" data-held="">
+          <p>
+            <strong>
+              Escalated by a red-flag answer at step {stepNumber(c.def, s.escalation!.step_id ?? '')}: the remaining steps wait for{' '}
+              {tierOneWho(tierOneFor(c.crewId))}.
+            </strong>{' '}
+            <Chip kind="design choice" />
+          </p>
+        </div>
+      ) : null}
       {!acting && s.status !== 'idle' && !s.countermeasure_id ? <p className="lfc-fine">The steps unlock when you start the countermeasure.</p> : null}
       {sharedNote}
       {s.spec.required_step_ids.length ? (
         <p className="lfc-fine">
           Steps marked <span className="lfc-tag" data-kind="required">Required</span> must be done, or declined with a reason, before the outcome
           can be logged{acting && pending.length ? <>: {stepList(c.def, pending)} still open</> : null}.
+          {hasRedFlag ? ' A red-flag question cannot be declined: answer it yes or no.' : null}
         </p>
       ) : null}
       <ol className="lfc-proc">
@@ -372,6 +503,8 @@ export function OutcomeForm({ c, draft, where }: { c: ActCtx; draft: OutcomeDraf
   const reassess = c.def.tripwire?.reassess_after_s ?? s.spec.tripwire.reassess_after_s
   const pending = pendingRequired(s)
   const blocked = pending.length > 0
+  // a red-flag question still open is answered, never declined (canDecline)
+  const red = pending.filter((pid) => isRedFlagStep({ id: pid, red_flag: (c.def.procedure ?? []).find((x) => x.id === pid)?.red_flag }, s))
   const id = where === 'panel' ? 'lfc-outcome-text' : `lfc-outcome-text-${where}`
   return (
     <form
@@ -389,7 +522,16 @@ export function OutcomeForm({ c, draft, where }: { c: ActCtx; draft: OutcomeDraf
             <strong>
               Not yet: {stepList(c.def, pending)} {pending.length > 1 ? 'are' : 'is'} required and still open.
             </strong>{' '}
-            Do {pending.length > 1 ? 'each' : 'it'}, or decline it with a reason: until then an outcome is not accepted.
+            {red.length === 0 ? (
+              <>Do {pending.length > 1 ? 'each' : 'it'}, or decline it with a reason: until then an outcome is not accepted.</>
+            ) : red.length === pending.length ? (
+              <>Answer {pending.length > 1 ? 'each' : 'it'} yes or no (a red-flag question cannot be declined): until then an outcome is not accepted.</>
+            ) : (
+              <>
+                Do each, or decline it with a reason, except the red-flag question{red.length > 1 ? 's' : ''} ({stepList(c.def, red)}): answer{' '}
+                {red.length > 1 ? 'each' : 'it'} yes or no. Until then an outcome is not accepted.
+              </>
+            )}
           </p>
           <p className="lfc-entry-actions">
             {pending.map((pid) => (

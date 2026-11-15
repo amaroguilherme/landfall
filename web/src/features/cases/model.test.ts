@@ -7,6 +7,7 @@ import type { CaseEvent, CaseState, Finding } from '../../app/engine'
 import { CASE_DEFS, caseKey, caseSchedule, computeCases, tierOneFor } from '../../app/caseTimeline'
 import type { CaseEventRecord, CaseView, TierOne } from '../../app/caseTimeline'
 import type { Snapshot } from '../../app/data'
+import { evaluateRuleOn } from '../../app/evaluate'
 import { buildScenarioIndex, observationsFor } from '../../app/scenarioData'
 import type { SimCrewData, SpeReplayData } from '../../app/scenarioData'
 import type { Observation } from '../../app/vocab'
@@ -38,6 +39,7 @@ import {
 } from './model'
 import type { StdData } from './model'
 import { detectedCopy } from './helpers'
+import { RuleRow } from './panels'
 import { OverdueNote, TierOneBasis } from './status'
 import type { CaseDefFull } from './types'
 
@@ -421,5 +423,31 @@ describe('crew selection', () => {
     expect(pickCrew('renal_stone', views, 'CM-2', 'CM-1')).toBe('CM-2')
     expect(pickCrew('renal_stone', views, 'CM-9', 'CM-1')).toBe('CM-3')
     expect(pickCrew('renal_stone', views.map((x) => ({ ...x, state: { status: 'idle' } }) as unknown as CaseView), undefined, 'CM-4')).toBe('CM-4')
+  })
+})
+
+describe('"Every trigger of this case": a rule row names what its badge is judged against', () => {
+  const T = 412 * DAY + 14 * 3600 + 20 * 60
+  const row = (ruleId: string, value: number, unit: string) => {
+    const rule = getRule(RULES, ruleId)
+    const obs: Observation[] = [{ crew_id: 'CM-2', variable: rule.variable, value, unit, t: T - 60, source: 'band', provenance: 'simulated' }]
+    const ev = evaluateRuleOn(rule, obs, 'mars_surface', T)
+    const html = renderToStaticMarkup(createElement(RuleRow, { ev, why: false }))
+    return { ev, text: html.replace(/<[^>]+>/g, '').replace(/&nbsp;|\u00a0/g, ' ').replace(/\s+/g, ' ').trim() }
+  }
+  it('the renal TARGET row shows the case floor and the countermeasure target, never the floor alone beside "Below target"', () => {
+    const below = row('target_urine_output_24h', 2110, 'mL')
+    expect(below.ev.finding.status).toBe('approaching')
+    expect(below.text).toContain('2110 mL vs case floor 1500 mL · target ≥ 2500 mL')
+    expect(below.text).toContain('Below target')
+    expect(below.text).not.toContain('vs ≥ 1500')
+    const meets = row('target_urine_output_24h', 3310, 'mL')
+    expect(meets.text).toContain('3310 mL vs case floor 1500 mL · target ≥ 2500 mL')
+    expect(meets.text).toContain('Meets target')
+  })
+  it('an OPS row keeps the S-level it reached at or above', () => {
+    const ops = row('ops_onboard_proton_s3', 1100, 'pfu')
+    expect(ops.text).toContain('1100 pfu vs ≥ 1000 pfu')
+    expect(ops.text).not.toContain('case floor')
   })
 })

@@ -1,23 +1,38 @@
 // Case-specific panels: renal (urine trend vs the case floor, the bone limit that needs a scan),
 // sleep (PVT-B lapses vs the personal band and its smallest flaggable change, the lighting
-// countermeasure) and SPE (S-level changes of the replay, the ground link, dose accounting against
-// Table 4.8-1 with partial records shown as such).
+// countermeasure) and SPE (the flux and its S-level, the ground link and what the packet waits for,
+// dose accounting against Table 4.8-1 with partial records shown as such; the S-level history and the
+// design-reference requirement fold away under their own titles).
 import { useMemo } from 'react'
+import type { ReactNode } from 'react'
 import { RULES, getIndicator, getRule, sLevel } from '../../app/engine'
 import type { Rule } from '../../app/engine'
 import { useComms } from '../../app/comms'
+import { useSnapshot } from '../../app/data'
 import type { SnapshotState } from '../../app/data'
 import { evaluatePersonalAt, evaluateRuleAt, testScaleWords } from '../../app/evaluate'
 import type { CrewEvaluation, MissionEvaluation, RuleEvaluation } from '../../app/evaluate'
+import { useCases } from '../../app/model'
 import { observationDay, observationsFor } from '../../app/scenarioData'
 import type { ScenarioIndex, SimCrewData } from '../../app/scenarioData'
 import type { CrewId, EnvId, Observation, Severity } from '../../app/vocab'
-import { Chip, Citation, FindingBadge, FreshnessChip, MetTime, Num, Panel, SeverityBadge, SimulatedMarker, Expander } from '../../ui'
-import { OP_TEXT, OP_WORDS, OUTSIDE_OP, doseCoverage, findNamedTable, replayUtcOf, sLevelTransitions, windowSecondsOf } from './model'
+import { Chip, Citation, FindingBadge, FreshnessChip, MetTime, Num, Panel, ReqId, SeverityBadge, SimulatedMarker, Expander } from '../../ui'
+import {
+  OP_TEXT,
+  OP_WORDS,
+  OUTSIDE_OP,
+  doseCoverage,
+  findNamedTable,
+  findRequirement,
+  packetStateOf,
+  replayUtcOf,
+  sLevelTransitions,
+  windowSecondsOf,
+} from './model'
 import type { StdData } from './model'
 import { ChanceLine, MdcText, PartialBadge, PersonalWhy, RuleWhy, SeriesChart, SourceBlock, TestScale } from './parts'
 import type { ChartPoint, RefLine } from './parts'
-import { deliveryText } from './helpers'
+import { deliveryText, rationaleSentence } from './helpers'
 import type { CaseDefFull } from './types'
 
 const DAY_S = 86_400
@@ -43,7 +58,27 @@ export interface Partial {
   firstT: number | null
 }
 
-export function RuleRow({ ev, open = false, partial: given = null }: { ev: RuleEvaluation; open?: boolean; partial?: Partial | null }) {
+export function RuleRow({
+  ev,
+  open = false,
+  partial: given = null,
+  label = null,
+  why = true,
+  note = null,
+}: {
+  ev: RuleEvaluation
+  open?: boolean
+  partial?: Partial | null
+  /** The row's name when this view words it more precisely than the rule label ("Career effective dose, to date"). */
+  label?: ReactNode
+  /**
+   * false: the value, limit, badge and any partial-record note only, without the row's own "How this is judged"
+   * expander, for a list that gathers those in one expander of its own (the SPE dose record).
+   */
+  why?: boolean
+  /** A fine line under the value, inside the row's own box: what the row's verdict covers (the career dose, to date). */
+  note?: ReactNode
+}) {
   const f = ev.finding
   // Without an explicit coverage (e.g. the "Every trigger of this case" list), use the window coverage the app's
   // aggregate already computed (input.partial, D15), so a partial dose record never reads "within limit".
@@ -55,25 +90,48 @@ export function RuleRow({ ev, open = false, partial: given = null }: { ev: RuleE
   // An OPS level is an S-scale threshold, reached at or above its number (as "Why this fired" shows it), not a
   // compliant condition: "1100 pfu vs ≥ 1000 pfu" beside "At or above S3", never "vs < 1000 pfu".
   const shownOp = ev.rule.category === 'OPS' ? OUTSIDE_OP[ev.rule.op] : ev.rule.op
+  // A TARGET row names both lines its badge is judged against, the case floor (the rule's limit) and the
+  // countermeasure target (its approach_at): "2110 mL vs case floor 1500 mL · target ≥ 2500 mL" beside "Below
+  // target". The floor alone ("2110 mL vs ≥ 1500 mL" beside "Below target") read as a contradiction.
+  const target = ev.rule.category === 'TARGET' ? (ev.rule.approach_at?.value ?? null) : null
   return (
     <li className="lfc-row">
       <div className="lfc-row-head">
-        <span className="lfc-row-label">{ev.rule.label ?? ev.rule.id}</span>
+        <span className="lfc-row-label">{label ?? ev.rule.label ?? ev.rule.id}</span>
         <span className="lfc-row-val">
           {showPartial ? <><span className="lfc-vs">logged</span>{' '}</> : null}
-          <Num value={f.value} unit={ev.rule.unit} /> <span className="lfc-vs">{showPartial ? 'of' : 'vs'}</span> <span className="lf-num">{OP_TEXT[shownOp]}</span>{' '}
-          <Num value={ev.rule.limit} unit={ev.rule.unit} />
+          <Num value={f.value} unit={ev.rule.unit} /> <span className="lfc-vs">{showPartial ? 'of' : 'vs'}</span>{' '}
+          {target !== null ? (
+            <>
+              {/* Each line keeps its words together on a phone ("target ≥" never ends a line before "2500 mL"). */}
+              <span style={{ whiteSpace: 'nowrap' }}>
+                <span className="lfc-vs">case floor</span> <Num value={ev.rule.limit} unit={ev.rule.unit} />
+              </span>{' '}
+              <span style={{ whiteSpace: 'nowrap' }}>
+                <span className="lfc-vs">· target</span> <span className="lf-num">{OP_TEXT[ev.rule.op]}</span> <Num value={target} unit={ev.rule.unit} />
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="lf-num">{OP_TEXT[shownOp]}</span> <Num value={ev.rule.limit} unit={ev.rule.unit} />
+            </>
+          )}
         </span>
         {showPartial && !conclusive ? <PartialBadge /> : <FindingBadge finding={f} />}
         {showPartial && conclusive ? <PartialBadge /> : null}
       </div>
       {showPartial ? (
-        <p className="lfc-fine">
+        <p className="lfc-fine" style={why || note ? undefined : { marginBottom: 0 }}>
           Partial record: the first dose report is from <MetTime t={partial!.firstT ?? 0} label />, after this window opens, so the logged sum is a lower
           bound. Unlogged time is not zero dose{conclusive ? '; the limit is reached even on what is logged' : ', so "within limit" cannot be said'}.
         </p>
       ) : null}
-      <RuleWhy rule={ev.rule} finding={f} input={ev.input} open={open} />
+      {note ? (
+        <p className="lfc-fine" style={why ? undefined : { marginBottom: 0 }}>
+          {note}
+        </p>
+      ) : null}
+      {why ? <RuleWhy rule={ev.rule} finding={f} input={ev.input} open={open} /> : null}
     </li>
   )
 }
@@ -252,8 +310,32 @@ interface SimVariables {
   variables?: Record<string, { label?: string; definition?: string } | undefined>
 }
 
+/** "MeV" keeps its own case inside an uppercased kicker (".lfc-k"): "≥10 MeV", never "≥10 MEV". */
+function keepMeV(text: string): ReactNode {
+  const parts = text.split(/(MeV)/)
+  if (parts.length === 1) return text
+  return parts.map((p, i) =>
+    p === 'MeV' ? (
+      <span key={i} style={{ textTransform: 'none' }}>
+        MeV
+      </span>
+    ) : (
+      p
+    ),
+  )
+}
+
+/** The words after the [V1 4030] sentence: what "within limit" on the career row does and does not cover. */
+const NO_PROJECTION = 'LANDFALL makes no projection, so “within limit” here covers the dose to date only.'
+
 export function SpePanel(c: Ctx & { sim: SnapshotState<SimCrewData & SimVariables>; replay: SnapshotState<unknown> }) {
   const comms = useComms(c.envId, c.t)
+  // The packet state of this crewmember's case (the same fold as the page): a Prepared packet is held on board.
+  const view = useCases().get(c.def.id, c.crewId)
+  const packet = view ? packetStateOf(view.state) : 'none'
+  // [V1 4030]'s own rationale counts "the projected exposure for an upcoming mission" in the career dose (verbatim).
+  const vol1 = useSnapshot<StdData>('std_vol1_requirements')
+  const projected = rationaleSentence(findRequirement('V1 4030', vol1.data), 'projected exposure')
   const ops = c.evaluation.ops
   const series = useMemo(() => observationsFor(c.index, c.runtime, null, 'proton_flux_10mev'), [c.index, c.runtime])
   const spe = c.sim.data?.spe_day
@@ -264,6 +346,21 @@ export function SpePanel(c: Ctx & { sim: SnapshotState<SimCrewData & SimVariable
   const d30 = doses.filter((r) => r.rule.window?.kind === 'cumulative' && r.rule.window?.duration === 'P30D')
   const career = doses.filter((r) => r.rule.window?.kind === 'career' && r.rule.unit === 'mSv')
   const rest = doses.filter((r) => !d30.includes(r) && !career.includes(r))
+  // The career row says what its "within limit" covers: the dose to date, with [V1 4030]'s own words on the projection.
+  const careerNote = (
+    <>
+      {projected ? (
+        <>
+          <ReqId id="V1 4030" /> rationale, verbatim: <q>{projected}</q>{' '}
+        </>
+      ) : null}
+      {NO_PROJECTION}
+    </>
+  )
+  const shown: Array<{ r: RuleEvaluation; label?: string; note?: ReactNode }> = [
+    ...d30.map((r) => ({ r })),
+    ...career.map((r) => ({ r, label: 'Career effective dose, to date', note: careerNote })),
+  ]
   const ctx = c.crew.context.filter((r) => r.rule.case_id === c.def.id)
   const lvl = ops.s_level
   const atMars = ops.kind === 'onboard_monitor'
@@ -290,7 +387,7 @@ export function SpePanel(c: Ctx & { sim: SnapshotState<SimCrewData & SimVariable
     >
       <div className="lfc-spe-now">
         <div>
-          <p className="lfc-k">{monitorLabel}</p>
+          <p className="lfc-k">{keepMeV(monitorLabel)}</p>
           <p className="lfc-big">
             <Num value={ops.flux} unit="pfu" /> {lvl !== null ? <span className="lf-num lfc-slevel">S{lvl}</span> : null}
           </p>
@@ -300,13 +397,14 @@ export function SpePanel(c: Ctx & { sim: SnapshotState<SimCrewData & SimVariable
                 Last sample <MetTime t={ops.t} label />.{' '}
               </>
             ) : null}
-            {ops.active ? <FindingBadge finding={ops.active.finding} /> : <SeverityBadge severity="nominal" label="Below the shelter level" />}
+            {ops.active ? <FindingBadge finding={ops.active.finding} /> : <SeverityBadge severity="nominal" label="Below the shelter level" />} The vehicle’s
+            radiation monitoring system raises the radiation alarm; this case is the health response that follows it.
           </p>
         </div>
         <div>
           <p className="lfc-k">Ground link</p>
           <p className="lfc-big lf-num">{comms.link === 'LOS' ? 'NO LINK' : 'LINK UP'}</p>
-          <p className="lfc-fine">{deliveryText(comms, c.t)}</p>
+          <p className="lfc-fine">{deliveryText(comms, c.t, undefined, packet === 'none' ? undefined : packet)}</p>
         </div>
       </div>
       <SimulatedMarker>
@@ -314,71 +412,77 @@ export function SpePanel(c: Ctx & { sim: SnapshotState<SimCrewData & SimVariable
           ? 'The flux is the real GOES-7 October 1989 event, time-shifted, read as the Mars-orbit monitor’s value with no radial-distance or atmospheric correction (a scenario assumption).'
           : 'The flux is a time-shifted replay of the real GOES-7 October 1989 event (not current conditions).'}
       </SimulatedMarker>
-      <p className="lfc-fine">
-        The vehicle’s radiation monitoring system raises the radiation alarm; this case is the health response that follows it. Near Earth the reading is
-        NOAA’s GOES flux; at Mars it comes from an external space-weather monitor above the atmosphere, in Mars orbit, relayed to the habitat with no Earth link.
-      </p>
-      <h3 className="lfc-h3">S-level changes the monitor has seen</h3>
-      {transitions.length ? (
-        <div className="lfc-table-wrap">
-          <table className="lfc-table">
-            <caption className="sr-only">S-level changes up to the mission clock</caption>
-            <thead>
-              <tr>
-                <th scope="col">MET</th>
-                <th scope="col">Change</th>
-                <th scope="col" className="num">
-                  Flux (pfu)
-                </th>
-                <th scope="col">Original 1989 sample (GOES-7)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transitions.map((x) => (
-                <tr key={x.t}>
-                  <td>
-                    <MetTime t={x.t} />
-                  </td>
-                  <td className="lf-mono">
-                    {x.from === null ? `start at S${x.to}` : `S${x.from} → S${x.to}`}
-                    {shelterLevel !== null && x.to >= shelterLevel && (x.from === null || x.from < shelterLevel) ? ' (shelter level reached)' : ''}
-                  </td>
-                  <td className="num">
-                    <Num value={x.value} />
-                  </td>
-                  <td className="lf-mono">{replayUtcOf(x.t, mapIso, mapMet) ?? '—'}</td>
+      <Expander summary={`S-level changes the monitor has seen (${transitions.length})`}>
+        {transitions.length ? (
+          <div className="lfc-table-wrap">
+            <table className="lfc-table">
+              <caption className="sr-only">S-level changes up to the mission clock</caption>
+              <thead>
+                <tr>
+                  <th scope="col">MET</th>
+                  <th scope="col">Change</th>
+                  <th scope="col" className="num">
+                    Flux (pfu)
+                  </th>
+                  <th scope="col">Original 1989 sample (GOES-7)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="lfc-fine">No proton samples up to the mission clock.</p>
-      )}
-      <p className="lfc-fine">
-        S-levels use NOAA’s ≥10 MeV thresholds. Nothing is forecast: later changes appear as the mission clock reaches them.
-        {shelterRule && shelterLevel !== null ? (
-          <>
-            {' '}
-            Shelter level here: S{shelterLevel}, {OP_WORDS[OUTSIDE_OP[shelterRule.op]]} <Num value={shelterRule.limit} unit="pfu" /> (
-            {shelterRule.label}) <Chip kind={shelterRule.chip} />.
-          </>
-        ) : null}
-      </p>
+              </thead>
+              <tbody>
+                {transitions.map((x) => (
+                  <tr key={x.t}>
+                    <td>
+                      <MetTime t={x.t} />
+                    </td>
+                    <td className="lf-mono">
+                      {x.from === null ? `start at S${x.to}` : `S${x.from} → S${x.to}`}
+                      {shelterLevel !== null && x.to >= shelterLevel && (x.from === null || x.from < shelterLevel) ? ' (shelter level reached)' : ''}
+                    </td>
+                    <td className="num">
+                      <Num value={x.value} />
+                    </td>
+                    <td className="lf-mono">{replayUtcOf(x.t, mapIso, mapMet) ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="lfc-fine">No proton samples up to the mission clock.</p>
+        )}
+        <p className="lfc-fine">
+          S-levels use NOAA’s ≥10 MeV thresholds. Nothing is forecast: later changes appear as the mission clock reaches them.
+          {shelterRule && shelterLevel !== null ? (
+            <>
+              {' '}
+              Shelter level here: S{shelterLevel}, {OP_WORDS[OUTSIDE_OP[shelterRule.op]]} <Num value={shelterRule.limit} unit="pfu" /> (
+              {shelterRule.label}) <Chip kind={shelterRule.chip} />.
+            </>
+          ) : null}
+        </p>
+        <p className="lfc-fine">
+          Near Earth the reading is NOAA’s GOES flux; at Mars it comes from an external space-weather monitor above the atmosphere, in Mars orbit, relayed to
+          the habitat with no Earth link.
+        </p>
+      </Expander>
       <h3 className="lfc-h3">Dose record against NASA’s 30-day organ limits (Table 4.8-1)</h3>
       <p className="lfc-fine">
-        Organ doses come from the vehicle’s radiation monitoring system or ground analysts, in the table’s own unit (mGy-Eq or mGy). The habitat monitor’s
-        absorbed dose rate is never turned into an organ dose here, and no mSv is projected. An empty row is missing data, not zero; a record that starts
-        after its window opens is a partial record.
+        Organ doses come from the vehicle’s radiation monitoring system or ground analysts, in the table’s own unit (mGy-Eq or mGy). That the vehicle reports
+        organ doses onboard, in Table 4.8-1’s own units, is a scenario assumption. The habitat monitor’s absorbed dose rate is never turned into an organ dose
+        here, and no mSv is projected. An empty row is missing data, not zero; a record that starts after its window opens is a partial record.
       </p>
+      {/* The 30-day and career rows stay in sight, one line each (a partial record keeps its note); how each row is
+          judged, and the 1-year and career organ limits, are one expander below. */}
       <ul className="lfc-rows">
-        {[...d30, ...career].map((r) => (
-          <RuleRow key={r.rule.id} ev={r} partial={partialOf(r)} />
+        {shown.map(({ r, label, note }) => (
+          <RuleRow key={r.rule.id} ev={r} partial={partialOf(r)} label={label} note={note} why={false} />
         ))}
       </ul>
-      {rest.length ? (
-        <Expander summary={`1-year and career organ limits (${rest.length})`}>
+      {shown.length + rest.length ? (
+        <Expander summary={`Every dose limit and how each is judged (${shown.length + rest.length})`}>
           <ul className="lfc-rows">
+            {shown.map(({ r, label }) => (
+              <RuleRow key={r.rule.id} ev={r} partial={partialOf(r)} label={label} />
+            ))}
             {rest.map((r) => (
               <RuleRow key={r.rule.id} ev={r} partial={partialOf(r)} />
             ))}
@@ -386,14 +490,13 @@ export function SpePanel(c: Ctx & { sim: SnapshotState<SimCrewData & SimVariable
         </Expander>
       ) : null}
       {ctx.map((r) => (
-        <div key={r.rule.id} className="lfc-context">
-          <h3 className="lfc-h3">Why this event: {r.rule.label}</h3>
+        <Expander key={r.rule.id} summary={`Why this event: ${r.rule.label}`}>
           <p className="lfc-fine">
             {r.rule.notes?.[0]}
             {/never fires/i.test(r.rule.notes?.[0] ?? '') ? null : ' Shown for context; it never fires.'}
           </p>
           <SourceBlock source={r.rule.source} compact />
-        </div>
+        </Expander>
       ))}
     </Panel>
   )

@@ -1,23 +1,31 @@
 // The case status card at the top of #/case/:id: the ONE next action, where the eye lands.
 //   detected -> Start the primary countermeasure, and step 1 shown before it is unlocked; when step 1 is a
 //               red-flag question (renal), the card leads with that question instead (helpers.ts detectedCopy);
-//   acting   -> the next open step with its control (and the decline control when it is required);
+//   acting   -> the next open step with its control (and the decline control when it is required and not a
+//               red-flag question);
 //   watch    -> the tripwire countdown and the demo jump to the reassessment;
 //   escalated-> the two tiers (D4): the onboard Crew Medical Officer now, the flight surgeon through the
-//               ground packet, queued until the link resumes (LOS) or sent at once (AOS).
+//               ground packet, queued until the link resumes (LOS) or sent at once (AOS); after a red-flag "yes",
+//               the rest of the procedure is held until tier 1 has seen the crewmember (a design choice).
+// A reassessment overdue sits right under the status row, above the next step. The badge is filled (reverse
+// video) only where immediate action is needed (statusBadgeSolid).
 // No native <details> here: the page's first expander stays the Detect panel's "Why this fired".
 import { Fragment } from 'react'
 import type { ReactNode } from 'react'
 import { tierOneFor, tierOneQuotes } from '../../app/caseTimeline'
 import type { CaseView } from '../../app/caseTimeline'
+import type { CaseState } from '../../app/engine'
 import { useMetNow } from '../../app/mission'
 import { overdueOf, tellClause } from '../../app/procedureAlerts'
+import type { Observation } from '../../app/vocab'
 import { Button, ButtonLink, Chip, MetTime, Num, ReqId, SeverityBadge } from '../../ui'
 import {
+  OP_WORDS,
   STATUS_WORD,
   escalationMeta,
   formatSpan,
   isOpen,
+  meetsCondition,
   nextOpenStep,
   openingSeverity,
   packetLabel,
@@ -26,10 +34,11 @@ import {
   stepDef,
   stepList,
   stepNumber,
+  variableLabel,
 } from './model'
 import { autonomyText, deliveryText, detectedCopy, jumpTo, openingNote, stepAnchor } from './helpers'
 import type { ActCtx, OutcomeDraft } from './procedure'
-import { OutcomeForm, StepControls, StepTags } from './procedure'
+import { OutcomeForm, StepControls, StepTags, heldByRedFlag, tierOneWho } from './procedure'
 import { TMinus } from './parts'
 import type { CaseDefFull, UnscriptedOpening } from './types'
 
@@ -39,28 +48,98 @@ function ClockNow() {
 }
 
 /**
+ * The readings of the tripwire's own variable in hand since this instance opened: the last `of_last_n` at or before
+ * the fold (ActCtx.recent), minus any from before the opening. Presentation only: the tripwire itself judges only the
+ * readings after the outcome (state.tripwire_obs), and nothing here raises an alert or changes the case.
+ */
+export function readingsSinceOpened(recent: (variable: string, n: number) => Observation[], state: Pick<CaseState, 'spec' | 'opened_at'>): Observation[] {
+  const cond = state.spec.tripwire.condition
+  const opened = state.opened_at
+  if (opened === null) return []
+  return recent(cond.variable, cond.of_last_n).filter((o) => o.t >= opened)
+}
+
+/** A variable's label inside a sentence ("Sleep duration" -> "sleep duration"; acronyms such as PVT-B kept). */
+const inSentence = (variable: string) => {
+  const l = variableLabel(variable)
+  return /^[A-Z][a-z]/.test(l) ? l.charAt(0).toLowerCase() + l.slice(1) : l
+}
+
+/** How many of the readings in hand meet the tripwire condition, against it (the engine's own compare). */
+function ReadingsInHand({ state, readings }: { state: Pick<CaseState, 'spec'>; readings: readonly Observation[] }) {
+  const cond = state.spec.tripwire.condition
+  const hits = readings.filter((o) => meetsCondition(o.value, cond.op, cond.value)).length
+  return (
+    <p className="lfc-overdue" data-readings-in-hand="">
+      Readings in hand since the case opened: <Num value={hits} /> of the last <Num value={readings.length} /> readings of {inSentence(cond.variable)} meet its
+      escalation condition ({OP_WORDS[cond.op]} <Num value={cond.value} unit={cond.unit === 'count' ? undefined : cond.unit} />; it escalates at{' '}
+      <Num value={cond.at_least} /> of <Num value={cond.of_last_n} />
+      ). The tripwire itself judges only readings after the outcome.
+    </p>
+  )
+}
+
+/**
  * A detected or acting case past its own reassessment interval, on the case page: the same rule and wording as the
  * alert bar's "Reassessment overdue" line (app/procedureAlerts.ts overdueOf, a design choice; the engine arms the
  * tripwire only at the outcome), with what to do. Nothing for a case that is not overdue at `t` (the case fold MET).
+ * `readings` (readingsSinceOpened) adds how many of the readings in hand already meet the tripwire's condition.
  */
-export function OverdueNote({ view, t }: { view: CaseView; t: number }) {
+export function OverdueNote({ view, t, readings }: { view: CaseView; t: number; readings?: readonly Observation[] }) {
   const o = overdueOf(view, t)
   if (!o) return null
   const started = o.phase === 'acting'
   return (
-    <p className="lfc-overdue" data-overdue="">
-      <SeverityBadge severity="caution" label="Reassessment overdue" size="sm" /> Since <MetTime t={o.since} label />: no outcome is logged
-      within this case’s own reassessment interval (<span className="lf-num">{formatSpan(view.state.spec.tripwire.reassess_after_s)}</span>) of its{' '}
-      {started ? 'start' : 'opening'}, so its tripwire has not judged it. {started ? 'Log the outcome' : 'Start the countermeasure and log the outcome'}, or{' '}
-      {tellClause([view.crewId], tierOneFor)}. <Chip kind="design choice" />
-    </p>
+    <>
+      <p className="lfc-overdue" data-overdue="">
+        <SeverityBadge severity="caution" label="Reassessment overdue" size="sm" /> Since <MetTime t={o.since} label />: no outcome is logged
+        within this case’s own reassessment interval (<span className="lf-num">{formatSpan(view.state.spec.tripwire.reassess_after_s)}</span>) of its{' '}
+        {started ? 'start' : 'opening'}, so its tripwire has not judged it. {started ? 'Log the outcome' : 'Start the countermeasure and log the outcome'}, or{' '}
+        {tellClause([view.crewId], tierOneFor)}. <Chip kind="design choice" />
+      </p>
+      {readings?.length ? <ReadingsInHand state={view.state} readings={readings} /> : null}
+    </>
   )
+}
+
+/**
+ * Is a case's status badge filled (reverse video)? NASA-STD-3001 Vol 2 Appendix F F.5.10 g: "Reverse video (e.g.,
+ * inverted background/foreground color) must be reserved for events that require immediate crew attention or action."
+ * Table 10.3-1: a Warning "requires immediate action"; a Caution "needs attention, but not immediate action". So a case
+ * opened by a Warning (the shelter) is filled while it is open, every escalated case is filled (tier 1 is told now),
+ * and a Caution case that is detected, acting or on watch is an outline. Not open, resolved and dismissed: never.
+ */
+export function statusBadgeSolid(view: Pick<CaseView, 'state' | 'opening'>): boolean {
+  const s = view.state.status
+  if (s === 'idle' || s === 'resolved' || s === 'dismissed') return false
+  const sev = openingSeverity(view)
+  return s === 'escalated' || sev === 'warning' || sev === 'emergency'
 }
 
 export function CaseStatusBadge({ view, size = 'md' }: { view: CaseView; size?: 'sm' | 'md' | 'lg' }) {
   const s = view.state.status
   if (s === 'idle' || s === 'resolved' || s === 'dismissed') return <SeverityBadge severity="nominal" label={STATUS_WORD[s]} size={size} />
-  return <SeverityBadge severity={openingSeverity(view)} label={STATUS_WORD[s]} size={size} solid={s !== 'escalated'} />
+  return <SeverityBadge severity={openingSeverity(view)} label={STATUS_WORD[s]} size={size} solid={statusBadgeSolid(view)} />
+}
+
+/**
+ * After a red-flag "yes" (D4): what the crewmember does with the rest of the procedure, which cases.json does not say.
+ * Holding it until tier 1 has seen them is LANDFALL's design choice. Nothing for any other state.
+ */
+export function RedFlagHold({ view }: { view: Pick<CaseView, 'state' | 'tier1'> }) {
+  if (!heldByRedFlag(view.state) || nextOpenStep(view.state) === null) return null
+  return (
+    <div className="lfc-redflag" role="note" data-hold="">
+      <p>
+        {/* the backup's words end in an appositive ("…, the Commander (CM-1)"), closed by a comma mid-sentence */}
+        <strong>
+          Hold the rest of this procedure until {tierOneWho(view.tier1)}
+          {view.tier1.backup ? ',' : ''} has seen you.
+        </strong>{' '}
+        <Chip kind="design choice" />
+      </p>
+    </div>
+  )
 }
 
 /**
@@ -347,6 +426,7 @@ export function NowCard({ view, def, c, onSelect, startCount, shared, allCrew, s
               <>Escalated at <MetTime t={s.closed_at ?? c.t} label />.</>
             )}
           </p>
+          {red ? <RedFlagHold view={view} /> : null}
           {!red && def.tripwire?.text ? <p className="lfc-fine">The case’s tripwire, as written: “{def.tripwire.text}”</p> : null}
           <EscalationTiers c={c} view={view} idSuffix="banner" />
         </>
@@ -394,11 +474,12 @@ export function NowCard({ view, def, c, onSelect, startCount, shared, allCrew, s
           Mission clock <ClockNow />
         </span>
       </div>
+      {/* overdue: right under the status row, before the next step it is about */}
+      <OverdueNote view={view} t={c.t} readings={readingsSinceOpened(c.recent, s)} />
       <h2 id="lfc-now-h" className="lfc-now-title">
         {title}
       </h2>
       {body}
-      <OverdueNote view={view} t={c.t} />
       {shared && open && (s.status === 'detected' || s.status === 'acting') ? (
         <label className="lfc-check">
           <input type="checkbox" checked={allCrew} onChange={(e) => setAllCrew(e.target.checked)} />

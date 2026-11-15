@@ -1042,19 +1042,41 @@ def test_scoped_claims_and_modelled_window(R):
 
 def test_s5_crew_facing_text_uses_math_signs_and_scoped_refusals(R):
     """S5: rules prose prints >= / <= / +/- as the signs (crew-facing labels, steps, tripwire texts, and every
-    other text), and the dosing refusal is scoped to the crew: medication decisions belong to the flight surgeon,
-    whose ground-packet note is the one place a medication is named."""
+    other text), and the dosing refusal is scoped to the crew: medication decisions belong to the Crew Medical
+    Officer and the flight surgeon (the renal case's own refusal says the same, so its cue card agrees), and the
+    flight surgeon's ground-packet note is the one place a medication is named. The diagnosis refusal names the
+    same two roles."""
     for name, doc in R.items():
         for v in snapshot_strings(doc):  # every string, keys' values and list items alike
             for ascii_op in (">=", "<=", "+/-"):
                 assert ascii_op not in v, f"{name}: {ascii_op!r} in {v[:100]!r}"
-    dosing = next(r for r in R["meta"]["refusals"] if r["id"] == "no_dosing")
-    assert dosing["text"] == ("No medication or dosing advice to the crew; medication decisions belong to the flight "
-                              "surgeon.")
+    refusals = {r["id"]: r["text"] for r in R["meta"]["refusals"]}
+    assert refusals["no_dosing"] == ("No medication or dosing advice to the crew; medication decisions belong to the "
+                                     "Crew Medical Officer and the flight surgeon.")
+    # the cue cards print both refusals; the short form ("No diagnosis: that is for ...") is the agreed fallback if
+    # the SPE card ever needs the line back, so either form passes
+    assert refusals["no_diagnosis"].startswith("No diagnosis")
+    assert refusals["no_diagnosis"].endswith("is for the Crew Medical Officer and the flight surgeon.")
+    for text in (refusals["no_dosing"], refusals["no_diagnosis"]):
+        assert "belong to the flight surgeon" not in text and "flight surgeon's job" not in text, text
     spe = next(c for c in R["cases"]["cases"] if c["id"] == "spe_shelter")
     assert "≥10 MeV" in spe["tripwire"]["text"] and any("≥10 MeV" in p["text"] for p in spe["procedure"])
     onboard = next(r for r in R["thresholds"]["rules"] if r["id"] == "ops_onboard_proton_s3")
     assert "≥10 MeV" in onboard["label"]
+
+
+def test_lens_footnote_is_quoted_verbatim(R):
+    """Round 3: each Table 4.8-1 lens rule quotes footnote * word for word (it was a paraphrase), up to 'e.g., from a
+    solar particle event.'; the footnote's next sentence (sub-clinical cataracts from cosmic rays) is not quoted."""
+    table = next(t for t in need_snapshot("std_vol1_requirements")["data"]["tables"] if t["id"] == "Table 4.8-1")
+    (star,) = [f for f in table["footnotes"] if f.startswith("*") and not f.startswith("**")]
+    lens = [r for r in R["thresholds"]["rules"] if r["id"].startswith("pel_t481_lens_")]
+    assert {r["id"] for r in lens} == {"pel_t481_lens_30d", "pel_t481_lens_1y", "pel_t481_lens_career"}
+    for r in lens:
+        (note,) = [n for n in r["notes"] if n.startswith("Footnote *:")]
+        m = re.fullmatch(r"Footnote \*: “(.+)”", note)
+        assert m and star.startswith("*" + m.group(1)), (r["id"], note)
+        assert m.group(1).endswith("e.g., from a solar particle event."), note
 
 
 # ------------------------------------------------------------------ lane-polish (W6 leftovers)

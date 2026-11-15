@@ -7,24 +7,27 @@
 // SELECT / STEP / DECLINE / OUTCOME / DISMISS. Every number is from the rules JSON, a snapshot or the engine.
 // LANDFALL runs three deep cases; other findings show their limit and one action (D11), listed on #/case.
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { RULES, getIndicator, getRule } from '../../app/engine'
 import type { CaseState, Finding, FindingAction, Indicator, Op } from '../../app/engine'
 import { CASE_DEFS } from '../../app/caseTimeline'
 import type { CaseView } from '../../app/caseTimeline'
 import { useComms } from '../../app/comms'
 import { useSnapshot } from '../../app/data'
-import { chanceDiffers, chanceRateOf, testScaleWords } from '../../app/evaluate'
+import { chanceDiffers, chanceRateOf } from '../../app/evaluate'
 import type { CrewEvaluation, MissionEvaluation, PersonalEvaluation, RuleEvaluation } from '../../app/evaluate'
+import { navigate } from '../../app/location'
 import { metClock, useMetClock, useMission } from '../../app/mission'
 import { useCases, useEvaluation, useScenario } from '../../app/model'
 import type { CaseEventInput } from '../../app/model'
+import { overdueOf } from '../../app/procedureAlerts'
 import type { FeatureProps } from '../../app/router'
 import { environment } from '../../app/scenario'
 import { observationsFor } from '../../app/scenarioData'
 import type { ScenarioIndex, SimCrewData } from '../../app/scenarioData'
-import { CREW_IDS, SEVERITY_RANK, crewMember } from '../../app/vocab'
+import { CREW_IDS, SEVERITY_RANK, crewMember, isCrewId } from '../../app/vocab'
 import type { CrewId, EnvId, Observation, Severity } from '../../app/vocab'
-import { Button, CategoryBadge, Chip, EmptyState, Expander, FindingBadge, FreshnessChip, MetTime, Num, Panel, ReqId, SimulatedMarker } from '../../ui'
+import { Button, CategoryBadge, Chip, EmptyState, Expander, FindingBadge, FreshnessChip, MetTime, Num, Panel, ReqId, SeverityBadge, SimulatedMarker } from '../../ui'
 import { opsLevelOf } from '../../ui/badges'
 import { PrintCardLink } from '../cuecard/PrintLink'
 import './cases.css'
@@ -44,6 +47,8 @@ import {
   isOpen,
   lastN,
   latestAtOrBefore,
+  basisSummary,
+  meetsCondition,
   nextOpenStep,
   pendingRequired,
   pickCrew,
@@ -56,7 +61,7 @@ import {
 import type { Stage, StdData } from './model'
 import { RenalPanel, RuleRow, SleepPanel, SpePanel } from './panels'
 import { detectedCopy, jumpTo, openingNote, rejectionWords } from './helpers'
-import { BandRange, ChanceLine, ChanceNoteBlock, EventLog, KindChip, MdcText, PersonalBadge, PersonalWhy, RefsProvider, RuleWhy, SourceBlock, TestScale, arrowFor } from './parts'
+import { BandRange, ChanceLine, ChanceNoteBlock, EventLog, KindChip, MdcText, PersonalBadge, PersonalWhy, RefsProvider, RuleWhy, SourceBlock, TargetReached, arrowFor } from './parts'
 import type { CaseRefs } from './parts'
 import { OutcomePanel, ProcedurePanel } from './procedure'
 import type { ActCtx, OutcomeDraft, StepInput } from './procedure'
@@ -73,11 +78,35 @@ type SimWithCheck = SimCrewData & { self_check?: SimSelfCheck; variables?: Recor
 
 export default function Cases({ params, query }: FeatureProps) {
   const cases = useCases()
-  const { state } = useMission()
+  const { state, setCrew } = useMission()
   const vol1 = useSnapshot<StdData>('std_vol1_requirements')
   const vol2 = useSnapshot<StdData>('std_vol2_requirements')
   const sScale = useSnapshot<{ levels?: [] }>('swpc_s_scale')
   const refs = useMemo<CaseRefs>(() => ({ vol1, vol2, sScale }), [vol1, vol2, sScale])
+
+  // A case page that names its crewmember (#/case/spe_shelter?crew=CM-3: the crew tabs, the case list, the alert bar)
+  // selects that crewmember in the mission bar too, as #/body?crew= does, so the bar, the page and Noon Sight name the
+  // same person. Without ?crew= the page follows the bar (pickCrew), as before.
+  const caseId = params.id
+  const qCrew = caseId ? query.crew : undefined
+  useEffect(() => {
+    if (isCrewId(qCrew) && qCrew !== state.crewId) setCrew(qCrew)
+    // only when the route's crewmember changes: the bar stays free to pick another one (below)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseId, qCrew])
+  // ...and the other way: a crewmember picked in the mission bar moves a page that names one in ?crew= to that
+  // crewmember (the address is replaced, not pushed). Only a change of the bar's value counts, so the sync above
+  // (route -> bar) never bounces back.
+  const barCrew = useRef(state.crewId)
+  useEffect(() => {
+    const was = barCrew.current
+    barCrew.current = state.crewId
+    if (was === state.crewId || !caseId || !isCrewId(qCrew) || qCrew === state.crewId) return
+    const q = new URLSearchParams(query)
+    q.set('crew', state.crewId)
+    navigate(`/case/${caseId}?${q.toString()}`, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.crewId])
 
   if (cases.status === 'loading') {
     return (
@@ -96,7 +125,7 @@ export default function Cases({ params, query }: FeatureProps) {
   if (!params.id) {
     return (
       <RefsProvider value={refs}>
-        <CaseList views={cases.cases} storeCrew={state.crewId} />
+        <CaseList views={cases.cases} storeCrew={state.crewId} t={cases.t} />
       </RefsProvider>
     )
   }
@@ -133,7 +162,7 @@ export default function Cases({ params, query }: FeatureProps) {
 // #/case: the three deep cases x four crewmembers, most urgent first; then the findings without a case
 // =============================================================================================
 
-function CaseList({ views, storeCrew }: { views: CaseView[]; storeCrew: CrewId }) {
+function CaseList({ views, storeCrew, t }: { views: CaseView[]; storeCrew: CrewId; t: number }) {
   const { evaluation } = useEvaluation()
   const defs = sortByUrgency(CASE_DEFS as unknown as CaseDefFull[], views)
   return (
@@ -179,22 +208,34 @@ function CaseList({ views, storeCrew }: { views: CaseView[]; storeCrew: CrewId }
                   </a>
                 </p>
                 <ul className="lfc-crew-row" aria-label={`${def.title}: status per crewmember`}>
-                  {mine.map((v) => (
-                    <li key={v.key} className="lfc-crew-item">
-                      <a href={`#/case/${def.id}?crew=${v.crewId}`} className="lfc-crew-link">
-                        <span className="lf-mono">{v.crewId}</span>
-                        <CaseStatusBadge view={v} size="sm" />
-                        {v.state.opened_at !== null ? (
-                          <span className="lfc-fine">
-                            {v.state.instance > 1 ? 'opened again' : 'opened'} <MetTime t={v.state.opened_at} />
-                            {v.state.instance > 1 ? <> (instance <Num value={v.state.instance} />)</> : null}
-                          </span>
-                        ) : null}
-                        {v.chance ? <span className="lfc-possibly-tag">possibly chance</span> : null}
-                      </a>
-                      {v.chance ? <p className="lfc-crew-chance">{v.chance.text}.</p> : null}
-                    </li>
-                  ))}
+                  {mine.map((v) => {
+                    // the alert bar's own rule and words (app/procedureAlerts overdueOf), at the case fold MET
+                    const overdue = overdueOf(v, t)
+                    return (
+                      <li key={v.key} className="lfc-crew-item">
+                        <a href={`#/case/${def.id}?crew=${v.crewId}`} className="lfc-crew-link">
+                          <span className="lf-mono">{v.crewId}</span>
+                          <CaseStatusBadge view={v} size="sm" />
+                          {v.state.opened_at !== null ? (
+                            <span className="lfc-fine">
+                              {v.state.instance > 1 ? 'opened again' : 'opened'} <MetTime t={v.state.opened_at} label />
+                              {v.state.instance > 1 ? <> (instance <Num value={v.state.instance} />)</> : null}
+                            </span>
+                          ) : null}
+                          {overdue ? (
+                            <span className="lfc-fine lfc-crew-overdue" data-overdue="">
+                              <SeverityBadge severity="caution" label="Reassessment overdue" size="sm" />{' '}
+                              <span className="lfc-nowrap">
+                                since <MetTime t={overdue.since} label />
+                              </span>
+                            </span>
+                          ) : null}
+                          {v.chance ? <span className="lfc-possibly-tag">possibly chance</span> : null}
+                        </a>
+                        {v.chance ? <p className="lfc-crew-chance">{v.chance.text}.</p> : null}
+                      </li>
+                    )
+                  })}
                 </ul>
               </article>
             </li>
@@ -442,8 +483,11 @@ function CaseDetail({ view, all, t, dispatch }: DetailProps) {
 
   return (
     <article className="lfc" aria-labelledby="lfc-title">
-      <header className="lfc-head">
-        <p className="lf-eyebrow">
+      {/* On a phone (cases.css, max-width 640px) the crew tabs and the status card come right under the title, before
+          the lede, the print link, the simulated banner and the stepper; the order of the markup, and the desktop
+          layout, stay as they are. */}
+      <header className="lfc-head lfc-head-case">
+        <p className="lf-eyebrow lfc-head-eyebrow">
           Case · {crew.id} {crew.role} · {env.label}
         </p>
         <h1 id="lfc-title">{def.title}</h1>
@@ -482,7 +526,7 @@ function CaseDetail({ view, all, t, dispatch }: DetailProps) {
       </header>
 
       <DetectPanel view={view} crewEval={crewEval} evaluation={evaluation} index={index} chance={chance} />
-      <InterpretPanel key={s.status === 'detected' || s.status === 'idle' ? 'collapsed' : 'open'} def={def} envId={envId} collapsed={s.status === 'detected' || s.status === 'idle'} />
+      <InterpretPanel def={def} envId={envId} actFirst={s.status === 'detected'} />
       <CountermeasurePanel
         def={def}
         state={s}
@@ -508,14 +552,40 @@ function CaseDetail({ view, all, t, dispatch }: DetailProps) {
       {ctxProps && def.id === 'spe_shelter' ? <SpePanel {...ctxProps} sim={sim} replay={replay} /> : null}
 
       <BoundaryPanel def={def} />
-      <Panel title="Event log" eyebrow="Engine record" id="case-log" footer={<FreshnessChip meta={sim.snapshot} status={sim.status} id="sim_crew" />}>
-        <p className="lfc-fine">
-          Every line is an engine transition, with MET. Rule, step and countermeasure names replace their IDs (a rule’s or indicator’s ID is on
-          Provenance, linked under “Why this fired”). Rejected actions stay in the record with the reason.
-        </p>
-        <EventLog log={s.log} origins={view.logOrigins} def={def} />
-      </Panel>
+      <CaseLogPanel view={view} footer={<FreshnessChip meta={sim.snapshot} status={sim.status} id="sim_crew" />} />
     </article>
+  )
+}
+
+/** How many of the latest log entries show at once; the earlier ones wait in an expander (a display choice). */
+const LOG_LATEST = 5
+
+/**
+ * The event log: the latest entries in the table, the earlier ones in a closed "Earlier entries (N)" expander above
+ * it (still in the page, in order). The log and its origins are sliced together, so every row keeps its "By".
+ */
+export function CaseLogPanel({ view, footer }: { view: CaseView; footer?: ReactNode }) {
+  const def = defOf(view)
+  const log = view.state.log
+  const cut = Math.max(0, log.length - LOG_LATEST)
+  return (
+    <Panel title="Event log" eyebrow="Engine record" id="case-log" footer={footer}>
+      <p className="lfc-fine">
+        Every line is an engine transition, with MET. Rule, step and countermeasure names replace their IDs (a rule’s or indicator’s ID is on
+        Provenance, linked under “Why this fired”). Rejected actions stay in the record with the reason.
+      </p>
+      {cut > 0 ? (
+        <Expander summary={`Earlier entries (${cut})`}>
+          <EventLog log={log.slice(0, cut)} origins={view.logOrigins.slice(0, cut)} def={def} caption="Case event log, earlier entries" />
+        </Expander>
+      ) : null}
+      <EventLog
+        log={log.slice(cut)}
+        origins={view.logOrigins.slice(cut)}
+        def={def}
+        caption={cut > 0 ? 'Case event log, latest entries' : 'Case event log'}
+      />
+    </Panel>
   )
 }
 
@@ -614,6 +684,24 @@ function EarlierInstances({ view }: { view: CaseView }) {
   )
 }
 
+/**
+ * "· at or past this case’s tripwire line (≥ 4)", after a trigger's latest value, when that value meets the case's
+ * tripwire condition (state.spec.tripwire.condition, after by_env; the engine's own compare via meetsCondition), with
+ * the tripwire's chip (a design choice). Only on the variable the tripwire watches. Context, not a verdict: the
+ * tripwire judges only after the outcome, on its own last readings.
+ */
+function TripwireLine({ def, state, variable, value }: { def: CaseDefFull; state: CaseState; variable: string; value: number | null }) {
+  const cond = state.spec.tripwire.condition
+  if (value === null || cond.variable !== variable || !meetsCondition(value, cond.op, cond.value)) return null
+  return (
+    <span className="lfc-trip-line" data-tripwire-line="">
+      {' '}
+      · {cond.op === 'ge' || cond.op === 'le' ? 'at or past' : 'past'} this case’s tripwire line (<span className="lf-num">{OP_TEXT[cond.op]}</span>{' '}
+      <Num value={cond.value} unit={cond.unit === 'count' ? undefined : cond.unit} />) <Chip kind={def.tripwire?.chip ?? 'design choice'} />
+    </span>
+  )
+}
+
 function DetectPanel({
   view,
   crewEval,
@@ -661,20 +749,21 @@ function DetectPanel({
               </>
             ) : opening.category === 'OPS' && opening.op ? (
               <OpsReached finding={opening} op={opening.op} unit={unit} />
+            ) : opening.category === 'TARGET' && openingRule ? (
+              <TargetReached rule={openingRule} unit={unit} />
             ) : opening.op ? (
               <>
-                ; {opening.category === 'TARGET' ? 'the target' : 'the limit'} is met only {OP_WORDS[opening.op]} <Num value={opening.limit} unit={unit} />.
+                ; the limit is met only {OP_WORDS[opening.op]} <Num value={opening.limit} unit={unit} />.
               </>
             ) : (
               '.'
             )}{' '}
             <CategoryBadge category={opening.category} /> <Chip kind={opening.chip} /> <FindingBadge finding={opening} />
           </p>
+          {/* the chance rate stays in view; the test scale and the measured multipliers are under "Why this fired" */}
           {openingInd ? (
-            <p className="lfc-fine">
-              <TestScale indicator={openingInd} compact />
-              {testScaleWords(openingInd) ? '. ' : null}
-              <ChanceLine indicator={openingInd} />
+            <p className="lfc-fine lfc-chance-p">
+              <ChanceLine indicator={openingInd} brief />
             </p>
           ) : null}
           {openingRule ? <RuleWhy rule={openingRule} finding={opening} /> : null}
@@ -733,14 +822,14 @@ function DetectPanel({
                       <span className="lfc-vs">smallest flaggable change</span> <MdcText finding={personal.finding} />
                     </>
                   ) : null}
+                  <TripwireLine def={def} state={s} variable={personal.indicator.variable} value={personal.finding.value} />
                 </span>
                 <PersonalBadge finding={personal.finding} />
               </div>
-              {testScaleWords(personal.indicator) || chanceDiffersFor(personal.indicator) ? (
-                <p className="lfc-fine">
-                  <TestScale indicator={personal.indicator} compact />
-                  {testScaleWords(personal.indicator) ? '. ' : null}
-                  {chanceDiffersFor(personal.indicator) ? <ChanceLine indicator={personal.indicator} /> : null}
+              {/* the chance rate stays in view; the test scale and the measured multipliers are under "How this is judged" */}
+              {chanceDiffersFor(personal.indicator) ? (
+                <p className="lfc-fine lfc-chance-p">
+                  <ChanceLine indicator={personal.indicator} brief />
                 </p>
               ) : null}
               <PersonalWhy indicator={personal.indicator} finding={personal.finding} baselineDays={index.baselineDays} />
@@ -757,7 +846,7 @@ function DetectPanel({
 }
 
 // =============================================================================================
-// 2. Interpret (collapsed while the case is only detected: act first, read after)
+// 2. Interpret (closed for every status; while the case is only detected its summary says act first, read after)
 // =============================================================================================
 
 function useHrp() {
@@ -776,7 +865,11 @@ function Rating({ r }: { r?: { lxc: string; disposition: string } }) {
   )
 }
 
-function InterpretPanel({ def, envId, collapsed }: { def: CaseDefFull; envId: EnvId; collapsed: boolean }) {
+/**
+ * Closed for every status (its content stays in the page): the summary names it, and while the case is only detected
+ * it says to act first.
+ */
+export function InterpretPanel({ def, envId, actFirst }: { def: CaseDefFull; envId: EnvId; actFirst: boolean }) {
   const { risks, roadmap, hazards } = useHrp()
   const risk = risks.data?.risks?.find((r) => r.url === def.hrp_risk?.url || r.detail?.canonical_url === def.hrp_risk?.url || r.name === def.hrp_risk?.title) ?? null
   const ids = hrrIdsOf(def, risk?.detail?.hrr_risk_id)
@@ -929,7 +1022,7 @@ function InterpretPanel({ def, envId, collapsed }: { def: CaseDefFull; envId: En
         </>
       }
     >
-      {collapsed ? <Expander summary="What this means, in plain words (act first: start the countermeasure above, read this after)">{content}</Expander> : content}
+      <Expander summary={`What this means, in plain words${actFirst ? ' (act first: start the countermeasure above, read this after)' : ''}`}>{content}</Expander>
     </Panel>
   )
 }
@@ -959,7 +1052,12 @@ function CmBody({ cm }: { cm: CmDef }) {
   )
 }
 
-function CountermeasurePanel({ def, state, onSelect, sharedNote }: { def: CaseDefFull; state: CaseState; onSelect: (id: string) => void; sharedNote: number }) {
+/**
+ * 3. The one primary countermeasure: its title and the Start button (or what was selected) in view; its rationale,
+ * chip and verbatim sources in a closed "Why this countermeasure" expander, still in the page; the alternatives in
+ * "Other options".
+ */
+export function CountermeasurePanel({ def, state, onSelect, sharedNote }: { def: CaseDefFull; state: CaseState; onSelect: (id: string) => void; sharedNote: number }) {
   const cm = def.countermeasure
   if (!cm) return null
   const chosen = state.countermeasure_id
@@ -974,7 +1072,6 @@ function CountermeasurePanel({ def, state, onSelect, sharedNote }: { def: CaseDe
       <div className="lfc-cm" data-chosen={chosen === cm.primary.id || undefined}>
         <p className="lfc-k">Primary countermeasure</p>
         <h3 className="lfc-cm-title">{cm.primary.title}</h3>
-        <CmBody cm={cm.primary} />
         {canSelect ? (
           <Button onClick={() => onSelect(cm.primary.id)}>
             {copy.redFlagFirst ? (
@@ -1000,6 +1097,9 @@ function CountermeasurePanel({ def, state, onSelect, sharedNote }: { def: CaseDe
         ) : state.status === 'idle' ? (
           <p className="lfc-fine">Available once the case opens.</p>
         ) : null}
+        <Expander summary={basisSummary(cm.primary)}>
+          <CmBody cm={cm.primary} />
+        </Expander>
       </div>
       {alts.length ? (
         <Expander summary={`Other options (${alts.length}), only if the primary is not possible`}>
@@ -1026,18 +1126,18 @@ function CountermeasurePanel({ def, state, onSelect, sharedNote }: { def: CaseDe
 // Boundary + refusals
 // =============================================================================================
 
-function BoundaryPanel({ def }: { def: CaseDefFull }) {
+/** The case's boundary: each list in a closed expander that carries its count (the lists stay in the page). */
+export function BoundaryPanel({ def }: { def: CaseDefFull }) {
   const vol1 = useSnapshot<StdData>('std_vol1_requirements')
   const vol2 = useSnapshot<StdData>('std_vol2_requirements')
+  const handOffs = def.not_measurable_here ?? []
+  const refusals = def.refusals ?? []
   return (
     <Panel title="Boundary: not measurable here, and refusals" eyebrow="Boundary" id="case-boundary">
-      <div className="lfc-grid2">
-        <section aria-labelledby="lfc-nm-h">
-          <h3 id="lfc-nm-h" className="lfc-h3">
-            Not measurable here: hand-offs
-          </h3>
+      <div className="lfc-grid2 lfc-boundary">
+        <Expander summary={`Not measurable here: hand-offs (${handOffs.length})`}>
           <ul className="lfc-nm">
-            {(def.not_measurable_here ?? []).map((x) => {
+            {handOffs.map((x) => {
               const req = findRequirement(x.requirement_id, vol1.data, vol2.data)
               return (
                 <li key={x.what}>
@@ -1058,17 +1158,14 @@ function BoundaryPanel({ def }: { def: CaseDefFull }) {
               )
             })}
           </ul>
-        </section>
-        <section aria-labelledby="lfc-ref-h">
-          <h3 id="lfc-ref-h" className="lfc-h3">
-            Refusals
-          </h3>
+        </Expander>
+        <Expander summary={`Refusals (${refusals.length})`}>
           <ul className="lfc-refusals">
-            {(def.refusals ?? []).map((r) => (
+            {refusals.map((r) => (
               <li key={r}>{r}</li>
             ))}
           </ul>
-        </section>
+        </Expander>
       </div>
     </Panel>
   )

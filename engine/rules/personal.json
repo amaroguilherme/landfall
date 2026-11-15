@@ -454,11 +454,11 @@
    },
    "action": {
     "label": "Systolic blood pressure up",
-    "text": "Systolic blood pressure is up against your own baseline. Repeat the cuff reading at rest and tell a Crew Medical Officer today.",
+    "text": "Systolic blood pressure is up against your own baseline. Repeat the cuff reading at rest and tell a Crew Medical Officer today, or now if you feel unwell.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is a Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice."
+     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is a Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice. “Now if you feel unwell” is ours: the crewmember’s own report raises the urgency, not a number."
     }
    },
    "case_id": null
@@ -499,11 +499,11 @@
    },
    "action": {
     "label": "Diastolic blood pressure up",
-    "text": "Diastolic blood pressure is up against your own baseline. Repeat the cuff reading at rest and tell a Crew Medical Officer today.",
+    "text": "Diastolic blood pressure is up against your own baseline. Repeat the cuff reading at rest and tell a Crew Medical Officer today, or now if you feel unwell.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is a Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice."
+     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is a Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice. “Now if you feel unwell” is ours: the crewmember’s own report raises the urgency, not a number."
     }
    },
    "case_id": null
@@ -559,11 +559,11 @@
    },
    "action": {
     "label": "Fingerstick glucose changed",
-    "text": "Fingerstick glucose has changed against your own baseline. Repeat the reading and tell a Crew Medical Officer today.",
+    "text": "Fingerstick glucose has changed against your own baseline. Repeat the reading and tell a Crew Medical Officer today, or now if you feel unwell.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is a Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice."
+     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is a Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice. “Now if you feel unwell” is ours: the crewmember’s own report raises the urgency, not a number."
     }
    },
    "case_id": null

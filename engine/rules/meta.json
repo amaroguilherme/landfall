@@ -362,11 +362,11 @@
  "refusals": [
   {
    "id": "no_diagnosis",
-   "text": "No diagnosis. LANDFALL reports measurements against published limits and your own baseline; diagnosis is a flight surgeon's job."
+   "text": "No diagnosis. LANDFALL reports measurements against published limits and your own baseline; diagnosis is for the Crew Medical Officer and the flight surgeon."
   },
   {
    "id": "no_dosing",
-   "text": "No medication or dosing advice to the crew; medication decisions belong to the flight surgeon."
+   "text": "No medication or dosing advice to the crew; medication decisions belong to the Crew Medical Officer and the flight surgeon."
   },
   {
    "id": "no_psychiatric_alert",
@@ -506,5 +506,5 @@
    "when": "after crew release (a procedure step that releases the packet) or escalation: it is sent when a link exists, at once at AOS, when the link resumes during loss of signal or solar conjunction"
   }
  ],
- "body_region_rule": "A case's body_regions are its hazard footprint, the organs the hazard can reach, drawn as a hatched outline. Only a measured finding for the selected crewmember fills an organ. VO2max is a fitness tag (EVA assignment), not a heart or lung finding."
+ "body_region_rule": "A case's body_regions are its hazard footprint, the organs the hazard can reach, drawn as a hatched outline. Only a measured finding for the selected crewmember fills an organ. VO2max is a fitness tag (checked against the EVA fitness floor; EVA medical clearance is ground medical support's, [V1 6006]), not a heart or lung finding."
 }

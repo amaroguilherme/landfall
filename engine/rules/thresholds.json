@@ -353,7 +353,7 @@
    "case_id": "spe_shelter",
    "notes": [
     "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
-    "Footnote *: lens limits are intended to prevent early (<5 years) severe cataracts.",
+    "Footnote *: “Lens limits are intended to prevent early (<5 years) severe cataracts, e.g., from a solar particle event.”",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
    ],
@@ -411,7 +411,7 @@
    "case_id": "spe_shelter",
    "notes": [
     "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
-    "Footnote *: lens limits are intended to prevent early (<5 years) severe cataracts.",
+    "Footnote *: “Lens limits are intended to prevent early (<5 years) severe cataracts, e.g., from a solar particle event.”",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
    ],
@@ -468,7 +468,7 @@
    "case_id": "spe_shelter",
    "notes": [
     "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
-    "Footnote *: lens limits are intended to prevent early (<5 years) severe cataracts.",
+    "Footnote *: “Lens limits are intended to prevent early (<5 years) severe cataracts, e.g., from a solar particle event.”",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
    ],

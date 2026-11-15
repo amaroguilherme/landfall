@@ -392,3 +392,32 @@
 .lfc-trip-chance { margin: var(--lf-space-1) 0; }
 .lfc-instances { margin: var(--lf-space-1) 0 0; padding-left: 1.1em; display: grid; gap: 0.3em; font-size: var(--lf-text-sm); color: var(--lf-text-2); }
 .lfc-instances li { max-width: 80ch; }
+
+/* ---- density: closed expanders keep their content in the page ---- */
+/* two collapsed lists side by side: an open one grows alone, the other keeps its one-line height */
+.lfc-boundary { align-items: start; }
+/* an expander that opens a panel's body sits under the panel's own rule: no second rule, no extra gap */
+.lfc-boundary > .lf-expander,
+#case-interpret .lf-panel-body > .lf-expander:first-child { margin-top: 0; border-top: 0; }
+.lfc-trip-line { white-space: normal; }
+/* the one-sentence chance line in view ("Chance alone: ... (measured)."): one line at desktop, not a lone last word */
+.lfc-chance-p { max-width: 120ch; }
+/* the case list: a reassessment overdue, in the alert bar's words, after the opening time */
+.lfc-crew-overdue { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.35em; }
+.lfc-nowrap { white-space: nowrap; }
+
+/* ---- phone first screen (#/case/:id): the crewmember tabs and the one next action right under the title; then
+   the lede, the print link, the simulated banner and the stepper. Only the visual order changes on a phone: the
+   markup order (and the desktop layout) stay as they are. Flex items do not collapse margins, so the gaps are set here. ---- */
+@media (max-width: 640px) {
+  .lfc-head-case { display: flex; flex-direction: column; }
+  .lfc-head-case > .lfc-head-eyebrow { order: 1; }
+  .lfc-head-case > h1 { order: 2; margin-bottom: 0.25em; }
+  .lfc-head-case > .lfc-crew-switch { order: 3; margin: var(--lf-space-1) 0 0; }
+  .lfc-head-case > .lfc-now { order: 4; margin-top: var(--lf-space-1-5); }
+  .lfc-head-case > .lfc-lede { order: 5; margin: var(--lf-space-2) 0 0.5em; }
+  .lfc-head-case > .lf-cue-printlink { order: 6; }
+  .lfc-head-case > .lf-sim { order: 7; }
+  .lfc-head-case > .lfc-stepper { order: 8; }
+  .lfc-head-case > .sr-only { order: 9; }
+}

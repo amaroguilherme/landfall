@@ -14,7 +14,7 @@ import { useMetNow } from '../../app/mission'
 import { CategoryBadge, Chip, Citation, Expander, FindingBadge, MetTime, Num, ReqId, SeverityBadge, SeverityIcon, UnknownIcon } from '../../ui'
 import { opsLevelOf } from '../../ui/badges'
 import type { Severity, Status } from '../../app/vocab'
-import { OP_TEXT, OP_WORDS, OUTSIDE_OP, chipForKind, findRequirement, findTableCell, formatTMinus, metDayOf, plainDetail } from './model'
+import { OP_TEXT, OP_WORDS, OUTSIDE_OP, chipForKind, findRequirement, findTableCell, formatTMinus, metDayOf, plainDetail, targetDistance } from './model'
 import type { StdData } from './model'
 import { rejectionWords } from './helpers'
 import type { CaseDefFull } from './types'
@@ -160,34 +160,66 @@ function OpsThresholdRows({ rule, finding, op }: { rule: Rule; finding: Finding;
   )
 }
 
+/** The approach_at value of a rule, when it declares one. */
+const approachOf = (rule: Rule): number | null => (typeof rule.approach_at?.value === 'number' ? rule.approach_at.value : null)
+
 /**
- * The target rows of a TARGET rule. A countermeasure target is not a NASA limit (its category says so), so the grid
- * names it "Target" with the condition that meets it, and how far the reading is above or below it (from the
- * value and the target, like the OPS rows), never "Limit" or "Margin". Nothing is computed when the engine
- * compared nothing (its margin is null).
+ * The rows of a TARGET rule, in its source's words (the HRP renal evidence report: stone risk rises below 1.5 L/day;
+ * an effective hydration countermeasure produces 2.5-3 L/day). The rule's limit is the case floor, its approach_at the
+ * countermeasure target, both read from the rule; then how far the reading is from the nearer one (targetDistance).
+ * Never "Limit" or "Margin": a countermeasure target is not a NASA limit (its category says so).
  */
 function TargetRows({ rule, finding, op }: { rule: Rule; finding: Finding; op: Op }) {
-  const target = finding.limit ?? rule.limit
-  const d = finding.margin !== null && finding.value !== null ? finding.value - target : null
+  const floor = finding.limit ?? rule.limit
+  const target = approachOf(rule)
+  const d = targetDistance(finding.value, finding.margin, floor, target)
   return (
     <>
       <div>
-        <dt>Target (met when {OP_WORDS[op]})</dt>
+        <dt>Case floor (the HRP report: stone risk rises below it)</dt>
         <dd>
-          <span className="lf-num">{OP_TEXT[op]}</span> <Num value={target} unit={rule.unit} />
+          <Num value={floor} unit={rule.unit} />
         </dd>
       </div>
+      {target !== null ? (
+        <div>
+          <dt>Countermeasure target (the HRP report)</dt>
+          <dd>
+            <span className="lf-num">{OP_TEXT[op]}</span> <Num value={target} unit={rule.unit} /> <Chip kind={rule.approach_at?.chip} />
+          </dd>
+        </div>
+      ) : null}
       <div>
-        <dt>{d === null ? 'Distance from the target' : d > 0 ? 'Above the target by' : d < 0 ? 'Below the target by' : 'At the target'}</dt>
-        <dd>{d === null ? <Num value={null} /> : <Num value={Math.abs(d)} unit={rule.unit} />}</dd>
+        <dt>{d.label}</dt>
+        <dd>{d.by === null ? <Num value={null} /> : <Num value={d.by} unit={rule.unit} />}</dd>
       </div>
     </>
   )
 }
 
 /**
+ * The end of a TARGET opening sentence: "; the case floor is 1500 mL (the HRP report: stone risk rises below it), and
+ * its countermeasure target is 2500 mL or more." Both numbers are the rule's (limit, approach_at), never typed here.
+ */
+export function TargetReached({ rule, unit }: { rule: Pick<Rule, 'limit' | 'approach_at'>; unit: string | undefined }) {
+  const target = typeof rule.approach_at?.value === 'number' ? rule.approach_at.value : null
+  return (
+    <>
+      ; the case floor is <Num value={rule.limit} unit={unit} /> (the HRP report: stone risk rises below it)
+      {target !== null ? (
+        <>
+          , and its countermeasure target is <Num value={target} unit={unit} /> or more
+        </>
+      ) : null}
+      .
+    </>
+  )
+}
+
+/**
  * "Why this fired" for a Tier A / OPS / TARGET rule finding. FFD, PEL and POL rules show the limit as the compliant
- * condition and the engine's margin; a TARGET rule shows its target (not a limit), an OPS rule its S-scale threshold.
+ * condition and the engine's margin; a TARGET rule shows its case floor and countermeasure target (not a limit), an
+ * OPS rule its S-scale threshold.
  */
 export function RuleWhy({ rule, finding, input, open = false }: { rule: Rule; finding: Finding; input?: Aggregate | null; open?: boolean }) {
   const fired = FIRING.includes(finding.severity)
@@ -224,7 +256,8 @@ export function RuleWhy({ rule, finding, input, open = false }: { rule: Rule; fi
             </div>
           </>
         )}
-        {approach ? (
+        {/* a TARGET's approach_at is its countermeasure target, already a row of its own (TargetRows) */}
+        {approach && !target ? (
           <div>
             <dt>Approaching at</dt>
             <dd>
@@ -362,12 +395,15 @@ export function TestScale({ indicator, compact = false }: { indicator: Indicator
 /**
  * The indicator's own chance rate from the engine (chanceRate): "about 1 in N days per crewmember would flag like
  * this with no real change", with the measured multipliers where personal.json declares them (S3), so no single
- * global rate stands in for an indicator it is false for.
+ * global rate stands in for an indicator it is false for. `brief` keeps the rate sentence and its basis in one word
+ * ("measured" or "the test’s nominal rate"), for a line whose "How this is judged" / "Why this fired" expander
+ * carries the multipliers (the full line, `detail`): a nominal rate never reads as a measured one.
  */
-export function ChanceLine({ indicator, detail = false }: { indicator: Indicator; detail?: boolean }) {
+export function ChanceLine({ indicator, detail = false, brief = false }: { indicator: Indicator; detail?: boolean; brief?: boolean }) {
   const r = chanceRateOf(indicator)
   if (!r) return null
   const measured = chanceDiffers(r)
+  if (brief) return <span className="lfc-chance-line">Chance alone: {r.text} ({measured ? 'measured' : 'the test’s nominal rate'}).</span>
   return (
     <span className="lfc-chance-line">
       Chance alone: {r.text}
@@ -777,13 +813,26 @@ const ORIGIN_LABEL: Record<CaseOrigin, string> = {
   tick: 'Tripwire check',
 }
 
-/** The case's engine log (state.log) with MET timestamps and who did what; rejected events are kept, with the reason. */
-export function EventLog({ log, origins, def }: { log: readonly CaseLogEntry[]; origins: readonly CaseOrigin[]; def: CaseDefFull }) {
+/**
+ * The case's engine log (state.log) with MET timestamps and who did what; rejected events are kept, with the reason.
+ * `origins` runs parallel to `log` (slice both together); `caption` names the table for screen readers.
+ */
+export function EventLog({
+  log,
+  origins,
+  def,
+  caption = 'Case event log',
+}: {
+  log: readonly CaseLogEntry[]
+  origins: readonly CaseOrigin[]
+  def: CaseDefFull
+  caption?: string
+}) {
   if (!log.length) return <p className="lfc-fine">No events yet.</p>
   return (
     <div className="lfc-table-wrap">
       <table className="lfc-table lfc-log">
-        <caption className="sr-only">Case event log</caption>
+        <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>
             <th scope="col">MET</th>

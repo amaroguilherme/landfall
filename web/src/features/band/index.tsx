@@ -333,7 +333,7 @@ function BlockDetail({ b, meta }: { b: Block; meta: ReturnType<typeof useSnapsho
         </section>
       </div>
       {b.rates.length ? (
-        <div className="band-table-wrap">
+        <div className="band-table-wrap" tabIndex={0} role="region" aria-label="Sample rates and windows, scrollable">
           <table className="band-table">
             <caption>Sample rates and windows</caption>
             <thead>
@@ -439,7 +439,7 @@ function HandOffDetail({ h, meta }: { h: HandOff; meta: ReturnType<typeof useSna
 
 function StepsTable({ steps, caption }: { steps: Step[]; caption: string }) {
   return (
-    <div className="band-table-wrap">
+    <div className="band-table-wrap" tabIndex={0} role="region" aria-label={`${caption}, scrollable`}>
       <table className="band-table band-steps">
         <caption>{caption}</caption>
         <thead>
@@ -630,7 +630,7 @@ export default function Band({ query }: FeatureProps) {
             Power and autonomy
           </h2>
           <p className="band-small"><Prose text={MAP.power.summary} /></p>
-          <div className="band-table-wrap">
+          <div className="band-table-wrap" tabIndex={0} role="region" aria-label="Estimated average current per block, scrollable">
             <table className="band-table">
               <caption>
                 Estimated average current per block <ChipFor chip={MAP.power.budget_chip} />
@@ -736,7 +736,7 @@ export default function Band({ query }: FeatureProps) {
               </li>
             ))}
           </ul>
-          <div className="band-table-wrap">
+          <div className="band-table-wrap" tabIndex={0} role="region" aria-label="Bio-Monitor channels, scrollable">
             <table className="band-table">
               <caption>Bio-Monitor channels, as the Hexoskin datatype registry lists them</caption>
               <thead>
@@ -765,7 +765,7 @@ export default function Band({ query }: FeatureProps) {
           Safety constraints
         </h2>
         <p className="band-small band-muted"><Prose text={MAP.safety_basis} /></p>
-        <div className="band-table-wrap">
+        <div className="band-table-wrap" tabIndex={0} role="region" aria-label="Safety constraints, scrollable">
           <table className="band-table">
             <thead>
               <tr>

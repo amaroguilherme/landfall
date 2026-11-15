@@ -72,6 +72,8 @@ describe('data sources model', () => {
     expect(classifyAccessUrl('https://ssd.jpl.nasa.gov/horizons/')).toEqual({ kind: 'external', href: 'https://ssd.jpl.nasa.gov/horizons/' })
     expect(classifyAccessUrl('web/public/data/swpc_spe_replay.json')).toMatchObject({ kind: 'snapshot', id: 'swpc_spe_replay' })
     expect(classifyAccessUrl('ftp-ish thing')).toEqual({ kind: 'other', text: 'ftp-ish thing' })
+    const keyed = 'https://api.nasa.gov/DONKI/SEP?startDate=2024-01-01&endDate=2024-02-29&api_key=<NASA_API_KEY>'
+    expect(classifyAccessUrl(keyed)).toEqual({ kind: 'other', text: keyed })
   })
 
   it('compares landing URLs ignoring scheme, host case and trailing slash', () => {

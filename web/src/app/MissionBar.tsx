@@ -121,7 +121,7 @@ function CrewSelector() {
         {CREW_IDS.map((id) => {
           const c = CREW.find((m) => m.id === id)!
           return (
-            <option key={id} value={id} aria-label={`${id}, ${c.role}`}>
+            <option key={id} value={id} aria-label={`${id} · ${c.short}, ${c.role}`}>
               {id} · {c.short}
             </option>
           )

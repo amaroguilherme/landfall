@@ -210,7 +210,7 @@ function Rows({ rows }: { rows: Table1Row[] }) {
 
 function Table({ rows, caption }: { rows: Table1Row[]; caption: string }) {
   return (
-    <div className="lf-tr-table-wrap lf-rad-sep-wrap">
+    <div className="lf-tr-table-wrap lf-rad-sep-wrap" tabIndex={0} role="region" aria-label={`${caption}, scrollable`}>
       <table className="lf-tr-table lf-rad-sep-table">
         <caption className="lf-rad-caption">{caption}</caption>
         <thead>
@@ -409,7 +409,7 @@ function WholeRecord({ data }: { data: SepEventsData }) {
         ) : null}
       </p>
       <Expander summary={`All ${sc.n_triggers} triggers of the whole-record run`}>
-        <div className="lf-tr-table-wrap lf-rad-sep-wrap">
+        <div className="lf-tr-table-wrap lf-rad-sep-wrap" tabIndex={0} role="region" aria-label="Every trigger of the whole-record run, scrollable">
           <table className="lf-tr-table lf-rad-sep-table">
             <caption className="lf-rad-caption">Every trigger, with any DONKI SEP entry observed within {data.rule.donki_neighbour_days} days (listed for context, never claimed as the same event)</caption>
             <thead>

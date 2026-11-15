@@ -216,8 +216,12 @@ export type AccessUrl =
   | { kind: 'snapshot'; id: string; text: string }
   | { kind: 'other'; text: string }
 
-/** sim_crew lists the frozen files it replays as repo paths ("web/public/data/<id>.json"). */
+/**
+ * sim_crew lists the frozen files it replays as repo paths ("web/public/data/<id>.json"). A URL with a
+ * <PLACEHOLDER> in it (DONKI's "api_key=<NASA_API_KEY>") is text, never a link: it would fail if followed.
+ */
 export function classifyAccessUrl(u: string): AccessUrl {
+  if (/<[A-Z0-9_]+>/i.test(u)) return { kind: 'other', text: u }
   if (/^https?:\/\//i.test(u)) return { kind: 'external', href: u }
   const m = /(?:^|\/)data\/([a-z0-9_]+)\.json$/.exec(u)
   if (m) return { kind: 'snapshot', id: m[1], text: u }

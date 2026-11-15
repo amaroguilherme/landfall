@@ -1009,7 +1009,7 @@ function SeesColumn({
   if (queue === 'unavailable') {
     return (
       <section className="dl-col dl-sees" aria-labelledby="dl-sees-h">
-        <div className="dl-sees-inner">
+        <div className="dl-sees-inner" tabIndex={0} role="region" aria-label="In the ground packet, scrollable">
           <p className="lf-eyebrow">
             <AntennaIcon size={12} /> To the ground
           </p>
@@ -1024,7 +1024,7 @@ function SeesColumn({
   }
   return (
     <section className="dl-col dl-sees" aria-labelledby="dl-sees-h">
-      <div className="dl-sees-inner">
+      <div className="dl-sees-inner" tabIndex={0} role="region" aria-label="In the ground packet, scrollable">
       <p className="lf-eyebrow">
         <AntennaIcon size={12} /> To the ground, {when[queue]}
       </p>

@@ -83,6 +83,16 @@ function digitsFor(unit: string, values: number[]): number {
   return span >= 50 ? 0 : span >= 5 ? 1 : 2
 }
 
+/** Decimals a value needs, up to 4 (2.5 -> 1, 0.25 -> 2, 5 -> 0). */
+function decimalsOf(v: number): number {
+  const s = String(Math.round(v * 1e4) / 1e4)
+  const dot = s.indexOf('.')
+  return dot < 0 || s.includes('e') ? 0 : s.length - dot - 1
+}
+
+/** A y-axis tick: the series' digits, or more when uPlot's split needs them, so a 2.5 gridline reads 2.5, never a rounded 3. */
+const tickLabel = (v: number, digits: number) => fmt(v, Math.max(digits, decimalsOf(v)))
+
 /** Digits for a change of this size (a minimum detectable change). */
 function changeDigits(x: number, unit: string): number {
   if (unit === 'count') return 1
@@ -337,9 +347,9 @@ function dailyChart(
   return { x, lines, bands, hlines, regions, vlines, marks, yMin, yMax: hi + pad, xMin: index.firstDay, xMax: Math.max(toDay(t), index.lastDay + 1) }
 }
 
-function DataTable({ trend, digits }: { trend: SeriesTrend; digits: number }) {
+function DataTable({ trend, digits, label }: { trend: SeriesTrend; digits: number; label: string }) {
   return (
-    <div className="lf-tr-table-wrap">
+    <div className="lf-tr-table-wrap" tabIndex={0} role="region" aria-label={`${label} data table, scrollable`}>
       <table className="lf-tr-table">
         <thead>
           <tr>
@@ -661,7 +671,7 @@ function IndicatorCard({
   const cur = now?.current ?? (lastPoint ? { value: lastPoint.value, t: lastPoint.t } : null)
   const sev = (f?.severity ?? 'nominal') as Severity
   const arrow = f?.direction === 'increase' ? 'up' : f?.direction === 'decrease' ? 'down' : undefined
-  const yFormat = useMemo(() => (v: number) => fmt(v, digits), [digits])
+  const yFormat = useMemo(() => (v: number) => tickLabel(v, digits), [digits])
   const flaggedNow = f?.status === 'reliable_change' && SEVERITY_RANK[sev] >= SEVERITY_RANK.caution
   const cadence = cadenceWords(trend)
   const bandDigits = band?.transform ? Math.max(digits, 2) : digits
@@ -760,7 +770,7 @@ function IndicatorCard({
         </Expander>
       ) : null}
       <Expander summary="Data table">
-        <DataTable trend={trend} digits={digits} />
+        <DataTable trend={trend} digits={digits} label={ind.label ?? ind.id} />
       </Expander>
     </article>
   )
@@ -791,7 +801,7 @@ function RuleSeriesCard({
   }, [trend, index, t, hourly])
   const values = trend.points.map((p) => p.value)
   const digits = digitsFor(trend.unit, values)
-  const yFormat = useMemo(() => (v: number) => fmt(v, digits), [digits])
+  const yFormat = useMemo(() => (v: number) => tickLabel(v, digits), [digits])
   const last = trend.points[trend.points.length - 1]
   // Findings without a deep case carry a one-line action (D11): the VO2max floor reads "EVA fitness floor not met".
   const actions = trend.rules
@@ -852,7 +862,7 @@ function RuleSeriesCard({
       )}
       <FlagSummary trend={trend} />
       <Expander summary="Data table">
-        <DataTable trend={trend} digits={digits} />
+        <DataTable trend={trend} digits={digits} label={title} />
       </Expander>
     </article>
   )
@@ -894,7 +904,7 @@ function HeartRate({ index, runtime, crewId, t }: { index: ScenarioIndex; runtim
     },
     [day0],
   )
-  const yFormat = useMemo(() => (v: number) => fmt(v, 0), [])
+  const yFormat = useMemo(() => (v: number) => tickLabel(v, 0), [])
   const last = obs[obs.length - 1] ?? null
   const step = obs.length > 1 ? obs[obs.length - 1].t - obs[obs.length - 2].t : null
   const overdue = last !== null && step !== null && t - last.t > step

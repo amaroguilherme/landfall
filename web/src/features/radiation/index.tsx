@@ -504,7 +504,7 @@ function ProtonPanel({
       ) : null}
       {trs.length ? (
         <Expander summary={`All ${trs.length} S-level transitions (from the snapshot)`}>
-          <div className="lf-tr-table-wrap">
+          <div className="lf-tr-table-wrap" tabIndex={0} role="region" aria-label="S-level transitions of the 1989 replay, scrollable">
             <table className="lf-tr-table">
               <thead>
                 <tr>
@@ -607,7 +607,7 @@ export function SaaStrip({ track, snap, status }: { track: IssTrackData; snap: S
         <strong>SAA pass</strong> = {track.saa_rule.definition.replace(/^An SAA pass is /, '')} (threshold <Num value={track.saa_rule.threshold_nT} unit="nT" />
         ). <Chip kind={DESIGN_CHIP} /> {track.saa_rule.basis}. Low field strength is a proxy for the anomaly, not a dose measurement.
       </p>
-      <div className="lf-tr-table-wrap">
+      <div className="lf-tr-table-wrap" tabIndex={0} role="region" aria-label="Predicted SAA passes, scrollable">
         <table className="lf-tr-table">
           <caption className="lf-rad-caption">
             All {fmt(plan.passes.length)} predicted {plan.passes.length === 1 ? 'pass' : 'passes'} in these 24 h
@@ -918,8 +918,7 @@ function OnboardDoseToday({ index, runtime, t, sim }: { index: ScenarioIndex; ru
         ) : (
           <>Not a radiation-transport calculation, and no effective dose (mSv) is derived from it. </>
         )}
-        The quiet rate is the real MSL RAD detector-E median, which may include the rover’s own power-source background (see the dosimetry
-        above).
+        The quiet rate is the real MSL RAD detector-E median (the RAD team says detector E excludes the rover’s RTG background).
       </p>
       <MarsSepContext multiple={multiple} />
     </div>
@@ -927,8 +926,10 @@ function OnboardDoseToday({ index, runtime, t, sim }: { index: ScenarioIndex; ru
 }
 
 /**
- * MSL RAD: the headline detector-E total may include the rover's RTG background (snapshot caveat). The
- * numbers are this window's own medians of the publisher's raw and RTG-corrected detector-B series.
+ * MSL RAD and the rover's RTG background. The publisher's description is silent on whether detector E is
+ * RTG-corrected (the snapshot caveat); the RAD team's paper (Löwe et al. 2025, arXiv:2502.02469v1, appendix)
+ * says detector E's detection threshold excludes the RTG background, while silicon detector B includes it.
+ * The numbers are this window's own medians of the publisher's raw and RTG-corrected detector-B series.
  */
 function RtgNote({ data }: { data: HapiDoseData }) {
   const raw = data.series.dose_b_raw?.summary?.median
@@ -938,10 +939,10 @@ function RtgNote({ data }: { data: HapiDoseData }) {
   return (
     <>
       {' '}
-      This detector-E reading may also include the rover’s own power-source (RTG) background: the publisher does not say whether
-      detector E is RTG-corrected, and on silicon detector B its RTG correction lowers this window’s median from{' '}
-      <Num value={raw} unit={units} digits={1} /> to <Num value={corrected} unit={units} digits={1} />. So the natural rate a crew outdoors
-      would face may be lower than this headline.
+      The publisher’s description does not say whether detector E is corrected for the rover’s power-source (RTG) background; the RAD
+      team’s paper (Löwe et al. 2025, appendix) says detector E’s detection threshold excludes that background, while silicon detector B
+      includes it. The publisher’s RTG correction lowers B’s median in this window from <Num value={raw} unit={units} digits={1} /> to{' '}
+      <Num value={corrected} unit={units} digits={1} />.
     </>
   )
 }
@@ -974,7 +975,7 @@ function CraterPairs({ data }: { data: HapiDoseData }) {
         <Num value={median(pairs[1])} unit={units} digits={4} /> ({label(pairs[1])}). On the days the rule below flags, they part: each
         pair’s daily mean as a multiple of its own median.
       </p>
-      <div className="lf-tr-table-wrap lf-rad-pairs-wrap">
+      <div className="lf-tr-table-wrap lf-rad-pairs-wrap" tabIndex={0} role="region" aria-label="CRaTER daily means on the flagged days, scrollable">
         <table className="lf-tr-table lf-rad-pairs">
           <caption className="lf-rad-caption">CRaTER daily means on the flagged days, in {units} and as a multiple of each pair’s own median</caption>
           <thead>
@@ -1314,7 +1315,7 @@ function LimitsPanel({ index, runtime, envId, t, crewId, vol1 }: { index: Scenar
         <h3 id="rad-organ-h" className="lf-tr-card-title">
           Organ dose limits, Table 4.8-1 (mGy-Eq and mGy, never mSv) for {crewId}
         </h3>
-        <div className="lf-tr-table-wrap lf-rad-organ">
+        <div className="lf-tr-table-wrap lf-rad-organ" tabIndex={0} role="region" aria-label={`Organ dose limits for ${crewId}, scrollable`}>
           <table className="lf-tr-table">
             <thead>
               <tr>
@@ -1335,7 +1336,7 @@ function LimitsPanel({ index, runtime, envId, t, crewId, vol1 }: { index: Scenar
                     <th scope="row">{name}</th>
                     {WINDOW_COLS.map((w) => {
                       const rule = row.find(w.match)
-                      if (!rule) return <td key={w.key}>not in Table 4.8-1</td>
+                      if (!rule) return <td key={w.key}>no limit in Table 4.8-1</td>
                       return (
                         <td key={w.key}>
                           <OrganCell rule={rule} r={evalSafe(rule, index, runtime, crewId, envId, t)} />
@@ -1367,11 +1368,11 @@ function LimitsPanel({ index, runtime, envId, t, crewId, vol1 }: { index: Scenar
       {spe ? (
         <section className="lf-rad-sub" aria-labelledby="rad-spe-h">
           <h3 id="rad-spe-h" className="lf-tr-card-title">
-            The 1989 event is NASA’s design reference SPE <CategoryBadge category={spe.category} /> <Chip kind={spe.chip} />
+            The October 1989 events are NASA’s design reference SPE <CategoryBadge category={spe.category} /> <Chip kind={spe.chip} />
           </h3>
           <p>
-            The flux replayed above is the event NASA-STD-3001 names as its design reference: a requirement on the vehicle’s shielding, shown as
-            context and never as an alert.
+            The flux replayed above is part of the October 1989 events, whose summed proton spectrum NASA-STD-3001 names as its design reference:
+            a requirement on the vehicle’s shielding, shown as context and never as an alert.
           </p>
           <Quote req={req4031} doc={vol1.doc} />
         </section>
@@ -1395,7 +1396,8 @@ function LiveGoesPanel({ live, status, snap, scale, scaleSnap, scaleStatus, scen
   const t0 = s7 ? Date.parse(s7.start) : 0
   const lines = useMemo<LineSpec[]>(() => (s7 ? [{ label: 'GOES 7-day', values: s7.values, color: '--lf-data-stale', width: 1.25 }] : []), [s7])
   const hlines = useMemo<HLineSpec[]>(() => (scale?.levels.slice(0, 1) ?? []).map((l) => ({ y: l.threshold_pfu, label: `${l.level} ≥ ${fmt(l.threshold_pfu)} pfu`, color: '--lf-text-muted', dash: [2, 3], width: 1 })), [scale])
-  const xFormat = useMemo(() => (v: number) => new Date(t0 + v * DAY_MS).toISOString().slice(5, 10), [t0])
+  // Whole-day ticks only: on a wide chart uPlot places half-day ticks, and MM-DD would print each date twice.
+  const xFormat = useMemo(() => (v: number) => (Math.abs(v - Math.round(v)) < 1e-6 ? new Date(t0 + v * DAY_MS).toISOString().slice(5, 10) : ''), [t0])
   return (
     <Panel
       id={RAD_IDS.goes}
@@ -1439,7 +1441,7 @@ function LiveGoesPanel({ live, status, snap, scale, scaleSnap, scaleStatus, scen
         </EmptyState>
       )}
       {scale ? (
-        <div className="lf-tr-table-wrap lf-rad-scale">
+        <div className="lf-tr-table-wrap lf-rad-scale" tabIndex={0} role="region" aria-label="NOAA solar radiation storm scale, scrollable">
           <table className="lf-tr-table">
             <caption className="lf-rad-caption">NOAA Space Weather Scale, solar radiation storms (verbatim biological text)</caption>
             <thead>

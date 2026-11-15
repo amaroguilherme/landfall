@@ -75,7 +75,7 @@ Every source, with its URL, retrieval date and SHA-256 where one applies, is in 
 
 ## Use of AI
 
-[AUTHORSHIP-TBC] We built LANDFALL with Claude Code (Anthropic) as the coding assistant. It wrote most of the code and drafts of the documentation under our direction, and ran checks of our claims against primary sources; we set the scope and the design, made the decisions and reviewed the results. No AI runs inside LANDFALL: every rule is data, evaluated by deterministic code.
+Team Isaac Clarke: Guilherme Amaro (project lead: scope, design, decisions and review) and Ayra Castilho (tester). Guilherme built LANDFALL with Claude Code (Anthropic) as the coding assistant. It wrote most of the code and drafts of the documentation under his direction, and ran checks of our claims against primary sources; he set the scope and the design, made the decisions and reviewed the results. No AI runs inside LANDFALL: every rule is data, evaluated by deterministic code.
 
 ## License and disclaimers
 

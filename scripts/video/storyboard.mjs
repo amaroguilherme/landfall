@@ -54,8 +54,8 @@ const TAGLINE = 'Earth-independent health navigation for exploration crews'
  * the entry below, re-render.
  */
 const TEAM_MARKER = 'TEAM-CARD-TBC'
-const TEAM_LINE = `[${TEAM_MARKER}]`
-export const PLACEHOLDERS = [{ marker: TEAM_MARKER, shot: 'card-title', why: 'the title card credit waits for the user to confirm the team' }]
+const TEAM_LINE = 'Team Isaac Clarke: Guilherme Amaro, Ayra Castilho'
+export const PLACEHOLDERS = [] // team confirmed by the user on 2026-11-15: Isaac Clarke (Guilherme Amaro, Ayra Castilho)
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x))
 const fadeIn = (t, start, dur) => clamp01((t - start) / dur)

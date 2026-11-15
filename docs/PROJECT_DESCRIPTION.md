@@ -5,7 +5,7 @@
 Live app: https://landfall.landfall-web.workers.dev · Code: https://github.com/amaroguilherme/landfall (Apache-2.0) · Demo video: [VIDEO-TBC] · NASA Space Apps Challenge 2026, *Create Health Monitoring Software for Astronauts on Space Missions*
 
 <!-- Paste notes, not part of the page.
-Open markers, keep until resolved: [AUTHORSHIP-TBC] = the team is not final and the authorship wording waits for the user; state no team size and list no members until then. [VIDEO-TBC] = the final video is not uploaded yet; put its public link in the "Link to Project Demo" field and in place of the marker.
+Open markers, keep until resolved: [VIDEO-TBC] = the final video is not uploaded yet; put its public link in the "Link to Project Demo" field and in place of the marker.
 Form fields: "High-Level Project Summary" (120 words or fewer here); "Detailed Project Description"; "NASA Data" = Use of NASA Data; "Space Agency Partner Data and Other References" = Space Agency Partner & Other Data plus References; "Use of Super Intelligence (SI)" = Use of Artificial Intelligence.
 Figures (the page accepts JPG, PNG or GIF up to 10 MB): place each image directly above its caption line. Figure 1 = F1-dual-counter.gif (PNG fallback F1-dual-counter.png), Figure 2 = F3-vo2max-mars-iss.png, Figure 3 = F4-provenance-summary.png, Figure 4 = F2-why-this-fired.png, all in .cache/video/figures/, with alt text and longer captions in figures.md there. Another lane re-captured these files from the live URL (commit a796d65) at 15 Nov 06:45-06:46 BRT (figures.md names the capture URL and time): F2 now reads "Threshold (NOAA S3, reached at or above)" and "Above the threshold by 50 pfu", F3 shows both panels with "EVA fitness floor not met", and F4 shows 54 of 107 as design choice. Paste only captures of the final deploy: if anything is deployed after a796d65, re-capture first and check F3's crop again (a 15 Nov 00:04 re-capture cropped it wrongly).
 Checked against the live app (commit a796d65) on 15 Nov 2026, 05:55-06:29 BRT: a vite build of the deployed tree reproduces all 99 live files byte for byte (index-DiiQUTqA.js, precache landfall-4148d0c58f3a); every audit-path link here and in the README, opened fresh, shows its view with no console error and the facts quoted for it; #/data lists 26 snapshots; qa-offline 17/17 and qa-mobile 15/15 on the live URL; all 41 external links answer 200 to a GET (IPv4 for the GSFC and CSA hosts; the CSA "Why do we conduct" page needed one retry).
@@ -148,7 +148,7 @@ Key citations. The full list, partly generated from the shipped data and rules, 
 
 ## Use of Artificial Intelligence
 
-[AUTHORSHIP-TBC] We built LANDFALL with Claude Code (Anthropic) as the coding assistant. We set the scope and the design, made the decisions and reviewed the results. Under our direction, Claude Code:
+Team Isaac Clarke is Guilherme Amaro (project lead) and Ayra Castilho (tester). Guilherme built LANDFALL with Claude Code (Anthropic) as the coding assistant: he set the scope and the design, made the decisions and reviewed the results. Under his direction, Claude Code:
 
 - wrote most of the code: the Python engine and its tests, the ingest adapters, the TypeScript port, the front end, the cue-card printer and the BAND generator;
 - ran the build-time data ingestion;

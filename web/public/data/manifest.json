@@ -69,8 +69,8 @@
    "adapter": "hapi",
    "title": "Mars-surface dose rate, MSL RAD (CCMC iSWA)",
    "file": "hapi_msl_rad_dose.json",
-   "bytes": 27898,
-   "sha256": "d69ccc93abb7c59a2e9edea37d0e9e35c00da7f57068e2e2439b9fe829029c7f",
+   "bytes": 28039,
+   "sha256": "b209039f69bdb08fc94f46834720851590d9b25763e6c952ba9245cba5c06f76",
    "retrieved_at": "2026-11-14T21:58:12Z",
    "provenance": "measured",
    "freshness": {
@@ -84,6 +84,48 @@
    },
    "publisher": "NASA GSFC Community Coordinated Modeling Center (CCMC), iSWA HAPI server",
    "url": "https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi/info?id=msl_rad_dosimetry"
+  },
+  {
+   "id": "hapi_msl_rad_sep_events",
+   "adapter": "rad_events",
+   "title": "Mars-surface solar particle events: the RAD team's nowcast rule replayed on MSL RAD (CCMC iSWA)",
+   "file": "hapi_msl_rad_sep_events.json",
+   "bytes": 77358,
+   "sha256": "35ccc94d72c296f0db9e66cbaf9417ab9dd6d51c46a614298c3af5962cb6a812",
+   "retrieved_at": "2026-11-15T01:19:32Z",
+   "provenance": "derived",
+   "freshness": {
+    "kind": "historical",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "2012-08-17T10:20:37Z",
+    "stop": "2026-11-12T23:49:21Z",
+    "cadence": null
+   },
+   "publisher": "NASA GSFC Community Coordinated Modeling Center (CCMC), iSWA HAPI server",
+   "url": "https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi/info?id=msl_rad_dosimetry"
+  },
+  {
+   "id": "history_sts34",
+   "adapter": "history",
+   "title": "STS-34 (Atlantis, October 1989): in orbit during the replayed solar proton event",
+   "file": "history_sts34.json",
+   "bytes": 5883,
+   "sha256": "8c47a3ec76f6fd1a9b43211e7366fd8c21b811a41962c00a1fe6402d479ebaf2",
+   "retrieved_at": "2026-11-15T00:51:23Z",
+   "provenance": "reference",
+   "freshness": {
+    "kind": "reference",
+    "stale_after": null
+   },
+   "coverage": {
+    "start": "1989-10-18T16:53:40Z",
+    "stop": "1989-10-23T16:33:01Z",
+    "cadence": null
+   },
+   "publisher": "NASA (STS-34 mission page) and the U.S. National Library of Medicine (PubMed)",
+   "url": "https://www.nasa.gov/mission/sts-34/"
   },
   {
    "id": "horizons_mars_comms",
@@ -342,8 +384,8 @@
    "adapter": "sim",
    "title": "Simulated crew scenario: 4 fictional crewmembers, MET days 368-412 (seeded, labelled)",
    "file": "sim_crew.json",
-   "bytes": 159512,
-   "sha256": "eb2426bf3491095a8225bb30ebd3353c8fa6af27624103062c87b6a5fb8e57b5",
+   "bytes": 159516,
+   "sha256": "ee85a9e6719b0a2b33b98776ebc05eb8adea8dfff22e1b9515713f27af5cf9a0",
    "retrieved_at": "2026-11-14T23:10:43Z",
    "provenance": "simulated",
    "freshness": {
@@ -363,8 +405,8 @@
    "adapter": "std_vol1",
    "title": "NASA-STD-3001 Vol 1 Rev C: verbatim requirements, FFD/PEL/POL glossary, Table 4.8-1",
    "file": "std_vol1_requirements.json",
-   "bytes": 74263,
-   "sha256": "e383470637e7ac9a801a4a13359a4f77207c65143d3b1732fb6dd682dec6367f",
+   "bytes": 90411,
+   "sha256": "689d5197e40ea2d786e388dc6fb573c37f987967e15b403e8b2b2de48bb15ff8",
    "retrieved_at": "2026-11-14T19:05:55Z",
    "provenance": "reference",
    "freshness": {
@@ -403,19 +445,19 @@
   {
    "id": "swpc_protons_live",
    "adapter": "swpc",
-   "title": "GOES >=10 MeV proton flux and current NOAA S level (build-time freeze)",
+   "title": "GOES ≥10 MeV proton flux and current NOAA S level (build-time freeze)",
    "file": "swpc_protons_live.json",
-   "bytes": 7576,
-   "sha256": "09fc682355fca4ce705d7d2a92f82131d192850ebfe349b5a6c18702cc0269e0",
-   "retrieved_at": "2026-11-14T15:17:52Z",
+   "bytes": 7566,
+   "sha256": "73aa0819c5792f57076e4c38a0366b919e54828315bd90247983e6cb7f0b38d3",
+   "retrieved_at": "2026-11-15T01:00:21Z",
    "provenance": "measured",
    "freshness": {
     "kind": "live",
     "stale_after": "PT15M"
    },
    "coverage": {
-    "start": "2026-11-07T15:20:00Z",
-    "stop": "2026-11-14T15:05:00Z",
+    "start": "2026-11-08T01:00:00Z",
+    "stop": "2026-11-15T00:50:00Z",
     "cadence": "PT5M"
    },
    "publisher": "NOAA Space Weather Prediction Center (SWPC)",
@@ -426,9 +468,9 @@
    "adapter": "swpc",
    "title": "NOAA Space Weather Scale for Solar Radiation Storms (S1-S5)",
    "file": "swpc_s_scale.json",
-   "bytes": 6577,
-   "sha256": "15c2f1e78b588b67a15b6974739d849d669381425a4c182e4674bf6b0121597b",
-   "retrieved_at": "2026-11-14T15:17:52Z",
+   "bytes": 6581,
+   "sha256": "c6a1c9738c1054a07c9f3d46bcbfa34b45ef17c0d0a94e9c979cb18dff71bfa2",
+   "retrieved_at": "2026-11-15T01:00:21Z",
    "provenance": "reference",
    "freshness": {
     "kind": "reference",
@@ -448,8 +490,8 @@
    "title": "DONKI solar energetic particle (SEP) events since 2024-01-01",
    "file": "swpc_sep_events.json",
    "bytes": 61265,
-   "sha256": "d90f2272f7f9cd75d2096480cc120eebbd652e7256f26c7bb82a2bf97c1520ae",
-   "retrieved_at": "2026-11-14T15:17:52Z",
+   "sha256": "d17f2d0b6d7e5a56dd917c33f65a0eda14be1a06db93eda08bf2a8725b3a7448",
+   "retrieved_at": "2026-11-15T01:00:21Z",
    "provenance": "measured",
    "freshness": {
     "kind": "historical",
@@ -457,7 +499,7 @@
    },
    "coverage": {
     "start": "2024-01-01T00:00:00Z",
-    "stop": "2026-11-14T15:17:52Z",
+    "stop": "2026-11-15T01:00:21Z",
     "cadence": null
    },
    "publisher": "NASA Community Coordinated Modeling Center (CCMC)",
@@ -469,8 +511,8 @@
    "title": "NOAA list: Solar Proton Events Affecting the Earth Environment (1976 - Sep 2017)",
    "file": "swpc_spe_list.json",
    "bytes": 60514,
-   "sha256": "3b212894e82b788dc94fc56e70518313aa32dc5a2f536a933452e49d6fec06f3",
-   "retrieved_at": "2026-11-14T15:17:52Z",
+   "sha256": "3a75a4455d590ac924f1f7f025d413b21c8b07782530d484788cc5fefd888584",
+   "retrieved_at": "2026-11-15T01:00:21Z",
    "provenance": "reference",
    "freshness": {
     "kind": "historical",
@@ -489,9 +531,9 @@
    "adapter": "swpc",
    "title": "Historical replay: October 1989 solar proton event, GOES-7 >10 MeV flux (peak S4)",
    "file": "swpc_spe_replay.json",
-   "bytes": 53394,
-   "sha256": "01a9bbf8dc055651f1fc05e05e4349a9368d4754a13ec96b016964729b9aaf1f",
-   "retrieved_at": "2026-11-14T15:17:52Z",
+   "bytes": 53397,
+   "sha256": "71a9bf2336788a088f6f67b4f6a4207f67c914dcd407f7acf0780238b9d20413",
+   "retrieved_at": "2026-11-15T01:00:21Z",
    "provenance": "measured",
    "freshness": {
     "kind": "historical",

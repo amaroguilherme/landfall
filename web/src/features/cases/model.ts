@@ -4,6 +4,7 @@
 // declines, red flags and escalation are decided by the engine's caseReduce; these helpers read its state.
 import { NOAA_S_THRESHOLDS_PFU, RULES, compare, formatMet, getIndicator, sLevel, thresholdRules } from '../../app/engine'
 import type { CaseState, CaseStatus, Indicator, Op, Rule, Source } from '../../app/engine'
+import { tierOneFor } from '../../app/caseTimeline'
 import type { CaseView } from '../../app/caseTimeline'
 import { CHIP_DEFS, CREW, CREW_IDS, SEVERITY_RANK, isCrewId } from '../../app/vocab'
 import type { CrewId, Observation, Severity } from '../../app/vocab'
@@ -382,11 +383,12 @@ export function cmoCrewId(): CrewId | null {
   return CREW.find((c) => /crew medical officer/i.test(c.role))?.id ?? null
 }
 
-/** Tier 1, in words true for the crewmember's role: the CMO is not told to tell the CMO. */
+/**
+ * Tier 1, in words true for the crewmember's role: the CMO is not told to tell the CMO. On the Crew Medical
+ * Officer's own cases tier 1 is the backup, the Commander (meta.json escalation, as the engine records it).
+ */
 export function tierOneLine(crewId: CrewId): string {
-  const cmo = cmoCrewId()
-  if (cmo === crewId) return 'You are the Crew Medical Officer: take this case now, and tell the Commander.'
-  return cmo ? `Tell the Crew Medical Officer (${cmo}) now.` : 'Tell the Crew Medical Officer now.'
+  return tierOneFor(crewId).line
 }
 
 // ---- tripwire ----------------------------------------------------------------------------------------

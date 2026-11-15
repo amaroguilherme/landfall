@@ -154,6 +154,8 @@ textarea {
   margin: 0 auto;
   display: flex;
   flex-wrap: wrap;
+  /* baseline: the 40 px "Copy link to this view" button reads on the same text line as the footer text beside it */
+  align-items: baseline;
   gap: var(--lf-space-1) var(--lf-space-3);
 }
 .lf-footer p { margin: 0; max-width: none; }

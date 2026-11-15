@@ -551,8 +551,12 @@ const REASON_TEXT: Record<string, string> = {
 
 function EscalationPanel({ view, comms, t }: { view: CaseView | null; comms: CommsStatus; t: number }) {
   const esc = view?.state.escalation ?? null
-  const tiers = escalationTiers(comms, t)
+  const tiers = escalationTiers(comms, t, view?.tier1 ?? null)
   const autonomy = autonomyText(comms)
+  const backup = view?.tier1.backup ? view.tier1 : null
+  const backupCite = backup?.citations.find((x) => typeof x.requirement_id === 'string' && typeof x.verbatim === 'string') as
+    | { requirement_id: string; verbatim: string }
+    | undefined
   const stepNo = esc?.step_id ? (view?.state.spec.step_ids.indexOf(esc.step_id) ?? -1) + 1 : 0
   return (
     <section className="dl-esc lf-panel" aria-labelledby="dl-esc-h" data-escalated={esc ? true : undefined}>
@@ -598,6 +602,19 @@ function EscalationPanel({ view, comms, t }: { view: CaseView | null; comms: Com
             </li>
           ))}
         </ol>
+        {backup ? (
+          <p className="dl-col-note">
+            The Crew Medical Officer is the patient here, so tier 1 is the backup, {backup.name} ({backup.crewId}): a design choice{' '}
+            <Chip kind={backup.chip} />.
+            {backupCite ? (
+              <>
+                {' '}
+                NASA-STD-3001 plans for this with a physician crewmember: <ReqId id={backupCite.requirement_id} /> asks for medical equipment usable by
+                non-physician crewmembers “{backupCite.verbatim}”.
+              </>
+            ) : null}
+          </p>
+        ) : null}
         {autonomy ? <p className="dl-col-note">{autonomy}</p> : null}
         {ESCALATION_BASIS.source ? (
           <p className="dl-col-note dl-fine">

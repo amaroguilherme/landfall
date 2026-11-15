@@ -574,9 +574,18 @@ def self_check(timelines: dict[str, dict]) -> dict:
     else:
         summary.append("No case opens on chance flags alone.")
     rates = model.chance_rates(report_indicators(include_mood=True))
-    outside = [f"{k} (caution {v['caution_multiplier']}x, flag {v['flag_multiplier']}x)" for k, v in rates.items()
-               if not v["within_band"]]
     lo, hi = model.CHANCE_BAND
+
+    def mult(hits: int, tests: int, nominal: float) -> str:
+        # The digits personal.json declares a multiplier with (SPEC 3.3): 2 decimals, or 3 for a borderline value
+        # whose 2-decimal rounding lands on a band edge it is not on, so mood's 0.495 never reads 0.5 (inside the band).
+        x = hits / tests / nominal
+        r2 = round(x, 2)
+        return f"{round(x, 3) if r2 in (lo, hi) and x != r2 else r2}"
+
+    outside = [f"{k} (caution {mult(v['worse_direction_flags'], v['tests'], v['nominal_caution_rate'])}x, "
+               f"flag {mult(v['flags'], v['tests'], v['nominal_flag_rate'])}x)" for k, v in rates.items()
+               if not v["within_band"]]
     summary.append(f"Chance rates with no real change (data.self_check.chance_rates, seeded Monte Carlo with this noise "
                    f"model, every indicator): " + (
                        f"all within {lo}-{hi} times the printed rate except " + ", ".join(outside) +

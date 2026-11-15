@@ -9,6 +9,7 @@ import type { ReactNode } from 'react'
 import { RULES, getIndicator } from '../../app/engine'
 import type { Indicator } from '../../app/engine'
 import { useCrewEvaluation } from '../../app/model'
+import { tierOneFor } from '../../app/caseTimeline'
 import type { CrewId } from '../../app/vocab'
 import { Chip, Expander, ExternalIcon, Num, UnavailableIcon } from '../../ui'
 import { KIT_ENTRY_RANGE_RATIONALE, KIT_INTERVAL_DAYS, KIT_SKIP_REASONS, KIT_SPECS, checkKit } from './record'
@@ -123,6 +124,9 @@ export function KitStep({
   stepNav: (p: { onBack: () => void; onNext: () => void; nextLabel: string; nextDisabled: boolean; skipHint?: string }) => ReactNode
 }) {
   const bands = useKitBands(crewId)
+  // Who to tell now: the Crew Medical Officer, or the backup (the Commander) when the Crew Medical Officer is the one reading.
+  const t1 = tierOneFor(crewId)
+  const tellNow = t1.backup ? `tell ${t1.name} (${t1.crewId}), the backup medical officer, now` : 'tell your Crew Medical Officer now'
   const set = (patch: Partial<KitDraft>) => onDraft({ ...draft, ...patch })
   const sysInd = indicator('bp_systolic')
   const gluInd = indicator('glucose')
@@ -203,7 +207,7 @@ export function KitStep({
           <li>Wash and dry your hands, then prick the side of a fingertip with the kit’s lancet.</li>
           <li>
             Put the drop on the strip as the meter shows, then type the number in mg/dL. If the meter shows LO or HI instead of a number,
-            LANDFALL cannot record it: tell your Crew Medical Officer now.
+            LANDFALL cannot record it: {tellNow}.
           </li>
         </ol>
         <div className="ns-fields">

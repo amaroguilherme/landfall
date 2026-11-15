@@ -14,7 +14,7 @@ const base = process.argv[2] ?? 'http://localhost:4301'
 const width = Number(process.argv[3] ?? 390)
 const height = Number(process.argv[4] ?? 844)
 const ROUTES = ['#/', '#/body', '#/cases', '#/case/spe_shelter', '#/case/renal_stone', '#/case/sleep_circadian',
-  '#/radiation', '#/noon-sight', '#/trends', '#/downlink', '#/band', '#/provenance', '#/method', '#/data']
+  '#/radiation', '#/noon-sight', '#/trends', '#/downlink', '#/band', '#/provenance', '#/method', '#/data', '#/card/renal_stone']
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const port = 9300 + Math.floor(Math.random() * 500)
 const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', `--remote-debugging-port=${port}`,

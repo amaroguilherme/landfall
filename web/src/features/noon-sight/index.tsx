@@ -13,6 +13,7 @@ import type { LoadStatus, Snapshot } from '../../app/data'
 import { useComms } from '../../app/comms'
 import { metClock, useMetNow, useMission } from '../../app/mission'
 import { useCases } from '../../app/model'
+import { tierOneFor } from '../../app/caseTimeline'
 import { RULES, getIndicator } from '../../app/engine'
 import { testScaleWords } from '../../app/evaluate'
 import { crewMember } from '../../app/vocab'
@@ -565,7 +566,8 @@ function listWords(items: string[]): string {
 
 /**
  * What a ticked symptom asks of the crewmember. Escalation has two tiers (meta.json escalation):
- * the Crew Medical Officer now, the flight surgeon with the link. No diagnosis, no medicine.
+ * the Crew Medical Officer now (the backup, the Commander, when the Crew Medical Officer is the patient),
+ * the flight surgeon with the link. No diagnosis, no medicine.
  */
 function SymptomPrompts({ symptoms, crewId }: { symptoms: Record<SymptomId, boolean>; crewId: CrewId }) {
   const comms = useComms()
@@ -574,26 +576,30 @@ function SymptomPrompts({ symptoms, crewId }: { symptoms: Record<SymptomId, bool
   const urgent = URGENT_SYMPTOMS.filter((id) => symptoms[id])
   if (!renal.length && !urgent.length) return null
   const renalStatus = get('renal_stone', crewId)?.state.status ?? 'idle'
+  // Tier 1 for this crewmember: the Crew Medical Officer, or the Commander on the Crew Medical Officer's own report.
+  const t1 = tierOneFor(crewId)
+  const who = t1.name
+  const tellNow = t1.backup ? `Tell ${t1.name} (${t1.crewId}), the backup medical officer, now.` : 'Tell your Crew Medical Officer now.'
   const ground =
     comms.link === 'AOS'
       ? 'With the link up, Mission Control and the flight surgeon can join within the round trip.'
-      : 'With no link now, the Crew Medical Officer acts onboard; the flight surgeon gets the case when the link resumes.'
+      : `With no link now, ${who} acts onboard; the flight surgeon gets the case when the link resumes.`
   return (
     <>
       {renal.length ? (
         <div className="ns-procedure" role="note">
           <p>
-            <strong>Tell your Crew Medical Officer now.</strong> {capitalize(listWords(renal.map((id) => symptomLabel(id).toLowerCase())))}{' '}
+            <strong>{tellNow}</strong> {capitalize(listWords(renal.map((id) => symptomLabel(id).toLowerCase())))}{' '}
             {renal.length === 1 ? 'is a red flag' : 'are red flags'} of the renal-stone procedure.{' '}
             {renalStatus === 'acting'
-              ? 'Your renal-stone case is open: answer its red-flag question there now. A “yes” escalates the case at once, to the Crew Medical Officer now and to the flight surgeon through the ground packet.'
+              ? `Your renal-stone case is open: answer its red-flag question there now. A “yes” escalates the case at once, to ${who} now and to the flight surgeon through the ground packet.`
               : renalStatus === 'detected'
-                ? 'Your renal-stone case is open: start it and answer its red-flag question. A “yes” escalates the case at once, to the Crew Medical Officer now and to the flight surgeon through the ground packet.'
+                ? `Your renal-stone case is open: start it and answer its red-flag question. A “yes” escalates the case at once, to ${who} now and to the flight surgeon through the ground packet.`
                 : renalStatus === 'watch'
-                  ? 'Your renal-stone case is in watch (its tripwire is armed), so the Crew Medical Officer decides what follows.'
+                  ? `Your renal-stone case is in watch (its tripwire is armed), so ${who} decides what follows.`
                   : renalStatus === 'escalated'
-                    ? 'Your renal-stone case is already escalated: the Crew Medical Officer has it.'
-                    : 'Your renal-stone case is not open now, so the Crew Medical Officer decides what follows.'}{' '}
+                    ? `Your renal-stone case is already escalated: ${who} has it.`
+                    : `Your renal-stone case is not open now, so ${who} decides what follows.`}{' '}
             {ground}
           </p>
           <a href="#/case/renal_stone">Open the renal-stone case</a>
@@ -602,9 +608,8 @@ function SymptomPrompts({ symptoms, crewId }: { symptoms: Record<SymptomId, bool
       {urgent.length ? (
         <div className="ns-procedure" role="note">
           <p>
-            <strong>Tell your Crew Medical Officer now.</strong> LANDFALL has no guided case for{' '}
-            {listWords(urgent.map((id) => symptomLabel(id).toLowerCase()))}: the Crew Medical Officer uses the vehicle medical
-            procedures. {ground}
+            <strong>{tellNow}</strong> LANDFALL has no guided case for{' '}
+            {listWords(urgent.map((id) => symptomLabel(id).toLowerCase()))}: {who} uses the vehicle medical procedures. {ground}
           </p>
         </div>
       ) : null}

@@ -250,8 +250,8 @@ export function ClosePanel({ c, def, view, onDismiss }: { c: ActCtx; def: CaseDe
         </div>
       ) : (
         <p className="lfc-fine">
-          Not closed. The tripwire decides: clear → resolved; tripped → escalated, first to the Crew Medical Officer onboard, then to the flight surgeon
-          through the ground packet. A “yes” to a red-flag question escalates at once.
+          Not closed. The tripwire decides: clear → resolved; tripped → escalated, first to {view.tier1.backup ? `${view.tier1.name} (${view.tier1.crewId}), the backup medical officer,` : 'the Crew Medical Officer'}{' '}
+          onboard, then to the flight surgeon through the ground packet. A “yes” to a red-flag question escalates at once.
         </p>
       )}
       <PacketBlock c={c} def={def} view={view} delivery={s.status !== 'escalated'} />

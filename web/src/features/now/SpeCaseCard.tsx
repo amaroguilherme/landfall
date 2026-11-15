@@ -63,7 +63,7 @@ export function SpeCaseCard(p: SpeCardProps) {
   const required = view.state.spec.required_step_ids ?? []
   const pendingRequired = required.filter((id) => !done.has(id) && !declined.has(id)).length
   const packet = packetState(view.state)
-  const tiers = escalationTiers(p.comms, p.t)
+  const tiers = escalationTiers(p.comms, p.t, view.tier1)
   const openedAt = view.state.opened_at
   const primarySource = primary?.source as { requirement_id?: string; verbatim?: string } | null
   const ruleId = view.opening?.trigger.rule_id ?? finding?.rule_id ?? null

@@ -299,13 +299,13 @@ export function ChanceLine({ indicator, detail = false }: { indicator: Indicator
       {measured && r.alerting ? (
         <>
           {' '}
-          (measured, not assumed: cautions <Num value={r.caution_multiplier} digits={2} />× the nominal {r.worse === 'either' ? 'α' : 'α/2'}, reliable
-          changes in either direction <Num value={r.flag_multiplier} digits={2} />× α) <Chip kind={r.chip} />
+          (measured, not assumed: cautions <span className="lf-num">{r.caution_multiplier_text}</span>× the nominal {r.worse === 'either' ? 'α' : 'α/2'},
+          reliable changes in either direction <span className="lf-num">{r.flag_multiplier_text}</span>× α) <Chip kind={r.chip} />
         </>
       ) : measured ? (
         <>
           {' '}
-          (measured, not assumed: <Num value={r.flag_multiplier} digits={2} />× the nominal α) <Chip kind={r.chip} />
+          (measured, not assumed: <span className="lf-num">{r.flag_multiplier_text}</span>× the nominal α) <Chip kind={r.chip} />
         </>
       ) : detail ? (
         <>

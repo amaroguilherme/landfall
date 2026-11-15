@@ -18,6 +18,20 @@ proton event, JPL Horizons light times) are real, frozen at build in `web/public
 actions are simulated from a fixed seed and labelled as simulated wherever they appear. Every number carries a chip that
 names its basis; numbers with no published basis are marked "design choice".
 
+**A two-minute audit path.** Each link opens one view; `?env=` sets the environment (ISS, cislunar, lunar surface or
+Mars surface), and every view's footer has "Copy link to this view".
+
+- https://landfall.landfall-web.workers.dev/#/method?s=gap : NASA's alert requirements leave the number to the program, verbatim.
+- https://landfall.landfall-web.workers.dev/#/provenance?chip=design+choice : every number that is ours.
+- https://landfall.landfall-web.workers.dev/#/band : the NOT MEASURABLE HERE boundary of the wearable concept.
+- https://landfall.landfall-web.workers.dev/#/data : every snapshot and its caveats.
+- https://landfall.landfall-web.workers.dev/ : the scenario plays unprompted; then
+  https://landfall.landfall-web.workers.dev/#/case/spe_shelter?env=mars_surface and open "Why this fired".
+- https://landfall.landfall-web.workers.dev/#/body?env=iss&crew=CM-2&region=muscles : CM-2's VO₂max meets the
+  microgravity-EVA floor [V1 4001] at ISS; the same reading at
+  https://landfall.landfall-web.workers.dev/#/body?env=mars_surface&crew=CM-2&region=muscles misses the surface-EVA floor
+  [V1 4002].
+
 | Path | What it is |
 |---|---|
 | `engine/` | Stdlib-only Python reference engine, with pytest. Tier A: NASA-published limits and NOAA's S-scale. Tier B: a single-case t-test against the crewmember's own baseline (Crawford & Howell 1998). `engine/SPEC.md` is the contract |
@@ -25,6 +39,7 @@ names its basis; numbers with no published basis are marked "design choice".
 | `ingest/` | One adapter per NASA/NOAA source, plus the seeded crew simulator; `uv run python -m ingest --all` rebuilds `web/public/data/*.json` |
 | `web/` | Vite + React + TypeScript app; its TypeScript engine (`web/src/engine/`) matches the Python one on the shared vectors in `engine/tests/vectors/` |
 | `hardware/` | LANDFALL BAND, a wearable concept at block level (never built): sensor map and BOM |
+| `scripts/` | QA over Chrome DevTools (mobile layout, offline reloads); `scripts/video/` rebuilds the 30-second demo video and the project-page figures from the live app, checking every on-screen claim |
 | `docs/` | The project description |
 
 Verify it yourself:

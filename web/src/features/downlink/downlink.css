@@ -286,7 +286,8 @@
 .dl-facts dd { margin: 0; font-size: var(--lf-text-lg); color: var(--lf-text); }
 .dl-meta-line { font-size: var(--lf-text-xs); color: var(--lf-text-2); max-width: none; line-height: 1.8; }
 .dl-tagcode { margin-right: 6px; padding: 0 4px; border: 1px solid var(--lf-border); border-radius: var(--lf-radius); }
-.dl-provcount { margin-right: 10px; white-space: nowrap; }
+/* inline-block: each tag stays whole, and the line can wrap between tags (they are rendered with no space between). */
+.dl-provcount { display: inline-block; margin-right: 10px; white-space: nowrap; }
 
 .dl-table-wrap { overflow-x: auto; margin: 0 0 var(--lf-space-2); }
 .dl-table-wrap:focus-visible { outline-offset: 0; }

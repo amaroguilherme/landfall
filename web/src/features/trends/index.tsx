@@ -212,7 +212,7 @@ function ChanceNote({ indicator }: { indicator: Indicator }) {
         <>
           {' '}
           <strong>
-            (measured: <Num value={r.alerting ? r.caution_multiplier : r.flag_multiplier} digits={2} />× the nominal rate)
+            (measured: <span className="lf-num">{r.alerting ? r.caution_multiplier_text : r.flag_multiplier_text}</span>× the nominal rate)
           </strong>{' '}
           <Chip kind={r.chip} />
         </>

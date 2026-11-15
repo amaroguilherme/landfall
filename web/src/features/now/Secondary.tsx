@@ -3,6 +3,7 @@
 // days ..." note (CaseView.chance, SPEC 7), and an opening the simulator did not script is also labelled
 // as a chance flag, from sim_crew's own self_check), a 4-crew status strip (worst annunciated severity per crewmember, icon + text) and the
 // environment. Everything is read from useCases / useEvaluation / useComms output.
+import { stateTierOne } from '../../app/caseTimeline'
 import type { CaseView } from '../../app/caseTimeline'
 import type { CommsStatus } from '../../app/comms'
 import { formatCountdown, windowModelNote } from '../../app/comms'
@@ -59,7 +60,7 @@ function caseLine(v: CaseView) {
   if (s.status === 'escalated') {
     return (
       <>
-        Escalated: tier 1, the Crew Medical Officer, now; tier 2, the flight surgeon, through the ground packet ({packetState(s).label})
+        Escalated: tier 1, {stateTierOne(s)?.text ?? v.tier1.name}, now; tier 2, the flight surgeon, through the ground packet ({packetState(s).label})
       </>
     )
   }

@@ -99,6 +99,18 @@ Requirement text is extracted verbatim with a ToUnicode-aware PDF parser and che
 - JPL Horizons On-Line Ephemeris System, NASA Jet Propulsion Laboratory. https://ssd.jpl.nasa.gov/horizons/
 - NOAA Space Weather Prediction Center. *NOAA Space Weather Scales.* https://www.swpc.noaa.gov/noaa-scales-explanation
 
+## Space radiation literature
+
+- Löwe JL, Khaksarighiri S, Wimmer-Schweingruber RF, Hassler DM, Ehresmann B, Guo J, Reitz G, Berger T, Matthiä D,
+  Zeitlin C, Löffler S. Nowcasting Solar Energetic Particle Events for Mars Missions. *Space Weather*
+  2025;23(4):e2025SW004372. doi:10.1029/2025SW004372 (journal metadata checked at Crossref). The rule sentences and the
+  Table 1 numbers that `#/radiation` replays on the MSL RAD record are quoted from the preprint, arXiv:2502.02469v1,
+  https://arxiv.org/html/2502.02469v1, and re-checked word for word at every build by `ingest/rad_events.py` (the
+  preprint prints the last author as "Löffner"); the journal version was not compared.
+- Golightly MJ, Hardy AC, Atwell W, Hardy K. Description, analysis and impact of major solar activity during recent
+  U.S. Shuttle missions. *Adv Space Res* 1992;12(2-3):335-8. doi:10.1016/0273-1177(92)90125-H. PMID 11537026
+  (abstract sentences quoted from the PubMed record and re-checked at every build by `ingest/history.py`).
+
 ## Use of AI
 
 LANDFALL was built by Guilherme Amaro with Claude Code (Anthropic) as a coding assistant. Claude Code
@@ -120,14 +132,19 @@ runs in the product's decision path.
 
 - LANDFALL simulated crew scenario (seed 20261114), ingest/sim_crew.py, https://github.com/amaroguilherme/landfall. Means calibrated against Barger et al. 2014 (PMID 25127232) and Basner et al. 2011 (PMID 22025811); day-to-day SDs from Flynn-Evans et al. 2016 (PMID 28725719), Quer et al. 2020 (PMID 32023264), Nayan et al. 2012 (PMID 22396364) and Selvin et al. 2007 (PMID 17646610) where published, design choices elsewhere (listed per variable), with context from Knutson et al. 2007 (PMID 17580601), Huang & Redline 2019 (PMID 31167888), Basner et al. 2018 (PMID 29126328), Bellenger et al. 2022 (PMID 36146073), Norsk et al. 2015 (PMID 25774397), Matsui et al. 2012 (PMID 22547439) and Juhanoja et al. 2017 (PMID 28193705); SPE shape from NOAA NCEI GOES-07 EPS (October 1989); Mars-surface baseline from NASA CCMC iSWA MSL RAD; conjunction window modelled from JPL Horizons geometry when present. *(snapshots: `sim_crew`)*
 
+**NASA (STS-34 mission page) and the U.S. National Library of Medicine (PubMed)**
+
+- NASA. STS-34 (mission page). https://www.nasa.gov/mission/sts-34/ (retrieved 2026-11-15T00:51:23Z). Golightly MJ, Hardy AC, Atwell W, Hardy K. Description, analysis and impact of major solar activity during recent U.S. Shuttle missions. Adv Space Res 1992;12(2-3):335-8. doi:10.1016/0273-1177(92)90125-H. PMID 11537026. *(snapshots: `history_sts34`)*
+
 **NASA Community Coordinated Modeling Center (CCMC)**
 
-- NASA Community Coordinated Modeling Center. DONKI (Space Weather Database Of Notifications, Knowledge, Information), SEP web service, https://api.nasa.gov/DONKI/SEP?startDate=2024-01-01&endDate=2024-02-29&api_key=<NASA_API_KEY>. Accessed 2026-11-14. *(snapshots: `swpc_sep_events`)*
+- NASA Community Coordinated Modeling Center. DONKI (Space Weather Database Of Notifications, Knowledge, Information), SEP web service, https://api.nasa.gov/DONKI/SEP?startDate=2024-01-01&endDate=2024-02-29&api_key=<NASA_API_KEY>. Accessed 2026-11-15. *(snapshots: `swpc_sep_events`)*
 
 **NASA GSFC Community Coordinated Modeling Center (CCMC), iSWA HAPI server**
 
 - NASA GSFC Community Coordinated Modeling Center (CCMC), Integrated Space Weather Analysis system (iSWA), HAPI dataset 'CRaTER' ('CRaTER Dose Rates', startDate 2009-06-26T20:06:35Z, stopDate 2026-10-07T23:30:00Z), HAPI server https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi, retrieved 2026-11-14T21:58:12Z. *(snapshots: `hapi_crater_dose`)*
 - NASA GSFC Community Coordinated Modeling Center (CCMC), Integrated Space Weather Analysis system (iSWA), HAPI dataset 'msl_rad_dosimetry' ('MSL RAD Dosimetry', startDate 2011-11-20T18:29:59Z, stopDate 2026-11-12T16:19:14Z), HAPI server https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi, retrieved 2026-11-14T21:58:12Z. *(snapshots: `hapi_msl_rad_dose`)*
+- NASA GSFC Community Coordinated Modeling Center (CCMC), Integrated Space Weather Analysis system (iSWA), HAPI dataset 'msl_rad_dosimetry' ('MSL RAD Dosimetry'), parameter dose_e_total, 2012-08-17T00:00:00Z to 2026-11-13T00:00:00Z (pinned), HAPI server https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi, retrieved 2026-11-15T01:19:32Z. Event rule: Löwe JL et al., Nowcasting Solar Energetic Particle Events for Mars Missions, Space Weather 23, e2025SW004372 (2025), doi:10.1029/2025SW004372; numbers from arXiv:2502.02469v1. *(snapshots: `hapi_msl_rad_sep_events`)*
 
 **NASA Goddard Space Flight Center, Space Physics Data Facility (SSCWeb), served via hapi-server.org**
 
@@ -162,16 +179,16 @@ runs in the product's decision path.
 
 **NOAA National Centers for Environmental Information (NCEI)**
 
-- NOAA National Centers for Environmental Information (originating agency DOC/NOAA/NCEP/NWS/SWPC). GOES-07 Energetic Particle Sensor (EPS), 5-minute averages, 1989-10-01 to 1989-10-31, file g07_eps_5m_19891001_19891031.csv (created 2014-03-19), GOES Space Environment Monitor archive, https://www.ncei.noaa.gov/data/goes-space-environment-monitor/access/avg/1989/10/goes07/csv/g07_eps_5m_19891001_19891031.csv. Accessed 2026-11-14. *(snapshots: `swpc_spe_replay`)*
+- NOAA National Centers for Environmental Information (originating agency DOC/NOAA/NCEP/NWS/SWPC). GOES-07 Energetic Particle Sensor (EPS), 5-minute averages, 1989-10-01 to 1989-10-31, file g07_eps_5m_19891001_19891031.csv (created 2014-03-19), GOES Space Environment Monitor archive, https://www.ncei.noaa.gov/data/goes-space-environment-monitor/access/avg/1989/10/goes07/csv/g07_eps_5m_19891001_19891031.csv. Accessed 2026-11-15. *(snapshots: `swpc_spe_replay`)*
 
 **NOAA Space Weather Prediction Center (SWPC)**
 
-- NOAA Space Weather Prediction Center. GOES primary integral proton flux, 5-minute averages (integral-protons-6-hour.json and integral-protons-7-day.json), SWPC data service, https://services.swpc.noaa.gov/json/goes/primary/. Accessed 2026-11-14T15:17:52Z. *(snapshots: `swpc_protons_live`)*
-- NOAA Space Weather Prediction Center. NOAA Space Weather Scales (Solar Radiation Storms, S1-S5). Web page https://www.swpc.noaa.gov/noaa-scales-explanation (served from www.spaceweather.gov) and PDF 'NOAA Space Weather Scales', dated December 11, 2023, https://www.swpc.noaa.gov/sites/default/files/images/NOAAscales.pdf. Accessed 2026-11-14. *(snapshots: `swpc_s_scale`)*
+- NOAA Space Weather Prediction Center. GOES primary integral proton flux, 5-minute averages (integral-protons-6-hour.json and integral-protons-7-day.json), SWPC data service, https://services.swpc.noaa.gov/json/goes/primary/. Accessed 2026-11-15T01:00:21Z. *(snapshots: `swpc_protons_live`)*
+- NOAA Space Weather Prediction Center. NOAA Space Weather Scales (Solar Radiation Storms, S1-S5). Web page https://www.swpc.noaa.gov/noaa-scales-explanation (served from www.spaceweather.gov) and PDF 'NOAA Space Weather Scales', dated December 11, 2023, https://www.swpc.noaa.gov/sites/default/files/images/NOAAscales.pdf. Accessed 2026-11-15. *(snapshots: `swpc_s_scale`)*
 
 **NOAA Space Weather Prediction Center (formerly SESC); mirrored by NASA GSFC Solar Data Analysis Center**
 
-- NOAA Space Environment Services Center (now NOAA SWPC). Solar Proton Events Affecting the Earth Environment, 1976 - present, Preliminary Listing. NASA GSFC Solar Data Analysis Center mirror, https://umbra.nascom.nasa.gov/SEP/. Accessed 2026-11-14. *(snapshots: `swpc_spe_list`)*
+- NOAA Space Environment Services Center (now NOAA SWPC). Solar Proton Events Affecting the Earth Environment, 1976 - present, Preliminary Listing. NASA GSFC Solar Data Analysis Center mirror, https://umbra.nascom.nasa.gov/SEP/. Accessed 2026-11-15. *(snapshots: `swpc_spe_list`)*
 
 ### Sources cited by the rules engine (`engine/rules/`)
 

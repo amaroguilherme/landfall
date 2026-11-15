@@ -25,6 +25,7 @@ import type { ScenarioIndex, SimCrewData } from '../../app/scenarioData'
 import { CREW_IDS, SEVERITY_RANK, crewMember } from '../../app/vocab'
 import type { CrewId, EnvId, Observation, Severity } from '../../app/vocab'
 import { Button, CategoryBadge, Chip, EmptyState, Expander, FindingBadge, FreshnessChip, MetTime, Num, Panel, ReqId, SimulatedMarker } from '../../ui'
+import { PrintCardLink } from '../cuecard/PrintLink'
 import './cases.css'
 import { ClosePanel, TripwirePanel } from './closing'
 import { PendingEntries } from './entry'
@@ -141,9 +142,12 @@ function CaseList({ views, storeCrew }: { views: CaseView[]; storeCrew: CrewId }
         <p className="lfc-lede">
           LANDFALL runs three deep cases. Each opens when one of its triggers reaches caution: detect, interpret in plain words, one primary countermeasure,
           a guided procedure whose required steps must be done or declined with a reason, an outcome, then a tripwire that resolves the case or escalates
-          it: first to the onboard Crew Medical Officer, then to the flight surgeon through the ground packet. Other findings show their limit and one
+          it: first to the onboard Crew Medical Officer (the Commander when the Crew Medical Officer is the patient), then to the flight surgeon through
+          the ground packet. Other findings show their limit and one
           action (listed below the cases). No diagnosis, no medication advice.
         </p>
+        {/* Paper cue cards ([V2 10130]) for when the display is lost, with the rules digest that marks a stale card. */}
+        <PrintCardLink />
         <SimulatedMarker variant="banner">Crew values and crew actions are simulated. The rules, limits and NASA/NOAA text are real.</SimulatedMarker>
       </header>
       <p className="lfc-fine">
@@ -442,6 +446,7 @@ function CaseDetail({ view, all, t, dispatch }: DetailProps) {
         </p>
         <h1 id="lfc-title">{def.title}</h1>
         <p className="lfc-lede">{def.one_line}</p>
+        <PrintCardLink caseId={def.id} />
         <SimulatedMarker variant="banner">
           {shared
             ? 'Crew actions are simulated. The proton flux is a time-shifted replay of the real GOES-7 October 1989 event.'

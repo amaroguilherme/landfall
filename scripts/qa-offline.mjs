@@ -22,7 +22,7 @@ import { join } from 'node:path'
 
 const base = (process.argv[2] ?? 'http://localhost:4401').replace(/\/+$/, '')
 const ROUTES = ['#/', '#/body', '#/cases', '#/case', '#/case/spe_shelter', '#/case/renal_stone', '#/case/sleep_circadian',
-  '#/radiation', '#/noon-sight', '#/trends', '#/downlink', '#/band', '#/provenance', '#/method', '#/data']
+  '#/radiation', '#/noon-sight', '#/trends', '#/downlink', '#/band', '#/provenance', '#/method', '#/data', '#/card/spe_shelter', '#/cards']
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const OFF = { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }
 const ON = { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }

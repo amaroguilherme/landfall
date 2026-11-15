@@ -490,7 +490,7 @@ function MeasuredChance({ ind }: { ind: PersonalIndicatorDef }) {
   if (!r || !chanceDiffers(r)) return null
   return (
     <p className="lf-limit-sub">
-      Chance alone: {r.text} (measured, not assumed: <Num value={r.alerting ? r.caution_multiplier : r.flag_multiplier} digits={2} />× the
+      Chance alone: {r.text} (measured, not assumed: <span className="lf-num">{r.alerting ? r.caution_multiplier_text : r.flag_multiplier_text}</span>× the
       nominal rate) <Chip kind={r.chip} />.
     </p>
   )

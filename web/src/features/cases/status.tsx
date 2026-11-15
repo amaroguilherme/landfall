@@ -8,7 +8,7 @@
 import type { ReactNode } from 'react'
 import type { CaseView } from '../../app/caseTimeline'
 import { useMetNow } from '../../app/mission'
-import { Button, ButtonLink, Chip, MetTime, Num, SeverityBadge } from '../../ui'
+import { Button, ButtonLink, Chip, MetTime, Num, ReqId, SeverityBadge } from '../../ui'
 import {
   STATUS_WORD,
   escalationMeta,
@@ -21,8 +21,6 @@ import {
   stepDef,
   stepList,
   stepNumber,
-  tierOneLine,
-  cmoCrewId,
 } from './model'
 import { autonomyText, deliveryText, jumpTo, openingNote, stepAnchor } from './helpers'
 import type { ActCtx, OutcomeDraft } from './procedure'
@@ -41,6 +39,30 @@ export function CaseStatusBadge({ view, size = 'md' }: { view: CaseView; size?: 
   return <SeverityBadge severity={openingSeverity(view)} label={STATUS_WORD[s]} size={size} solid={s !== 'escalated'} />
 }
 
+/**
+ * Why tier 1 is the backup on the Crew Medical Officer's own cases: the design choice and the [V2 7045] words it
+ * quotes (meta.json escalation.tiers[0].backup, via CaseView.tier1). Null for every other crewmember.
+ */
+export function TierOneBasis({ view, className = 'lfc-fine' }: { view: CaseView; className?: string }) {
+  const t1 = view.tier1
+  if (!t1.backup) return null
+  const cite = t1.citations.find((x) => typeof x.requirement_id === 'string' && typeof x.verbatim === 'string') as
+    | { requirement_id: string; verbatim: string }
+    | undefined
+  return (
+    <p className={className}>
+      The Crew Medical Officer is the patient here, so tier 1 is the backup, {t1.name} ({t1.crewId}): a design choice <Chip kind={t1.chip} />.
+      {cite ? (
+        <>
+          {' '}
+          NASA-STD-3001 plans for this with a physician crewmember: <ReqId id={cite.requirement_id} /> asks for medical equipment usable by
+          non-physician crewmembers “{cite.verbatim}”.
+        </>
+      ) : null}
+    </p>
+  )
+}
+
 /** The two escalation tiers, true for the crewmember's role and the link state (D4). */
 export function EscalationTiers({ c, view, idSuffix, packetLink = true }: { c: ActCtx; view: CaseView; idSuffix: string; packetLink?: boolean }) {
   const s = view.state
@@ -56,8 +78,9 @@ export function EscalationTiers({ c, view, idSuffix, packetLink = true }: { c: A
             1
           </span>
           <div>
-            <p className="lfc-k">Tier 1 · {t1?.label ?? 'Crew Medical Officer (onboard)'} · {t1?.when ?? 'now'}</p>
-            <p className="lfc-tier-act">{tierOneLine(view.crewId)}</p>
+            <p className="lfc-k">Tier 1 · {view.tier1.label} · {t1?.when ?? 'now'}</p>
+            <p className="lfc-tier-act">{view.tier1.line}</p>
+            <TierOneBasis view={view} />
           </div>
         </li>
         <li data-tier="2">
@@ -89,8 +112,8 @@ export function EscalationTiers({ c, view, idSuffix, packetLink = true }: { c: A
       ) : null}
       {meta?.chip ? (
         <p className="lfc-fine">
-          The two tiers are a design choice <Chip kind={meta.chip} />: the Crew Medical Officer first, the flight surgeon through the packet; how much is
-          decided onboard scales with the link.
+          The two tiers are a design choice <Chip kind={meta.chip} />: the Crew Medical Officer first (the backup when the Crew Medical Officer is the
+          patient), the flight surgeon through the packet; how much is decided onboard scales with the link.
         </p>
       ) : null}
     </div>
@@ -153,7 +176,6 @@ export function NowCard({ view, def, c, onSelect, startCount, shared, allCrew, s
   const pending = pendingRequired(s)
   const n = s.spec.step_ids.length
   const due = s.status === 'watch' && s.reassess_at !== null && c.t >= s.reassess_at
-  const isCmo = cmoCrewId() === view.crewId
 
   let title: string
   let body: ReactNode = null
@@ -265,7 +287,7 @@ export function NowCard({ view, def, c, onSelect, startCount, shared, allCrew, s
       break
     case 'escalated': {
       const red = s.escalation?.reason === 'red_flag'
-      title = isCmo ? 'Escalated: the case is yours now' : 'Escalated: tell the Crew Medical Officer now'
+      title = `Escalated: tell ${view.tier1.name} now`
       body = (
         <>
           <p id="lfc-verdict-banner" tabIndex={-1} className="lfc-verdict">

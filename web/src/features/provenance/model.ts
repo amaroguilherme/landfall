@@ -580,7 +580,7 @@ function buildRows(): ProvRow[] {
         label: chance.basis === 'measured' ? 'Chance rate (engine, measured)' : 'Chance rate (engine, nominal)',
         text:
           chance.basis === 'measured'
-            ? `${chance.text}. Measured, not assumed: cautions ${chance.caution_multiplier} times the nominal rate, reliable changes in either direction ${chance.flag_multiplier} times. ${chance.note ?? ''}`.trim()
+            ? `${chance.text}. Measured, not assumed: cautions ${chance.caution_multiplier_text} times the nominal rate, reliable changes in either direction ${chance.flag_multiplier_text} times. ${chance.note ?? ''}`.trim()
             : `${chance.text}: the test's nominal rate (alpha/2 for a change in the worse direction; alpha when either direction alerts, or for a non-alerting indicator). The rate measured under the scenario's noise model is close enough to it that the nominal rate is printed (engine/tests/test_chance_rates.py).`,
         chip: chance.chip,
         source: chance.source as RuleSource,

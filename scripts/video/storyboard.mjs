@@ -280,7 +280,8 @@ export const SHOTS = [
       layout: 'brand',
       blocks: [
         { cls: 'wordmark', text: 'LANDFALL', in: -1 }, // visible on frame 0: the poster frame shows the name
-        { cls: 'sub', text: `${TEAM_LINE} · ${EVENT}`, in: 0.3 },
+        { cls: 'sub', text: TEAM_LINE, in: 0.3 },
+        { cls: 'sub', text: EVENT, in: 0.45 },
       ],
     }),
     stills: [{ at: 1.9, name: 'still-0-title-card' }],

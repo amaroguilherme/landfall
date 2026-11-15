@@ -32,7 +32,7 @@
     {
       "id": "no_diagnosis",
       "phrases": [
-        "diagnose", "diagnosis", "diagnosed", "do I have", "have I got", "what is wrong with me", "what's wrong with me",
+        "diagnose", "diagnosis", "diagnosed", "do I have a", "do I have an", "have I got", "what is wrong with me", "what's wrong with me",
         "is it serious", "am I sick", "what disease", "what illness"
       ]
     },

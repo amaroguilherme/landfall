@@ -76,6 +76,16 @@ export const COVERAGE: readonly CoverageVolume[] = (rawCoverage as unknown as { 
 export const CHECKED_ON = '15 Nov 2026'
 export const CHECKED_LABEL = `checked against the PDF page, ${CHECKED_ON}`
 export const NAMED_LABEL = 'also named above'
+/**
+ * The requirements the two NASA-STD-3001 snapshots freeze, which Find it in NASA's words searches (not the 543
+ * ranked here). nearest.test.ts recounts the distinct requirement IDs in the two snapshots; find.test.ts pins the
+ * search's passages at the same 57.
+ */
+export const FROZEN_COUNT = 57
+export const FIND_LINK = `Search the ${FROZEN_COUNT} requirements LANDFALL froze, in your own words →`
+/** Who read the passages that are not frozen against their PDF pages (review.json "reviewer"). */
+export const CHECKED_TITLE =
+  'Cut from the PDF by the same parser as the snapshots and read against its PDF page by a Claude Code review agent (tools/nearest/review.json)'
 
 const COUNT_WORD: Record<number, string> = { 3: 'three', 4: 'four', 5: 'five' }
 
@@ -88,6 +98,11 @@ export function summaryFor(c: NearestClaim): string {
   return `The ${n} requirements closest in meaning (ranked by a model: a ranking, not proof)`
 }
 
+/** Read by screen readers after the summary, so each list's disclosure has its own name: the sentence ranked against. */
+export function summarySuffix(c: NearestClaim): string {
+  return `, to our sentence “${c.query}”`
+}
+
 /** "NASA-STD-3001 Vol 2 Rev F" -> "Vol 2 Rev F" (the card already sits under a NASA-STD-3001 claim). */
 function shortDoc(doc: string): string {
   return doc.replace(/^NASA-STD-3001\s+/, '')
@@ -98,11 +113,7 @@ function CheckBadge({ frozen }: { frozen: boolean }) {
   return (
     <span
       className="lf-m-verified lf-near-check"
-      title={
-        frozen
-          ? 'Frozen in a LANDFALL snapshot of the standard and re-checked on its PDF page at build'
-          : 'Cut from the PDF by the same parser as the snapshots and read against its PDF page in a separate review (tools/nearest/review.json)'
-      }
+      title={frozen ? 'Frozen in a LANDFALL snapshot of the standard and re-checked on its PDF page at build' : CHECKED_TITLE}
     >
       <CheckGlyph />
       {frozen ? (
@@ -161,6 +172,15 @@ function missedHere(claim: string): LabelledItem[] {
 }
 
 /**
+ * Shown passages tagged 'also named above' that the labelled check does not count: the page names them, but only in
+ * a volume reading (the snapshot's caveat), not by hand beside the claim. Today: [V2 6153] on #/method?s=gap.
+ */
+export function namedNotLabelled(c: NearestClaim): string[] {
+  const labelled = new Set(NEAREST.labelled_check.items.filter((h) => h.claim_id === c.claim_id).map((h) => h.id))
+  return c.items.filter((it) => it.also_named_by_us && !labelled.has(it.id)).map((it) => it.id)
+}
+
+/**
  * The frozen model ranking for one claim, as a closed Expander: NASA's statements, closest first, each with
  * its PDF page and how it was checked. Renders nothing for an unknown claim.
  */
@@ -172,12 +192,20 @@ export function NearestList({ claim, basis = 'the keyword search above' }: { cla
   const loose = notes.filter((n) => !shown.has(n.about))
   const lc = NEAREST.labelled_check
   const missed = missedHere(claim)
+  const unlabelled = namedNotLabelled(c)
   const corpus = NEAREST.corpus
   const defined = COVERAGE.reduce((sum, v) => sum + v.requirements, 0)
   const notRanked = COVERAGE.flatMap((v) => v.not_ranked)
   return (
     <div className="lf-near" data-claim={claim}>
-      <Expander summary={summaryFor(c)}>
+      <Expander
+        summary={
+          <>
+            {summaryFor(c)}
+            <span className="sr-only">{summarySuffix(c)}</span>
+          </>
+        }
+      >
         <p className="lf-near-lede">
           NASA’s words, verbatim, closest in meaning first. A model ranked them at build time and wrote none of them.
           They are the passages to read before trusting the claim, which still rests on {basis}.
@@ -192,7 +220,9 @@ export function NearestList({ claim, basis = 'the keyword search above' }: { cla
             <span className="lf-near-note-lead">LANDFALL’s note:</span> <RichText text={n.text} />
           </p>
         ))}
-        <p className="lf-near-foot"><Link to="/method?s=find">Try your own words: Find it in NASA’s words →</Link></p>
+        <p className="lf-near-foot">
+          <Link to="/method?s=find">{FIND_LINK}</Link>
+        </p>
         {c.skipped.length > 0 ? (
           <p className="lf-near-foot">
             Not shown, though ranked higher:{' '}
@@ -238,6 +268,19 @@ export function NearestList({ claim, basis = 'the keyword search above' }: { cla
           Labelled check: of the <span className="lf-mono">{lc.of}</span> requirements we had named by hand beside
           these claims, <span className="lf-mono">{lc.in_top_five}</span> {lc.in_top_five === 1 ? 'is' : 'are'} in the
           model’s top five.
+          {unlabelled.length > 0 ? (
+            <>
+              {' '}
+              {unlabelled.map((id, i) => (
+                <span key={id}>
+                  {i > 0 ? ', ' : null}
+                  <ReqId id={id} />
+                </span>
+              ))}{' '}
+              {unlabelled.length === 1 ? 'is' : 'are'} named above only in the volume reading, not by hand, so{' '}
+              {unlabelled.length === 1 ? 'it is' : 'they are'} not one of the <span className="lf-mono">{lc.of}</span>.
+            </>
+          ) : null}
           {missed.length > 0 ? (
             <>
               {' '}

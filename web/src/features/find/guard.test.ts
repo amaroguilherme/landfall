@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { SYMPTOMS, URGENT_SYMPTOMS, symptomLabel } from '../noon-sight/record'
 import { buildIndex } from './bm25'
-import { GuardNote, Results } from './FindSection'
+import { GuardNote, Results, SearchStatus, bannerLead, searchStatus } from './FindSection'
 import { GUARD_PHRASES, RED_FLAGS, TELL_CMO, URGENT_IDS, URGENT_LABELS, guardBanners, guardHits, refusalText } from './guard'
 import type { GuardKind } from './guard'
 import { buildPassages } from './passages'
@@ -60,7 +60,11 @@ const VECTORS: [string, GuardKind[]][] = [
   ['what is my cancer risk', ['no_reid']],
   ['REID model for my exposure', ['no_reid']],
   ['do I have a kidney stone', ['no_diagnosis']],
+  ['do I have an infection', ['no_diagnosis']],
   ['chest pain, do I have a heart problem? what medicine', ['symptom', 'no_dosing', 'no_diagnosis']],
+  // an ordinary question: "do I have to" is not "do I have a"
+  ['Do I have to wear a dosimeter', []],
+  ['Do I have to wear a dosimeter during EVA?', []],
   ['radiation dose limit', []],
   ['blood pressure cuff', []],
   ['how much drinking water per day', []],
@@ -150,5 +154,31 @@ describe('the banners', () => {
       expect(banner).toBeLessThan(h.indexOf('data-col="keywords"'))
       expect(h.indexOf('data-col="keywords"')).toBeLessThan(h.indexOf('data-col="meaning"'))
     }
+  })
+})
+
+describe('the search status, a live region always in the page', () => {
+  const status = (query: string | null) => renderToStaticMarkup(createElement(SearchStatus, { query }))
+  it('is in the page, empty, before the first search', () => {
+    expect(status(null)).toBe('<p class="sr-only" role="status" data-find-status=""></p>')
+  })
+  it('announces the first sentence of every banner the words raise, then the query', () => {
+    const q = 'chest pain, do I have a heart problem? what medicine'
+    const leads = guardBanners(q).map(bannerLead)
+    expect(leads).toEqual([
+      'Your words include “Chest pain”.', // the Noon Sight's label, as listed
+      'Your words include “medicine”.',
+      'Your words include “do I have a”.',
+    ])
+    expect(searchStatus(q)).toBe(`${leads.join(' ')} Results for ${q}.`)
+    expect(textOf(status(q))).toBe(searchStatus(q))
+    // the banner itself opens with the same sentence
+    for (const b of guardBanners(q)) {
+      const h = textOf(renderToStaticMarkup(createElement(GuardNote, { banner: b })))
+      expect(h.startsWith(bannerLead(b)), b.kind).toBe(true)
+    }
+  })
+  it('says only the query when no banner fires', () => {
+    expect(searchStatus('Do I have to wear a dosimeter')).toBe('Results for Do I have to wear a dosimeter.')
   })
 })

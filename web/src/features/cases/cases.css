@@ -202,6 +202,12 @@
 
 /* ---- tables ---- */
 .lfc-table-wrap { overflow-x: auto; }
+/* Below 380 px a chart's value table fits its card: narrower cell padding, and long verdict words hyphenate
+   ("counter-measure", lang="en"). Where the browser has no hyphenation, its .lfc-table-wrap (parts.tsx) scrolls. */
+@media (max-width: 379px) {
+  .lfc-chart .lfc-table th, .lfc-chart .lfc-table td { padding: 0.35em 0.35em; }
+  .lfc-chart .lfc-table td:last-child { hyphens: auto; }
+}
 .lfc-table { width: 100%; font-size: var(--lf-text-sm); }
 .lfc-table caption { text-align: left; font-size: var(--lf-text-xs); color: var(--lf-text-muted); padding-bottom: 0.4em; }
 .lfc-table th, .lfc-table td { text-align: left; padding: 0.35em 0.6em; border-bottom: 1px solid var(--lf-border-subtle); vertical-align: top; }

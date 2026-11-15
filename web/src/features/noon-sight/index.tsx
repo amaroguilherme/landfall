@@ -794,26 +794,29 @@ function PvtChoose({ note, onStart, onSkip }: { note: string | null; onStart: (m
         (2011), not from a NASA requirement: no NASA standard adopts it. <Chip kind="literature" />
       </p>
       <Expander summary="Where these numbers come from">
-        <table className="ns-table ns-consts">
-          <thead>
-            <tr>
-              <th scope="col">Constant</th>
-              <th scope="col">Value</th>
-              <th scope="col">Basis</th>
-            </tr>
-          </thead>
-          <tbody>
-            {PVT_CONSTANTS.map((c) => (
-              <tr key={c.label}>
-                <th scope="row">{c.label}</th>
-                <td className="lf-mono ns-nowrap">{c.value}</td>
-                <td>
-                  <Chip kind={c.chip} /> {c.basis}
-                </td>
+        {/* At 320 px the constants table is about 35 px wider than the room it has in the card: it scrolls inside its own region. */}
+        <div className="ns-table-wrap" tabIndex={0} role="region" aria-label="Where the PVT-B numbers come from, scrollable">
+          <table className="ns-table ns-consts">
+            <thead>
+              <tr>
+                <th scope="col">Constant</th>
+                <th scope="col">Value</th>
+                <th scope="col">Basis</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {PVT_CONSTANTS.map((c) => (
+                <tr key={c.label}>
+                  <th scope="row">{c.label}</th>
+                  <td className="lf-mono ns-nowrap">{c.value}</td>
+                  <td>
+                    <Chip kind={c.chip} /> {c.basis}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <p className="ns-small">
           <Citation source={{ kind: 'literature', citation: PVT_B_CITATION, url: PVT_B_URL }} /> Full text:{' '}
           <a href={PVT_B_FULLTEXT_URL} target="_blank" rel="noopener noreferrer">

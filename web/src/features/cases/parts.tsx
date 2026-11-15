@@ -756,34 +756,37 @@ export function SeriesChart({
       </svg>
       <figcaption className="lfc-fine">{caption}</figcaption>
       <Expander summary="Show these values as a table">
-        <table className="lfc-table">
-          <caption className="sr-only">{title}</caption>
-          <thead>
-            <tr>
-              <th scope="col">MET</th>
-              <th scope="col" className="num">
-                Value ({unit})
-              </th>
-              <th scope="col">Engine verdict</th>
-            </tr>
-          </thead>
-          <tbody>
-            {points.map((p) => (
-              <tr key={p.t}>
-                <td>
-                  <MetTime t={p.t} />
-                  {p.runtime ? ' (entered here)' : ''}
-                </td>
-                <td className="num">
-                  <Num value={p.value} />
-                </td>
-                <td>
-                  {p.severity !== 'nominal' ? <SeverityIcon severity={p.severity} size={12} /> : null} {p.verdict}
-                </td>
+        {/* If a row is still wider than the card at 320 px (cases.css), the table scrolls inside its own region, as the case's other tables do. */}
+        <div className="lfc-table-wrap" tabIndex={0} role="region" aria-label={`${title}, values as a table, scrollable`}>
+          <table className="lfc-table">
+            <caption className="sr-only">{title}</caption>
+            <thead>
+              <tr>
+                <th scope="col">MET</th>
+                <th scope="col" className="num">
+                  Value ({unit})
+                </th>
+                <th scope="col">Engine verdict</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {points.map((p) => (
+                <tr key={p.t}>
+                  <td>
+                    <MetTime t={p.t} />
+                    {p.runtime ? ' (entered here)' : ''}
+                  </td>
+                  <td className="num">
+                    <Num value={p.value} />
+                  </td>
+                  <td>
+                    {p.severity !== 'nominal' ? <SeverityIcon severity={p.severity} size={12} /> : null} {p.verdict}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Expander>
     </figure>
   )

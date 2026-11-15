@@ -288,6 +288,9 @@
 .ns-table tbody th { font-weight: 600; color: var(--lf-text); }
 .ns-table .num { text-align: right; }
 .ns-consts td .lf-chip { margin-right: 4px; }
+/* The constants table's scroll region (index.tsx): at 320 px the table is wider than the card. */
+.ns-table-wrap { overflow-x: auto; margin: var(--lf-space-1) 0; }
+.ns-table-wrap > .ns-table { margin: 0; }
 .ns-var { display: block; font-size: 0.6875rem; color: var(--lf-text-muted); font-weight: 400; }
 .ns-obs { max-width: 100%; }
 .ns-done-lede { font-size: var(--lf-text-md); color: var(--lf-text); }
@@ -303,6 +306,11 @@
   .ns-consts th,
   .ns-consts td { padding: 6px 4px; }
   .ns-consts td:last-child { overflow-wrap: anywhere; }
+}
+/* 360 px: 3 px side padding lets the table fit its card; below that it scrolls inside .ns-table-wrap. */
+@media (max-width: 379px) {
+  .ns-consts th,
+  .ns-consts td { padding: 6px 3px; }
 }
 
 /* ---- mood trend: neutral greys only; the baseline is a SOLID reference, not a dashed threshold ---- */

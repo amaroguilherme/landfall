@@ -19,6 +19,16 @@
     {"id": "V2 6020", "in": "statement", "text": "pressure, humidity, temperature, ppO2, and ppCO2 data"},
     {"id": "V2 6020", "in": "statement", "text": "each isolatable, habitable compartment"}
    ]
+  },
+  {
+   "claim_id": "alert_number",
+   "about": "V2 6153",
+   "text": "[V2 6153] asks for an alert when celestial dust is “approaching defined limits”; Vol 2 sets the lunar dust limit itself, “below a time-weighted average of 0.3 mg/m3” in [V2 6053], but never says how close counts as “approaching”: that alert point is left to the program.",
+   "quotes": [
+    {"id": "V2 6153", "in": "statement", "text": "approaching defined limits"},
+    {"id": "V2 6053", "in": "statement", "text": "below a time-weighted average of 0.3 mg/m3"},
+    {"id": "V2 6153", "in": "statement", "text": "approaching"}
+   ]
   }
  ]
 }

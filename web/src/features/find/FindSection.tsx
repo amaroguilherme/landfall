@@ -63,13 +63,25 @@ export function PassageCard({ p, note }: { p: Passage; note?: ReactNode }) {
 
 const quoted = (words: readonly string[]): string => words.map((w) => `“${w}”`).join(', ')
 
+/** A banner's first sentence: the words that raised it. The search status reads it out too. */
+export const bannerLead = (banner: GuardBanner): string => `Your words include ${quoted(banner.words)}.`
+
+/**
+ * What the status region, always in the page, announces after a search: the first sentence of each banner the
+ * words raise (role="note" alone is not read out), then the query. Empty before the first search.
+ */
+export function searchStatus(query: string | null): string {
+  if (!query) return ''
+  return [...guardBanners(query).map(bannerLead), `Results for ${query}.`].join(' ')
+}
+
 /** The symptom check's banner: whom to tell (symptom words), or the rules' refusal, verbatim. */
 export function GuardNote({ banner }: { banner: GuardBanner }) {
   if (banner.kind === 'symptom') {
     return (
       <div className="lf-find-guard" role="note" data-kind="symptom">
         <p>
-          <strong>Your words include {quoted(banner.words)}.</strong> This search reads NASA’s standard; it does not assess symptoms. If you
+          <strong>{bannerLead(banner)}</strong> This search reads NASA’s standard; it does not assess symptoms. If you
           have it now, {TELL_CMO ?? 'tell the Crew Medical Officer now'}.
         </p>
       </div>
@@ -80,7 +92,7 @@ export function GuardNote({ banner }: { banner: GuardBanner }) {
     <div className="lf-find-guard" role="note" data-kind={banner.kind}>
       <UnavailableIcon size={16} />
       <p>
-        <strong>Your words include {quoted(banner.words)}.</strong> This search reads NASA’s standard.{' '}
+        <strong>{bannerLead(banner)}</strong> This search reads NASA’s standard.{' '}
         {text ? <RichText text={text} /> : null}
       </p>
     </div>
@@ -303,6 +315,15 @@ export function Footnote() {
   )
 }
 
+/** The search's live region: in the page from the start, so a screen reader announces what each search changes. */
+export function SearchStatus({ query }: { query: string | null }) {
+  return (
+    <p className="sr-only" role="status" data-find-status="">
+      {searchStatus(query)}
+    </p>
+  )
+}
+
 export default function FindSection() {
   const v1 = useSnapshot<Vol1Data>('std_vol1_requirements')
   const v2 = useSnapshot<Vol2Data>('std_vol2_requirements')
@@ -381,14 +402,8 @@ export default function FindSection() {
         <ExtLink href={v1.data.document.url}>NASA-STD-3001 Vol 1 Rev {v1.data.document.revision}</ExtLink> and{' '}
         <ExtLink href={v2.data.document.pdf_url}>Vol 2 Rev {v2.data.document.revision}</ExtLink> (PDF).
       </p>
-      {query ? (
-        <>
-          <p className="sr-only" role="status">
-            Results for {query}
-          </p>
-          <Results query={query} passages={passages} index={index} meaning={meaning} />
-        </>
-      ) : null}
+      <SearchStatus query={query} />
+      {query ? <Results query={query} passages={passages} index={index} meaning={meaning} /> : null}
       <Lists />
       <Footnote />
     </div>

@@ -1,6 +1,8 @@
 // The meaning column's model: an 8-bit copy of potion-base-8M (MinishLab, MIT), a table of 29,528 word-piece
 // vectors that cannot write text. Nothing is fetched until the first search; then three same-origin files are read
 // (the service worker's /assets/* cache-first rule keeps them for offline use) and checked against their SHA-256.
+// The worker only keeps what passes through it, so a search made before it controls the page waits for it (at most
+// CONTROL_WAIT_MS), and if it is still not in control, fetches anyway and fetches the files once more when it is.
 // A text's vector is the mean of its word pieces' rows, L2-normalised; closeness is the dot product. The encode
 // contract (tools/find/README.md) is the same as the Python reference (tools/find/make_vectors.py), tested equal.
 import { encode, parseVocab } from './wordpiece'
@@ -169,6 +171,84 @@ export async function loadModel(base = import.meta.env.BASE_URL ?? '/', fetchImp
   return makeModel(e, s, new TextDecoder('utf-8', { fatal: true }).decode(v))
 }
 
+// ---- the service worker: what passes through it stays for offline use ---------------------------------------------
+
+/** The part of navigator.serviceWorker the loader uses. */
+export interface WorkerContainer {
+  readonly controller: unknown
+  readonly ready: Promise<unknown>
+  addEventListener(type: 'controllerchange', listener: () => void): void
+  removeEventListener(type: 'controllerchange', listener: () => void): void
+}
+
+/** How long a search made before the service worker controls the page waits for it before fetching anyway. */
+export const CONTROL_WAIT_MS = 3000
+
+/**
+ * True as soon as a service worker controls the page (at once if one already does); false after waitMs, or at once
+ * where there is no worker. It listens to controllerchange and re-checks when navigator.serviceWorker.ready settles.
+ */
+export function whenControlled(sw: WorkerContainer | null, waitMs = CONTROL_WAIT_MS): Promise<boolean> {
+  if (!sw) return Promise.resolve(false)
+  if (sw.controller) return Promise.resolve(true)
+  return new Promise((resolve) => {
+    const finish = (controlled: boolean) => {
+      clearTimeout(timer)
+      sw.removeEventListener('controllerchange', check)
+      resolve(controlled)
+    }
+    const check = () => {
+      if (sw.controller) finish(true)
+    }
+    const timer = setTimeout(() => finish(false), waitMs)
+    sw.addEventListener('controllerchange', check)
+    sw.ready.then(check, () => undefined)
+  })
+}
+
+const armed = new WeakSet<WorkerContainer>()
+
+/**
+ * The files are about to come from the network with no worker in control, so no cache will keep them: on the next
+ * controllerchange that leaves a worker in control, call refetch once (errors ignored) so its cache-first rule
+ * stores them. One pending refetch per worker container, however many searches fail and retry before then.
+ */
+export function refetchWhenControlled(sw: WorkerContainer, refetch: () => Promise<unknown>): void {
+  if (armed.has(sw)) return
+  armed.add(sw)
+  const once = () => {
+    if (!sw.controller) return
+    sw.removeEventListener('controllerchange', once)
+    armed.delete(sw)
+    void refetch().catch(() => undefined)
+  }
+  sw.addEventListener('controllerchange', once)
+}
+
+/** navigator.serviceWorker in a production build (main.tsx registers /sw.js only there); null otherwise. */
+function pageWorker(): WorkerContainer | null {
+  if (!import.meta.env.PROD || typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null
+  return navigator.serviceWorker
+}
+
+/**
+ * The first search's load. With a worker in control (or one taking control within waitMs) the three files pass
+ * through it and stay on the device; otherwise they are fetched anyway, and fetched once more, through the worker,
+ * when it takes control. Either way the model then works offline.
+ */
+export async function loadModelKept(
+  sw: WorkerContainer | null,
+  base = import.meta.env.BASE_URL ?? '/',
+  fetchImpl: typeof fetch = fetch,
+  waitMs = CONTROL_WAIT_MS,
+): Promise<Model> {
+  if (sw && !(await whenControlled(sw, waitMs))) {
+    const urls = Object.values(MODEL.files).map((f) => `${base}${MODEL.dir}${f.name}`)
+    refetchWhenControlled(sw, () => Promise.all(urls.map((u) => fetchImpl(u).then((r) => r.arrayBuffer()))))
+  }
+  return loadModel(base, fetchImpl)
+}
+
 let state: ModelState = { status: 'idle', model: null, error: null }
 let pending: Promise<ModelState> | null = null
 const listeners = new Set<() => void>()
@@ -188,7 +268,7 @@ export function ensureModel(): Promise<ModelState> {
   if (state.status === 'ready') return Promise.resolve(state)
   if (pending) return pending
   set({ status: 'loading', model: null, error: null })
-  pending = loadModel().then(
+  pending = loadModelKept(pageWorker()).then(
     (model) => {
       pending = null
       set({ status: 'ready', model, error: null })

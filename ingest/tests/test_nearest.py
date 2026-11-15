@@ -296,9 +296,10 @@ def test_review_rejected_nothing_so_rank_py_skipped_nothing(nearest):
 
 
 # ------------------------------------------------------------------------------ the authored notes
-# No alert_number note: one under [V2 6153] ("Vol 2 sets dust limits in numbers") disagreed with the std_vol2
-# volume reading the gap section shows just above the list ("delegate limits to the program"), so it was withdrawn.
-NOTED = [("sensor_set", "V2 6088"), ("storage", "V2 6020")]
+# The alert_number note under [V2 6153] was withdrawn while the std_vol2 volume reading said the alert requirements
+# "delegate limits to the program"; it is back, worded to agree with the reading as reworded for round 5: they leave
+# the alert point to the program, even where Vol 2 sets the limit itself (dust: [V2 6053]).
+NOTED = [("sensor_set", "V2 6088"), ("storage", "V2 6020"), ("alert_number", "V2 6153")]
 
 
 @pytest.fixture(scope="module")
@@ -315,7 +316,7 @@ def test_notes_sit_under_a_shown_passage_the_review_flagged(nearest, notes):
         assert n["text"].startswith(f"[{n['about']}] "), n["about"]
         assert n["text"].count(". ") <= 1 and n["text"].endswith("."), n["about"]  # one sentence (storage: two, by decision)
     flagged = {(v["claim_id"], v["id"]) for v in _json(TOOLS / "review.json")["passages"]
-               if re.search(r"SME: (contradicts|weakens)", v["note"])}
+               if re.search(r"(?:SME|Reviewer): (contradicts|weakens)", v["note"])}
     assert set(NOTED) <= flagged
 
 
@@ -335,6 +336,16 @@ def test_the_storage_note_has_the_form_the_lead_set():
     n = next(x for x in _json(NOTES)["notes"] if x["claim_id"] == "storage")
     assert re.fullmatch(r"\[V2 6020\] requires “[^”]+” to be recorded automatically for “[^”]+”; it sets no capacity, "
                         r"retention or duration\. The ranking surfaced it, and we narrowed this claim\.", n["text"])
+
+
+def test_the_dust_note_agrees_with_the_volume_reading_and_its_number_is_on_the_pdf_page():
+    """Vol 2 sets the lunar dust limit itself ([V2 6053]); what it leaves open, and the note says so, is the alert point."""
+    n = next(x for x in _json(NOTES)["notes"] if x["claim_id"] == "alert_number")
+    assert n["about"] == "V2 6153"
+    assert n["text"].endswith("never says how close counts as “approaching”: that alert point is left to the program.")
+    assert "delegate" not in n["text"] and "no numeric" not in n["text"]
+    by_q = {q["text"]: q["id"] for q in n["quotes"]}
+    assert by_q["below a time-weighted average of 0.3 mg/m3"] == "V2 6053"
 
 
 def test_bundle_stays_small():

@@ -12,13 +12,18 @@ import { META } from '../method/rules'
 import {
   CHECKED_LABEL,
   CHECKED_ON,
+  CHECKED_TITLE,
   COVERAGE,
+  FIND_LINK,
+  FROZEN_COUNT,
   NAMED_LABEL,
   NEAREST,
   NEAREST_NOTES,
   NearestList,
+  namedNotLabelled,
   nearestClaim,
   summaryFor,
+  summarySuffix,
 } from './NearestList'
 
 // The gap section reads the two standards' snapshots through useSnapshot, which server rendering leaves
@@ -110,10 +115,27 @@ describe('the list for each claim', () => {
       expect(summaryFor(nearestClaim(claim)!)).toContain('a ranking, not proof')
     }
   })
-  it('links to Find it in NASA’s words (#/method?s=find), after the list and before the footnotes', () => {
+  it('gives each list’s disclosure its own accessible name: the summary, then (for screen readers) the sentence ranked', () => {
+    const names = CLAIMS.map((claim) => {
+      const summary = /<summary>(.*?)<\/summary>/s.exec(listHtml(claim))![1]
+      const c = nearestClaim(claim)!
+      expect(summary, claim).toContain(`<span class="sr-only">${escapeHtml(summarySuffix(c)).replace(/'/g, '&#x27;')}</span>`)
+      const name = summary.replace(/<[^>]+>/g, '').replace(/&#x27;/g, "'").replace(/&amp;/g, '&')
+      expect(name, claim).toBe(`${summaryFor(c)}, to our sentence “${c.query}”`)
+      return name
+    })
+    expect(new Set(names).size).toBe(CLAIMS.length)
+  })
+  it('links to Find it in NASA’s words (#/method?s=find), saying it searches the 57 frozen requirements, not the 543 ranked', () => {
+    expect(FIND_LINK).toBe('Search the 57 requirements LANDFALL froze, in your own words →')
+    // The count the link gives is the one the search runs on: the distinct requirements the two snapshots freeze
+    // (find.test.ts pins its passages at the same 57; this file may not import features/find).
+    const reqs = (id: string) => readJson<{ data: { requirements: { id: string }[] } }>(`web/public/data/${id}.json`).data.requirements
+    expect(new Set([...reqs('std_vol1_requirements'), ...reqs('std_vol2_requirements')].map((r) => r.id)).size).toBe(FROZEN_COUNT)
+    expect(NEAREST.claims[0].corpus_size).not.toBe(FROZEN_COUNT)
     for (const claim of CLAIMS) {
       const html = listHtml(claim)
-      const link = '<a href="#/method?s=find">Try your own words: Find it in NASA’s words →</a>'
+      const link = `<a href="#/method?s=find">${FIND_LINK}</a>`
       expect(html.split(link), claim).toHaveLength(2)
       expect(html.indexOf('</ol>'), claim).toBeLessThan(html.indexOf(link))
       expect(html.indexOf(link), claim).toBeLessThan(html.indexOf('Ranked at build time by'))
@@ -148,10 +170,21 @@ describe('the list for each claim', () => {
         if (it.frozen) {
           expect(t, it.id).toContain('· verified')
           expect(t, it.id).not.toContain(CHECKED_LABEL)
-        } else expect(t, it.id).toContain(`· ${CHECKED_LABEL}`)
+        } else {
+          expect(t, it.id).toContain(`· ${CHECKED_LABEL}`)
+          expect(card, it.id).toContain(`title="${CHECKED_TITLE}"`)
+        }
         expect(t, it.id).not.toMatch(/by us/)
       })
     }
+  })
+  it('says who checked the passages that are not frozen: a Claude Code review agent, as review.json records', () => {
+    expect(CHECKED_TITLE).toBe(
+      'Cut from the PDF by the same parser as the snapshots and read against its PDF page by a Claude Code review agent (tools/nearest/review.json)',
+    )
+    const reviewers = new Set(readJson<{ passages: { reviewer: string }[] }>('tools/nearest/review.json').passages.map((p) => p.reviewer))
+    expect([...reviewers]).toEqual(['Claude Code review agent (team Isaac Clarke)'])
+    for (const claim of CLAIMS) expect(listHtml(claim), claim).not.toMatch(/\bSME\b/)
   })
   it("marks exactly the requirements the page already names beside the claim: 'also named above'", () => {
     const flagged: string[] = []
@@ -181,6 +214,15 @@ describe('the list for each claim', () => {
       expect(t).toContain('Only the rank is kept. Not ranked: [V1 5002] and [V2 10157], which LANDFALL’s PDF parsers miss.')
       expect(t).toContain("Labelled check: of the 6 requirements we had named by hand beside these claims, 1 is in the model’s top five.")
     }
+    // [V2 6153] is tagged 'also named above' (the gap section's volume reading names it) but is not one of the 6.
+    expect(NEAREST.claims.map((c) => [c.claim_id, namedNotLabelled(c)]).filter(([, ids]) => ids.length)).toEqual([
+      ['alert_number', ['V2 6153']],
+    ])
+    expect(textOf(listHtml('alert_number'))).toContain(
+      '1 is in the model’s top five. [V2 6153] is named above only in the volume reading, not by hand, so it is not one of the 6. ' +
+        'Named by hand for this claim and ranked lower:',
+    )
+    for (const claim of CLAIMS.filter((x) => x !== 'alert_number')) expect(textOf(listHtml(claim)), claim).not.toContain('volume reading')
     expect(textOf(listHtml('biocompat'))).toContain('Named by hand for this claim and ranked lower: [V2 7076] at rank 151, [V2 7081] at rank 14.')
     expect(textOf(listHtml('alert_number'))).toContain(
       'Named by hand for this claim and ranked lower: [V2 6164] at rank 7, [V2 6022] at rank 165, [V2 11036] at rank 18.',
@@ -221,7 +263,7 @@ describe('the review and the notes', () => {
     expect(CHECKED_ON).toBe('15 Nov 2026')
   })
   it('attaches each note to a shown passage of its claim, under that card', () => {
-    expect(NEAREST_NOTES.map((n) => `${n.claim_id} ${n.about}`)).toEqual(['sensor_set V2 6088', 'storage V2 6020'])
+    expect(NEAREST_NOTES.map((n) => `${n.claim_id} ${n.about}`)).toEqual(['sensor_set V2 6088', 'storage V2 6020', 'alert_number V2 6153'])
     for (const n of NEAREST_NOTES) {
       const c = nearestClaim(n.claim_id)!
       const i = c.items.findIndex((it) => it.id === n.about)
@@ -303,11 +345,21 @@ describe('#/method?s=gap: after the delegation quotes', () => {
     // [V2 6153] is 'also named above' because the volume reading names it.
     expect(textOf(html.slice(readingAt, listAt))).toContain('[V2 6153]')
   })
-  it('adds no note of its own under the list, so the volume reading above stays the one reading of [V2 6153]', () => {
-    expect(NEAREST_NOTES.some((n) => n.claim_id === 'alert_number')).toBe(false)
+  it('notes under [V2 6153] that Vol 2 sets the dust limit but leaves the alert point to the program, as the reading does', () => {
+    const n = NEAREST_NOTES.find((x) => x.claim_id === 'alert_number')!
+    expect(n.text).toBe(
+      '[V2 6153] asks for an alert when celestial dust is “approaching defined limits”; Vol 2 sets the lunar dust limit itself, ' +
+        '“below a time-weighted average of 0.3 mg/m3” in [V2 6053], but never says how close counts as “approaching”: ' +
+        'that alert point is left to the program.',
+    )
+    // [V2 6053] is not shown here: ingest/tests/test_nearest.py finds the phrase in its statement and on PDF p. 65.
+    expect(n.quotes.find((q) => q.id === 'V2 6053')).toEqual({ id: 'V2 6053', in: 'statement', text: 'below a time-weighted average of 0.3 mg/m3' })
     const listAt = html.indexOf('<div class="lf-near" data-claim="alert_number">')
     expect(listAt).toBeGreaterThan(0)
-    expect(html.slice(listAt)).not.toContain('lf-near-note')
+    const cards = cardsOf(html.slice(listAt))
+    const at = nearestClaim('alert_number')!.items.findIndex((it) => it.id === 'V2 6153')
+    cards.forEach((card, j) => expect(card.includes('lf-near-note'), `card ${j}`).toBe(j === at))
+    expect(textOf(cards[at])).toContain(`LANDFALL’s note: ${n.text}`)
   })
 })
 

@@ -3,8 +3,25 @@
 // int8 copy stays within the recorded distance of fp32 model2vec.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
-import { DIM, MAX_TOKENS, MODEL, MODEL_BYTES, embed, loadModel, makeModel, medianTokenLength, rankByMeaning, strongestPieces, tokenIds } from './embed'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  CONTROL_WAIT_MS,
+  DIM,
+  MAX_TOKENS,
+  MODEL,
+  MODEL_BYTES,
+  embed,
+  loadModel,
+  loadModelKept,
+  makeModel,
+  medianTokenLength,
+  rankByMeaning,
+  refetchWhenControlled,
+  strongestPieces,
+  tokenIds,
+  whenControlled,
+} from './embed'
+import type { WorkerContainer } from './embed'
 import { buildPassages } from './passages'
 import { encode } from './wordpiece'
 
@@ -128,5 +145,120 @@ describe('loading', () => {
     await expect(loadModel('/', html)).rejects.toThrow(/not in this build/)
     const short = (async () => new Response(new Uint8Array(10), { status: 200 })) as unknown as typeof fetch
     await expect(loadModel('/', short)).rejects.toThrow(/bytes, expected/)
+  })
+})
+
+// A stand-in for navigator.serviceWorker: no worker controls the page until takeControl().
+function fakeWorker(controlled = false) {
+  const listeners = new Set<() => void>()
+  let settle!: () => void
+  const sw = {
+    controller: controlled ? ({} as unknown) : null,
+    ready: new Promise<void>((r) => (settle = r)),
+    addEventListener: (_type: 'controllerchange', l: () => void) => void listeners.add(l),
+    removeEventListener: (_type: 'controllerchange', l: () => void) => void listeners.delete(l),
+  }
+  return {
+    sw: sw as WorkerContainer,
+    listeners,
+    /** The worker activates: navigator.serviceWorker.ready settles, then clients.claim() fires controllerchange. */
+    takeControl() {
+      settle()
+      sw.controller = {}
+      for (const l of [...listeners]) l()
+    },
+  }
+}
+
+function fakeFetch() {
+  const seen: string[] = []
+  const impl = (async (url: string) => {
+    seen.push(url)
+    return new Response(ab(file(url.split('/').pop()!)), { status: 200, headers: { 'content-type': 'application/octet-stream' } })
+  }) as unknown as typeof fetch
+  return { seen, impl }
+}
+const FILES = Object.values(MODEL.files).map((f) => `/${MODEL.dir}${f.name}`).sort()
+
+describe('the first search keeps the files for offline use, whichever comes first: the search or the worker', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+  it('waits at most about 3 s for a worker to control the page', () => {
+    expect(CONTROL_WAIT_MS).toBe(3000)
+  })
+  it('does not wait where there is no worker, or where one already controls the page', async () => {
+    await expect(whenControlled(null)).resolves.toBe(false)
+    const w = fakeWorker(true)
+    await expect(whenControlled(w.sw)).resolves.toBe(true)
+    expect(w.listeners.size).toBe(0)
+  })
+  it('resolves true when the worker takes control within the wait, and stops listening', async () => {
+    vi.useFakeTimers()
+    const w = fakeWorker()
+    const p = whenControlled(w.sw, 3000)
+    await vi.advanceTimersByTimeAsync(1000)
+    w.takeControl()
+    await expect(p).resolves.toBe(true)
+    expect(w.listeners.size).toBe(0)
+  })
+  it('resolves false after the wait if no worker took control, and stops listening', async () => {
+    vi.useFakeTimers()
+    const w = fakeWorker()
+    let result: boolean | null = null
+    void whenControlled(w.sw, 3000).then((v) => (result = v))
+    await vi.advanceTimersByTimeAsync(2999)
+    expect(result).toBe(null)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(result).toBe(false)
+    expect(w.listeners.size).toBe(0)
+  })
+  it('worker first: the three files are fetched once, through the worker, and nothing more', async () => {
+    const w = fakeWorker(true)
+    const f = fakeFetch()
+    const m = await loadModelKept(w.sw, '/', f.impl)
+    expect(f.seen.sort()).toEqual(FILES)
+    expect(w.listeners.size).toBe(0)
+    expect(m.vocab.tokens.length).toBe(model.vocab.tokens.length)
+  })
+  it('worker during the wait: the fetch waits for it, so the files pass through it once', async () => {
+    vi.useFakeTimers()
+    const w = fakeWorker()
+    const f = fakeFetch()
+    const p = loadModelKept(w.sw, '/', f.impl, 3000)
+    await vi.advanceTimersByTimeAsync(500)
+    expect(f.seen).toEqual([])
+    w.takeControl()
+    vi.useRealTimers()
+    await p
+    expect(f.seen.sort()).toEqual(FILES)
+    expect(w.listeners.size).toBe(0)
+  })
+  it('search first: fetched anyway after the wait, then once more when the worker takes control, and only once', async () => {
+    vi.useFakeTimers()
+    const w = fakeWorker()
+    const f = fakeFetch()
+    const p = loadModelKept(w.sw, '/', f.impl, 3000)
+    await vi.advanceTimersByTimeAsync(3000)
+    vi.useRealTimers()
+    await p
+    expect(f.seen.sort()).toEqual(FILES)
+    expect(w.listeners.size).toBe(1)
+    w.takeControl()
+    await vi.waitFor(() => expect(f.seen).toHaveLength(6))
+    expect(f.seen.slice(3).sort()).toEqual(FILES)
+    expect(w.listeners.size).toBe(0)
+    w.takeControl()
+    await new Promise((r) => setTimeout(r, 10))
+    expect(f.seen).toHaveLength(6)
+  })
+  it('arms one refetch per worker, however many searches fail and retry before it takes control', async () => {
+    const w = fakeWorker()
+    const calls: number[] = []
+    for (let i = 0; i < 3; i++) refetchWhenControlled(w.sw, async () => calls.push(i))
+    expect(w.listeners.size).toBe(1)
+    w.takeControl()
+    await Promise.resolve()
+    expect(calls).toEqual([0])
   })
 })

@@ -5,6 +5,7 @@
 // words, verbatim. The keyword count or reading beside the list stays the claim; the list only adds passages
 // to read. A note (notes.json) is LANDFALL's own sentence, shown only where the review found a passage that
 // weakens or contradicts the claim.
+import { Link } from '../../app/location'
 import { Expander, ReqId } from '../../ui'
 import { CheckGlyph, ExtLink, RichText, Verbatim } from '../method/shared'
 import rawCoverage from './coverage.json'
@@ -191,6 +192,7 @@ export function NearestList({ claim, basis = 'the keyword search above' }: { cla
             <span className="lf-near-note-lead">LANDFALL’s note:</span> <RichText text={n.text} />
           </p>
         ))}
+        <p className="lf-near-foot"><Link to="/method?s=find">Try your own words: Find it in NASA’s words →</Link></p>
         {c.skipped.length > 0 ? (
           <p className="lf-near-foot">
             Not shown, though ranked higher:{' '}

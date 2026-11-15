@@ -110,6 +110,15 @@ describe('the list for each claim', () => {
       expect(summaryFor(nearestClaim(claim)!)).toContain('a ranking, not proof')
     }
   })
+  it('links to Find it in NASA’s words (#/method?s=find), after the list and before the footnotes', () => {
+    for (const claim of CLAIMS) {
+      const html = listHtml(claim)
+      const link = '<a href="#/method?s=find">Try your own words: Find it in NASA’s words →</a>'
+      expect(html.split(link), claim).toHaveLength(2)
+      expect(html.indexOf('</ol>'), claim).toBeLessThan(html.indexOf(link))
+      expect(html.indexOf(link), claim).toBeLessThan(html.indexOf('Ranked at build time by'))
+    }
+  })
   it('shows no cosine, score or percentage anywhere, only the rank', () => {
     for (const claim of CLAIMS) {
       const html = listHtml(claim)

@@ -13,6 +13,7 @@ export type RouteId =
   | 'method'
   | 'data'
   | 'card'
+  | 'eva'
 
 export type FeatureName =
   | 'now'
@@ -27,6 +28,7 @@ export type FeatureName =
   | 'method'
   | 'data'
   | 'cuecard'
+  | 'eva'
 
 export interface RouteDef {
   id: RouteId
@@ -59,6 +61,9 @@ export const ROUTES: readonly RouteDef[] = [
   // Printable paper cue cards ([V2 10130]): #/card/<case_id>, or #/card and #/cards for all of them. Opened from
   // the case pages' Print links, so not a nav item.
   { id: 'card', pattern: '/card/:id?', feature: 'cuecard', label: 'Cue cards', title: 'Cue cards', navHref: '#/card', nav: false },
+  // The [V1 6006] evidence board for one crewmember (#/eva?crew=CM-2): opened from the body map's VO2max card, so
+  // not a nav item.
+  { id: 'eva', pattern: '/eva', feature: 'eva', label: 'EVA', title: 'EVA in a blackout', navHref: '#/eva', nav: false },
 ]
 
 /** The routes the nav lists (every route not marked nav: false). */

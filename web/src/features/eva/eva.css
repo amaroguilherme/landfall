@@ -1,0 +1,119 @@
+/* #/eva - EVA in a blackout. Tokens only (src/styles/tokens.css). No alert colour is used by this page itself:
+   severity colours appear only inside the engine's own badges (FindingBadge), cyan only on missing data
+   ([V2 10020]), dark green only on the crew tabs (commandable), bright green only on focus. */
+
+.lf-eva-head { margin-bottom: var(--lf-space-2); }
+.lf-eva-head h1 { margin-bottom: 0.3em; }
+.lf-eva-lede { font-size: var(--lf-text-md); color: var(--lf-text-2); max-width: 72ch; }
+.lf-eva-never { max-width: 72ch; color: var(--lf-text); }
+.lf-eva .lf-sim[data-variant='banner'] { margin: var(--lf-space-1) 0 0; white-space: normal; flex-wrap: wrap; row-gap: 2px; }
+.lf-eva-fine { font-size: var(--lf-text-sm); color: var(--lf-text-muted); }
+.lf-eva p { overflow-wrap: anywhere; }
+.lf-eva-q { font-style: normal; }
+
+/* ---- the requirement ---- */
+.lf-eva-req { margin: 0; }
+.lf-eva-req blockquote { margin: 0; padding: 0 0 0 var(--lf-space-2); border-left: 3px solid var(--lf-border-strong); }
+.lf-eva-req blockquote p { font-size: var(--lf-text-lg); line-height: 1.45; color: var(--lf-text); margin: 0; max-width: 60ch; }
+.lf-eva-req figcaption { margin-top: var(--lf-space-1); font-size: var(--lf-text-sm); color: var(--lf-text-2); }
+.lf-eva-rationale { margin: var(--lf-space-1-5) 0 0; max-width: 80ch; color: var(--lf-text-2); }
+.lf-eva-rationale strong { color: var(--lf-text); }
+
+/* ---- ground line ---- */
+.lf-eva-ground-head { margin: 0 0 var(--lf-space-1-5); max-width: 80ch; }
+.lf-eva-ground-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--lf-space-1-5) var(--lf-space-2);
+  margin: 0 0 var(--lf-space-1-5);
+}
+.lf-eva-ground-grid > div { min-width: 0; }
+.lf-eva-ground-grid dt {
+  font: 600 0.6875rem/1.2 var(--lf-font-ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lf-text-muted);
+  margin-bottom: 0.3em;
+}
+.lf-eva-ground-grid dd { margin: 0; font-size: var(--lf-text-md); }
+.lf-eva-ground-grid .lf-met { font-size: var(--lf-text-md); }
+
+/* ---- crew tabs (links that follow ?crew=) ---- */
+.lf-eva-crew { display: flex; flex-wrap: wrap; gap: var(--lf-space-1); margin: 0 0 var(--lf-space-1-5); }
+.lf-eva-crew-tab {
+  display: inline-flex; align-items: center; gap: 0.5em;
+  min-height: 44px; padding: 0.45em 0.8em;
+  border: 2px solid var(--lf-action-edge); border-radius: var(--lf-radius);
+  color: var(--lf-text); text-decoration: none;
+}
+.lf-eva-crew-tab:hover { background: rgb(20 108 67 / 0.35); }
+.lf-eva-crew-tab[aria-current='true'] { background: var(--lf-action); color: var(--lf-action-text); }
+.lf-eva-crew-tab .lf-num { font-weight: 500; }
+.lf-eva-crew-role { font-size: var(--lf-text-sm); }
+
+/* ---- evidence tables ---- */
+.lf-eva-group { margin-top: var(--lf-space-3); }
+.lf-eva-group-h { font-size: var(--lf-text-md); margin: 0 0 0.3em; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5em; }
+.lf-eva-group-n {
+  display: inline-grid; place-items: center; width: 1.6em; height: 1.6em;
+  border: 1px solid var(--lf-border-strong); border-radius: 50%; font-size: var(--lf-text-sm);
+}
+.lf-eva-holds { margin: 0 0 var(--lf-space-1); font-size: var(--lf-text-sm); color: var(--lf-text-2); max-width: 90ch; }
+.lf-eva-table { width: 100%; border-collapse: collapse; font-size: var(--lf-text-sm); }
+.lf-eva-table th,
+.lf-eva-table td { text-align: left; padding: 0.45em 0.6em; border-bottom: 1px solid var(--lf-border-subtle); vertical-align: top; }
+.lf-eva-table thead th { color: var(--lf-text-muted); font-weight: 600; font-size: var(--lf-text-xs); }
+.lf-eva-table tbody th { font-weight: 600; color: var(--lf-text); }
+.lf-eva-table .lf-met-label { color: var(--lf-text-muted); }
+.lf-eva-floor { color: var(--lf-text-2); }
+.lf-eva-none { color: var(--lf-text-muted); }
+
+/* Wide screens: a table that still cannot fit scrolls inside its wrapper, never the page. */
+.lf-eva-table-wrap { overflow-x: auto; }
+
+/* Phones and tablets (the body map's single-column breakpoint): each table row becomes a card of label / value
+   pairs, so nothing scrolls sideways. */
+@media (max-width: 1023px) {
+  .lf-eva-table-wrap { overflow-x: visible; }
+  .lf-eva-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .lf-eva-table,
+  .lf-eva-table tbody,
+  .lf-eva-table tr,
+  .lf-eva-table th,
+  .lf-eva-table td { display: block; width: auto; }
+  .lf-eva-table tr { padding: 0.4em 0; border-bottom: 1px solid var(--lf-border-subtle); }
+  .lf-eva-table th,
+  .lf-eva-table td { border: 0; padding: 0.15em 0; }
+  .lf-eva-table td { display: grid; grid-template-columns: minmax(7.5rem, 38%) minmax(0, 1fr); gap: 0.6em; align-items: baseline; }
+  .lf-eva-table td::before { content: attr(data-label); color: var(--lf-text-muted); font-size: var(--lf-text-xs); }
+  .lf-eva-table td > * { min-width: 0; }
+}
+
+@media (max-width: 760px) {
+  .lf-eva-crew-tab { flex: 1 1 calc(50% - var(--lf-space-1)); min-width: calc(50% - var(--lf-space-1)); flex-direction: column; align-items: flex-start; gap: 0.1em; }
+}
+
+/* ---- constraints, monitoring ---- */
+.lf-eva-list { list-style: none; margin: 0; padding: 0; }
+.lf-eva-list > li { padding: var(--lf-space-1-5) 0; border-bottom: 1px solid var(--lf-border-subtle); }
+.lf-eva-list > li:first-child { padding-top: 0; }
+.lf-eva-list > li:last-child { border-bottom: 0; padding-bottom: 0; }
+.lf-eva-list p { margin: 0 0 0.4em; max-width: 90ch; }
+.lf-eva-list p:last-child { margin-bottom: 0; }
+.lf-eva-mon-req { padding-bottom: var(--lf-space-1-5); margin-bottom: var(--lf-space-1-5); border-bottom: 1px solid var(--lf-border-subtle); }
+.lf-eva-mon-req p { margin: 0 0 0.4em; max-width: 90ch; }
+.lf-eva-computed { margin: 0; max-width: 90ch; }
+
+/* ---- options ---- */
+.lf-eva-tag {
+  display: inline-flex; align-items: center;
+  padding: 0.15em 0.6em;
+  border: 1px solid var(--lf-border-strong); border-radius: var(--lf-radius);
+  font: 600 0.75rem/1.3 var(--lf-font-ui); letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--lf-text);
+}
+.lf-eva-options { margin: var(--lf-space-1) 0 var(--lf-space-2); padding-left: 1.4em; }
+.lf-eva-options > li { margin-bottom: var(--lf-space-1-5); }
+.lf-eva-options > li::marker { font-family: var(--lf-font-mono); color: var(--lf-text-muted); }
+.lf-eva-opt-h { font-size: var(--lf-text-md); margin: 0 0 0.25em; }
+.lf-eva-options p { margin: 0; max-width: 80ch; color: var(--lf-text-2); }

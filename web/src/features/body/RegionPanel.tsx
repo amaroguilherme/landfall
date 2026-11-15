@@ -14,6 +14,7 @@ import type { SnapshotState } from '../../app/data'
 import type { Finding, PersonalFinding } from '../../app/engine'
 import { chanceDiffers, chanceRateOf, partialRecord, prettyOps, testScaleWords, transformOf } from '../../app/evaluate'
 import { Link } from '../../app/location'
+import { useMission } from '../../app/mission'
 import { BASELINE_FIRST_DAY, BASELINE_LAST_DAY, environment } from '../../app/scenario'
 import { CATEGORIES, SEVERITY_RANK } from '../../app/vocab'
 import type { Category, EnvId, Severity } from '../../app/vocab'
@@ -406,6 +407,7 @@ function viaFor(region: RegionDef, variable: string): string | null {
 
 function RuleItem({ row, region }: { row: RuleRow; region: RegionDef }) {
   const { rule, finding, input } = row
+  const { crewId } = useMission().state
   const note = region.ruleNotes?.[rule.variable]
   const approach = rule.approach_at
   const src = rule.source as unknown as Record<string, unknown>
@@ -423,7 +425,7 @@ function RuleItem({ row, region }: { row: RuleRow; region: RegionDef }) {
           <strong>Fitness tag</strong>, whole body: this test is checked against the EVA fitness floor, not against the state of this
           organ, so it never colours the figure. EVA medical clearance itself is ground medical support’s decision before each EVA (
           <ReqId id="V1 6006" />
-          ).
+          ). <Link to={'/eva?crew=' + crewId}>EVA in a blackout: what NASA requires →</Link>
         </p>
       ) : null}
       <p className="lf-limit-rule">

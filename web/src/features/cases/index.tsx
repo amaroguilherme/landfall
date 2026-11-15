@@ -931,7 +931,7 @@ export function InterpretPanel({ def, envId, actFirst }: { def: CaseDefFull; env
                   </figure>
                 ) : null}
                 {rows.length ? (
-                  <div className="lfc-table-wrap">
+                  <div className="lfc-table-wrap" tabIndex={0} role="region" aria-label={`NASA’s rating of ${r.title} for ${missionType} missions, scrollable`}>
                     <table className="lfc-table lfc-hrr-table">
                       <caption>
                         NASA’s rating of this risk for {missionType} missions, both columns as published (LxC: likelihood × consequence).

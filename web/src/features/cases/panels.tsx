@@ -264,7 +264,7 @@ export function SleepPanel(c: Ctx & { vol2: SnapshotState<StdData> }) {
           <h3 className="lfc-h3">Lighting: {primary.title}</h3>
           <p>{primary.rationale}</p>
           {table && Array.isArray(table.rows) && Array.isArray(table.columns) ? (
-            <div className="lfc-table-wrap">
+            <div className="lfc-table-wrap" tabIndex={0} role="region" aria-label={`${String(table.caption)}, scrollable`}>
               <table className="lfc-table">
                 <caption>{String(table.caption)} (verbatim from the frozen standard)</caption>
                 <thead>
@@ -414,7 +414,7 @@ export function SpePanel(c: Ctx & { sim: SnapshotState<SimCrewData & SimVariable
       </SimulatedMarker>
       <Expander summary={`S-level changes the monitor has seen (${transitions.length})`}>
         {transitions.length ? (
-          <div className="lfc-table-wrap">
+          <div className="lfc-table-wrap" tabIndex={0} role="region" aria-label="S-level changes up to the mission clock, scrollable">
             <table className="lfc-table">
               <caption className="sr-only">S-level changes up to the mission clock</caption>
               <thead>

@@ -36,8 +36,9 @@ export const TEMPLATE = {
   doNowAfterRedFlag: 'Primary countermeasure, after the red-flag question in step 1',
   steps: 'Steps',
   required: 'REQUIRED',
-  // True for every role (SPEC 2): the rules' own escalation words, so the CMO is never told to tell the CMO.
-  redFlag: 'RED FLAG: yes = tell the Crew Medical Officer now (if that is you, the Commander)',
+  // True for every role (SPEC 2): the rules' own escalation words, so the CMO is never told to tell the CMO. The hold
+  // after them is the app's (cases RedFlagHold, a design choice): with the display lost, the card must stop there too.
+  redFlag: 'RED FLAG: yes = tell the Crew Medical Officer now (if that is you, the Commander), then hold the remaining steps until they have seen you',
   yes: 'yes',
   no: 'no',
   metCue: 'd/hh:mm:ss, e.g. {example}',

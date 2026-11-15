@@ -98,7 +98,7 @@ export function TwoMinute({
           {transformed.length ? <> {transformed.map((i) => i.label).join(', ')}, a count, {transformed.length === 1 ? 'is' : 'are'} tested on the Anscombe scale.</> : null}
           {signed.length ? <> {signed.map((i) => i.label).join(', ')} is a signed shift: earlier or later both alert.</> : null} Each
           indicator’s chance rate is measured under the scenario’s noise model, not assumed, and printed next to its band; a case opened by a
-          single flag says “possibly chance”. <See s="tiers" /> prints that smallest change for each indicator and crewmember, the measured
+          single flag says “possibly chance”. <See s="tiers">Section {secNum('tiers')}</See> prints that smallest change for each indicator and crewmember, the measured
           rates, and which scenario events only Tier A catches.
         </li>
         <li>
@@ -150,7 +150,8 @@ export function TwoMinute({
             },
             ...(meta?.categories ?? [])
               .filter((c) => ['FFD', 'PEL', 'POL', 'TARGET'].includes(c.id))
-              .map((c) => ({ k: c.id, v: `${c.name}: a ${c.shape}.` })),
+              // TARGET's shape already starts with its article ("a published countermeasure target…")
+              .map((c) => ({ k: c.id, v: `${c.name}: ${/^an? /i.test(c.shape) ? '' : 'a '}${c.shape}.` })),
             { k: 'Tier A, Tier B', v: 'Tier A: a number NASA or NOAA publishes. Tier B: a change against the crewmember’s own baseline.' },
             {
               k: 'CMO',

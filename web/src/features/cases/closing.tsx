@@ -14,6 +14,7 @@ import { OP_WORDS, formatSpan, isOpen, meetsCondition, nextOpenStep, packetLabel
 import { BandRange, SourceBlock, TMinus } from './parts'
 import { heldByRedFlag, openRedFlagSteps, sharedReadingSource, tierOneWho } from './procedure'
 import type { ActCtx } from './procedure'
+import { entryVariable } from '../downlink/model'
 import { deliveryText } from './helpers'
 import { EscalationTiers, OverdueNote, readingsSinceOpened } from './status'
 import type { CaseDefFull } from './types'
@@ -324,6 +325,12 @@ export function PacketBlock({ c, def, view, delivery = true }: { c: ActCtx; def:
   if (ps === 'none') return null
   const queued = ps === 'queued'
   const releaseSteps = s.spec.packet_step_ids
+  // The variables the case asks for that have at least one entry in the bundle, mapped back as #/downlink maps them;
+  // the rest is withheld by consent or has no record yet (nothing is sent for it), never listed as if it were in the packet.
+  const asked = def.escalation?.observations ?? []
+  const sent = new Set((packet.bundle?.entry ?? []).map((e) => entryVariable(e.resource, asked, view.crewId)))
+  const inPacket = asked.filter((v) => sent.has(v))
+  const noRecord = packet.bundle ? asked.filter((v) => !sent.has(v) && !packet.withheld.includes(v)) : []
   return (
     <div className="lfc-packet" data-queued={queued || undefined}>
       <p className="lfc-k">Ground packet (FHIR R4, delay-tolerant)</p>
@@ -338,12 +345,13 @@ export function PacketBlock({ c, def, view, delivery = true }: { c: ActCtx; def:
         :{' '}
         {n !== null ? (
           <>
-            <Num value={n} /> observations of {view.crewId}
+            <Num value={n} /> {n === 1 ? 'observation' : 'observations'} about {view.crewId}
           </>
         ) : (
           <span className="lfc-missing">packet unavailable ({packet.error ?? packet.status})</span>
         )}
-        {def.escalation?.observations?.length ? <span className="lfc-fine"> ({def.escalation.observations.map(midSentence).join(', ')})</span> : null}.
+        {inPacket.length ? <span className="lfc-fine"> ({inPacket.map(midSentence).join(', ')})</span> : null}.
+        {noRecord.length ? <span className="lfc-fine"> No record yet: {noRecord.map(midSentence).join(', ')}.</span> : null}
         {packet.withheld.length ? <span className="lfc-fine"> Withheld by consent: {packet.withheld.map(midSentence).join(', ')}.</span> : null}
       </p>
       {delivery || !queued ? (

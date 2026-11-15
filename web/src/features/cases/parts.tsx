@@ -830,7 +830,7 @@ export function EventLog({
 }) {
   if (!log.length) return <p className="lfc-fine">No events yet.</p>
   return (
-    <div className="lfc-table-wrap">
+    <div className="lfc-table-wrap" tabIndex={0} role="region" aria-label={`${caption}, scrollable`}>
       <table className="lfc-table lfc-log">
         <caption className="sr-only">{caption}</caption>
         <thead>

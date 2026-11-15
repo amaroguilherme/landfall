@@ -185,6 +185,39 @@ export function SeveritySection({ meta }: { meta: MetaFile }) {
             an engine change and is not in this build. <Chip kind="design choice" />
           </p>
         ) : null}
+        {/* Paraphrased from Vol 2 Rev F Appendix F (pp. 390-398), never quoted: of these clauses the frozen snapshot holds only F.4.3.1 d. */}
+        <p data-gap="appendix-f">
+          Vol 2 Appendix F adds display rules. LANDFALL claims conformance only with the Appendix F clauses it names, among them its colours
+          (Tables F.5-1 and F.5-2), the MET day field without leading zeros (F.6.1 f) and the “Why this fired” explanation (F.6.2 g). Known
+          deviations, in paraphrase:
+        </p>
+        <ul className="lf-m-plain" aria-label="Known deviations from Vol 2 Appendix F">
+          <li>
+            <strong>F.4.2 g</strong>: each page’s title scrolls away with the page; the mission bar that stays on screen does not name the page.
+          </li>
+          <li>
+            <strong>F.4.2 h</strong>: a table that scrolls sideways on a narrow screen does not show which part is in view or how much more there is.
+          </li>
+          <li>
+            <strong>F.4.3.1 d</strong>: the yellow or red arrow after an out-of-limit value appears only on the case pages and the Trends cards.
+          </li>
+          <li>
+            <strong>F.5.1 h</strong>: some labels and headings are set in capitals rather than mixed case.
+          </li>
+          <li>
+            <strong>F.5.8 c</strong>: apart from the case-page charts, graph axes carry no label or unit of their own.
+          </li>
+          <li>
+            <strong>F.5.10 g</strong>: the annunciator fills its lit Caution and Advisory cells (reverse video), which the clause keeps for events
+            that need immediate crew attention or action.
+          </li>
+          <li>
+            <strong>F.6.1 b and e</strong>: the countdown until the link resumes has no minus sign, and not every time on screen is labelled MET.
+          </li>
+          <li>
+            <strong>F.6.4 e to g</strong>: the alert queue cannot be searched or sorted, and shows no event ID.
+          </li>
+        </ul>
       </div>
     </FoldPanel>
   )

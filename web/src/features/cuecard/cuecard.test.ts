@@ -253,11 +253,23 @@ describe('cue cards: one per case, the rules verbatim', () => {
     const tier1 = diskMeta.escalation.tiers.find((t) => t.tier === 1) as { backup?: { role?: string } } | undefined
     const role = tier1?.backup?.role
     expect(role, 'meta.json escalation tier 1 names a backup role').toBeTruthy()
-    const phrase = TEMPLATE.redFlag.replace(/^RED FLAG: yes = /, '')
-    expect(phrase).not.toBe(TEMPLATE.redFlag)
+    const tag = TEMPLATE.redFlag.replace(/^RED FLAG: yes = /, '')
+    expect(tag).not.toBe(TEMPLATE.redFlag)
+    // The rules' own words, then the hold the app shows after a "yes" (cases RedFlagHold, a design choice): with the
+    // display lost, the card stops the crewmember before the remaining steps (renal: drink more) too.
+    const phrase = tag.replace(/, then hold .*$/, '')
+    expect(tag.slice(phrase.length)).toBe(', then hold the remaining steps until they have seen you')
     expect(phrase).toContain(`(if that is you, the ${role})`)
     const caseTexts = diskCases.flatMap((c) => [(c.tripwire as Json).text as string, ...(c.procedure as Json[]).map((s) => s.text as string)])
     expect(caseTexts.some((t) => t.includes(phrase)), phrase).toBe(true)
+    // on paper the hold sits on the red-flag step itself, before any step that comes after it
+    const renal = cardOf('renal_stone')
+    const at = renal.steps.findIndex((s) => s.tags.some((t) => t.kind === 'red_flag'))
+    expect(at, 'the renal card has a red-flag step').toBeGreaterThan(-1)
+    const flat = flatOf('renal_stone')
+    const hold = flat.indexOf(TEMPLATE.redFlag)
+    expect(hold).toBeGreaterThan(flat.indexOf(norm(renal.steps[at].text.text)))
+    for (const s of renal.steps.slice(at + 1)) expect(hold, s.id).toBeLessThan(flat.indexOf(norm(s.text.text)))
   })
 
   it('prints a trigger basis right under the limit it backs, before a LANDFALL watch level (never under the design choice)', () => {

@@ -117,7 +117,8 @@ def _fmt(x: float, nd: int = 1) -> str:
 NOISE_NOTE = ("Day-to-day noise is a plain draw from the noise model on every baseline and ordinary day; nothing is "
               "trimmed or rejection-sampled. More noise lowers Tier B's sensitivity (its smallest flaggable change, "
               "critical x SD x sqrt(1 + 1/n), grows with the SD); it does not raise the chance false-alarm rate, "
-              "which stays at alpha under normal, independent noise.")
+              "which stays at alpha under normal, independent noise. The realized chance rate of every indicator "
+              "under this model is measured in data.self_check.chance_rates.")
 URINE_SD = model.URINE_SD_ML
 FLUID_SD = model.NOISE["fluid_intake_24h"]["sd"]
 GLUCOSE_CV_PCT = 100 * model.GLUCOSE_CV
@@ -148,10 +149,11 @@ VARIABLE_META: dict[str, dict] = {
                  _dc("Scripted short sleep opportunity (about 5 h in bed); same order as the 4-h time-in-bed partial "
                      "sleep deprivation protocol used to validate the PVT-B (Basner 2011). Not tuned for Tier B."))]},
     "sleep_midpoint_shift": {
-        "label": "Sleep midpoint shift (absolute)", "cadence": "daily (stamped at wake)",
-        "definition": "Absolute difference, in hours, between the night's sleep midpoint and the median midpoint of "
-                      "the crewmember's baseline nights (MET days 368-381), with clock arithmetic across midnight. "
-                      "Always >= 0: an earlier and a later shift both count as an increase (engine/rules/personal.json).",
+        "label": "Sleep midpoint shift (signed)", "cadence": "daily (stamped at wake)",
+        "definition": "Signed difference, in hours, between the night's sleep midpoint and the median midpoint of the "
+                      "crewmember's baseline nights (MET days 368-381), with clock arithmetic across midnight, wrapped "
+                      "to [-12, 12) h: positive is later, negative is earlier. Tier B tests it in both directions "
+                      "(engine/rules/personal.json: worse = either).",
         "calibration": [
             _cal("night-to-night SD of the midpoint", "0.6 h (36 min)", "design choice",
                  _dc("No published within-crewmember value was found. Free-living older adults averaged a 58-min "
@@ -163,7 +165,8 @@ VARIABLE_META: dict[str, dict] = {
                                                 "sleep-onset and sleep-midpoint SDs correlate at r = 0.97."}),
             _cal("reference schedule", "sleep period 22:00-06:00 MET (midpoint 02:00)", "design choice",
                  _dc("Places the sleep episodes (data.crew[*].sleep_episodes) on the MET clock; the emitted shift is "
-                     "measured from the baseline median, not from 02:00.")),
+                     "measured from the baseline median, not from 02:00. Subtracting that one median moves every value "
+                     "by the same amount, so the shift keeps the midpoint's own day-to-day noise.")),
             _cal("CM-1 after the 3-h schedule shift", "midpoint 2.30-2.55 h after 02:00 MET", "design choice",
                  _dc("Partial adaptation to a 3-h later schedule. Not tuned for Tier B."))]},
     "pvt_lapses": {
@@ -174,8 +177,10 @@ VARIABLE_META: dict[str, dict] = {
                  {**BASNER_2011, "note": "The paper lowers the PVT-B lapse threshold from 500 ms to 355 ms. No NASA "
                                          "standard adopts 355 ms; it is attributed to the paper only."}),
             _cal("rested baseline", "Poisson counts, mean 0.9-1.2 lapses per test", "design choice",
-                 _dc("A count, not a normal variable: one Poisson draw per test, the model engine/rules/personal.json "
-                     "uses for its chance-rate study. No published rested PVT-B lapse rate at 355 ms was used.")),
+                 _dc("A count, not a normal variable: one Poisson draw per test. Tier B tests it on the Anscombe "
+                     "scale, 2 sqrt(x + 3/8) (engine/rules/personal.json transform), and its measured chance rate "
+                     "under this model is in data.self_check.chance_rates. No published rested PVT-B lapse rate at "
+                     "355 ms was used.")),
             _cal("CM-1 episode", "2-6 lapses on days 404-412", "design choice",
                  _dc("A moderate rise, in line with the medium effect size Basner et al. 2011 report for 5 nights of "
                      "4 h in bed (0.76 for PVT-B lapses at the 355-ms threshold); the exact values are ours. Not "
@@ -210,8 +215,9 @@ VARIABLE_META: dict[str, dict] = {
                                        "seasons, so a 2-week SD may be slightly smaller."})]},
     "hrv_sdnn": {
         "label": "HRV (SDNN)", "cadence": "daily (main sleep episode, stamped at wake)",
-        "definition": "SDNN of normal-to-normal intervals in 5-min (300-s) windows during the main sleep episode, "
-                      "averaged; from band PPG inter-beat intervals.",
+        "definition": "Pulse-rate variability: the SD of the band's PPG (optical pulse) inter-beat intervals in 5-min "
+                      "(300-s) windows during the main sleep episode, averaged. It stands in for heart rate "
+                      "variability; it is not computed from ECG normal-to-normal intervals.",
         "calibration": [
             _cal("window length", "300 s", "design choice",
                  _dc("Short windows in sleep keep recording conditions comparable from night to night.")),
@@ -362,13 +368,13 @@ VARIABLE_META: dict[str, dict] = {
         "provenance": "simulated",
         "calibration": []},  # filled from the SPE build (real vs fallback)
     "proton_flux_10mev": {
-        "label": "External space-weather monitor: >=10 MeV proton flux (above the atmosphere, relayed)",
+        "label": "External space-weather monitor: ≥10 MeV proton flux (above the atmosphere, relayed)",
         "cadence": "PT5M, MET day 412 (the replay continues after 'now' in after_now)",
         "definition": "Integral proton flux above 10 MeV in pfu (particles cm^-2 s^-1 sr^-1), the quantity the NOAA "
                       "S-scale is defined on, as reported by the scenario's external space-weather monitor above the "
                       "Martian atmosphere (in Mars orbit) and relayed to the habitat locally, with no Earth link: the "
                       "in-situ monitoring [V2 6165] requires ('" + V2_6165_TEXT + "'). Scenario values are the GOES-7 "
-                      "October 1989 >=10 MeV replay, time-shifted only, with NO radial-distance or atmospheric "
+                      "October 1989 ≥10 MeV replay, time-shifted only, with NO radial-distance or atmospheric "
                       "correction (a labelled scenario assumption). The rules apply NOAA's S3 level to it at Mars as "
                       "a design choice (engine/rules/thresholds.json).",
         "provenance": "replay",
@@ -425,19 +431,23 @@ def _read_rules(name: str) -> dict | None:
         return None
 
 
-def report_indicators() -> list[dict]:
-    """Tier B indicators to check: engine/rules/personal.json first, then any emitted variable it lacks."""
+def report_indicators(include_mood: bool = False) -> list[dict]:
+    """Tier B indicators to check: engine/rules/personal.json first, then any emitted variable it lacks. Each
+    carries its declared test-scale transform (null or "anscombe"). Mood (private, never alerts) is left out of
+    the flag report and included only for the chance-rate study (include_mood)."""
     personal = _read_rules("personal.json") or {}
     out, seen = [], set()
     for ind in personal.get("indicators", []):
         var = ind.get("variable")
-        if var in model.VARIABLES and var != "mood" and ind.get("worse") in ("increase", "decrease", "either"):
+        if var in model.VARIABLES and (include_mood or var != "mood") and \
+                ind.get("worse") in ("increase", "decrease", "either"):
             out.append({"id": ind["id"], "variable": var, "worse": ind["worse"],
-                        "alerting": bool(ind.get("alerting")), "case_id": ind.get("case_id"), "in_rules": True})
+                        "alerting": bool(ind.get("alerting")), "case_id": ind.get("case_id"),
+                        "transform": ind.get("transform"), "in_rules": True})
             seen.add(var)
     for var, d in DEFAULT_INDICATORS.items():
         if var not in seen:
-            out.append({"id": var, "variable": var, **d, "case_id": None, "in_rules": False})
+            out.append({"id": var, "variable": var, **d, "case_id": None, "transform": None, "in_rules": False})
     return out
 
 
@@ -462,6 +472,47 @@ def _days(ds: list[int]) -> str:
         if d is not None:
             start = prev = d
     return ", ".join(runs)
+
+
+def case_openings(rep: dict, inds: list[dict]) -> list[dict]:
+    """Every case opening the data causes (SPEC section 7, case instances), from Tier B cautions and the Tier A
+    renal crossing: per crewmember and case, the caution days of all its triggers form runs of consecutive MET
+    days; the first run opens instance 1, and each later run opens the next instance once the earlier one is
+    closed (when that happens depends on the crew's actions and the tripwire, so it is not decided here). An
+    opening is scripted when a scripted episode day is among its first day's cautions, else chance. It is
+    'single_flag' (the app labels it "Possibly chance") when it opened on one Tier B indicator, on one day, with no
+    Tier A trigger."""
+    by_key: dict[tuple[str, str], dict[int, list[dict]]] = {}
+    for f in rep["flags"]:
+        if f["severity"] == "caution" and f.get("case_id"):
+            by_key.setdefault((f["crew_id"], f["case_id"]), {}).setdefault(f["day"], []).append(
+                {"tier": "B", "indicator_id": f["indicator_id"], "t": f["t"], "critical": f["critical"],
+                 "value": f["value"], "scripted": f["scripted"]})
+    for e in rep["episodes"]:
+        for d in (e.get("tier_a") or {}).get("outside_days", []):
+            by_key.setdefault((e["crew_id"], e["case_id"]), {}).setdefault(d, []).append(
+                {"tier": "A", "rule_id": e["tier_a"]["rule_id"], "value": e["values"][str(d)], "scripted": True})
+    out = []
+    for (cid, case_id), days in sorted(by_key.items()):
+        run_start, prev, instance = None, None, 0
+        for d in sorted(days) + [None]:
+            if d is not None and prev is not None and d == prev + 1:
+                prev = d
+                continue
+            if run_start is not None:
+                first = days[run_start]
+                b = [x for x in first if x["tier"] == "B"]
+                instance += 1
+                trig = sorted(first, key=lambda x: (x["tier"], x.get("indicator_id") or x.get("rule_id")))[0]
+                out.append({"crew_id": cid, "case_id": case_id, "day": run_start, "run_days": [run_start, prev],
+                            "instance": instance, "opened_by": trig.get("indicator_id") or trig.get("rule_id"),
+                            "tier": trig["tier"], "t": trig.get("t"), "critical": trig.get("critical"),
+                            "scripted": any(x["scripted"] for x in first),
+                            "single_flag": len(first) == 1 and len(b) == 1,
+                            "cautions": sorted({x.get("indicator_id") or x.get("rule_id")
+                                                for dd in range(run_start, prev + 1) for x in days[dd]})})
+            run_start = prev = d
+    return out
 
 
 def self_check(timelines: dict[str, dict]) -> dict:
@@ -503,65 +554,63 @@ def self_check(timelines: dict[str, dict]) -> dict:
     ch = rep["chance_flags"]
     if ch:
         summary.append("Unscripted reliable changes (chance, from real-size noise): " + "; ".join(
-            f"{c['crew_id']} {c['variable']} day {c['day']} (t = {c['t']}, {c['direction']}, "
+            f"{c['crew_id']} {c['variable']} day {c['day']} (t = {c['t']}, critical {c['critical']}, {c['direction']}, "
             f"{c['severity']})" for c in ch) + ".")
     else:
         summary.append("No unscripted reliable change on any crewmember, indicator or day.")
-    # A chance caution on a case trigger opens that case unless a scripted trigger opened it earlier.
-    first_scripted = {}
-    for r in rep["episodes"]:
-        if r["tier_b_flagged_days"]:
-            k = (r["crew_id"], r["case_id"])
-            first_scripted[k] = min(first_scripted.get(k, 10 ** 9), r["tier_b_flagged_days"][0])
-        if r.get("tier_a", {}).get("outside_days"):
-            k = (r["crew_id"], r["case_id"])
-            first_scripted[k] = min(first_scripted.get(k, 10 ** 9), r["tier_a"]["outside_days"][0])
-    openings = {}
-    for c in ch:
-        if not c.get("case_id"):
-            continue
-        k = (c["crew_id"], c["case_id"])
-        if c["day"] < first_scripted.get(k, 10 ** 9) and c["day"] < openings.get(k, {}).get("day", 10 ** 9):
-            openings[k] = {"crew_id": c["crew_id"], "case_id": c["case_id"], "day": c["day"],
-                           "indicator_id": c["indicator_id"], "t": c["t"],
-                           "scripted_opening_day": first_scripted.get(k)}
-    unscripted = sorted(openings.values(), key=lambda o: (o["crew_id"], o["case_id"]))
+    openings = case_openings(rep, inds)
+    unscripted = [{"crew_id": o["crew_id"], "case_id": o["case_id"], "day": o["day"], "indicator_id": o["opened_by"],
+                   "t": o["t"], "critical": o["critical"], "instance": o["instance"], "single_flag": o["single_flag"],
+                   "run_days": o["run_days"],
+                   "scripted_opening_day": next((x["day"] for x in openings if x["crew_id"] == o["crew_id"]
+                                                 and x["case_id"] == o["case_id"] and x["scripted"]), None)}
+                  for o in openings if not o["scripted"]]
     if unscripted:
-        summary.append("So the app, which opens a case at a trigger's first caution, opens these cases from chance "
-                       "flags alone: " + "; ".join(
+        summary.append("Case openings caused by chance flags alone (the app opens a case at a trigger's caution and "
+                       "labels a single-indicator, single-day Tier B opening 'Possibly chance'): " + "; ".join(
                            f"{o['crew_id']} {o['case_id']} on MET day {o['day']} ({o['indicator_id']}, t = {o['t']}"
-                           + (f"; its scripted episode starts on day {o['scripted_opening_day']})"
+                           + (f"; its scripted episode opens on day {o['scripted_opening_day']})"
                               if o["scripted_opening_day"] else "; no scripted episode)") for o in unscripted) + ".")
-    rates = model.chance_rates(inds)
-    inflated = [f"{k} {v['ratio_to_nominal']}x" for k, v in rates.items()
-                if v["ratio_to_nominal"] is not None and v["ratio_to_nominal"] >= 2]
-    if inflated:
-        summary.append("Chance-caution rates with no real change (data.self_check.chance_rates): the skewed "
-                       "indicators exceed the printed alpha/2 = 0.0005 per indicator-day (seeded Monte Carlo with "
-                       "this noise model): " + ", ".join(inflated) + "; the normally distributed ones sit at it "
-                       "exactly, because the test is exact for normal, independent noise.")
+    else:
+        summary.append("No case opens on chance flags alone.")
+    rates = model.chance_rates(report_indicators(include_mood=True))
+    outside = [f"{k} (caution {v['caution_multiplier']}x, flag {v['flag_multiplier']}x)" for k, v in rates.items()
+               if not v["within_band"]]
+    lo, hi = model.CHANCE_BAND
+    summary.append(f"Chance rates with no real change (data.self_check.chance_rates, seeded Monte Carlo with this noise "
+                   f"model, every indicator): " + (
+                       f"all within {lo}-{hi} times the printed rate except " + ", ".join(outside) +
+                       ", whose measured multipliers engine/rules/personal.json declares (chance_rate)" if outside
+                       else f"every indicator is within {lo}-{hi} times the printed rate") + ".")
     return {
         "method": "SPEC section 5 single-case t (Crawford & Howell 1998): t = (x - mean) / (sd * sqrt(1 + 1/n)), "
-                  "sd = sample SD (n-1), df = n - 1; reliable when |t| > the two-tailed critical value at alpha "
+                  "sd = sample SD (n-1), df = n - 1, on the indicator's declared test scale (PVT-B lapses: the "
+                  "Anscombe transform 2 sqrt(x + 3/8)); reliable when |t| > the two-tailed critical value at alpha "
                   "0.001. Baseline = the crewmember's observations whose measurement day, floor((t - 1) / 86400), is "
                   "in MET days 368-381; every later observation is tested against it, as the engine and app do.",
         "critical_t": round(model.CRITICAL_T, 4), "df": model.N_BASELINE_DAYS - 1,
         "alpha_two_tailed": model.ALPHA_TWO_TAILED,
         "mdc_formula": "smallest one-day change a band can flag = critical x SD x sqrt(1 + 1/n) "
-                       f"(= {model.CRITICAL_T * math.sqrt(1 + 1 / model.N_BASELINE_DAYS):.2f} baseline SDs at n = 14)",
+                       f"(= {model.CRITICAL_T * math.sqrt(1 + 1 / model.N_BASELINE_DAYS):.2f} baseline SDs at n = 14, "
+                       "on the test scale)",
         "detection_probability_method": f"seeded Monte Carlo, {model.MC_REPS} fresh 14-day baselines from the "
                                         "generator's own noise model per scripted day; share in which Tier B flags "
                                         "the scripted value in the worse direction",
         "indicators": inds,
         "summary": summary,
         "tier_b": rep,
+        "case_openings": openings,
         "unscripted_case_openings": unscripted,
-        "chance_rates": {"method": "share of tests with no real change that raise a caution (reliable change "
-                                   "in the worse direction), laid out like the scenario (fixed 14-day baseline, "
-                                   "then 31 days each tested against it). Normally distributed indicators: alpha/2 "
-                                   "exactly. Skewed ones (Poisson lapse counts, the absolute midpoint shift): seeded "
-                                   "Monte Carlo, 500 simulated 45-day records per crewmember from the generator's "
-                                   "own noise model.",
+        "chance_rates": {"method": "for every Tier B indicator, the share of tests with no real change that flag: a "
+                                   "worse-direction reliable change (a caution on an alerting indicator; both "
+                                   "directions for worse = either) and a reliable change in either direction, each "
+                                   "divided by its nominal rate (alpha/2, or alpha for either; alpha). Laid out like "
+                                   "the scenario (fixed 14-day baseline, then 31 days each tested against it), on the "
+                                   "indicator's declared test scale, with this generator's own noise model: "
+                                   f"{model.CHANCE_REPS_PER_CREW:,} seeded 45-day records per crewmember and "
+                                   "indicator. engine/tests/test_chance_rates.py replays the same records through the "
+                                   "engine and requires the same counts.",
+                         "band": list(model.CHANCE_BAND),
                          "per_indicator": rates},
         "tier_a_urine": urine_a,
     }
@@ -579,10 +628,11 @@ def noise_model() -> dict:
         entry["unit"] = UNITS[var]
         out[var] = entry
     out["sleep_midpoint_shift"] = {
-        "model": "absolute_shift", "midpoint_sd": model.NOISE["sleep_midpoint"]["sd"], "unit": "h",
-        "emitted_sd": round(model.NOISE["sleep_midpoint"]["sd"] * math.sqrt(1 - 2 / math.pi), 4),
-        "note": "signed midpoint ~ normal(own mean, 0.6 h); emitted value = |midpoint - median of the baseline "
-                "nights|, a half-normal whose SD is 0.6 x sqrt(1 - 2/pi) h"}
+        "model": "signed_shift", "midpoint_sd": model.NOISE["sleep_midpoint"]["sd"], "unit": "h",
+        "emitted_sd": model.NOISE["sleep_midpoint"]["sd"],
+        "note": "signed midpoint ~ normal(own mean, 0.6 h); emitted value = midpoint - median of the baseline "
+                "nights, wrapped to [-12, 12) h: the same normal noise, shifted by one constant"}
+    out["pvt_lapses"]["test_scale"] = "anscombe: 2 sqrt(x + 3/8) (engine/rules/personal.json transform)"
     return {"note": NOISE_NOTE, "per_variable": out,
             "basis": "data.variables[*].calibration (literature where it exists, otherwise design choice)"}
 
@@ -617,7 +667,7 @@ def _proton_calibration(spe: dict) -> list[dict]:
     out.append(_cal("monitor", "external space-weather monitor above the atmosphere (Mars orbit), relayed locally",
                     "design choice",
                     _dc("A monitor on the surface would not read this flux: the Martian atmosphere absorbs most "
-                        "lower-energy protons, so the >=10 MeV flux at the surface follows only the high-energy tail. "
+                        "lower-energy protons, so the ≥10 MeV flux at the surface follows only the high-energy tail. "
                         "The scenario therefore takes the S3 reading from an external monitor above the atmosphere, "
                         "the in-situ space-weather monitoring [V2 6165] requires, relayed to the habitat without an "
                         "Earth link. The habitat dose rate is a separate simulated confirmation.")))
@@ -648,9 +698,11 @@ def _caveats(spe: dict, cal: dict, sc: dict) -> list[str]:
         "More day-to-day noise lowers Tier B's sensitivity: the smallest one-day change a personal band can flag is "
         "critical x SD x sqrt(1 + 1/n), 4.37 baseline SDs on a 14-day baseline, printed per crewmember and indicator "
         "in data.self_check.tier_b.per_crew (mdc). The chance false-alarm rate does not grow with the noise: it is "
-        "about alpha = 0.001 per indicator-day only if day-to-day noise were normal and independent, and higher for "
-        "skewed or autocorrelated data such as PVT-B lapse counts and the absolute midpoint shift "
-        "(engine/rules/personal.json rci.caveat).",
+        "alpha = 0.001 per indicator-day (alpha/2 for a caution) only if day-to-day noise were normal and "
+        "independent. Skewed data break that, so PVT-B lapse counts are tested on the Anscombe scale and the sleep "
+        "midpoint as a signed shift in both directions; the measured rate of every indicator under this noise model "
+        "is in data.self_check.chance_rates, and engine/rules/personal.json declares it where it is not within "
+        "0.5-2 times the printed one (rci.caveat, chance_rate).",
         "What Tier B finds in this data (data.self_check, recomputed on every build): " + " ".join(sc["summary"]),
         "CM-1..CM-4 are fictional: no names, no real PII. Mood is simulated for everyone, private by default and "
         "never alerts.",
@@ -831,7 +883,7 @@ def build_snapshot(out_dir: Path, retrieved_at: str) -> dict:
                              "the habitat locally ([V2 6165])",
             "dose_rate_role": "simulated habitat confirmation; the vehicle radiation monitoring system alarms "
                               "([V2 6164])",
-            "assumptions": ["GOES-7 >=10 MeV replay used with NO radial-distance (heliocentric) correction",
+            "assumptions": ["GOES-7 ≥10 MeV replay used with NO radial-distance (heliocentric) correction",
                             "NO atmospheric correction: the reading is taken above the atmosphere",
                             "habitat dose rate = quiet MSL RAD rate + assumed 10x scaling at S3 (design choice)"],
             "note": "At Mars no NOAA alert reaches the crew (noaa_scale_available false). The proton reading "

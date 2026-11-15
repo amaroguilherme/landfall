@@ -214,7 +214,7 @@ def test_msl_rtg_caveat_uses_window_medians():
     pp = {k: {"summary": {"median": v}} for k, v in
           (("dose_b_raw", 185.0), ("dose_b_rtg", 128.0), ("dose_e_total", 184.7))}
     (c,) = hapi._msl_rtg_caveat(pp)
-    assert "185.0 to 128.0 uGy/day (57.0 uGy/day)" in c and "184.7 uGy/day" in c
+    assert "185.0 to 128.0 µGy/day (57.0 µGy/day)" in c and "184.7 µGy/day" in c and "uGy" not in c
     pp["dose_e_total"]["summary"]["median"] = None
     assert hapi._msl_rtg_caveat(pp) == []
 

@@ -175,18 +175,23 @@ def test_sleep_episode_cm1_values(snap):
             assert emitted[int(d)] == x, (var, d)
 
 
-def test_sleep_midpoint_shift_is_absolute_from_baseline_median(snap):
-    """D9: |midpoint - median of the baseline nights' midpoints|, recomputed from the sleep episodes."""
+def test_sleep_midpoint_shift_is_signed_from_baseline_median(snap):
+    """S1: midpoint - median of the baseline nights' midpoints, wrapped to [-12, 12) h (positive = later),
+    recomputed from the sleep episodes. Baseline values sit on both sides of zero."""
     for c in snap["data"]["crew"]:
         eps = c["sleep_episodes"]["v"]
         days = range(c["sleep_episodes"]["days"][0], c["sleep_episodes"]["days"][1] + 1)
         mids = {d: ((on + off) / 2 - d * DAY) / 3600 - 2.0 for d, (on, off) in zip(days, eps)}
         med = statistics.median(mids[d] for d in range(368, 382))
         emitted = by_mday(c["series"]["sleep_midpoint_shift"])
-        assert all(v >= 0 for v in emitted.values())
+        assert all(-12 <= v < 12 for v in emitted.values())
+        base = [emitted[d] for d in range(368, 382)]
+        assert min(base) < 0 < max(base), c["crew_id"]
         for d, v in emitted.items():
-            assert abs(v - abs(mids[d] - med)) < 0.011, (c["crew_id"], d, v)
-    assert snap["data"]["variables"]["sleep_midpoint_shift"]["definition"].startswith("Absolute difference")
+            assert abs(v - ((mids[d] - med + 12) % 24 - 12)) < 0.011, (c["crew_id"], d, v)
+    assert snap["data"]["variables"]["sleep_midpoint_shift"]["definition"].startswith("Signed difference")
+    assert model.wrap_hours(12.0) == -12.0 and model.wrap_hours(-12.0) == -12.0 and model.wrap_hours(23.5) == -0.5
+    assert snap["data"]["noise_model"]["per_variable"]["sleep_midpoint_shift"]["model"] == "signed_shift"
 
 
 def test_manual_vitals_cadence_and_values(snap):
@@ -219,21 +224,28 @@ def test_self_check_matches_an_independent_recomputation(snap):
         pytest.skip("engine not importable")
     assert abs(t_critical(0.001, 13) - model.CRITICAL_T) < 1e-9
     worse = {i["variable"]: i["worse"] for i in sc["indicators"]}
+    transform = {i["variable"]: i["transform"] for i in sc["indicators"]}
+    assert transform["pvt_lapses"] == "anscombe" and worse["sleep_midpoint_shift"] == "either"
     scripted = {(e["crew_id"], var): {int(d) for d in vals} for e in snap["data"]["episodes"]
                 for var, vals in e["scripted_values"].items()}
-    expect_hits, expect_chance = set(), set()
+
+    def scale(var, x):  # the declared test scale: Anscombe (1948) for counts
+        return 2 * math.sqrt(x + 3 / 8) if transform[var] == "anscombe" else x
+
+    expect_hits, expect_chance, expect_all = set(), set(), set()
     for c in snap["data"]["crew"]:
         for var in TIER_B:
             ser = c["series"][var]
-            base = baseline_values(ser)
+            base = [scale(var, x) for x in baseline_values(ser)]
             for t, v in zip(ser["t"], ser["v"]):
                 d = mday(t)
                 if d <= 381:
                     continue
-                tt = spec_t(base, v)
+                tt = spec_t(base, scale(var, v))
                 if tt is None or abs(tt) <= model.CRITICAL_T:
                     continue
                 key = (c["crew_id"], var, d)
+                expect_all.add(key)
                 if d in scripted.get((c["crew_id"], var), set()):
                     w = worse[var]
                     if w == "either" or (tt > 0) == (w == "increase"):
@@ -242,8 +254,13 @@ def test_self_check_matches_an_independent_recomputation(snap):
                     expect_chance.add(key)
     got_hits = {(e["crew_id"], e["variable"], d) for e in sc["tier_b"]["episodes"] for d in e["tier_b_flagged_days"]}
     got_chance = {(c["crew_id"], c["variable"], c["day"]) for c in sc["tier_b"]["chance_flags"]}
+    got_all = {(f["crew_id"], f["variable"], f["day"]) for f in sc["tier_b"]["flags"]}
     assert got_hits == expect_hits
     assert got_chance == expect_chance
+    assert got_all == expect_all
+    for f in sc["tier_b"]["flags"]:
+        assert f["critical"] == round(model.CRITICAL_T, 3) and abs(f["t"]) > f["critical"]
+        assert f["scripted"] == (f["day"] in scripted.get((f["crew_id"], f["variable"]), set())), f
 
 
 def test_detection_report_is_complete_and_honest(snap):
@@ -261,13 +278,52 @@ def test_detection_report_is_complete_and_honest(snap):
     assert max(eps[("sleep_shift", "sleep_duration")]["tier_b_detection_probability"].values()) < 0.05
     text = " ".join(snap["caveats"])
     assert "What Tier B finds in this data" in text and "Tier A target_urine_output_24h is outside" in text
-    assert "only if day-to-day noise were normal and independent" in text
-    rates = sc["chance_rates"]["per_indicator"]
-    assert rates["sleep_duration"]["ratio_to_nominal"] == 1.0
-    assert rates["pvt_lapses"]["ratio_to_nominal"] > 3 and rates["sleep_midpoint_shift"]["ratio_to_nominal"] > 3
+    assert "only if day-to-day noise were normal and" in text and "data.self_check.chance_rates" in text
     for o in sc["unscripted_case_openings"]:
         assert (o["crew_id"], o["indicator_id"], o["day"]) in {(c["crew_id"], c["indicator_id"], c["day"])
                                                               for c in sc["tier_b"]["chance_flags"]}
+        assert o["single_flag"] is True and o["instance"] >= 1
+
+
+def test_chance_rates_cover_every_indicator_and_flag_the_ones_outside_the_band(snap):
+    """S3: every Tier B indicator (mood included) has a measured chance rate under this noise model; the ones
+    outside 0.5-2 times nominal are exactly the ones engine/rules/personal.json declares."""
+    cr = snap["data"]["self_check"]["chance_rates"]
+    rates = cr["per_indicator"]
+    personal = json.loads((REPO_ROOT / "engine" / "rules" / "personal.json").read_text(encoding="utf-8"))
+    assert set(rates) == {i["id"] for i in personal["indicators"]}
+    assert cr["band"] == [0.5, 2.0]
+    for iid, r in rates.items():
+        assert r["tests"] == 4 * model.CHANCE_REPS_PER_CREW * 31, iid
+        assert r["nominal_flag_rate"] == 0.001
+        assert r["nominal_caution_rate"] == (0.001 if r["worse"] == "either" else 0.0005), iid
+        assert r["caution_multiplier"] == round(r["worse_direction_flags"] / r["tests"] / r["nominal_caution_rate"], 2)
+        assert r["flag_multiplier"] == round(r["flags"] / r["tests"] / 0.001, 2)
+        assert set(r["per_crew"]) == {"CM-1", "CM-2", "CM-3", "CM-4"}
+    declared = {i["id"] for i in personal["indicators"] if "chance_rate" in i}
+    assert {k for k, r in rates.items() if not r["within_band"]} == declared
+    # the audit's offenders: the signed two-sided midpoint is at the printed rate; raw lapse counts no longer
+    # flag 10x too often (on the Anscombe scale, fewer than printed)
+    assert 0.8 < rates["sleep_midpoint_shift"]["caution_multiplier"] < 1.25
+    assert rates["pvt_lapses"]["transform"] == "anscombe" and rates["pvt_lapses"]["caution_multiplier"] < 1
+
+
+def test_case_openings_report(snap):
+    """Every case opening the data causes, with its instance and whether only chance flags caused it."""
+    sc = snap["data"]["self_check"]
+    ops = sc["case_openings"]
+    assert {(o["crew_id"], o["case_id"]) for o in ops if o["scripted"]} >= {("CM-3", "renal_stone")}
+    renal = next(o for o in ops if o["case_id"] == "renal_stone")
+    assert (renal["day"], renal["tier"], renal["opened_by"], renal["instance"]) == \
+        (398, "A", "target_urine_output_24h", 1)
+    chance = [o for o in ops if not o["scripted"]]
+    assert [(o["crew_id"], o["case_id"], o["day"]) for o in sc["unscripted_case_openings"]] == \
+        [(o["crew_id"], o["case_id"], o["day"]) for o in chance]
+    for o in ops:
+        assert o["run_days"][0] == o["day"] <= o["run_days"][1]
+        first = [f for f in sc["tier_b"]["flags"] if f["severity"] == "caution" and f["case_id"] == o["case_id"]
+                 and f["crew_id"] == o["crew_id"] and f["day"] == o["day"]]
+        assert o["single_flag"] == (o["tier"] == "B" and len(first) == 1), o
 
 
 def test_mdc_is_critical_times_sd(snap):

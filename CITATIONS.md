@@ -126,12 +126,12 @@ runs in the product's decision path.
 
 **NASA GSFC Community Coordinated Modeling Center (CCMC), iSWA HAPI server**
 
-- NASA GSFC Community Coordinated Modeling Center (CCMC), Integrated Space Weather Analysis system (iSWA), HAPI dataset 'CRaTER' ('CRaTER Dose Rates', startDate 2009-06-26T20:06:35Z, stopDate 2026-10-07T23:30:00Z), HAPI server https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi, retrieved 2026-11-14T13:30:58Z. *(snapshots: `hapi_crater_dose`)*
-- NASA GSFC Community Coordinated Modeling Center (CCMC), Integrated Space Weather Analysis system (iSWA), HAPI dataset 'msl_rad_dosimetry' ('MSL RAD Dosimetry', startDate 2011-11-20T18:29:59Z, stopDate 2026-11-12T16:19:14Z), HAPI server https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi, retrieved 2026-11-14T13:30:58Z. *(snapshots: `hapi_msl_rad_dose`)*
+- NASA GSFC Community Coordinated Modeling Center (CCMC), Integrated Space Weather Analysis system (iSWA), HAPI dataset 'CRaTER' ('CRaTER Dose Rates', startDate 2009-06-26T20:06:35Z, stopDate 2026-10-07T23:30:00Z), HAPI server https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi, retrieved 2026-11-14T21:58:12Z. *(snapshots: `hapi_crater_dose`)*
+- NASA GSFC Community Coordinated Modeling Center (CCMC), Integrated Space Weather Analysis system (iSWA), HAPI dataset 'msl_rad_dosimetry' ('MSL RAD Dosimetry', startDate 2011-11-20T18:29:59Z, stopDate 2026-11-12T16:19:14Z), HAPI server https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi, retrieved 2026-11-14T21:58:12Z. *(snapshots: `hapi_msl_rad_dose`)*
 
 **NASA Goddard Space Flight Center, Space Physics Data Facility (SSCWeb), served via hapi-server.org**
 
-- NASA GSFC Space Physics Data Facility, Satellite Situation Center Web (SSCWeb), ISS ephemeris (dataset 'iss', cadence PT60S, startDate 1998-11-21T00:00:00Z, stopDate 2026-11-29T00:00:00Z), accessed through the SSCWeb HAPI server https://hapi-server.org/servers/SSCWeb/hapi (HAPI 2.0), retrieved 2026-11-14T13:30:58Z. https://sscweb.gsfc.nasa.gov/ *(snapshots: `hapi_iss_track`)*
+- NASA GSFC Space Physics Data Facility, Satellite Situation Center Web (SSCWeb), ISS ephemeris (dataset 'iss', cadence PT60S, startDate 1998-11-21T00:00:00Z, stopDate 2026-11-29T00:00:00Z), accessed through the SSCWeb HAPI server https://hapi-server.org/servers/SSCWeb/hapi (HAPI 2.0), retrieved 2026-11-14T21:58:12Z. https://sscweb.gsfc.nasa.gov/ *(snapshots: `hapi_iss_track`)*
 
 **NASA Human Research Program**
 
@@ -158,7 +158,7 @@ runs in the product's decision path.
 
 **NASA Space Radiation Analysis Group (JSC), via NASA GSFC Space Physics Data Facility CDAWeb**
 
-- Semones, E. (contact), NASA Space Radiation Analysis Group / Johnson Space Center. ISS_DOSANL_TEPC: Experiment Data, ISS TEPC (TEPC serial number 1003, analysis software version 3.1), 2010-04-29 to 2018-04-11. NASA GSFC Space Physics Data Facility, CDAWeb HAPI server https://cdaweb.gsfc.nasa.gov/hapi, retrieved 2026-11-14T13:30:58Z. DOI listed by CDAWeb: https://doi.org/10.48322/0ba1-1764 (see caveat on its metadata). https://cdaweb.gsfc.nasa.gov/misc/NotesI.html#ISS_DOSANL_TEPC *(snapshots: `hapi_iss_tepc`)*
+- Semones, E. (contact), NASA Space Radiation Analysis Group / Johnson Space Center. ISS_DOSANL_TEPC: Experiment Data, ISS TEPC (TEPC serial number 1003, analysis software version 3.1), 2010-04-29 to 2018-04-11. NASA GSFC Space Physics Data Facility, CDAWeb HAPI server https://cdaweb.gsfc.nasa.gov/hapi, retrieved 2026-11-14T21:58:12Z. DOI listed by CDAWeb: https://doi.org/10.48322/0ba1-1764 (see caveat on its metadata). https://cdaweb.gsfc.nasa.gov/misc/NotesI.html#ISS_DOSANL_TEPC *(snapshots: `hapi_iss_tepc`)*
 
 **NOAA National Centers for Environmental Information (NCEI)**
 
@@ -175,6 +175,7 @@ runs in the product's decision path.
 
 ### Sources cited by the rules engine (`engine/rules/`)
 
+- Anscombe FJ. The transformation of Poisson, binomial and negative-binomial data. Biometrika 1948;35(3-4):246-254. doi:10.1093/biomet/35.3-4.246
 - BIPM. The International System of Units (SI Brochure), 9th edition, 2019: c = 299 792 458 m/s (exact, by definition).
 - Barger LK, Flynn-Evans EE, Kubey A, Walsh L, Ronda JM, Wang W, Wright KP Jr, Czeisler CA. Prevalence of sleep deficiency and use of hypnotic drugs in astronauts before, during, and after spaceflight: an observational study. Lancet Neurol 2014;13(9):904-912. doi:10.1016/S1474-4422(14)70122-X. PMID 25127232
 - Basner M, Mollicone D, Dinges DF. Validity and sensitivity of a brief psychomotor vigilance test (PVT-B) to total and partial sleep deprivation. Acta Astronaut 2011;69(11-12):949-959. doi:10.1016/j.actaastro.2011.07.015. PMID 22025811

@@ -18,8 +18,14 @@ Design (all of it a scenario design choice, stated in the snapshot):
   raising which scripted days it flags, which it misses, every unscripted (chance) flag, the
   smallest change each personal band can flag, and a seeded Monte Carlo detection probability
   for every scripted day under the same noise model.
-- `sleep_midpoint_shift` is the ABSOLUTE shift, in hours, of the night's sleep midpoint from the
-  median midpoint of the fixed baseline nights (engine/rules/personal.json; lead decision D9).
+- An indicator that declares a transform in engine/rules/personal.json (PVT-B lapses, a count:
+  "anscombe", y = 2 sqrt(x + 3/8)) is tested on that scale, exactly as the engine does.
+- `sleep_midpoint_shift` is the SIGNED shift, in hours, of the night's sleep midpoint from the
+  median midpoint of the fixed baseline nights, wrapped to [-12, 12) h (positive = later); its worse
+  direction is either (engine/rules/personal.json; lead decision S1). An earlier absolute shift was a
+  folded, in-sample-centred variable whose chance cautions came about 12 times as often as printed.
+- `chance_rates` measures, for every Tier B indicator, how often the test flags with NO real change
+  under this noise model (seeded Monte Carlo, laid out like the scenario), against the nominal rate.
 """
 
 from __future__ import annotations
@@ -53,6 +59,9 @@ PPCO2_CAP_MMHG = 2.3
 # Hard floor for an unintended renal case: no non-episode 24-h urine value may fall below it.
 RENAL_OUTSIDE_ML = 1500
 MC_REPS = 2000                  # Monte Carlo baselines per scripted day (seeded)
+CHANCE_REPS_PER_CREW = 5000     # Monte Carlo 45-day records per crewmember and indicator (chance rates)
+CHANCE_BAND = (0.5, 2.0)        # lead decision S3: a measured chance rate within this multiple of nominal is "nominal"
+ANSCOMBE_OFFSET = 0.375         # 3/8 (Anscombe 1948)
 
 # variable -> (unit, observation source, rounding decimals; None = integer, -1 = tens)
 VARIABLES: dict[str, tuple[str, str, int | None]] = {
@@ -267,11 +276,32 @@ def single_case_t(baseline: list[float], current: float) -> float | None:
 
 
 def wrap_hours(dh: float) -> float:
-    """Clock difference in hours wrapped to (-12, 12] (midnight arithmetic)."""
-    x = math.fmod(dh + 12.0, 24.0)
-    if x <= 0:
-        x += 24.0
-    return x - 12.0
+    """Clock difference in hours wrapped to [-12, 12) (midnight arithmetic)."""
+    return (dh + 12.0) % 24.0 - 12.0
+
+
+def anscombe(x: float) -> float:
+    """Anscombe (1948) transform of a count, 2 * sqrt(x + 3/8) (the engine's "anscombe")."""
+    return 2.0 * math.sqrt(x + ANSCOMBE_OFFSET)
+
+
+def anscombe_inverse(y: float) -> float:
+    """A band edge on the Anscombe scale back on the count scale: (y / 2)^2 - 3/8 (-3/8 below y = 0)."""
+    h = max(y, 0.0) / 2.0
+    return h * h - ANSCOMBE_OFFSET
+
+
+def to_test_scale(transform: str | None, x: float) -> float:
+    """The value Tier B tests: the declared transform of x, or x itself."""
+    if transform is None:
+        return x
+    if transform == "anscombe":
+        return anscombe(x)
+    raise ValueError(f"unknown transform {transform!r}")
+
+
+def from_test_scale(transform: str | None, y: float) -> float:
+    return y if transform is None else anscombe_inverse(y)
 
 
 def episode_for(crew_id: str) -> list[dict]:
@@ -297,10 +327,11 @@ def manual_vitals_days() -> list[int]:
     return days
 
 
-def absolute_midpoint_shift(mid: dict[int, float]) -> tuple[dict[int, float], float]:
-    """|midpoint - median baseline midpoint| per day (h), and that median (signed offset from 02:00 MET)."""
+def signed_midpoint_shift(mid: dict[int, float]) -> tuple[dict[int, float], float]:
+    """midpoint - median baseline midpoint per day (h, wrapped to [-12, 12); positive = later), and that median
+    (signed offset from 02:00 MET)."""
     med = statistics.median(mid[d] for d in range(BASELINE_FIRST, BASELINE_LAST + 1))
-    return {d: _round(abs(wrap_hours(v - med)), 2) for d, v in mid.items()}, med
+    return {d: _round(wrap_hours(v - med), 2) for d, v in mid.items()}, med
 
 
 def daily_values(crew: dict) -> dict[str, dict[int, float | int]]:
@@ -321,14 +352,14 @@ def daily_values(crew: dict) -> dict[str, dict[int, float | int]]:
         for d in days:
             x = draw(rng, var, crew[var])
             out[var][d] = scripted.get(var, {}).get(d, x)
-    # Signed sleep midpoint (h from 02:00 MET), then the emitted absolute shift (D9).
+    # Signed sleep midpoint (h from 02:00 MET), then the emitted signed shift from the baseline median (S1).
     rng = rng_for(cid, "sleep_midpoint")
     mid: dict[int, float] = {}
     for d in days:
         x = _round(rng.gauss(crew["sleep_midpoint"], NOISE["sleep_midpoint"]["sd"]), 2)
         mid[d] = scripted.get("sleep_midpoint", {}).get(d, x)
     out["sleep_midpoint"] = mid
-    out["sleep_midpoint_shift"], _ = absolute_midpoint_shift(mid)
+    out["sleep_midpoint_shift"], _ = signed_midpoint_shift(mid)
     # Hydration: intake and output share the day's drinking noise (output = intake - stable losses).
     rng = rng_for(cid, "hydration")
     u_mean = crew["urine_volume_24h"]
@@ -455,16 +486,32 @@ def cabin_ppco2() -> list[float]:
 # ---------------------------------------------------------------------------------------------
 # Tier B honesty report (D10): what the engine's single-case test sees in this exact data
 # ---------------------------------------------------------------------------------------------
-def model_sd(crew: dict, var: str) -> float | None:
-    """SD of the EMITTED variable under the noise model (None for categorical mood)."""
+def _poisson_pmf(lam: float, k_max: int = 60) -> list[float]:
+    out, p = [], math.exp(-lam)
+    for k in range(k_max + 1):
+        out.append(p)
+        p = p * lam / (k + 1)
+    return out
+
+
+def model_sd(crew: dict, var: str, transform: str | None = None) -> float | None:
+    """SD of the TESTED variable under the noise model: the emitted value, or its declared transform
+    (None for categorical mood)."""
     spec = NOISE.get(var)
     if var == "sleep_midpoint_shift":
-        # |X - median| of normal noise: a half-normal with sd = sigma * sqrt(1 - 2/pi)
-        return NOISE["sleep_midpoint"]["sd"] * math.sqrt(1.0 - 2.0 / math.pi)
+        # the signed shift is the midpoint minus a constant (the baseline median): the midpoint's own SD
+        return NOISE["sleep_midpoint"]["sd"]
     if spec is None or spec["model"] == "categorical":
         return None
     if spec["model"] == "poisson":
-        return math.sqrt(crew[var])
+        lam = crew[var]
+        if transform is None:
+            return math.sqrt(lam)
+        pmf = _poisson_pmf(lam)                       # exact moments of the transformed count
+        ys = [to_test_scale(transform, k) for k in range(len(pmf))]
+        m1 = sum(pk * y for pk, y in zip(pmf, ys))
+        m2 = sum(pk * y * y for pk, y in zip(pmf, ys))
+        return math.sqrt(m2 - m1 * m1)
     if spec["model"] == "normal_cv":
         return spec["cv"] * crew[var]
     return spec["sd"]
@@ -492,7 +539,7 @@ def _simulate_baseline(rng: random.Random, crew: dict, var: str) -> tuple[list[f
     if var == "sleep_midpoint_shift":
         mids = [_round(rng.gauss(crew["sleep_midpoint"], NOISE["sleep_midpoint"]["sd"]), 2) for _ in range(n)]
         med = statistics.median(mids)
-        return [_round(abs(wrap_hours(m - med)), 2) for m in mids], med
+        return [_round(wrap_hours(m - med), 2) for m in mids], med
     if var in ("urine_volume_24h", "fluid_intake_24h"):
         vals = []
         for _ in range(n):
@@ -505,9 +552,11 @@ def _simulate_baseline(rng: random.Random, crew: dict, var: str) -> tuple[list[f
 
 
 def detection_probability(crew: dict, var: str, value: float, worse: str, reps: int = MC_REPS,
-                          signed_midpoint: float | None = None, midpoint_sd: float | None = None) -> float:
-    """P(Tier B flags `value` in the worse direction | a fresh 14-day baseline from the noise model)."""
-    key = ("power", crew["id"], var, value, worse, reps, signed_midpoint, midpoint_sd, SEED)
+                          signed_midpoint: float | None = None, midpoint_sd: float | None = None,
+                          transform: str | None = None) -> float:
+    """P(Tier B flags `value` in the worse direction | a fresh 14-day baseline from the noise model), tested on
+    the indicator's declared scale."""
+    key = ("power", crew["id"], var, value, worse, reps, signed_midpoint, midpoint_sd, transform, SEED)
     if key in _MEMO:
         return _MEMO[key]
     rng = rng_for("power", crew["id"], var, value, midpoint_sd or "")
@@ -517,14 +566,15 @@ def detection_probability(crew: dict, var: str, value: float, worse: str, reps: 
             sd = midpoint_sd or NOISE["sleep_midpoint"]["sd"]
             mids = [_round(rng.gauss(crew["sleep_midpoint"], sd), 2) for _ in range(N_BASELINE_DAYS)]
             med = statistics.median(mids)
-            base = [_round(abs(wrap_hours(m - med)), 2) for m in mids]
-            x = _round(abs(wrap_hours(signed_midpoint - med)), 2)
+            base = [_round(wrap_hours(m - med), 2) for m in mids]
+            x = _round(wrap_hours(signed_midpoint - med), 2)
         else:
             base, _ = _simulate_baseline(rng, crew, var)
             x = value
         if len(set(base)) < 2:
             continue
-        _, worse_hit = _flag(single_case_t(base, x), worse)
+        _, worse_hit = _flag(single_case_t([to_test_scale(transform, b) for b in base],
+                                           to_test_scale(transform, x)), worse)
         hits += worse_hit
     _MEMO[key] = hits / reps
     return _MEMO[key]
@@ -535,7 +585,7 @@ def _simulate_days(rng: random.Random, crew: dict, var: str, n_days: int) -> lis
     if var == "sleep_midpoint_shift":
         mids = [_round(rng.gauss(crew["sleep_midpoint"], NOISE["sleep_midpoint"]["sd"]), 2) for _ in range(n_days)]
         med = statistics.median(mids[:N_BASELINE_DAYS])
-        return [_round(abs(wrap_hours(m - med)), 2) for m in mids]
+        return [_round(wrap_hours(m - med), 2) for m in mids]
     if var in ("urine_volume_24h", "fluid_intake_24h"):
         out = []
         for _ in range(n_days):
@@ -557,59 +607,96 @@ def _simulate_days(rng: random.Random, crew: dict, var: str, n_days: int) -> lis
 _MEMO: dict[tuple, object] = {}   # pure, seeded results reused within one process (tests build several times)
 
 
-def _is_skewed(var: str) -> bool:
-    return var == "sleep_midpoint_shift" or NOISE.get(var, {}).get("model") == "poisson"
-
-
-def chance_rates(indicators: list[dict], reps_per_crew: int = 500) -> dict:
-    """Chance-caution rate per indicator-day with NO real change, laid out like the scenario (fixed 14-day
-    baseline, then each of the 31 later days tested against it). For normally distributed indicators it is
-    alpha / 2 = 0.0005 exactly (alpha for worse = 'either'): Crawford & Howell's test is exact for normal,
-    independent noise. For the skewed ones (Poisson lapse counts, the absolute midpoint shift) it is a seeded
-    Monte Carlo with the generator's own noise model for every crewmember."""
+def chance_records(var: str, transform: str | None, crew: dict, reps: int = CHANCE_REPS_PER_CREW):
+    """The seeded no-change records of `chance_rates` for one crewmember: each is 14 baseline values and the 31
+    later days, already on the test scale. engine/tests/test_chance_rates.py replays the same records through the
+    engine itself."""
+    rng = rng_for("chance", crew["id"], var)
     later = LAST_DAY - BASELINE_LAST
+    for _ in range(reps):
+        vals = [to_test_scale(transform, v) for v in _simulate_days(rng, crew, var, N_BASELINE_DAYS + later)]
+        yield vals[:N_BASELINE_DAYS], vals[N_BASELINE_DAYS:]
+
+
+def _plain_stats(xs: list[float]) -> tuple[float, float]:
+    """Mean and sample SD, summed left to right (the engine's own arithmetic, SPEC section 5)."""
+    acc = 0.0
+    for x in xs:
+        acc = acc + x
+    m = acc / len(xs)
+    ss = 0.0
+    for x in xs:
+        d = x - m
+        ss = ss + d * d
+    return m, math.sqrt(ss / (len(xs) - 1))
+
+
+def chance_counts(var: str, worse: str, transform: str | None, crew: dict,
+                  reps: int = CHANCE_REPS_PER_CREW) -> tuple[int, int, int, int]:
+    """(tests, worse-direction flags, flags in either direction, baselines with SD 0) for one crewmember."""
+    tests = worse_hits = flags = zero_sd = 0
+    for base, days in chance_records(var, transform, crew, reps):
+        tests += len(days)
+        if all(b == base[0] for b in base):   # SD 0: the engine reports insufficient_data, nothing can flag
+            zero_sd += 1
+            continue
+        m, sd = _plain_stats(base)
+        s_diff = sd * math.sqrt(1.0 + 1.0 / len(base))
+        for x in days:
+            reliable, w = _flag((x - m) / s_diff, worse)
+            flags += reliable
+            worse_hits += w
+    return tests, worse_hits, flags, zero_sd
+
+
+def chance_rates(indicators: list[dict], reps_per_crew: int = CHANCE_REPS_PER_CREW) -> dict:
+    """Chance rates with NO real change, for every Tier B indicator (lead decision S3): a seeded Monte Carlo with
+    this generator's own noise model, laid out like the scenario (a fixed 14-day baseline, then each of the 31
+    later days tested against it), on the indicator's declared test scale, for every crewmember. It counts
+    worse-direction reliable changes (a caution on an alerting indicator; both directions for worse = 'either')
+    and reliable changes in either direction (flags), and divides each rate by the nominal one: alpha / 2 (alpha
+    for 'either') and alpha. Within CHANCE_BAND the printed nominal rate holds; outside it, personal.json declares
+    the measured multipliers (engine/tests/test_chance_rates.py checks both)."""
+    alpha = ALPHA_TWO_TAILED
+    lo, hi = CHANCE_BAND
     out = {}
     for ind in indicators:
-        var, worse = ind["variable"], ind["worse"]
-        nominal = ALPHA_TWO_TAILED if worse == "either" else ALPHA_TWO_TAILED / 2
-        if not _is_skewed(var):
-            out[ind["id"]] = {"variable": var, "worse": worse, "method": "exact (normal, independent noise)",
-                              "chance_rate_per_indicator_day": nominal, "nominal_rate": nominal,
-                              "ratio_to_nominal": 1.0}
-            continue
-        key = ("chance", var, worse, reps_per_crew, SEED)
+        var, worse, tf = ind["variable"], ind["worse"], ind.get("transform")
+        key = ("chance", var, worse, tf, reps_per_crew, SEED)
         if key not in _MEMO:
-            hits = tests = 0
-            for crew in CREW:
-                rng = rng_for("chance", crew["id"], var)
-                for _ in range(reps_per_crew):
-                    vals = _simulate_days(rng, crew, var, N_BASELINE_DAYS + later)
-                    base = vals[:N_BASELINE_DAYS]
-                    if len(set(base)) < 2:
-                        continue
-                    for x in vals[N_BASELINE_DAYS:]:
-                        tests += 1
-                        _, w = _flag(single_case_t(base, x), worse)
-                        hits += w
-            _MEMO[key] = (hits, tests)
-        hits, tests = _MEMO[key]
-        rate = hits / tests
-        out[ind["id"]] = {"variable": var, "worse": worse,
-                          "method": f"seeded Monte Carlo, {tests:,} tests with no real change",
-                          "chance_rate_per_indicator_day": round(rate, 5), "nominal_rate": nominal,
-                          "ratio_to_nominal": round(rate / nominal, 1)}
+            _MEMO[key] = {c["id"]: chance_counts(var, worse, tf, c, reps_per_crew) for c in CREW}
+        per_crew = _MEMO[key]
+        nominal_c = alpha if worse == "either" else alpha / 2.0
+        tests, worse_hits, flags, zero_sd = (sum(v[i] for v in per_crew.values()) for i in range(4))
+        cm, fm = worse_hits / tests / nominal_c, flags / tests / alpha
+        out[ind["id"]] = {
+            "variable": var, "worse": worse, "alerting": ind["alerting"], "transform": tf,
+            "method": f"seeded Monte Carlo, {reps_per_crew:,} simulated 45-day records per crewmember, "
+                      f"{tests:,} tests with no real change",
+            "tests": tests, "zero_sd_baselines": zero_sd, "worse_direction_flags": worse_hits, "flags": flags,
+            "caution_rate_per_indicator_day": round(worse_hits / tests, 6),
+            "flag_rate_per_indicator_day": round(flags / tests, 6),
+            "nominal_caution_rate": nominal_c, "nominal_flag_rate": alpha,
+            "caution_multiplier": round(cm, 2), "flag_multiplier": round(fm, 2),
+            "within_band": lo <= cm <= hi and lo <= fm <= hi,
+            "per_crew": {cid: {"caution_multiplier": round(v[1] / v[0] / nominal_c, 2),
+                               "flag_multiplier": round(v[2] / v[0] / alpha, 2)} for cid, v in per_crew.items()},
+        }
     return out
 
 
 def tier_b_report(timelines: dict[str, dict], indicators: list[dict], tier_a: dict | None = None) -> dict:
     """Run Tier B on the shipped points exactly as the engine and app do (fixed baseline days 368-381 by
-    measurement day; every later observation tested against it) and say what it finds.
+    measurement day; every later observation tested against it, on the indicator's declared scale) and say
+    what it finds.
 
-    `indicators`: [{id, variable, worse, alerting}] (from engine/rules/personal.json when present).
+    `indicators`: [{id, variable, worse, alerting, transform?, case_id?}] (from engine/rules/personal.json).
     `tier_a`: {"rule_id", "op", "limit"} of the renal target rule, for the Tier A side of the comparison.
+    Every reliable change after the baseline is listed in `flags` (scripted or chance); `chance_flags` are the
+    ones on days no episode scripts for that crewmember and variable.
     """
     per_crew: dict[str, dict] = {}
-    chance: list[dict] = []
+    flags_all: list[dict] = []
     flagged_days: dict[tuple[str, str], list[int]] = {}
     t_by_day: dict[tuple[str, str], dict[int, float | None]] = {}
     for cid, tl in timelines.items():
@@ -617,22 +704,32 @@ def tier_b_report(timelines: dict[str, dict], indicators: list[dict], tier_a: di
         scripted = _scripted(cid)
         if "sleep_midpoint" in scripted:
             scripted["sleep_midpoint_shift"] = scripted["sleep_midpoint"]
+        episode_of = {var: ep["id"] for ep in episode_for(cid) for var in ep["values"]}
+        if "sleep_midpoint" in episode_of:
+            episode_of["sleep_midpoint_shift"] = episode_of["sleep_midpoint"]
         rows = []
         for ind in indicators:
-            var = ind["variable"]
+            var, tf = ind["variable"], ind.get("transform")
             pts = tl["points"].get(var)
             if not pts:
                 continue
-            base = [v for t, v in pts if BASELINE_FIRST <= measurement_day(t) <= BASELINE_LAST]
+            base_raw = [v for t, v in pts if BASELINE_FIRST <= measurement_day(t) <= BASELINE_LAST]
+            base = [to_test_scale(tf, v) for v in base_raw]
             later = [(measurement_day(t), v) for t, v in pts if measurement_day(t) > BASELINE_LAST]
             n = len(base)
             row = {"indicator_id": ind["id"], "variable": var, "unit": VARIABLES[var][0], "alerting": ind["alerting"],
-                   "worse": ind["worse"], "baseline_n": n}
+                   "worse": ind["worse"], "transform": tf, "baseline_n": n}
             if n >= 2:
                 m, sd = baseline_stats(base)
                 row.update({"baseline_mean": round(m, 4), "baseline_sd": round(sd, 4),
                             "mdc": None if n < 7 else round(mdc(sd, n), 4)})
-            msd = model_sd(crew, var)
+                if tf is not None:
+                    row["raw_baseline_mean"] = round(statistics.fmean(base_raw), 4)
+                if n >= 7 and sd > 0:
+                    half = mdc(sd, n)
+                    row["band"] = {"low": round(from_test_scale(tf, m - half), 4),
+                                   "high": round(from_test_scale(tf, m + half), 4)}
+            msd = model_sd(crew, var, tf)
             row["model_sd"] = None if msd is None else round(msd, 4)
             row["mdc_at_model_sd"] = None if msd is None else round(mdc(msd), 4)
             if n < 7:
@@ -642,47 +739,49 @@ def tier_b_report(timelines: dict[str, dict], indicators: list[dict], tier_a: di
             ts: dict[int, float | None] = {}
             hits = []
             for day, v in later:
-                t = single_case_t(base, v)
+                t = single_case_t(base, to_test_scale(tf, v))
                 ts[day] = None if t is None else round(t, 3)
                 reliable, worse_dir = _flag(t, ind["worse"])
                 if not reliable:
                     continue
-                if day in scripted.get(var, {}):
-                    if worse_dir:
-                        hits.append(day)
-                else:
-                    caution = worse_dir and ind["alerting"]
-                    chance.append({"crew_id": cid, "indicator_id": ind["id"], "variable": var, "day": day,
-                                   "value": v, "t": round(t, 3), "direction": "increase" if t > 0 else "decrease",
-                                   "worse_direction": worse_dir, "alerting": ind["alerting"],
-                                   "severity": "caution" if caution else "nominal",
-                                   "case_id": ind.get("case_id") if caution else None})
+                is_scripted = day in scripted.get(var, {})
+                caution = worse_dir and ind["alerting"]
+                flags_all.append({"crew_id": cid, "indicator_id": ind["id"], "variable": var, "day": day,
+                                  "value": v, "t": round(t, 3), "critical": round(CRITICAL_T, 3),
+                                  "direction": "increase" if t > 0 else "decrease",
+                                  "worse_direction": worse_dir, "alerting": ind["alerting"],
+                                  "severity": "caution" if caution else "nominal",
+                                  "case_id": ind.get("case_id") if caution else None,
+                                  "scripted": is_scripted,
+                                  "episode_id": episode_of.get(var) if is_scripted else None})
+                if is_scripted and worse_dir:
+                    hits.append(day)
             flagged_days[(cid, var)] = hits
             t_by_day[(cid, var)] = ts
             rows.append(row)
         per_crew[cid] = {"indicators": rows}
     detection = []
-    worse_of = {ind["variable"]: ind["worse"] for ind in indicators}
-    id_of = {ind["variable"]: ind["id"] for ind in indicators}
+    by_var = {ind["variable"]: ind for ind in indicators}
     for ep in EPISODES:
         cid, crew = ep["crew_id"], CREW_BY_ID[ep["crew_id"]]
         tl = timelines[cid]
         for raw_var, by_day in ep["values"].items():
             var = "sleep_midpoint_shift" if raw_var == "sleep_midpoint" else raw_var
-            if var not in worse_of or var == "mood":
+            if var not in by_var or var == "mood":
                 continue
-            worse = worse_of[var]
+            ind = by_var[var]
+            worse, tf = ind["worse"], ind.get("transform")
             days = sorted(by_day)
             emitted = {d: tl["daily"][var][d] for d in days}
             power = {}
             for d in days:
                 if var == "sleep_midpoint_shift":
                     power[str(d)] = round(detection_probability(crew, var, emitted[d], worse,
-                                                                signed_midpoint=by_day[d]), 3)
+                                                                signed_midpoint=by_day[d], transform=tf), 3)
                 else:
-                    power[str(d)] = round(detection_probability(crew, var, emitted[d], worse), 3)
+                    power[str(d)] = round(detection_probability(crew, var, emitted[d], worse, transform=tf), 3)
             entry = {"episode_id": ep["id"], "case_id": ep["case_id"], "crew_id": cid,
-                     "indicator_id": id_of[var], "variable": var, "worse": worse,
+                     "indicator_id": ind["id"], "variable": var, "worse": worse, "transform": tf,
                      "scripted_days": [days[0], days[-1]],
                      "values": {str(d): emitted[d] for d in days},
                      "t": {str(d): t_by_day.get((cid, var), {}).get(d) for d in days},
@@ -695,7 +794,7 @@ def tier_b_report(timelines: dict[str, dict], indicators: list[dict], tier_a: di
                              "correlate at r = 0.97",
                     "by_day": {str(d): round(detection_probability(crew, var, emitted[d], worse,
                                                                    signed_midpoint=by_day[d],
-                                                                   midpoint_sd=MIDPOINT_SD_ALT_H), 3)
+                                                                   midpoint_sd=MIDPOINT_SD_ALT_H, transform=tf), 3)
                                for d in days}}
             if tier_a and ep.get("tier_a") and ep["tier_a"]["variable"] == var:
                 lim, op = tier_a["limit"], tier_a["op"]
@@ -704,4 +803,6 @@ def tier_b_report(timelines: dict[str, dict], indicators: list[dict], tier_a: di
                 entry["tier_a"] = {"rule_id": tier_a["rule_id"], "op": op, "limit": lim,
                                    "outside_days": [d for d in days if not ok(emitted[d])]}
             detection.append(entry)
-    return {"per_crew": per_crew, "episodes": detection, "chance_flags": chance}
+    chance = [{k: v for k, v in f.items() if k not in ("scripted", "episode_id")} for f in flags_all
+              if not f["scripted"]]
+    return {"per_crew": per_crew, "episodes": detection, "flags": flags_all, "chance_flags": chance}

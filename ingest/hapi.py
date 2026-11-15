@@ -400,7 +400,7 @@ def build_iss_tepc(ctx: RunContext) -> dict:
         "The 24 h native window (2015-06-01) is an arbitrary LANDFALL choice of an ordinary "
         "period showing routine SAA modulation; it is not claimed to be typical of other years "
         "or of solar-particle-event conditions.",
-        "DOSE is absorbed dose (uGy) in the detector; DOSE_EQ60 is the publisher's dose "
+        "DOSE is absorbed dose (µGy) in the detector; DOSE_EQ60 is the publisher's dose "
         "equivalent (ICRP-60 quality factors). Neither is the effective dose (mSv) used by NASA "
         "crew exposure limits, so these values must not be compared with those limits directly.",
         "The CDF file also holds LOCATION (where the TEPC was inside the ISS) and FLAG (dominant "
@@ -514,7 +514,7 @@ def _deep_space(ctx: RunContext, *, dataset: str, sid: str, wanted: list[str], h
         "are still listed, with n = 0 and null values"
         + (f" ({', '.join(days_without_samples)})" if days_without_samples else "") + ".",
         "Values are reported as served; LANDFALL applies no correction factor of its own. "
-        "uGy/day equivalents are unit conversions only (explicit factor in data.conversions).",
+        "µGy/day equivalents are unit conversions only (explicit factor in data.conversions).",
         "Served by NASA GSFC CCMC iSWA; no license or data-use terms are stated in the HAPI "
         "/info response.",
         f"enhanced_days uses a LANDFALL rule (daily mean of {headline} > "
@@ -617,8 +617,8 @@ def _msl_rtg_caveat(per_param: dict) -> list[str]:
         return []
     raw, rtg, e = med["dose_b_raw"], med["dose_b_rtg"], med["dose_e_total"]
     return [f"For scale, from this window's own data: the publisher's RTG correction lowers "
-            f"detector B's median from {raw:.1f} to {rtg:.1f} uGy/day ({raw - rtg:.1f} uGy/day). "
-            f"dose_e_total's median is {e:.1f} uGy/day. If dose_e_total includes the rover's RTG "
+            f"detector B's median from {raw:.1f} to {rtg:.1f} µGy/day ({raw - rtg:.1f} µGy/day). "
+            f"dose_e_total's median is {e:.1f} µGy/day. If dose_e_total includes the rover's RTG "
             "background, the natural Mars-surface dose rate is lower than the headline value. "
             "LANDFALL does not apply detector B's correction to detector E, because they are "
             "different detector materials and the publisher gives no correction for E."]

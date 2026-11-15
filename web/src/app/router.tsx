@@ -37,6 +37,7 @@ const loaders: Record<LazyName, () => Promise<{ default: FeatureComponent }>> = 
   data: () => import('../features/data'),
   cuecard: () => import('../features/cuecard'),
   eva: () => import('../features/eva'),
+  verify: () => import('../features/verify'),
 }
 
 const LAZY = Object.fromEntries(

@@ -35,8 +35,8 @@ function CopyBlock() {
   }
   return (
     <div className="lf-m-code">
-      <p className="lf-m-code-label" id="m-check-label">
-        Check our arithmetic
+      <p className="lf-m-code-label">
+        <span id="m-check-label">Check our arithmetic</span> · <a href="#/verify">Run it in your browser</a>
       </p>
       <div className="lf-m-code-row">
         <pre ref={pre} aria-labelledby="m-check-label" tabIndex={0}>

@@ -14,6 +14,7 @@ export type RouteId =
   | 'data'
   | 'card'
   | 'eva'
+  | 'verify'
 
 export type FeatureName =
   | 'now'
@@ -29,6 +30,7 @@ export type FeatureName =
   | 'data'
   | 'cuecard'
   | 'eva'
+  | 'verify'
 
 export interface RouteDef {
   id: RouteId
@@ -64,6 +66,8 @@ export const ROUTES: readonly RouteDef[] = [
   // The [V1 6006] evidence board for one crewmember (#/eva?crew=CM-2): opened from the body map's VO2max card, so
   // not a nav item.
   { id: 'eva', pattern: '/eva', feature: 'eva', label: 'EVA', title: 'EVA in a blackout', navHref: '#/eva', nav: false },
+  // The judge's browser re-runs the conformance vectors, the snapshot hashes and the rules digest (Method links it).
+  { id: 'verify', pattern: '/verify', feature: 'verify', label: 'Re-run the checks', title: 'Re-run the checks', navHref: '#/verify', nav: false },
 ]
 
 /** The routes the nav lists (every route not marked nav: false). */

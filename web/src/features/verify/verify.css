@@ -1,0 +1,87 @@
+/* #/verify: re-run the checks. Tokens only (src/styles/tokens.css). Appendix F colours carry meaning only: a passing
+   row is neutral (text + check icon), a failed check red, missing data cyan, unavailable gray; the Run buttons are the
+   app's dark-green commandable elements. */
+
+.lfv-page { display: grid; gap: var(--lf-space-3); min-width: 0; }
+.lfv-page code { font-size: 0.9em; overflow-wrap: anywhere; }
+.lfv-head h1 { margin: 0 0 0.3em; }
+.lfv-lede { font-size: var(--lf-text-lg); line-height: 1.4; color: var(--lf-text); max-width: 62ch; margin: 0; }
+.lfv-section { display: grid; gap: var(--lf-space-1-5); min-width: 0; }
+.lfv-section > h2 { font-size: var(--lf-text-lg); margin: 0; }
+.lfv-p { margin: 0 0 0.6em; max-width: 90ch; color: var(--lf-text-2); }
+.lfv-p:last-child { margin-bottom: 0; }
+.lfv-muted { color: var(--lf-text-muted); }
+
+.lfv-run { display: flex; flex-wrap: wrap; align-items: center; gap: var(--lf-space-1) var(--lf-space-2); min-width: 0; }
+.lfv-progress { margin: 0; flex: 1 1 18rem; min-width: 0; font-family: var(--lf-font-mono); font-variant-numeric: tabular-nums; font-size: var(--lf-text-sm); color: var(--lf-text-2); }
+
+.lfv-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--lf-space-1-5); min-width: 0; }
+.lfv-row .lf-card-head { flex-wrap: wrap; }
+.lfv-row-body { min-width: 0; }
+.lfv-big { margin: 0 0 0.5em; font-size: var(--lf-text-md); font-weight: 600; color: var(--lf-text); overflow-wrap: anywhere; }
+.lfv-facts { margin: 0 0 0.6em; padding-left: 1.2em; display: grid; gap: 0.3em; font-size: var(--lf-text-sm); color: var(--lf-text-2); }
+.lfv-facts:last-child { margin-bottom: 0; }
+.lfv-hex { word-break: break-all; }
+.lfv-nowrap { white-space: nowrap; }
+
+/* every disagreement, scrollable when long */
+.lfv-diffs {
+  margin: 0;
+  padding: var(--lf-space-1) var(--lf-space-1-5) var(--lf-space-1) 2.4em;
+  max-height: 20rem;
+  overflow: auto;
+  display: grid;
+  gap: 0.4em;
+  background: var(--lf-surface-2);
+  border: 1px solid var(--lf-border-subtle);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-2);
+}
+.lfv-diff-line { padding-left: 0.5em; overflow-wrap: anywhere; }
+
+.lfv-csp {
+  margin: 0;
+  padding: var(--lf-space-1) var(--lf-space-1-5);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--lf-surface-2);
+  border: 1px solid var(--lf-border-subtle);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-2);
+}
+
+.lfv-snaps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5em; }
+.lfv-snaps li { display: grid; gap: 0.1em; }
+.lfv-snap-head { color: var(--lf-text); }
+
+/* drop zone: dashed edge; bright green (Table F.5-2, cursor outline) while a file is dragged over it */
+.lfv-drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lf-space-1) var(--lf-space-2);
+  padding: var(--lf-space-2);
+  border: 2px dashed var(--lf-border);
+  border-radius: var(--lf-radius);
+  background: var(--lf-surface-1);
+  color: var(--lf-text-2);
+  min-width: 0;
+}
+.lfv-drop[data-over] { border-color: var(--lf-focus); }
+.lfv-drop input { max-width: 100%; color: var(--lf-text-2); }
+/* the file chooser is a commandable element: the app's dark-green button (Table F.5-2), as .lf-btn */
+.lfv-drop input::file-selector-button {
+  margin-right: var(--lf-space-1);
+  min-height: 40px;
+  padding: 0.5em 1em;
+  border: 2px solid var(--lf-action-edge);
+  border-radius: var(--lf-radius);
+  background: var(--lf-action);
+  color: var(--lf-action-text);
+  font: 600 var(--lf-text-sm)/1.2 var(--lf-font-ui);
+  cursor: pointer;
+}
+.lfv-drop input::file-selector-button:hover { background: var(--lf-action-hover); }
+.lfv-pdf-result:empty { display: none; }
+
+.lfv-scope { padding-top: var(--lf-space-2); border-top: 1px solid var(--lf-border-subtle); }

@@ -113,6 +113,7 @@ describe('matchRoute', () => {
   it('keeps the cue cards out of the nav: still the same 11 nav items', () => {
     expect(ROUTES.find((r) => r.id === 'card')?.nav).toBe(false)
     expect(matchRoute('#/eva?crew=CM-2').route?.id).toBe('eva')
+    expect(matchRoute('#/verify').route?.nav).toBe(false)
     expect(NAV_ROUTES.map((r) => r.id)).toEqual(['now', 'body', 'case', 'radiation', 'noon-sight', 'trends', 'downlink', 'band', 'provenance', 'method', 'data'])
     expect(NAV_ROUTES).toHaveLength(11)
   })

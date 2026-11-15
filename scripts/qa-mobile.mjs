@@ -12,7 +12,8 @@ const base = process.argv[2] ?? 'http://localhost:4301'
 const width = Number(process.argv[3] ?? 390)
 const height = Number(process.argv[4] ?? 844)
 const ROUTES = ['#/', '#/body', '#/cases', '#/case/spe_shelter', '#/case/renal_stone', '#/case/sleep_circadian',
-  '#/radiation', '#/noon-sight', '#/trends', '#/downlink', '#/band', '#/provenance', '#/method', '#/data', '#/card/renal_stone', '#/eva']
+  '#/radiation', '#/noon-sight', '#/trends', '#/downlink', '#/band', '#/provenance', '#/method', '#/data', '#/card/renal_stone', '#/eva',
+  '#/verify']
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const port = 9300 + Math.floor(Math.random() * 500)
 const profile = tempProfile('lf-qa-') // deleted on exit

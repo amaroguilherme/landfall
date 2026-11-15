@@ -47,7 +47,7 @@ Each link opens one view. `?env=` sets the environment (`iss`, `cislunar`, `luna
 
 ## Check our arithmetic
 
-No install needed: open https://landfall.landfall-web.workers.dev/#/verify and press Run. Your browser replays all 6,460 shared conformance vectors through the TypeScript engine and compares each with the Python reference, re-hashes the frozen snapshots against `manifest.json`, recomputes the rules digest the cue cards print and counts requests to other origins. "See the checks fail" turns the engine and snapshot checks red on a deliberately altered engine function and on a snapshot copy with one changed byte, and "Have NASA's PDF? Drop it here" hashes a standard you download yourself against the SHA-256 the snapshots record. Expected: 6460 of 6460 vectors agree within 1e-9 (the replay takes about 140 ms in Chrome), 27 of 27 snapshots match, the digest equals the one the cards print, and 0 requests go to other origins. <!-- COUNT -->
+No install needed: open https://landfall.landfall-web.workers.dev/#/verify and press Run. Your browser replays all 6,460 shared conformance vectors through the TypeScript engine and compares each with the Python reference, re-hashes the frozen snapshots against `manifest.json`, recomputes the rules digest the cue cards print and counts requests to other origins. "See the checks fail" turns the engine and snapshot checks red on a deliberately altered engine function and on a snapshot copy with one changed byte, and "Have NASA's PDF? Drop it here" hashes a standard you download yourself against the SHA-256 the snapshots record. Expected: 6460 of 6460 vectors agree within 1e-9, 27 of 27 snapshots match, the digest equals the one the cards print (61f6049abd45), and 0 requests go to other origins. On the live site on 15 November 2026 the replay took 132 ms in Chrome, and the whole Run 476 ms, downloads included.
 
 From source:
 
@@ -60,9 +60,9 @@ cd web && npm ci && npx vitest run
 npx tsc -p tsconfig.app.json --noEmit && npx vite build
 ```
 
-On a fresh clone, pytest reports 1,436 passed and 20 skipped; the vectors are 801 fixed + 5,659 seeded random = 6,460; vitest reports 7,371 passed and 1 skipped (44 files). Measured on 15 November 2026: pytest on a cache-free copy of commit 354d0f6 (its Python is unchanged in 62b9302), vitest at 62b9302. <!-- COUNT -->
+On a fresh clone, pytest reports 1,441 passed and 22 skipped; the vectors are 801 fixed + 5,659 seeded random = 6,460; vitest reports 7,403 passed and 1 skipped (44 files). Measured on 15 November 2026, 18:21-18:23 BRT, on commit 344b8b7, the deployed build: pytest on a cache-free copy of its tracked files after `uv sync --all-extras`, vitest in its `web/`.
 
-Of the 20 Python skips, 3 are tests superseded by the scenario generator's own Tier B report, and 17 re-parse cached sources that live in the gitignored `.cache/` (the Vol 1 PDF, the arXiv preprint and the iSWA RAD record, the STS-34 sources, the Hassler et al. 2014 PDF and the STEREO-B HET record, and the corpus `tools/nearest/corpus.py` cuts from both standards' PDFs); with that cache present, pytest reports 1,453 passed (1,030 engine, 423 ingest) and 3 skipped. The TypeScript suite replays every shared vector in the browser engine (`web/src/engine/conformance.test.ts`), and the two engines agree to 1e-9. <!-- COUNT -->
+Of the 22 Python skips, 3 are tests superseded by the scenario generator's own Tier B report, and 19 re-parse cached sources that live in the gitignored `.cache/` (the Vol 1 and Vol 2 PDFs, the arXiv preprint and the iSWA RAD record, the STS-34 sources, the Hassler et al. 2014 PDF and the STEREO-B HET record, and the corpus `tools/nearest/corpus.py` cuts from both standards' PDFs); with that cache present, pytest reports 1,460 passed (1,030 engine, 430 ingest) and 3 skipped. The TypeScript suite replays every shared vector in the browser engine (`web/src/engine/conformance.test.ts`), and the two engines agree to 1e-9.
 
 ## Architecture
 

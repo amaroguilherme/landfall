@@ -215,6 +215,18 @@ describe('LANDFALL BAND sensor map', () => {
     expect(step(s, 'ppg_all')).toBeLessThan(step(s, 'target') * 24)
   })
 
+  it('names what Vol 2 Rev F does not set for the log: storage capacity, retention or log duration', () => {
+    // [V2 6020] does require cabin atmosphere data to be recorded, so an unqualified "no storage requirement" is wrong.
+    const narrowed = 'sets no storage-capacity, retention or log-duration requirement for wearables'
+    expect(map.log.summary).toBe(`NASA-STD-3001 Vol 2 Rev F ${narrowed}, so every target here is a design choice.`)
+    expect(map.blocks.find((b) => b.id === 'flash')?.design).toContain(`NASA-STD-3001 Vol 2 Rev F ${narrowed}, so the 14-day target is a design choice.`)
+    expect(pick(files, 'README.md')).toContain('**No battery-endurance, storage-capacity, retention or log-duration requirement** for wearables')
+    const loose = /no storage or log-duration|no requirement for wearable storage|battery-endurance, storage or log-duration/i
+    expect(JSON.stringify(map)).not.toMatch(loose)
+    expect(pick(files, 'README.md')).not.toMatch(loose)
+    expect(pick(files, 'sensor-map.md')).not.toMatch(loose)
+  })
+
   it('re-computes the export-cap pitfall arithmetic', () => {
     const cap = map.pitfalls.find((p) => p.id === 'export_cap')?.arithmetic ?? []
     expect(cap.find((a) => a.label.startsWith('Pulse intervals'))?.value).toBeCloseTo(Math.round((65536 / 6000) * 10) / 10, 9)
@@ -251,6 +263,48 @@ describe('LANDFALL BAND sensor map', () => {
     expect(text('V2 9020')).toMatch(/40mA for DC.*8 mA peak for AC/)
     expect(text('V2 9021')).toMatch(/2 mA for DC.*0\.5 mA for AC/)
     for (const n of ['0.4 mA DC', '0.2 mA peak AC', '2 mA DC', '0.5 mA AC', '40 mA DC', '8 mA peak AC']) expect(row?.text, n).toContain(n)
+  })
+
+  it('specifies a power switch and a status light that show the band state, never a health value', () => {
+    const power = map.safety.find((s) => s.id === 'power_control')
+    const light = map.safety.find((s) => s.id === 'status_light')
+    const table = map.safety.find((s) => s.refs.includes('V2 10201'))
+    expect(power?.text).toMatch(/see Status light/)
+    expect(light?.chip).toBe('design choice')
+    expect(light?.snapshot).toBe('std_vol2_requirements')
+    const reqs = (light?.refs ?? []).filter((r) => /^V2 [0-9]+$/.test(r))
+    expect(reqs.length).toBeGreaterThan(0)
+    for (const id of reqs) expect(requirementText(id), id).not.toBe('')
+    const text = light?.text ?? ''
+    expect(text).toMatch(/nothing on the outside of the band shows a health value/)
+    const words = new Set(text.toLowerCase().split(/[^a-z0-9_]+/))
+    for (const i of personal.indicators) expect(words.has(i.variable), i.variable).toBe(false)
+    expect(text).toMatch(/There is no red state/)
+    expect(text).toMatch(/That deviation is declared/)
+    expect(text).not.toMatch(/white|blue|cyan/i)
+    expect(requirementText('V2 10201')).toBe('')
+    expect(requirementText('V2 10022')).toBe('')
+    expect(table?.snapshot).toBeNull()
+    expect(table?.chip).toBe('NASA-published')
+    expect(table?.links?.some((l) => l.url === 'https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf')).toBe(true)
+    expect(map.safety_basis).toMatch(/V2 10201/)
+    expect(map.open_items.some((o) => /No power switch or status light/.test(o))).toBe(false)
+    expect(map.open_items.some((o) => /status light/.test(o) && /no parts selected/.test(o))).toBe(true)
+  })
+
+  it('takes the status-light blink from F.5.11 b and declares the yellow fault against Table F.5-1 too', () => {
+    // The rationale of [V2 10150] (PDF p. 200, not frozen) applies Appendix F to indicator lights, so Table F.5-1 covers the light.
+    type AppendixF = { table_f_5_1: { rows: { meaning: string; color: string }[] }; clauses: { clause: string; text: string }[] }
+    const f = (vol2Snap.data as unknown as { appendix_f_colors: AppendixF }).appendix_f_colors
+    const meaning = (color: string) => f.table_f_5_1.rows.find((r) => r.color === color)?.meaning ?? ''
+    expect(meaning('Red')).toMatch(/\bfailed\b/)
+    expect(meaning('Yellow')).toMatch(/\boff-nominal\b/)
+    expect(f.clauses.find((c) => c.clause === 'F.5.11 b')?.text).toMatch(/^Low flash rate .* 0\.8 Hz with duty cycle of 70% on\.$/)
+    const text = map.safety.find((s) => s.id === 'status_light')?.text ?? ''
+    expect(text).toContain('Yellow, blinking at 0.8 Hz with 70 % on')
+    expect(text).toContain("the 0.8 Hz rate with 70 % on is F.5.11 b's low flash rate")
+    expect(text).toContain('not the red that Table 10.4-3 and Table F.5-1 both give to Failed')
+    expect(text).not.toMatch(/display clause/)
   })
 
   it('cites Table 8.7-2 (melanopic EDI and DER at the cornea) for the light sensor, with the snapshot cells', () => {

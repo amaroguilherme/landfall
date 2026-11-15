@@ -232,7 +232,7 @@ Design notes:
 - `[V2 6001]` (pattern borrowed; frozen in `std_vol2_requirements`): "The system shall provide environmental and suit monitoring data in formats compatible with performing temporal trend analyses." Written for environmental and suit data. The band's records are timestamped and trend-ready, and export as FHIR R4 Observations through LANDFALL.
 
 Design notes:
-- NASA-STD-3001 Vol 2 Rev F sets no requirement for wearable storage or log duration, so the 14-day target is a design choice.
+- NASA-STD-3001 Vol 2 Rev F sets no storage-capacity, retention or log-duration requirement for wearables, so the 14-day target is a design choice.
 
 ### `battery` LiPo cell 200 mAh: LiPo cell, 1S, 200 mAh (Generic (part not selected))
 
@@ -355,7 +355,7 @@ NASA-STD-3001 Vol 2 Rev F sets no battery-endurance requirement for wearables: i
 
 ## Log depth
 
-What 16 MiB holds. NASA-STD-3001 Vol 2 Rev F sets no storage or log-duration requirement for wearables, so every target here is a design choice.
+NASA-STD-3001 Vol 2 Rev F sets no storage-capacity, retention or log-duration requirement for wearables, so every target here is a design choice.
 
 | Step | Value | Chip | Arithmetic or rationale |
 |---|---|---|---|
@@ -422,19 +422,22 @@ Basis: Hexoskin's public API documentation (datatype registry and data resource)
 
 ## Safety constraints
 
-Basis: Vol 2 Rev F items are frozen in std_vol2_requirements. JSC-20793 Rev D (NTRS 20170009182) and NASA-STD-6001B w/Change 3 are public NASA documents, not frozen in this build; their numbers here were checked against them on 2026-11-14.
+Basis: Vol 2 Rev F items are frozen in std_vol2_requirements, except [V2 10201] (with Table 10.4-3) and [V2 10022], which were read in the public PDF (pp. 214 and 200) on 2026-11-15, are paraphrased, and link to it. JSC-20793 Rev D (NTRS 20170009182) and NASA-STD-6001B w/Change 3 are public NASA documents, not frozen in this build; their numbers here were checked against them on 2026-11-14.
 
 | Topic | Reference | Constraint | Chip |
 |---|---|---|---|
 | Leakage current, medical and bioinstrumentation equipment | `V2 9023`, `Table 9.3-11` | The band touches intact skin, read as External body contact: DC to 1 kHz, 0.1 mA normal and 0.5 mA single fault, the sum of all leakage currents. Footnote: prolonged DC contact carries a small risk of heating and tissue necrosis. The two ECG electrodes are the band's only conductive contacts: the inner one rests on the wrist, and a path across the chest exists only while the other hand touches the outer one during a spot check. | NASA-published |
 | Current through the crewmember, general limits for any equipment | `V2 9019`, `V2 9020`, `V2 9021` | Nominal contact with conductive housing: 0.4 mA DC, 0.2 mA peak AC. Startle reaction, during critical operations: 2 mA DC, 0.5 mA AC. Catastrophic, all circumstances: 40 mA DC, 8 mA peak AC. For bioinstrumentation the stricter [V2 9023] applies. | NASA-published |
-| Crew control of power | `V2 9017`, `V2 9018` | The crew must be able to interrupt power and see the de-energized status. The band has no switch or status light in this BOM: an open item. | NASA-published |
+| Crew control of power | `V2 9017`, `V2 9018` | The crew must be able to interrupt power and see the de-energized status. Specified, no part selected: a recessed OFF/ON slide switch that disconnects the cell, with OFF and ON printed on the case, so its position shows the de-energized status without power or a light; a dark light could also mean a flat battery (see Status light). | NASA-published |
+| Status light: the band's state, never the wearer's health | `V2 9018`, `V2 10125`, `V2 10020` | Specified, no part selected. One green/yellow light, dark by default, so OFF is shown by the switch, never by the light ([V2 9018]). It lights for 3 s when the band is switched on or the wearer presses the case, and never while the light sensor is reading. Green, one blink: on and recording. Yellow, blinking at 0.8 Hz with 70 % on: on but not recording (off-wrist, log full, or battery too low to record). That is an off-nominal state, which Table F.5-1 and Table 10.4-3 both give to yellow; LANDFALL's screens use yellow for Caution only. The blink is the cue besides colour (F.5.10 e). It is a design choice: Table 10.4-3 defines flashing only for red, and the 0.8 Hz rate with 70 % on is F.5.11 b's low flash rate. There is no red state: the band raises no Warning or Emergency, and a fault that stops recording shows yellow, not the red that Table 10.4-3 and Table F.5-1 both give to Failed. That deviation is declared: red on a crewmate's wrist would read as a medical warning. Rule: no light state reads a physiological variable, and nothing on the outside of the band shows a health value; health data leave the band only over its encrypted link to LANDFALL ([V2 10125]). The band logs time spent off or off-wrist, so LANDFALL can mark that data MISSING instead of reading it as a normal day ([V2 10020]). | design choice |
+| Indicator-light colours and switch feedback | `V2 10201`, `Table 10.4-3`, `V2 10022` | Indicator lights must meet Table 10.4-3 (section 10.4.2.5, PDF p. 214). It defines four types: flashing red for Emergency; red for Warning or Failed; yellow for Caution, an off-nominal state or a trip; green for power, on, enabled or a good state. It defines no white, blue or cyan light, and its rationale asks that yellow not be confusable with green. The rationale of [V2 10022] (p. 200) counts a switch position among the positive indications of a control action. | NASA-published |
 | Touch temperature | `V2 9102`, `V2 9103` | Tissue damage at 49 °C or above (Table 9.3-4); pain range 43 to 49 °C (Table 9.3-5). The LEDs stop at 41 °C at the skin-side sensor (design choice); the pulse LED runs around the clock, so the cut-off is always armed. | NASA-published |
 | RF exposure | `V2 6102` | The BLE radio must keep crew RF exposure within Table 6.8-2. This is the only electromagnetic requirement in Vol 2. | NASA-published |
 | Battery safety class | `JSC-20793 Rev D` | Non-Critical: under 4 Wh per isolated pack, Li-ion COTS up to 1000 mAh. Critical: single-fault tolerant, Li-ion COTS under 20 V and 60 Wh. Catastrophic: two-fault tolerant. Section 4.4.3: monitor cell voltage, cell temperature and current. | NASA-published |
 | Materials in the habitable volume | `NASA-STD-6001B w/Change 3`, `NASA-STD-6016` | Test 1 upward flame propagation (five specimens of 30 × 6.5 cm; none may burn more than 15 cm), Test 4 electrical wire insulation flammability, Test 7 offgassed products (72 ± 1 h at 50 ± 3 °C; total T value below 0.5), Test 18 arc tracking. A material that is untested or fails these tests needs a Materials Usage Agreement (MUA) under NASA-STD-6016. | NASA-published |
 
 Public copies of the documents not frozen in this build:
+- NASA-STD-3001 Vol. 2 Rev. F, PDF (section 10.4.2.5 on p. 214; [V2 10022] on p. 200): https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf
 - JSC-20793 Rev D on NTRS (20170009182): https://ntrs.nasa.gov/citations/20170009182
 - NASA-STD-6001B in the NASA Technical Standards System: https://standards.nasa.gov/standard/NASA/NASA-STD-6001
 
@@ -449,7 +452,7 @@ Public copies of the documents not frozen in this build:
 - No ECG viewer: LANDFALL does not show the spot-check strip to the Crew Medical Officer or put it in the ground packet yet.
 - Confirm two TWI (I2C) instances on the nRF52840 beside SPI and QSPI in its product specification: the design uses two I2C buses.
 - Prolonged DC contact: check every DC lead-bias and lead-off current of the ECG front end against Table 9.3-11 and its footnote, with the front end powered down between spot checks.
-- No power switch or status light for [V2 9017] / [V2 9018].
+- Power switch and status light for [V2 9017] / [V2 9018]: specified under Safety constraints (device state only, never a health value), no parts selected. Add the switch, the light and its press input to the BOM, the block diagram and the power budget, and check sealing and protection against accidental switching.
 - Power tree (front-end and LED supply rails) not designed.
 - Electrode material, strap and housing materials not selected: NASA-STD-6001B testing or a Materials Usage Agreement is needed.
 - Core body temperature is not derived: that needs a validated model.

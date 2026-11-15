@@ -101,9 +101,9 @@ API documentation (datatype registry and data resource) and product page, NASA's
   an operational sensor specification. This is the gap the band fills.
 - **No EMI/EMC requirement** in Vol 2 Rev F; the only electromagnetic requirement is RF exposure, `[V2 6102]`.
 - **No skin-contact biocompatibility requirement** in Vol 2 Rev F; the nearest are `[V2 7076]` and `[V2 7081]`.
-- **No battery-endurance, storage or log-duration requirement** for wearables in Vol 2 Rev F. The 72 h autonomy
-  target (one whole case tripwire window) and the 14-day log target (one whole Tier B baseline window) are design
-  choices.
+- **No battery-endurance, storage-capacity, retention or log-duration requirement** for wearables in Vol 2 Rev F. The
+  72 h autonomy target (one whole case tripwire window) and the 14-day log target (one whole Tier B baseline window)
+  are design choices.
 - **No numeric in-flight alert thresholds for crew health:** NASA-STD-3001's alert requirements leave the number to
   the program, so LANDFALL has no SpO2, blood pressure or glucose limit. Blood pressure and glucose are compared only
   with the crewmember's own baseline (Tier B, caution at most).
@@ -111,6 +111,8 @@ API documentation (datatype registry and data resource) and product page, NASA's
 Every Vol 1 and Vol 2 quote, and every negative, is checked against the frozen snapshots in `web/public/data/` by
 `web/src/features/band/band.test.ts`. JSC-20793 Rev D (NTRS 20170009182) and NASA-STD-6001B w/Change 3 are public
 NASA documents that are not frozen in this build; the JSON links them and gives the date their numbers were checked.
+The indicator-light table (`[V2 10201]`, Table 10.4-3, p. 214) and `[V2 10022]` (p. 200) are not in the frozen
+snapshot either: the JSON paraphrases them and links the PDF.
 
 ## Checking
 
@@ -129,9 +131,9 @@ judge-facing text cites process notes instead of sources.
 Listed in `sensor-map.json` (`open_items`) and on the page. The ones a reviewer will find first: battery
 monitoring is treated as not meeting JSC-20793 section 4.4.3 (the MCP73831 has no thermistor input, verified on its
 datasheet, and what the MAX17048 measures is not verified in this build); five datasheets still need reading; PRV has
-not been compared with ECG SDNN on this hardware; LANDFALL has no viewer for the ECG strip; there is no power switch
-or status light for `[V2 9017]` / `[V2 9018]`; the power tree is not designed; and every current in the budget is an
-estimate, never measured.
+not been compared with ECG SDNN on this hardware; LANDFALL has no viewer for the ECG strip; the power switch and
+status light for `[V2 9017]` / `[V2 9018]` are specified but have no parts (the light shows the band's state, never a
+health value); the power tree is not designed; and every current in the budget is an estimate, never measured.
 
 Electrical safety: the band touches intact skin, read as **External** body contact in `[V2 9023]` Table 9.3-11
 (DC to 1 kHz: 0.1 mA normal, 0.5 mA single fault, summed over all leakage paths). The two ECG electrodes are the only

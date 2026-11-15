@@ -85,7 +85,7 @@
     {
       "id": "V2 7045", "doc": "NASA-STD-3001 Vol. 2 Rev. F", "section": "7.5.2", "relation": "direct",
       "quote": "Medical equipment shall be usable by non-physician crewmembers in the event that a physician crewmember is not present or is the one who requires medical treatment.",
-      "why": "No settings to tune: the band has no screen and no calibration step. The crew wears it and docks it to charge; the only action it asks for is an ECG spot check, one finger on the outer electrode for 30 s.",
+      "why": "No settings to tune: the band has no screen and no calibration step. The crew switches it on, wears it and docks it to charge; in normal wear, the only action it asks for is an ECG spot check, one finger on the outer electrode for 30 s.",
       "snapshot": "std_vol2_requirements"
     },
     {
@@ -386,7 +386,7 @@
           "note": "Written for environmental and suit data. The band's records are timestamped and trend-ready, and export as FHIR R4 Observations through LANDFALL." }
       ],
       "design": [
-        "NASA-STD-3001 Vol 2 Rev F sets no requirement for wearable storage or log duration, so the 14-day target is a design choice."
+        "NASA-STD-3001 Vol 2 Rev F sets no storage-capacity, retention or log-duration requirement for wearables, so the 14-day target is a design choice."
       ]
     },
     {
@@ -489,7 +489,7 @@
     "no_requirement": "NASA-STD-3001 Vol 2 Rev F sets no battery-endurance requirement for wearables: its three mentions of batteries are about other things. The 72 h target is ours."
   },
   "log": {
-    "summary": "What 16 MiB holds. NASA-STD-3001 Vol 2 Rev F sets no storage or log-duration requirement for wearables, so every target here is a design choice.",
+    "summary": "NASA-STD-3001 Vol 2 Rev F sets no storage-capacity, retention or log-duration requirement for wearables, so every target here is a design choice.",
     "steps": [
       { "id": "flash", "label": "Flash size", "value": 16777216, "unit": "B", "chip": "derived",
         "arithmetic": "128 Mbit / 8 = 16 MiB = 16,777,216 B" },
@@ -696,8 +696,19 @@
     },
     {
       "id": "power_control", "topic": "Crew control of power", "refs": ["V2 9017", "V2 9018"],
-      "text": "The crew must be able to interrupt power and see the de-energized status. The band has no switch or status light in this BOM: an open item.",
+      "text": "The crew must be able to interrupt power and see the de-energized status. Specified, no part selected: a recessed OFF/ON slide switch that disconnects the cell, with OFF and ON printed on the case, so its position shows the de-energized status without power or a light; a dark light could also mean a flat battery (see Status light).",
       "chip": "NASA-published", "snapshot": "std_vol2_requirements"
+    },
+    {
+      "id": "status_light", "topic": "Status light: the band's state, never the wearer's health", "refs": ["V2 9018", "V2 10125", "V2 10020"],
+      "text": "Specified, no part selected. One green/yellow light, dark by default, so OFF is shown by the switch, never by the light ([V2 9018]). It lights for 3 s when the band is switched on or the wearer presses the case, and never while the light sensor is reading. Green, one blink: on and recording. Yellow, blinking at 0.8 Hz with 70 % on: on but not recording (off-wrist, log full, or battery too low to record). That is an off-nominal state, which Table F.5-1 and Table 10.4-3 both give to yellow; LANDFALL's screens use yellow for Caution only. The blink is the cue besides colour (F.5.10 e). It is a design choice: Table 10.4-3 defines flashing only for red, and the 0.8 Hz rate with 70 % on is F.5.11 b's low flash rate. There is no red state: the band raises no Warning or Emergency, and a fault that stops recording shows yellow, not the red that Table 10.4-3 and Table F.5-1 both give to Failed. That deviation is declared: red on a crewmate's wrist would read as a medical warning. Rule: no light state reads a physiological variable, and nothing on the outside of the band shows a health value; health data leave the band only over its encrypted link to LANDFALL ([V2 10125]). The band logs time spent off or off-wrist, so LANDFALL can mark that data MISSING instead of reading it as a normal day ([V2 10020]).",
+      "chip": "design choice", "snapshot": "std_vol2_requirements"
+    },
+    {
+      "id": "indicator_lights", "topic": "Indicator-light colours and switch feedback", "refs": ["V2 10201", "Table 10.4-3", "V2 10022"],
+      "links": [{ "label": "NASA-STD-3001 Vol. 2 Rev. F, PDF (section 10.4.2.5 on p. 214; [V2 10022] on p. 200)", "url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf" }],
+      "text": "Indicator lights must meet Table 10.4-3 (section 10.4.2.5, PDF p. 214). It defines four types: flashing red for Emergency; red for Warning or Failed; yellow for Caution, an off-nominal state or a trip; green for power, on, enabled or a good state. It defines no white, blue or cyan light, and its rationale asks that yellow not be confusable with green. The rationale of [V2 10022] (p. 200) counts a switch position among the positive indications of a control action.",
+      "chip": "NASA-published", "snapshot": null
     },
     {
       "id": "touch_temp", "topic": "Touch temperature", "refs": ["V2 9102", "V2 9103"],
@@ -722,7 +733,7 @@
       "chip": "NASA-published", "snapshot": null
     }
   ],
-  "safety_basis": "Vol 2 Rev F items are frozen in std_vol2_requirements. JSC-20793 Rev D (NTRS 20170009182) and NASA-STD-6001B w/Change 3 are public NASA documents, not frozen in this build; their numbers here were checked against them on 2026-11-14.",
+  "safety_basis": "Vol 2 Rev F items are frozen in std_vol2_requirements, except [V2 10201] (with Table 10.4-3) and [V2 10022], which were read in the public PDF (pp. 214 and 200) on 2026-11-15, are paraphrased, and link to it. JSC-20793 Rev D (NTRS 20170009182) and NASA-STD-6001B w/Change 3 are public NASA documents, not frozen in this build; their numbers here were checked against them on 2026-11-14.",
   "open_items": [
     "No schematic capture or PCB: block level only (KiCad not available).",
     "Every current in the power budget is an estimate; bench measurement replaces it.",
@@ -733,7 +744,7 @@
     "No ECG viewer: LANDFALL does not show the spot-check strip to the Crew Medical Officer or put it in the ground packet yet.",
     "Confirm two TWI (I2C) instances on the nRF52840 beside SPI and QSPI in its product specification: the design uses two I2C buses.",
     "Prolonged DC contact: check every DC lead-bias and lead-off current of the ECG front end against Table 9.3-11 and its footnote, with the front end powered down between spot checks.",
-    "No power switch or status light for [V2 9017] / [V2 9018].",
+    "Power switch and status light for [V2 9017] / [V2 9018]: specified under Safety constraints (device state only, never a health value), no parts selected. Add the switch, the light and its press input to the BOM, the block diagram and the power budget, and check sealing and protection against accidental switching.",
     "Power tree (front-end and LED supply rails) not designed.",
     "Electrode material, strap and housing materials not selected: NASA-STD-6001B testing or a Materials Usage Agreement is needed.",
     "Core body temperature is not derived: that needs a validated model.",

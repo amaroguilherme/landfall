@@ -157,10 +157,76 @@ def test_dismiss_and_terminal_states():
     s = case_reduce(new_case(CASE, "CM-1"), {"type": "OPEN", "finding": FINDING, "t": T0})
     d = case_reduce(s, {"type": "DISMISS", "reason": "Band off-wrist; repeat PVT normal.", "t": T0 + 5})
     assert d["status"] == "dismissed" and d["dismiss_reason"].startswith("Band")
-    r = case_reduce(d, {"type": "OPEN", "finding": FINDING, "t": T0 + 6})
-    assert r["status"] == "dismissed" and r["log"][-1]["error"] == "invalid_transition"
+    for event in ({"type": "DISMISS", "reason": "again", "t": T0 + 6},
+                  {"type": "SELECT", "countermeasure_id": "cm_primary", "t": T0 + 6},
+                  {"type": "OUTCOME", "text": "x", "t": T0 + 6}):
+        r = case_reduce(d, event)
+        assert r["status"] == "dismissed" and r["log"][-1]["error"] == "invalid_transition", event
     w = to_watch()
     assert case_reduce(w, {"type": "DISMISS", "reason": "Crew decision.", "t": w["updated_at"] + 1})["status"] == "dismissed"
+
+
+def test_a_closed_case_opens_again_as_a_new_instance():
+    """SPEC section 5 (S4): once an instance is resolved, escalated or dismissed, the next OPEN starts the next
+    instance. The closed one is summarized in previous_instances, every per-instance field starts again, the
+    log keeps the whole history, and an open instance is never opened twice."""
+    fresh = new_case(CASE, "CM-1")
+    assert (fresh["instance"], fresh["previous_instances"]) == (1, [])
+    w = to_watch()
+    ra = w["reassess_at"]
+    resolved = case_reduce(w, {"type": "TICK", "t": ra, "observations": [obs(1, ra - 20), obs(2, ra - 10)]})
+    assert resolved["status"] == "resolved" and resolved["closed_at"] == ra
+    second = dict(FINDING, rule_id="sleep_duration", value=3.9, unit="h")
+    r = case_reduce(resolved, {"type": "OPEN", "finding": second, "t": ra + DAY})
+    assert (r["status"], r["instance"], r["opened_at"], r["finding"]["rule_id"]) == \
+        ("detected", 2, ra + DAY, "sleep_duration")
+    for key, empty in (("countermeasure_id", None), ("steps_done", []), ("steps_declined", []), ("outcome", None),
+                       ("watch_started_at", None), ("reassess_at", None), ("tripwire_obs", []),
+                       ("tripwire_result", None), ("escalation", None), ("packet_queued_at", None),
+                       ("closed_at", None), ("dismiss_reason", None)):
+        assert r[key] == empty, key
+    (prev,) = r["previous_instances"]
+    assert prev == {"instance": 1, "status": "resolved", "opened_at": T0, "closed_at": ra, "finding": FINDING,
+                    "outcome": resolved["outcome"], "escalation": None, "packet_queued_at": None,
+                    "dismiss_reason": None}
+    assert r["log"][:-1] == resolved["log"]
+    assert r["log"][-1]["detail"].startswith("opened again by sleep_duration (reliable_change, caution): instance 2; "
+                                             "instance 1 was resolved at MET ")
+    # the new instance runs like the first one
+    a = case_reduce(r, {"type": "SELECT", "countermeasure_id": "cm_primary", "t": ra + DAY + 60})
+    assert a["status"] == "acting" and a["instance"] == 2
+    # an open instance is not opened twice; a re-open still needs a caution of a trigger, and time runs forward
+    for state, event, code in ((r, {"type": "OPEN", "finding": FINDING, "t": ra + DAY + 1}, "invalid_transition"),
+                               (a, {"type": "OPEN", "finding": FINDING, "t": ra + DAY + 61}, "invalid_transition"),
+                               (resolved, {"type": "OPEN", "finding": dict(FINDING, severity="advisory"), "t": ra + 1},
+                                "below_threshold"),
+                               (resolved, {"type": "OPEN", "finding": dict(FINDING, rule_id="mood"), "t": ra + 1},
+                                "not_a_trigger"),
+                               (resolved, {"type": "OPEN", "finding": FINDING, "t": ra - 1}, "time_reversed")):
+        out = case_reduce(state, event)
+        assert out["log"][-1]["error"] == code and {k: v for k, v in out.items() if k != "log"} == \
+            {k: v for k, v in state.items() if k != "log"}, code
+    # escalated and dismissed instances open again too (a later, separate episode needs its own guidance)
+    esc = drive(to_watch(), [{"type": "TICK", "t": ra, "observations": [obs(6, ra - 20), obs(7, ra - 10)]}])
+    assert esc["status"] == "escalated"
+    again = case_reduce(esc, {"type": "OPEN", "finding": FINDING, "t": ra + 5})
+    assert again["instance"] == 2 and again["previous_instances"][0]["escalation"]["reason"] == "tripwire"
+    assert again["previous_instances"][0]["packet_queued_at"] == ra and again["packet_queued_at"] is None
+    dis = case_reduce(case_reduce(fresh, {"type": "OPEN", "finding": FINDING, "t": T0}),
+                      {"type": "DISMISS", "reason": "Band off-wrist.", "t": T0 + 5})
+    third = drive(dis, [{"type": "OPEN", "finding": FINDING, "t": T0 + 6},
+                        {"type": "DISMISS", "reason": "Off-wrist again.", "t": T0 + 7},
+                        {"type": "OPEN", "finding": FINDING, "t": T0 + 8}])
+    assert third["instance"] == 3 and [p["dismiss_reason"] for p in third["previous_instances"]] == \
+        ["Band off-wrist.", "Off-wrist again."]
+    # a state without the instance fields is not a case state
+    for key in ("instance", "previous_instances"):
+        with pytest.raises(EngineError) as e:
+            case_reduce({k: v for k, v in r.items() if k != key}, {"type": "TICK", "t": ra + DAY, "observations": []})
+        assert e.value.code == "invalid_argument"
+    for bad in (0, True, 1.5, None):
+        with pytest.raises(EngineError):
+            case_reduce(dict(r, instance=bad), {"type": "TICK", "t": ra + DAY, "observations": []})
 
 
 def test_ticks_outside_watch_and_noop_ticks_are_silent():

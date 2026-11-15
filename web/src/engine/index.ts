@@ -23,7 +23,18 @@ export {
   sLevel,
   severityRank,
 } from './thresholds'
-export { FALSE_ALARM_ASSUMES, RCI_METHOD, WORSE_VALUES, evaluatePersonal, expectedFalseAlarms, minDetectableChange, rci } from './rci'
+export {
+  ANSCOMBE_OFFSET,
+  FALSE_ALARM_ASSUMES,
+  RCI_METHOD,
+  TRANSFORMS,
+  WORSE_VALUES,
+  chanceRate,
+  evaluatePersonal,
+  expectedFalseAlarms,
+  minDetectableChange,
+  rci,
+} from './rci'
 export { DF_MAX as T_DF_MAX, DF_MIN as T_DF_MIN, tCdf, tCritical, tQuantile } from './tdist'
 export {
   ESCALATION_TIERS,

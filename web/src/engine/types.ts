@@ -24,6 +24,8 @@ export type Chip =
   | (string & {})
 export type Direction = 'increase' | 'decrease' | 'none'
 export type Worse = 'increase' | 'decrease' | 'either'
+/** A declared test-scale transform of a Tier B indicator (SPEC 3.3): "anscombe" = 2 * sqrt(x + 3/8), for counts. */
+export type Transform = 'anscombe'
 
 /** SPEC section 3 `source` object (nasa_standard, nasa_brief, noaa, literature, derived, design_choice). */
 export interface Source {
@@ -139,6 +141,15 @@ export interface Indicator {
   action?: FindingAction
   case_id?: string | null
   action_id?: string | null
+  /** The test-scale transform (S2): PVT-B lapses are tested as 2 * sqrt(x + 3/8). Absent or null: the raw value. */
+  transform?: Transform | null
+  /** Why the indicator has a transform, with its literature chip and source (Anscombe 1948). */
+  transform_basis?: Basis & { text?: string }
+  /**
+   * The chance rate measured under the scenario's noise model (S3), declared only where it is not within 0.5-2
+   * times nominal; chanceRate() then prints it instead of the nominal rate.
+   */
+  chance_rate?: Basis & { caution_multiplier: number; flag_multiplier: number; text?: string }
   [key: string]: unknown
 }
 
@@ -203,6 +214,10 @@ export interface MinDetectableChange {
 
 export interface PersonalRci {
   method: 'crawford_howell_1998'
+  /** The scale the test ran on: the declared transform, or null for the raw value. Every rci number is on it. */
+  transform: Transform | null
+  /** The current value on the test scale (the value itself without a transform), or null. */
+  current: number | null
   /** The t statistic of the single-case test. */
   rc: number | null
   df: number | null
@@ -224,7 +239,42 @@ export interface PersonalFinding extends Finding {
   direction: Direction | null
   worse: Worse
   private: boolean
+  /** Arithmetic mean of the baseline values on the raw scale (the indicator's unit), or null without one. */
+  baseline_mean: number | null
+  /**
+   * The personal band on the raw scale (the indicator's unit): mean -/+ critical * s_diff on the test scale, its
+   * edges mapped back through the transform. Reported whenever rci.mdc is (also without a current value); null
+   * otherwise. Draw THIS band, not rci.mean +/- rci.mdc, which is on the test scale.
+   */
+  band: { low: number; high: number } | null
   rci: PersonalRci
+}
+
+/** chanceRate(indicator, cfg): how often an indicator flags by chance alone, per crewmember and day (S3, S4). */
+export interface ChanceRate {
+  indicator_id: string
+  worse: Worse
+  alerting: boolean
+  alpha: number
+  /** "nominal": the test's own rate under normal, independent noise; "measured": the indicator's declared multipliers. */
+  basis: 'nominal' | 'measured'
+  /** alpha / 2 (alpha for worse "either"): the nominal chance rate of a reliable change in the worse direction. */
+  nominal_caution_per_day: number
+  nominal_flag_per_day: number
+  caution_multiplier: number
+  flag_multiplier: number
+  /** Chance cautions per crewmember-day (0 for a non-alerting indicator, which never cautions). */
+  caution_per_day: number
+  /** Chance reliable changes in either direction per crewmember-day. */
+  flag_per_day: number
+  caution_every_n_days: number | null
+  flag_every_n_days: number | null
+  /** "about 1 in N days per crewmember would flag like this with no real change" (N to two significant figures). */
+  text: string
+  /** The declaration's own text (how it was measured), or null. */
+  note: string | null
+  chip: Chip
+  source: Source
 }
 
 /** expectedFalseAlarms: chance flags (either direction) and chance cautions (worse direction only). */
@@ -372,12 +422,29 @@ export interface CaseEscalation {
   tiers: Array<'crew_medical_officer' | 'flight_surgeon'>
 }
 
+/** A closed instance of a case, kept when the case opens again (case_reduce OPEN from a closed state). */
+export interface PreviousInstance {
+  instance: number
+  status: 'resolved' | 'escalated' | 'dismissed'
+  opened_at: number | null
+  closed_at: number | null
+  finding: Finding | null
+  outcome: { text: string; t: number } | null
+  escalation: CaseEscalation | null
+  packet_queued_at: number | null
+  dismiss_reason: string | null
+}
+
 export interface CaseState {
   schema: 'landfall.case_state/1'
   case_id: string
   crew_id: string
   status: CaseStatus
   spec: CaseSpec
+  /** 1 for the first episode; +1 each time OPEN arrives after the instance closed (resolved, escalated, dismissed). */
+  instance: number
+  /** The closed instances, oldest first. */
+  previous_instances: PreviousInstance[]
   opened_at: number | null
   finding: Finding | null
   countermeasure_id: string | null

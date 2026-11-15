@@ -28,8 +28,16 @@ Environment: a tripwire condition may carry "by_env": {env_id: {overrides}}. new
 applies the override for that environment, so a case watches the rule that applies there (the
 SPE case watches the Mars-orbit monitor rule at Mars and the NOAA rule near Earth).
 
+Instances: one state follows one case for one crewmember through every episode. OPEN from idle
+opens instance 1. Once an instance is closed (resolved, escalated or dismissed), a new OPEN opens
+the next instance: the closed one is summarized in previous_instances, every per-instance field
+is reset, and instance counts up. An open instance (detected, acting, watch) is never opened twice.
+When the timeline sends that OPEN is SPEC section 7's rule, not the reducer's.
+
 State (JSON):
     {"schema": "landfall.case_state/1", "case_id", "crew_id", "status", "spec": {...},
+     "instance": 1.., "previous_instances": [{instance, status, opened_at, closed_at, finding,
+     outcome, escalation, packet_queued_at, dismiss_reason}],
      "opened_at", "finding", "countermeasure_id", "steps_done": [{step_id, t, input}],
      "steps_declined": [{step_id, t, reason}], "outcome": {text, t} | null, "watch_started_at",
      "reassess_at", "tripwire_obs": [{t, value}] (sorted by t), "tripwire_result": {...} | null,
@@ -59,6 +67,13 @@ ESCALATED_TEXT = ("escalated: tier 1, the Crew Medical Officer, now; tier 2, the
                   "through the ground packet, queued and sent when a link exists")
 
 REF_KEYS = ("rule_id", "indicator_id")
+# the fields of one instance (episode); a new OPEN after a closed instance resets them to these values
+INSTANCE_FIELDS = (("opened_at", None), ("finding", None), ("countermeasure_id", None), ("steps_done", []),
+                   ("steps_declined", []), ("outcome", None), ("watch_started_at", None), ("reassess_at", None),
+                   ("tripwire_obs", []), ("tripwire_result", None), ("escalation", None),
+                   ("packet_queued_at", None), ("closed_at", None), ("dismiss_reason", None))
+PREVIOUS_INSTANCE_KEYS = ("opened_at", "closed_at", "finding", "outcome", "escalation", "packet_queued_at",
+                          "dismiss_reason")
 
 
 def _effective_condition(cid: str, cond: dict, env_id: str | None) -> dict:
@@ -120,7 +135,8 @@ def new_case(case_def: dict, crew_id: str, lookup: dict | None = None, env_id: s
     env_id (optional) selects the tripwire condition's by_env override for that environment; the
     effective reference is recorded as spec.tripwire.condition.ref_id and the environment as
     spec.env_id. Procedure steps may carry "required", "red_flag" and "releases_packet" (booleans);
-    a red-flag step must be required and take a yes/no input (SPEC 3.4).
+    a red-flag step must be required and take a yes/no input (SPEC 3.4). The state starts at instance 1
+    with no previous_instances (a closed case opens again as the next instance: case_reduce OPEN).
     """
     if not isinstance(case_def, dict) or not isinstance(case_def.get("id"), str):
         raise EngineError("invalid_case", "case definition must be an object with a string id")
@@ -182,7 +198,8 @@ def new_case(case_def: dict, crew_id: str, lookup: dict | None = None, env_id: s
     }
     return {
         "schema": "landfall.case_state/1", "case_id": cid, "crew_id": crew_id, "status": "idle",
-        "spec": spec, "opened_at": None, "finding": None, "countermeasure_id": None,
+        "spec": spec, "instance": 1, "previous_instances": [],
+        "opened_at": None, "finding": None, "countermeasure_id": None,
         "steps_done": [], "steps_declined": [], "outcome": None, "watch_started_at": None,
         "reassess_at": None, "tripwire_obs": [], "tripwire_result": None, "escalation": None,
         "packet_queued_at": None, "closed_at": None, "dismiss_reason": None, "updated_at": None,
@@ -216,7 +233,10 @@ def _validate_state(state: object) -> None:
           and isinstance(state.get("tripwire_obs"), list) and isinstance(state.get("steps_done"), list))
     if ok:
         spec = state["spec"]
-        ok = (isinstance(state.get("steps_declined"), list)
+        inst = state.get("instance")
+        ok = (isinstance(inst, int) and not isinstance(inst, bool) and inst >= 1
+              and isinstance(state.get("previous_instances"), list)
+              and isinstance(state.get("steps_declined"), list)
               and "escalation" in state and (state["escalation"] is None or isinstance(state["escalation"], dict))
               and "packet_queued_at" in state
               and (state["packet_queued_at"] is None or is_number(state["packet_queued_at"]))
@@ -293,8 +313,8 @@ def case_reduce(state: dict, event: dict) -> dict:
         return reject("time_reversed", f"t {fmt_num(t)} is before the last transition at {fmt_num(s['updated_at'])}")
 
     if etype == "OPEN":
-        if frm != "idle":
-            return reject("invalid_transition", f"OPEN is only valid from idle, case is {frm}")
+        if frm != "idle" and frm not in TERMINAL_STATES:
+            return reject("invalid_transition", f"OPEN is only valid from idle or a closed case, case is {frm}")
         f = ev.get("finding")
         if not isinstance(f, dict):
             return reject("invalid_event", "OPEN needs a finding object")
@@ -302,9 +322,24 @@ def case_reduce(state: dict, event: dict) -> dict:
             return reject("below_threshold", f"finding severity {f.get('severity')!r} is below caution")
         if spec["trigger_ids"] and f.get("rule_id") not in spec["trigger_ids"]:
             return reject("not_a_trigger", f"{f.get('rule_id')!r} is not a trigger of {s['case_id']}")
+        opened = f"by {f.get('rule_id')} ({f.get('status')}, {f.get('severity')})"
+        if frm == "idle":
+            detail = f"opened {opened}"
+        else:
+            # a new instance (episode) of a closed case: summarize the closed one, reset the per-instance fields
+            prev = {"instance": s["instance"], "status": frm}
+            for key in PREVIOUS_INSTANCE_KEYS:
+                prev[key] = copy.deepcopy(s.get(key))
+            s["previous_instances"].append(prev)
+            for key, empty in INSTANCE_FIELDS:
+                s[key] = copy.deepcopy(empty)
+            s["instance"] = prev["instance"] + 1
+            when = f" at MET {format_met(prev['closed_at'])}" if is_number(prev["closed_at"]) else ""
+            detail = (f"opened again {opened}: instance {s['instance']}; instance {prev['instance']} "
+                      f"was {frm}{when}")
         s["opened_at"] = t
         s["finding"] = copy.deepcopy(f)
-        return accept("detected", f"opened by {f.get('rule_id')} ({f.get('status')}, {f.get('severity')})")
+        return accept("detected", detail)
 
     if etype == "DISMISS":
         if frm not in OPEN_STATES:

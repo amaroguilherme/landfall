@@ -12,12 +12,16 @@ let s = newCase(getCase(RULES, 'spe_shelter'), 'CM-1', triggerLookup(RULES), 'ma
 s = caseReduce(s, { type: 'OPEN', t, finding })
 const c = tCritical(0.001, 13)  // 4.2208..., the Tier B critical value for a 14-day baseline
 const m = minDetectableChange(0.171, 14).mdc  // 0.747: the smallest one-day change that band can flag
+const p = evaluatePersonal(getIndicator(RULES, 'pvt_lapses'), base, 6, RULES.personal!.rci, t)  // tested as 2√(x + 3/8)
+p.band  // {low, high} in lapses: draw this, not p.rci.mean ± p.rci.mdc (the Anscombe scale)
+chanceRate(getIndicator(RULES, 'sleep_midpoint_shift'), RULES.personal!.rci).text
+// "about 1 in 1000 days per crewmember would flag like this with no real change"
 ```
 
 ## Proof
 
 - `conformance.test.ts` loads **every** file in `engine/tests/vectors/*.json` (`node:fs` + `import.meta.url`).
-  Today that is 690 vectors in 16 files. Arguments written `{"$float": "NaN" | "Infinity" | "-Infinity"}` are
+  Today that is 752 vectors in 17 files. Arguments written `{"$float": "NaN" | "Infinity" | "-Infinity"}` are
   decoded, at any depth, before the call (SPEC section 6). For each vector the test checks four things:
   - the TS result deep-equals `expect` (numbers within 1e-9, relative above magnitude 1, absolute below), or the
     error `code` equals `raises`;
@@ -27,7 +31,7 @@ const m = minDetectableChange(0.171, 14).mdc  // 0.747: the smallest one-day cha
   - a second run gives the same answer.
 
   The test also fails when a vector file has no TS mapping or a vector uses an argument name the mapping does not know.
-- The same test also replays `engine/tests/vectors_random/random_<fn>.json`: 5,179 seeded random vectors (all 16
+- The same test also replays `engine/tests/vectors_random/random_<fn>.json`: 5,339 seeded random vectors (all 17
   functions: valid and invalid inputs, case_reduce event sequences, FHIR packets). They sit outside `vectors/`
   because `python -m engine.vectors --check` reports any extra file there. Their inputs are frozen, and their
   generator is committed: `uv run python -m engine.vectors --random` recomputes the expectations with the current
@@ -39,8 +43,9 @@ const m = minDetectableChange(0.171, 14).mdc  // 0.747: the smallest one-day cha
 - `scenario.test.ts` runs the TS engine on the shipped `web/public/data/sim_crew.json` the way `src/app/evaluate.ts`
   does (baseline MET days 368-381, n 14, df 13, critical 4.221) and requires it to agree exactly with the generator's
   own Tier B report (`data.self_check.tier_b`: baselines, minimum detectable changes, flagged episode days, chance
-  flags, nothing else at caution). Every finding carries `rci.mdc`, caution only means a reliable change in the
-  worse direction of an alerting indicator, and mood never alerts.
+  flags, nothing else at caution). Every finding carries `rci.mdc` and a raw-scale `band` that agrees with the test,
+  PVT-B lapses are tested on the Anscombe scale, caution only means a reliable change in the worse direction of an
+  alerting indicator, mood never alerts, and `chanceRate` prints the measured rate where personal.json declares one.
 - `engine.test.ts` runs the port on the **real** `engine/rules/*.json`:
   - every threshold rule and every indicator validates;
   - `PRIVATE_VARIABLES` equals the `private: true` indicators;
@@ -53,7 +58,9 @@ const m = minDetectableChange(0.171, 14).mdc  // 0.747: the smallest one-day cha
   - the SPE case opens as a warning, refuses an outcome until the shelter confirmations p2 and p3 are done, queues
     the packet at p6, rejects a TICK with a unit mismatch atomically, escalates at T+6 h on vehicle data
     (`crew_id: null`) to both tiers and yields a `scope-vehicle` packet;
-  - the renal red-flag question r4 must be answered or declined, and a "yes" escalates at once.
+  - the renal red-flag question r4 must be answered or declined, and a "yes" escalates at once;
+  - every count indicator declares the Anscombe transform, and every indicator's `chanceRate` text is well formed;
+  - a resolved sleep case opens again as instance 2 (case instances, S4).
 
   It also checks the tables the port copies (UCUM, LOINC vital signs, local displays, private/boolean/MET units, error codes and NOAA thresholds) against the Python source text, so a change on one side alone fails.
 - Run: `cd web && npx vitest run src/engine` (or `npm test`), then `npx tsc -p tsconfig.app.json --noEmit`.
@@ -98,7 +105,8 @@ the same snake_case keys, so a value can pass between the two languages unchange
 | `rci.evaluate_personal(indicator, baseline, current, cfg, t=None)` | `evaluatePersonal(indicator, baseline, current, cfg, t = null)` |
 | `rci.min_detectable_change(sd, n, alpha=0.001)` | `minDetectableChange(sd, n, alpha = 0.001)` |
 | `rci.expected_false_alarms(k_indicators, days, alpha=0.001, k_either=0)` | `expectedFalseAlarms(kIndicators, days, alpha = 0.001, kEither = 0)` |
-| `rci.METHOD`, `FALSE_ALARM_ASSUMES` | `RCI_METHOD`, `FALSE_ALARM_ASSUMES` |
+| `rci.chance_rate(indicator, cfg)` | `chanceRate(indicator, cfg)` |
+| `rci.METHOD`, `FALSE_ALARM_ASSUMES`, `TRANSFORMS`, `ANSCOMBE_OFFSET` | `RCI_METHOD`, `FALSE_ALARM_ASSUMES`, `TRANSFORMS`, `ANSCOMBE_OFFSET` |
 | `tdist.t_cdf(t, df)`, `t_quantile(p, df)`, `t_critical(alpha, df)` | `tCdf(t, df)`, `tQuantile(p, df)`, `tCritical(alpha, df)` |
 | `math.lgamma` (C library) | `lgamma` in `tdist.ts` (CPython's `m_lgamma`, with `fma`) |
 | `cases.new_case(case_def, crew_id, lookup=None, env_id=None)` | `newCase(caseDef, crewId, lookup = null, envId = null)` |
@@ -185,6 +193,34 @@ shapes differ from the shim in six ways, and the compiler flags each one:
 - `newCase` takes a 4th argument, `envId`: pass the current environment so the SPE case watches the Mars-orbit
   monitor rule at Mars (`spec.tripwire.condition.ref_id`). Without it the base condition (NOAA) is used; both
   rules watch the same variable and unit.
+
+### Tier B statistics changes (lead decisions S1-S4, 2026-11-14)
+
+- **Transforms (S2).** An indicator may declare `transform: "anscombe"` (PVT-B lapses, every `count`). The test runs
+  on `2√(x + 3/8)`. Every top-level number of a `PersonalFinding` is on the raw scale of the indicator's unit:
+  `value`, `limit`, `margin`, new `baseline_mean` (raw arithmetic mean of the baseline) and new
+  `band: {low, high} | null` (the band of the test mapped back; reported whenever `rci.mdc` is, also without a
+  current value). The `rci` block is the test's own scale, named by new `rci.transform` (`'anscombe'` or null), with
+  new `rci.current` (the tested current value). **Draw and print `band`**, not `rci.mean ± rci.mdc`, which for lapses
+  is on the Anscombe scale; for an untransformed indicator the two are identical. `why` prints both scales for lapses
+  ("... tested on the Anscombe scale 2√(x + 3/8): 5.05 vs mean 2.155; t = ..."), and prints counts without the unit
+  word.
+- **Signed midpoint (S1).** `sleep_midpoint_shift` is a signed shift (h, `[-12, 12)`, positive = later) with
+  `worse: "either"`: it cautions in both directions, so `kEither` for `expectedFalseAlarms` is now 2 (glucose and the
+  midpoint) when counted from personal.json.
+- **Chance rates (S3, S4).** `chanceRate(indicator, cfg)` returns `{indicator_id, worse, alerting, alpha, basis:
+  'nominal' | 'measured', nominal_caution_per_day, nominal_flag_per_day, caution_multiplier, flag_multiplier,
+  caution_per_day, flag_per_day, caution_every_n_days, flag_every_n_days, text, note, chip, source}`. `text` is the
+  line to print after "Possibly chance: " ("about 1 in 1000 days per crewmember would flag like this with no real
+  change"). PVT-B lapses and mood declare measured multipliers in personal.json (`indicator.chance_rate`); print
+  `chanceRate(...).text` (and `note`, the measurement) next to an indicator's band instead of one global rate. A total
+  over indicators is the sum of their `caution_per_day`; `expectedFalseAlarms` is the nominal arithmetic only.
+- **Case instances (S4).** `CaseState` has new `instance` (1, 2, ...) and `previous_instances: PreviousInstance[]`
+  (`{instance, status, opened_at, closed_at, finding, outcome, escalation, packet_queued_at, dismiss_reason}`, oldest
+  first). `caseReduce` accepts OPEN from `resolved`, `escalated` or `dismissed`: it archives the closed instance,
+  resets every per-instance field and opens the next instance (`detected`); OPEN while `detected`, `acting` or
+  `watch` is still rejected (`invalid_transition`). The log runs on across instances. The timeline rule for WHEN to
+  send that OPEN, and the "Possibly chance" rule, are in SPEC section 7.
 
 `node-fs.d.ts` declares only the two `node:fs` functions that the tests use. It exists because the app
 tsconfig loads only `vite/client` types, and adding `@types/node` to the browser program would retype globals

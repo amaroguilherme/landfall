@@ -322,7 +322,8 @@ def test_personal_indicators(R):
     for iid, unit in REQUIRED_INDICATORS.items():
         i = inds[iid]
         assert i["unit"] == unit and i["variable"] == iid, iid
-        assert i["worse"] in ({"increase", "decrease", "either"} if iid == "glucose" else {"increase", "decrease"}), iid
+        two_sided = iid in ("glucose", "sleep_midpoint_shift")  # a reading or a drift can go either way
+        assert i["worse"] in ({"either"} if two_sided else {"increase", "decrease"}), iid
         # reliability_r is not used by the computation: if present it holds no value and says so
         r = i.get("reliability_r")
         if r is not None:
@@ -779,12 +780,52 @@ def test_manual_bp_and_glucose_indicators(R):
     assert ctx["source"]["snapshot"] == "osdr_cmp" and ctx["source"]["citation"] == snap["source"]["citation"]
 
 
-def test_sleep_midpoint_shift_is_an_absolute_shift(R):
-    """D9: the absolute shift from the fixed baseline's median midpoint; worse = increase."""
+def test_sleep_midpoint_shift_is_a_signed_two_sided_shift(R):
+    """S1: the SIGNED shift from the fixed baseline's median midpoint, wrapped to [-12, 12) h, tested in both
+    directions (the absolute shift was a folded, in-sample-centred variable that flagged ~12x too often)."""
     i = next(x for x in R["personal"]["indicators"] if x["id"] == "sleep_midpoint_shift")
-    assert i["worse"] == "increase" and i["unit"] == "h"
-    assert i["definition"]["text"].startswith("absolute shift, in hours")
-    assert "fixed baseline window" in i["definition"]["text"] and "never negative" in i["definition"]["text"]
+    assert i["worse"] == "either" and i["unit"] == "h" and i.get("transform") is None
+    text = i["definition"]["text"]
+    assert text.startswith("signed shift, in hours") and "fixed baseline window" in text
+    assert "[-12, 12) h" in text and "positive is later" in text and "absolute" not in text
+    assert "12 times" in i["definition"]["source"]["rationale"]
+
+
+def test_counts_are_tested_on_the_anscombe_scale(R):
+    """S2: every count indicator declares the Anscombe transform, cited to Anscombe (1948) with its DOI; nothing
+    else declares a transform."""
+    for i in R["personal"]["indicators"]:
+        if i["unit"] == "count":
+            assert i["transform"] == "anscombe", i["id"]
+            b = i["transform_basis"]
+            assert b["chip"] == "literature" and "2√(x + 3/8)" in b["text"] and "(y/2)² - 3/8" in b["text"]
+            assert b["source"]["citation"] == ("Anscombe FJ. The transformation of Poisson, binomial and "
+                                               "negative-binomial data. Biometrika 1948;35(3-4):246-254. "
+                                               "doi:10.1093/biomet/35.3-4.246")
+            assert b["source"]["url"] == "https://doi.org/10.1093/biomet/35.3-4.246"
+        else:
+            assert i.get("transform") is None and "transform_basis" not in i, i["id"]
+    assert "Anscombe transform 2√(x + 3/8)" in R["personal"]["rci"]["method"]
+
+
+def test_declared_chance_rates_are_measured_and_say_so(R):
+    """S3: an indicator whose chance rate under the scenario's noise model is not within 0.5-2 times nominal declares
+    the measured multipliers (engine/tests/test_chance_rates.py requires the values themselves)."""
+    declared = {i["id"]: i["chance_rate"] for i in R["personal"]["indicators"] if "chance_rate" in i}
+    assert set(declared) == {"pvt_lapses", "mood"}
+    for iid, c in declared.items():
+        assert c["chip"] == "derived" and c["source"]["kind"] == "derived", iid
+        assert c["text"].startswith("Measured, not assumed:"), iid
+        for key in ("caution_multiplier", "flag_multiplier"):
+            assert isinstance(c[key], (int, float)) and c[key] >= 0, (iid, key)
+            assert f"{key.split('_')[0]} multiplier = " in c["source"]["arithmetic"], (iid, key)
+
+
+def test_hrv_is_pulse_rate_variability_from_ppg(R):
+    """S5: the band measures the pulse optically; there are no ECG normal-to-normal intervals."""
+    i = next(x for x in R["personal"]["indicators"] if x["id"] == "hrv_sdnn")
+    text = i["definition"]["text"]
+    assert text.startswith("pulse-rate variability") and "PPG" in text and "not computed from ECG" in text
 
 
 def test_detectable_change_text_quotes_the_engine(R):
@@ -910,3 +951,20 @@ def test_scoped_claims_and_modelled_window(R):
     assert any("modelled from JPL Horizons geometry" in n and "RMS 0.79 d" in n for n in mars["notes"])
     snap = need_snapshot("horizons_mars_comms")
     assert any("RMS edge residual 0.79 d" in c for c in snap["caveats"])
+
+
+def test_s5_crew_facing_text_uses_math_signs_and_scoped_refusals(R):
+    """S5: rules prose prints >= / <= / +/- as the signs (crew-facing labels, steps, tripwire texts, and every
+    other text), and the dosing refusal is scoped to the crew: medication decisions belong to the flight surgeon,
+    whose ground-packet note is the one place a medication is named."""
+    for name, doc in R.items():
+        for v in snapshot_strings(doc):  # every string, keys' values and list items alike
+            for ascii_op in (">=", "<=", "+/-"):
+                assert ascii_op not in v, f"{name}: {ascii_op!r} in {v[:100]!r}"
+    dosing = next(r for r in R["meta"]["refusals"] if r["id"] == "no_dosing")
+    assert dosing["text"] == ("No medication or dosing advice to the crew; medication decisions belong to the flight "
+                              "surgeon.")
+    spe = next(c for c in R["cases"]["cases"] if c["id"] == "spe_shelter")
+    assert "≥10 MeV" in spe["tripwire"]["text"] and any("≥10 MeV" in p["text"] for p in spe["procedure"])
+    onboard = next(r for r in R["thresholds"]["rules"] if r["id"] == "ops_onboard_proton_s3")
+    assert "≥10 MeV" in onboard["label"]

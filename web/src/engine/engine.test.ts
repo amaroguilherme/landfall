@@ -17,6 +17,7 @@ import {
   VITAL_SIGNS,
   buildGroundPacket,
   caseReduce,
+  chanceRate,
   commsEta,
   evaluatePersonal,
   evaluateRule,
@@ -220,6 +221,42 @@ describe('real rules (engine/rules/*.json)', () => {
     expect(yes).toMatchObject({ status: 'escalated', closed_at: NOW + 90, packet_queued_at: NOW + 90 })
     expect(yes.escalation).toEqual({ t: NOW + 90, reason: 'red_flag', step_id: 'r4', tiers: ['crew_medical_officer', 'flight_surgeon'] })
     expect(yes.log[yes.log.length - 1].detail).toContain('the Crew Medical Officer, now')
+  })
+
+  it('S2/S3: counts are tested on the Anscombe scale; every indicator prints its chance rate (measured where declared)', () => {
+    const cfg = RULES.personal!.rci
+    for (const ind of RULES.personal!.indicators) {
+      expect(ind.transform ?? null, ind.id).toBe(ind.unit === 'count' ? 'anscombe' : null)
+      const r = chanceRate(ind, cfg)
+      expect(r.basis, ind.id).toBe(ind.chance_rate ? 'measured' : 'nominal')
+      expect(r.text, ind.id).toMatch(ind.alerting ? /^about 1 in \d+ days per crewmember would flag like this/ : /^never alerts; /)
+    }
+    const lapses = getIndicator(RULES, 'pvt_lapses')
+    const base = [1, 0, 2, 1, 1, 0, 3, 1, 0, 1, 2, 1, 0, 1]
+    const f = evaluatePersonal(lapses, base, 6, cfg, NOW)
+    expect([f.value, f.rci.transform, f.rci.current]).toEqual([6, 'anscombe', 2 * Math.sqrt(6.375)])
+    expect(f.band!.high).toBeGreaterThan(f.baseline_mean as number) // the band is printed in lapses
+    expect(f.limit).toBe(f.band!.high)
+  })
+
+  it('S4: a resolved sleep case opens again as instance 2 on a new episode (real rules)', () => {
+    const def = getCase(RULES, 'sleep_circadian')
+    const cfg = RULES.personal!.rci
+    const mid = getIndicator(RULES, 'sleep_midpoint_shift')
+    const base = [0.12, -0.35, 0.4, -0.08, 0.0, 0.27, -0.5, 0.15, -0.22, 0.31, -0.1, 0.05, -0.4, 0.2]
+    const chance = evaluatePersonal(mid, base, 2.4, cfg, NOW)
+    expect(chance.severity).toBe('caution')
+    let s: CaseState = newCase(def, 'CM-3', triggerLookup(RULES), 'mars_surface')
+    expect([s.instance, s.previous_instances]).toEqual([1, []])
+    s = caseReduce(s, { type: 'OPEN', t: NOW, finding: chance })
+    s = caseReduce(s, { type: 'SELECT', t: NOW + 60, countermeasure_id: def.countermeasure!.primary.id })
+    s = caseReduce(s, { type: 'OUTCOME', t: NOW + 120, text: 'Re-measured: PVT-B and sleep timing back to usual.' })
+    const lapses = (dt: number, value: number): Observation => ({ crew_id: 'CM-3', variable: 'pvt_lapses', value, unit: 'count', t: NOW + 120 + dt })
+    s = caseReduce(s, { type: 'TICK', t: s.reassess_at as number, observations: [lapses(86400, 1), lapses(2 * 86400, 0)] })
+    expect(s.status).toBe('resolved')
+    s = caseReduce(s, { type: 'OPEN', t: NOW + 10 * 86400, finding: { ...chance, t: NOW + 10 * 86400 } })
+    expect([s.status, s.instance, s.previous_instances.map((p) => p.status)]).toEqual(['detected', 2, ['resolved']])
+    expect(s.log[s.log.length - 1].detail).toMatch(/^opened again by sleep_midpoint_shift \(reliable_change, caution\): instance 2; instance 1 was resolved at MET /)
   })
 
   it('comms: fixed light time at the ISS; Mars needs the Horizons table', () => {

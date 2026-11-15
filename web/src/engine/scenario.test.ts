@@ -12,7 +12,7 @@
 
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { RULES, evaluatePersonal, expectedFalseAlarms, minDetectableChange, tCritical } from './index'
+import { RULES, chanceRate, evaluatePersonal, expectedFalseAlarms, minDetectableChange, sumLR, tCritical } from './index'
 import type { ObservationValue, PersonalFinding } from './index'
 
 interface Series {
@@ -98,16 +98,38 @@ describe('demo scenario on the shipped sim_crew.json (TypeScript engine)', () =>
     expect(Math.round(tCritical(0.001, 13) * 1000) / 1000).toBe(4.221)
   })
 
-  it('every finding carries its minimum detectable change (critical x s_diff)', () => {
+  it('every finding carries its minimum detectable change (critical x s_diff) and its band on the raw scale', () => {
     for (const [key, f] of FINDINGS) {
       const r = f.rci
       if (r.sd === 0) {
-        expect(r.mdc, key).toBeNull()
+        expect([r.mdc, f.band], key).toEqual([null, null])
         continue
       }
       expect(r.mdc, key).toBe((r.critical as number) * (r.s_diff as number))
       expect(r.mdc, key).toBe(minDetectableChange(r.sd as number, r.n, r.alpha).mdc)
+      // the tested value is a reliable change exactly when the raw value is outside the raw-scale band
+      const band = f.band as { low: number; high: number }
+      expect((f.value as number) > band.high || (f.value as number) < band.low, key).toBe(r.reliable)
+      if (r.transform === null) {
+        expect([r.current, r.mean], key).toEqual([f.value, f.baseline_mean])
+        expect(band, key).toEqual({ low: (r.mean as number) - (r.mdc as number), high: (r.mean as number) + (r.mdc as number) })
+      }
     }
+  })
+
+  it('tests PVT-B lapses on the Anscombe scale and reports the count, its transform and the band in lapses (S2)', () => {
+    let n = 0
+    for (const [key, f] of FINDINGS) {
+      if (!key.includes('|pvt_lapses|')) continue
+      n += 1
+      expect(f.rci.transform, key).toBe('anscombe')
+      expect(f.rci.current, key).toBe(2.0 * Math.sqrt((f.value as number) + 0.375))
+      const half = (f.rci.mean as number) + (f.rci.critical as number) * (f.rci.s_diff as number)
+      expect(f.band?.high, key).toBe((half / 2.0) * (half / 2.0) - 0.375)
+      expect([f.limit, f.margin], key).toEqual([f.band?.high, (f.band?.high as number) - (f.value as number)])
+      expect(f.why, key).toContain('tested on the Anscombe scale 2√(x + 3/8)')
+    }
+    expect(n).toBeGreaterThan(0)
   })
 
   it('caution only for a reliable change in the worse direction of an alerting indicator; mood never alerts', () => {
@@ -177,17 +199,28 @@ describe('demo scenario on the shipped sim_crew.json (TypeScript engine)', () =>
     }
   })
 
-  it('prints the expected chance rate for the alerting indicators the app counts (glucose alerts both ways)', () => {
+  it('prints the expected chance rate for the alerting indicators the app counts (glucose and the midpoint alert both ways)', () => {
     const alerting = RULES.personal!.indicators.filter((i) => i.alerting && i.private !== true)
     expect(alerting.length).toBe(11)
     const either = alerting.filter((i) => i.worse === 'either').map((i) => i.id)
-    expect(either).toEqual(['glucose'])
+    expect(either).toEqual(['sleep_midpoint_shift', 'glucose'])
     const fa = expectedFalseAlarms(alerting.length, 1, RULES.personal!.rci.alpha_two_tailed, either.length)
     expect(fa.text).toBe('one false flag every 90.9 days on average, counting chance changes in either direction')
     expect(fa.caution_text).toBe(
-      'one false caution every 166.7 days on average: a chance change in the worse direction raises a caution, ' +
-        'and in either direction for the 1 indicator(s) that alert both ways',
+      'one false caution every 153.8 days on average: a chance change in the worse direction raises a caution, ' +
+        'and in either direction for the 2 indicator(s) that alert both ways',
     )
+    // S3: per indicator, the measured rate where personal.json declares one; the total is their sum
+    const cfg = RULES.personal!.rci
+    const rates = alerting.map((i) => chanceRate(i, cfg))
+    expect(rates.filter((r) => r.basis === 'measured').map((r) => r.indicator_id)).toEqual(['pvt_lapses'])
+    expect(chanceRate(RULES.personal!.indicators.find((i) => i.id === 'pvt_lapses')!, cfg).text).toBe(
+      'about 1 in 4400 days per crewmember would flag like this with no real change',
+    )
+    expect(chanceRate(RULES.personal!.indicators.find((i) => i.id === 'sleep_midpoint_shift')!, cfg).text).toBe(
+      'about 1 in 1000 days per crewmember would flag like this with no real change',
+    )
+    expect(1 / sumLR(rates.map((r) => r.caution_per_day))).toBeCloseTo(160.64, 2)
     // without the either-direction indicator the old wording is unchanged
     expect(expectedFalseAlarms(8, 1, 0.001).caution_text).toBe(
       'one false caution every 250 days on average: only a chance change in the worse direction raises a caution',

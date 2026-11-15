@@ -268,7 +268,7 @@
     }
    ],
    "interpretation": {
-    "text": "This case opened because at least one of your PVT-B lapses, PVT-B median reaction time, sleep duration or sleep midpoint has moved in the worse direction by more than your own day-to-day variation explains: a reliable change on a single-case t-test against your two-week baseline (Crawford & Howell 1998). The test is set so that chance alone would do this about once in 2,000 days for each indicator, if days were independent and the day-to-day noise were normal; for PVT-B lapses, a count, chance cautions come about 10 times as often. NASA's Human Research Program describes this risk as performance decrements and adverse health outcomes resulting from sleep loss, circadian desynchronization and work overload, and names work overload, irregular light-dark cycles and sleep-pattern disruptions among the stressors of spaceflight. Short sleep is common in flight: ISS crewmembers averaged 6.09 h a night by actigraphy (Barger et al. 2014). This is not a diagnosis of a sleep disorder.",
+    "text": "This case opened because at least one of your PVT-B lapses, PVT-B median reaction time, sleep duration or sleep midpoint has moved in the worse direction (for the sleep midpoint, earlier or later) by more than your own day-to-day variation explains: a reliable change on a single-case t-test against your two-week baseline (Crawford & Howell 1998). The test is set so that chance alone would do this about once in 2,000 days for each indicator, if days were independent and the day-to-day noise were normal, and about once in 1,000 days for the sleep midpoint, which counts both directions. PVT-B lapses, a count, are tested on the Anscombe scale (Anscombe 1948), where chance cautions come less often than that. A single flag on a single day can be chance; the next days' measurements settle it. NASA's Human Research Program describes this risk as performance decrements and adverse health outcomes resulting from sleep loss, circadian desynchronization and work overload, and names work overload, irregular light-dark cycles and sleep-pattern disruptions among the stressors of spaceflight. Short sleep is common in flight: ISS crewmembers averaged 6.09 h a night by actigraphy (Barger et al. 2014). This is not a diagnosis of a sleep disorder.",
     "citations": [
      {
       "kind": "literature",
@@ -296,6 +296,11 @@
       "kind": "literature",
       "citation": "Jacobson NS, Truax P. Clinical significance: a statistical approach to defining meaningful change in psychotherapy research. J Consult Clin Psychol 1991;59(1):12-19. doi:10.1037//0022-006x.59.1.12. PMID 2002127",
       "url": "https://pubmed.ncbi.nlm.nih.gov/2002127/"
+     },
+     {
+      "kind": "literature",
+      "citation": "Anscombe FJ. The transformation of Poisson, binomial and negative-binomial data. Biometrika 1948;35(3-4):246-254. doi:10.1093/biomet/35.3-4.246",
+      "url": "https://doi.org/10.1093/biomet/35.3-4.246"
      }
     ]
    },
@@ -303,7 +308,7 @@
     "primary": {
      "id": "cm_light_schedule",
      "title": "Use light to re-anchor the day",
-     "rationale": "Blue-depleted light in the scheduled pre-sleep period and blue-enriched light while awake. [V2 8055] Table 8.7-2: pre-sleep 8 +/- 2 melanopic EDI lux with DER <= 0.3; general ambient >= 250 melanopic EDI lux with DER >= 0.7. The ISS Solid State Lighting Assembly has General (4500 K), Pre-sleep (2700 K) and Phase-shift (6500 K) modes (Maida 2014).",
+     "rationale": "Blue-depleted light in the scheduled pre-sleep period and blue-enriched light while awake. [V2 8055] Table 8.7-2: pre-sleep 8 ± 2 melanopic EDI lux with DER ≤ 0.3; general ambient ≥ 250 melanopic EDI lux with DER ≥ 0.7. The ISS Solid State Lighting Assembly has General (4500 K), Pre-sleep (2700 K) and Phase-shift (6500 K) modes (Maida 2014).",
      "chip": "NASA-published",
      "source": {
       "kind": "nasa_standard",
@@ -494,7 +499,7 @@
     }
    ],
    "interpretation": {
-    "text": "This case opened because the >=10 MeV proton flux has reached the level NOAA calls S3 (Strong), 1,000 pfu, or because the blood-forming-organ dose the vehicle reports is near or over its 30-day limit of 250 mGy-Eq (NASA-STD-3001 Vol 1 Table 4.8-1). Near Earth the flux is NOAA's GOES reading. At Mars it comes from an external space-weather monitor above the atmosphere, in Mars orbit ([V2 6165]), relayed to the habitat with no Earth link; the scenario replays the GOES-7 October 1989 flux as that reading, with no distance or atmosphere correction. NOAA's published text for S3 reads: 'Radiation hazard avoidance recommended for astronauts on EVA'. NOAA does not define its scale away from Earth; applying the 1,000 pfu level at Mars is LANDFALL's choice. The vehicle's radiation monitoring system raises the radiation alarm ([V2 6164]); LANDFALL opens the health case that follows and guides the crew. With the link up, Mission Control and the flight surgeon direct the response, and the ground has this case within the round-trip light time. With no link, the crew acts onboard with the Crew Medical Officer: the rationale of [V2 6164] says the crew must be alerted even if ground communication is disrupted or is unviable. LANDFALL does not estimate your dose or your cancer risk: it shows the shelter procedure and tracks the organ dose the vehicle reports against the Table 4.8-1 limits.",
+    "text": "This case opened because the ≥10 MeV proton flux has reached the level NOAA calls S3 (Strong), 1,000 pfu, or because the blood-forming-organ dose the vehicle reports is near or over its 30-day limit of 250 mGy-Eq (NASA-STD-3001 Vol 1 Table 4.8-1). Near Earth the flux is NOAA's GOES reading. At Mars it comes from an external space-weather monitor above the atmosphere, in Mars orbit ([V2 6165]), relayed to the habitat with no Earth link; the scenario replays the GOES-7 October 1989 flux as that reading, with no distance or atmosphere correction. NOAA's published text for S3 reads: 'Radiation hazard avoidance recommended for astronauts on EVA'. NOAA does not define its scale away from Earth; applying the 1,000 pfu level at Mars is LANDFALL's choice. The vehicle's radiation monitoring system raises the radiation alarm ([V2 6164]); LANDFALL opens the health case that follows and guides the crew. With the link up, Mission Control and the flight surgeon direct the response, and the ground has this case within the round-trip light time. With no link, the crew acts onboard with the Crew Medical Officer: the rationale of [V2 6164] says the crew must be alerted even if ground communication is disrupted or is unviable. LANDFALL does not estimate your dose or your cancer risk: it shows the shelter procedure and tracks the organ dose the vehicle reports against the Table 4.8-1 limits.",
     "citations": [
      {
       "kind": "noaa",
@@ -610,7 +615,7 @@
     },
     {
      "id": "p4",
-     "text": "Watch the >=10 MeV proton flux. Stay sheltered until it falls below the S3 level and the vehicle's shelter plan, with its dose-rate threshold, clears you.",
+     "text": "Watch the ≥10 MeV proton flux. Stay sheltered until it falls below the S3 level and the vehicle's shelter plan, with its dose-rate threshold, clears you.",
      "input": {
       "variable": "proton_flux_10mev",
       "unit": "pfu",
@@ -646,7 +651,7 @@
       }
      }
     },
-    "text": "Reassess at T+6 h; if the >=10 MeV flux is still at or above S3 on 2 of the last 3 readings, escalate: stay sheltered, tell the Crew Medical Officer and keep logging; the ground packet is queued for the flight surgeon.",
+    "text": "Reassess at T+6 h; if the ≥10 MeV flux is still at or above S3 on 2 of the last 3 readings, escalate: stay sheltered, tell the Crew Medical Officer and keep logging; the ground packet is queued for the flight surgeon.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -672,7 +677,7 @@
      "requirement_quote": "The radiation monitoring system shall alert the crew and operations teams when radiation exposure rates exceed predefined thresholds."
     },
     {
-     "what": "Proton energy spectrum outside the vehicle (the demo uses only the >=10 MeV channel)",
+     "what": "Proton energy spectrum outside the vehicle (the demo uses only the ≥10 MeV channel)",
      "via": "the external space-weather monitor's full spectrum, read with ground radiation analysts",
      "requirement_id": "V2 6165",
      "requirement_quote": "The program shall monitor the in-situ extravehicular space weather environment including the external exposure rates, electron flux spectra, and proton flux spectra."

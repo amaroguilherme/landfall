@@ -75,17 +75,39 @@ def test_baselines_are_full_14_day_windows(scenario):
 
 
 def test_every_finding_reports_its_minimum_detectable_change(scenario):
-    """D10: rci.mdc is the band half-width, and a value is a reliable change exactly when it is further than mdc
-    from the baseline mean."""
+    """D10: rci.mdc is the band half-width on the test scale, and the tested value (rci.current: the value itself,
+    or its declared transform) is a reliable change exactly when it is further than mdc from the baseline mean. The
+    finding's band is that band on the raw scale, and the raw value is outside it exactly then."""
     for key, f in scenario["findings"].items():
         r = f["rci"]
         if r["sd"] == 0:
-            assert r["mdc"] is None, key
+            assert r["mdc"] is None and f["band"] is None, key
             continue
         assert r["mdc"] == r["critical"] * r["s_diff"], key
         assert r["mdc"] == min_detectable_change(r["sd"], r["n"], r["alpha"])["mdc"], key
-        assert (abs(f["value"] - r["mean"]) > r["mdc"]) == r["reliable"] or \
-            math.isclose(abs(f["value"] - r["mean"]), r["mdc"], rel_tol=1e-12), key
+        assert (abs(r["current"] - r["mean"]) > r["mdc"]) == r["reliable"] or \
+            math.isclose(abs(r["current"] - r["mean"]), r["mdc"], rel_tol=1e-12), key
+        outside = f["value"] > f["band"]["high"] or f["value"] < f["band"]["low"]
+        assert outside == r["reliable"], (key, f["value"], f["band"])
+        if r["transform"] is None:
+            assert r["current"] == f["value"] and r["mean"] == f["baseline_mean"], key
+            assert f["band"] == {"low": r["mean"] - r["critical"] * r["s_diff"],
+                                 "high": r["mean"] + r["critical"] * r["s_diff"]}, key
+
+
+def test_counts_are_tested_on_the_anscombe_scale_with_the_band_in_counts(scenario):
+    """S2: PVT-B lapses are tested as 2 sqrt(x + 3/8); the finding reports the raw count, the transformed value and
+    the band mapped back to counts."""
+    lapses = [f for (c, i, d), f in scenario["findings"].items() if i == "pvt_lapses"]
+    assert lapses
+    for f in lapses:
+        r = f["rci"]
+        assert r["transform"] == "anscombe" and r["current"] == 2.0 * math.sqrt(f["value"] + 0.375)
+        assert f["band"]["high"] == (r["mean"] + r["critical"] * r["s_diff"]) ** 2 / 4.0 - 0.375 or \
+            math.isclose(f["band"]["high"], ((r["mean"] + r["critical"] * r["s_diff"]) / 2.0) ** 2 - 0.375,
+                         rel_tol=1e-15)
+        assert f["limit"] == f["band"]["high"] and f["margin"] == f["band"]["high"] - f["value"]
+        assert "tested on the Anscombe scale 2√(x + 3/8)" in f["why"]
 
 
 def test_tier_b_severity_invariants(scenario):

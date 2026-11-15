@@ -24,6 +24,12 @@
 // Environment: a tripwire condition may carry "by_env": {env_id: {overrides}}. newCase(..., envId)
 // applies the override for that environment, so a case watches the rule that applies there (the SPE
 // case watches the Mars-orbit monitor rule at Mars and the NOAA rule near Earth).
+//
+// Instances: one state follows one case for one crewmember through every episode. OPEN from idle opens
+// instance 1. Once an instance is closed (resolved, escalated or dismissed), a new OPEN opens the next
+// instance: the closed one is summarized in previous_instances, every per-instance field is reset, and
+// instance counts up. An open instance (detected, acting, watch) is never opened twice. When the timeline
+// sends that OPEN is SPEC section 7's rule, not the reducer's.
 
 import { EngineError } from './errors'
 import { fmtNum, formatMet, isNumber } from './fmt'
@@ -38,6 +44,7 @@ import type {
   CaseState,
   CaseStatus,
   Op,
+  PreviousInstance,
   TriggerLookup,
   TripwireResult,
 } from './types'
@@ -64,6 +71,24 @@ function list(x: unknown, what: string): unknown[] {
 }
 
 const REF_KEYS = ['rule_id', 'indicator_id'] as const
+/** The fields of one instance (episode); a new OPEN after a closed instance resets them to these values. */
+const INSTANCE_FIELDS: ReadonlyArray<readonly [string, unknown]> = [
+  ['opened_at', null],
+  ['finding', null],
+  ['countermeasure_id', null],
+  ['steps_done', []],
+  ['steps_declined', []],
+  ['outcome', null],
+  ['watch_started_at', null],
+  ['reassess_at', null],
+  ['tripwire_obs', []],
+  ['tripwire_result', null],
+  ['escalation', null],
+  ['packet_queued_at', null],
+  ['closed_at', null],
+  ['dismiss_reason', null],
+]
+const PREVIOUS_INSTANCE_KEYS = ['opened_at', 'closed_at', 'finding', 'outcome', 'escalation', 'packet_queued_at', 'dismiss_reason'] as const
 
 /**
  * The tripwire condition for envId: the base condition with its by_env[envId] override applied.
@@ -238,6 +263,8 @@ export function newCase(
     crew_id: crewId,
     status: 'idle',
     spec,
+    instance: 1,
+    previous_instances: [],
     opened_at: null,
     finding: null,
     countermeasure_id: null,
@@ -302,8 +329,12 @@ function validateState(state: unknown): asserts state is CaseState {
   const pq = pyGet(st, 'packet_queued_at')
   const declinedList = pyGet(st, 'steps_declined')
   const inputs = pyGet(sp, 'step_inputs')
+  const inst = pyGet(st, 'instance')
   if (
     !(
+      isInt(inst) &&
+      inst >= 1 &&
+      Array.isArray(pyGet(st, 'previous_instances')) &&
       Array.isArray(declinedList) &&
       has(st, 'escalation') &&
       (esc === null || isObj(esc)) &&
@@ -317,7 +348,7 @@ function validateState(state: unknown): asserts state is CaseState {
       declinedList.every((d) => isObj(d))
     )
   ) {
-    throw malformed('required-step, escalation or packet fields')
+    throw malformed('instance, required-step, escalation or packet fields')
   }
   // TS only: the fields the reducer reads further down. Python has no such check and fails later
   // with KeyError / TypeError on these states; here they are the same contract violation.
@@ -394,7 +425,9 @@ export function caseReduce(state: CaseState, event: CaseEvent): CaseState {
     s.steps_declined.some((d) => pyEq(pyGet(d as unknown as JsonObject, 'step_id'), stepId))
 
   if (etype === 'OPEN') {
-    if (frm !== 'idle') return reject('invalid_transition', `OPEN is only valid from idle, case is ${frm}`)
+    if (frm !== 'idle' && !(TERMINAL_STATES as readonly string[]).includes(frm)) {
+      return reject('invalid_transition', `OPEN is only valid from idle or a closed case, case is ${frm}`)
+    }
     const f = pyGet(ev, 'finding')
     if (!isObj(f)) return reject('invalid_event', 'OPEN needs a finding object')
     const sev = pyGet(f, 'severity')
@@ -405,9 +438,23 @@ export function caseReduce(state: CaseState, event: CaseEvent): CaseState {
     if (truthy(s.spec.trigger_ids) && !pyIn(ruleId, s.spec.trigger_ids)) {
       return reject('not_a_trigger', `${pyRepr(ruleId)} is not a trigger of ${caseId}`)
     }
+    const opened = `by ${pyStr(ruleId)} (${pyStr(pyGet(f, 'status'))}, ${pyStr(sev)})`
+    let detail = `opened ${opened}`
+    if (frm !== 'idle') {
+      // a new instance (episode) of a closed case: summarize the closed one, reset the per-instance fields
+      const so = s as unknown as JsonObject
+      const prev: JsonObject = { instance: s.instance, status: frm }
+      for (const key of PREVIOUS_INSTANCE_KEYS) setOwn(prev, key, clone(pyGet(so, key)))
+      s.previous_instances.push(prev as unknown as PreviousInstance)
+      for (const [key, empty] of INSTANCE_FIELDS) setOwn(so, key, clone(empty))
+      s.instance = (prev.instance as number) + 1
+      const closed = prev.closed_at
+      const when = isNumber(closed) ? ` at MET ${formatMet(closed)}` : ''
+      detail = `opened again ${opened}: instance ${s.instance}; instance ${pyStr(prev.instance)} was ${frm}${when}`
+    }
     s.opened_at = t
     s.finding = clone(f) as unknown as CaseState['finding']
-    return accept('detected', `opened by ${pyStr(ruleId)} (${pyStr(pyGet(f, 'status'))}, ${pyStr(sev)})`)
+    return accept('detected', detail)
   }
 
   if (etype === 'DISMISS') {

@@ -49,7 +49,12 @@ def test_non_finite_arguments_are_encoded_and_decoded():
     assert vectors.decode_args({"$float": "nan"}) == {"$float": "nan"}           # only the exact spellings
     assert vectors.decode_args({"$float": "NaN", "other": 1}) == {"$float": "NaN", "other": 1}
     encoded = [v for vs in _load_committed().values() for v in vs if '"$float"' in json.dumps(v["args"])]
-    assert len(encoded) >= 10 and all(v.get("raises") == "invalid_argument" for v in encoded)
+    assert len(encoded) >= 10
+
+    def in_rules_data(v):  # a non-finite number inside a rules object (an indicator's chance_rate) is a bad rule
+        return any('"$float"' in json.dumps(v["args"].get(k)) for k in ("indicator", "rule"))
+
+    assert all(v.get("raises") == ("invalid_rule" if in_rules_data(v) else "invalid_argument") for v in encoded)
 
 
 @pytest.mark.parametrize("vec", [v for vs in _load_committed().values() for v in vs],

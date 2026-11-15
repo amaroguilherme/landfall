@@ -11,7 +11,7 @@
    "url": "https://doi.org/10.1076/clin.12.4.482.7241",
    "note": "The paper's modified t-test, after Sokal & Rohlf (1995): t = (X1 - mean2) / (s2 x sqrt((N2 + 1) / N2)) with df = N2 - 1, where s2 is the sample SD (N - 1) of the comparison sample (p. 483). This article is not in PubMed; the citation was checked against Crossref and the authors' PDF."
   },
-  "method": "t = (today's value - baseline mean) / (baseline SD x sqrt(1 + 1/n)), with n baseline days, the sample SD (n - 1) and df = n - 1. A reliable change is |t| above the two-tailed critical value of Student's t at alpha 0.001 with n - 1 degrees of freedom: 4.221 for a full 14-day baseline, 5.959 at the 7-day minimum. No test-retest reliability is used.",
+  "method": "t = (today's value - baseline mean) / (baseline SD x sqrt(1 + 1/n)), with n baseline days, the sample SD (n - 1) and df = n - 1. A reliable change is |t| above the two-tailed critical value of Student's t at alpha 0.001 with n - 1 degrees of freedom: 4.221 for a full 14-day baseline, 5.959 at the 7-day minimum. An indicator that declares a transform is tested on that scale: PVT-B lapses, a count, on the Anscombe transform 2√(x + 3/8) of every value, with the band mapped back to lapses. No test-retest reliability is used.",
   "lineage": {
    "text": "The question, whether a change is bigger than day-to-day noise, is Jacobson & Truax's 'reliable change'. Their arithmetic divides by a reference-group SD and a published test-retest reliability. LANDFALL compares each crewmember with their own baseline, whose SD already contains the day-to-day noise, so it uses Crawford & Howell's single-case test instead.",
    "chip": "literature",
@@ -26,7 +26,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "Stricter than the conventional 0.05 because LANDFALL tests many indicators every day. With the single-case t-test this is the actual chance rate per indicator-day under normal, independent day-to-day noise (half of it for a change in the worse direction), and the expected rate is printed next to every personal finding."
+     "rationale": "Stricter than the conventional 0.05 because LANDFALL tests many indicators every day. With the single-case t-test this is the actual chance rate per indicator-day under normal, independent day-to-day noise (half of it for a change in the worse direction), and the expected rate is printed next to every personal finding: the nominal one, or, for an indicator whose measured rate under the scenario's noise model is not within 0.5-2 times it, the measured one (chance_rate)."
     }
    },
    "min_baseline_n": {
@@ -44,7 +44,7 @@
     }
    }
   },
-  "caveat": "The chance rate is exactly alpha (0.001 two-tailed, 0.0005 for a change in the worse direction) per indicator-day only if day-to-day noise is normal and independent, and real data are neither. In seeded simulations with no real change (engine/tests/test_rci.py), laid out like the scenario (a fixed 14-day baseline, then each of the 31 days after it tested against it), lag-1 autocorrelation of 0.5 between days gave about 1.4 times alpha on the first day after the baseline, about 4 times from a week on, and about 3.7 times averaged over the 31 days. At 0.9 it gave about 2.5 times on the first day and about 67 times on average, because 14 strongly autocorrelated days under-sample the crewmember's usual range. Skewed counts (Poisson with mean 1, like PVT-B lapses) gave about 5 times alpha, and every one of those chance flags was a rise, so for lapses the chance-caution rate is about 10 times the printed one. Crawford et al. 2006 likewise saw this test's rate reach 9.96% against a nominal 5% with skewed, heavy-tailed samples. Read the printed rate as a lower bound.",
+  "caveat": "The chance rate is exactly alpha (0.001 two-tailed, 0.0005 for a change in the worse direction) per indicator-day only if day-to-day noise is normal and independent, and real data are neither. In seeded simulations with no real change (engine/tests/test_rci.py), laid out like the scenario (a fixed 14-day baseline, then each of the 31 days after it tested against it), lag-1 autocorrelation of 0.5 between days gave about 1.4 times alpha on the first day after the baseline, about 4 times from a week on, and about 3.7 times averaged over the 31 days. At 0.9 it gave about 2.5 times on the first day and about 67 times on average, because 14 strongly autocorrelated days under-sample the crewmember's usual range. Skewed counts tested as raw counts (Poisson with mean 1, like PVT-B lapses) gave about 5 times alpha, and every one of those chance flags was a rise, so the chance-caution rate was about 10 times the printed one; LANDFALL therefore tests counts on the Anscombe scale (an indicator's transform), where PVT-B lapses flag about half as often as printed instead. Crawford et al. 2006 likewise saw this test's rate reach 9.96% against a nominal 5% with skewed, heavy-tailed samples. The rate of every indicator under the scenario's own noise model is measured, not assumed (engine/tests/test_chance_rates.py; sim_crew data.self_check.chance_rates): an indicator whose measured rate is not within 0.5 to 2 times the printed one declares it in chance_rate, and LANDFALL prints that instead. That noise model has no autocorrelation; real days do, so for real data read the printed rate as a lower bound.",
   "caveat_basis": {
    "text": "Monte Carlo study of Crawford & Howell's test with non-normal control samples: leptokurtosis alone inflated the Type I error only modestly; leptokurtosis with skew gave actual rates as high as 9.96% against a specified 5% at small sample sizes (abstract).",
    "chip": "literature",
@@ -54,9 +54,9 @@
     "url": "https://pubmed.ncbi.nlm.nih.gov/16046228/"
    }
   },
-  "change_note": "An earlier version applied Jacobson & Truax's arithmetic (S_diff = SD x sqrt(2) x sqrt(1 - r), critical 3.29) to the crewmember's own baseline SD. An audit showed that this shrinks the denominator: with a 14-day baseline and r = 0.8 the chance-flag rate was about 6.6% per indicator-day, not the 0.1% printed. Tier B now uses Crawford & Howell's test, whose chance rate is alpha.",
+  "change_note": "An earlier version applied Jacobson & Truax's arithmetic (S_diff = SD x sqrt(2) x sqrt(1 - r), critical 3.29) to the crewmember's own baseline SD. An audit showed that this shrinks the denominator: with a 14-day baseline and r = 0.8 the chance-flag rate was about 6.6% per indicator-day, not the 0.1% printed. Tier B now uses Crawford & Howell's test, whose chance rate is alpha. A later audit, after the scenario's day-to-day noise was made realistic, found two indicators far above the printed rate: the absolute sleep midpoint shift (a folded, in-sample-centred variable; about 12.7 times the printed caution rate) and raw PVT-B lapse counts (about 10 times). The midpoint is now a signed shift tested in both directions, and counts are tested on the Anscombe scale.",
   "detectable_change": {
-   "text": "The smallest one-day change Tier B can flag is the band's half-width, critical x baseline SD x sqrt(1 + 1/n) (min_detectable_change in the engine; every Tier B finding carries it as rci.mdc). With a full 14-day baseline that is 4.37 baseline SDs; at the 7-day minimum, 6.37. A real change smaller than that is never flagged, however much it matters: Tier B's sensitivity is set by the crewmember's own day-to-day noise.",
+   "text": "The smallest one-day change Tier B can flag is the band's half-width, critical x baseline SD x sqrt(1 + 1/n) (min_detectable_change in the engine; every Tier B finding carries it as rci.mdc). With a full 14-day baseline that is 4.37 baseline SDs; at the 7-day minimum, 6.37. A real change smaller than that is never flagged, however much it matters: Tier B's sensitivity is set by the crewmember's own day-to-day noise. For an indicator with a transform (PVT-B lapses) the SDs are on the transformed scale, and the band is printed mapped back to the indicator's unit (finding.band).",
    "chip": "derived",
    "source": {
     "kind": "derived",
@@ -100,7 +100,34 @@
      "note": "Basner 2011 generated PVT-B lapses at 355 ms as a sixth outcome variable, alongside lapses at the standard 500 ms; the authors note the 355 ms threshold 'was found post-hoc in the TSD experiment, and may depend on PVT hardware'. No NASA standard or brief adopts 355 ms."
     }
    },
-   "case_id": "sleep_circadian"
+   "case_id": "sleep_circadian",
+   "transform": "anscombe",
+   "transform_basis": {
+    "text": "PVT-B lapses are a small count (about 1 per rested 3-minute test), whose day-to-day noise is skewed: on the raw counts the single-case test raised a chance caution about 10 times as often as printed. Tier B therefore tests the Anscombe transform of the count, y = 2√(x + 3/8), which makes a Poisson count's variance roughly constant, against the same transform of every baseline value. The personal band is computed on that scale and mapped back to counts, x = (y/2)² - 3/8, so the crew sees it in lapses; the transform is monotone, so a count is outside that band exactly when its transform is outside the band of the test.",
+    "chip": "literature",
+    "source": {
+     "kind": "literature",
+     "citation": "Anscombe FJ. The transformation of Poisson, binomial and negative-binomial data. Biometrika 1948;35(3-4):246-254. doi:10.1093/biomet/35.3-4.246",
+     "url": "https://doi.org/10.1093/biomet/35.3-4.246",
+     "note": "Bibliographic record checked against Crossref (DOI 10.1093/biomet/35.3-4.246) on 2026-11-14. 2√(x + 3/8) is the form of the transform that gives a variance close to 1 for large means; at a mean near 1 count the transformed variance is lower, which is why its measured chance rate is reported (chance_rate)."
+    }
+   },
+   "chance_rate": {
+    "caution_multiplier": 0.45,
+    "flag_multiplier": 0.24,
+    "text": "Measured, not assumed: with no real change under the scenario's noise model (one Poisson count per test, mean 0.9-1.2 lapses), a seeded Monte Carlo laid out like the scenario (620,000 tests: a fixed 14-day baseline, then 31 days each tested against it) on the Anscombe scale raised a caution 0.45 times as often as the printed alpha/2 (0.34-0.52 across the four crewmembers) and a flag in either direction 0.24 times as often as alpha. A count near zero can never fall reliably, and the transform slightly over-corrects so small a count. For PVT-B lapses the printed rate is an upper bound under that model.",
+    "chip": "derived",
+    "source": {
+     "kind": "derived",
+     "from": [
+      "pvt_lapses",
+      "rci.alpha_two_tailed",
+      "rci.baseline_window_days"
+     ],
+     "arithmetic": "caution multiplier = 141 worse-direction reliable changes / 620,000 tests / 0.0005 = 0.45; flag multiplier = 150 reliable changes in either direction / 620,000 tests / 0.001 = 0.24 (seeded Monte Carlo with ingest/_sim_model.py's noise model, 5,000 simulated 45-day records per crewmember)",
+     "note": "Replayed through the engine itself by engine/tests/test_chance_rates.py, which requires these values; the same study, for every indicator, is published in sim_crew data.self_check.chance_rates."
+    }
+   }
   },
   {
    "id": "pvt_median_rt",
@@ -174,7 +201,7 @@
    "label": "Sleep midpoint shift",
    "variable": "sleep_midpoint_shift",
    "unit": "h",
-   "worse": "increase",
+   "worse": "either",
    "alerting": true,
    "private": false,
    "device": "band",
@@ -188,11 +215,11 @@
     }
    },
    "definition": {
-    "text": "absolute shift, in hours, of the night's sleep midpoint from the median sleep midpoint of the crewmember's fixed baseline window (the window Tier B uses; MET days 368-381 in the demo scenario), with clock arithmetic across midnight. It is never negative, and a larger value is worse whether sleep moved earlier or later",
+    "text": "signed shift, in hours, of the night's sleep midpoint from the median sleep midpoint of the crewmember's fixed baseline window (the window Tier B uses; MET days 368-381 in the demo scenario), with clock arithmetic across midnight and wrapped to [-12, 12) h: positive is later, negative is earlier. A shift either way is worse, so a reliable change in either direction raises a caution",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "An absolute shift lets one worse direction (increase) cover both earlier and later drift. Its baseline values are never negative and are skewed, so the normal-theory chance rate is a lower bound here too (rci.caveat)."
+     "rationale": "A signed shift from a fixed reference keeps the day-to-day noise of the midpoint itself: subtracting the baseline median moves every value by the same amount, so the single-case test sees the midpoint's own spread and its chance rate is the printed one. An earlier version tested the absolute shift, which folds the noise at zero and centres it on the baseline's own median; with no real change it raised a chance caution about 12 times as often as printed (seeded Monte Carlo under the scenario's noise model). As for glucose, worse is either: an earlier or a later midpoint is a drift, and the chance-caution rate of a two-sided indicator is alpha, not alpha/2 (expected_false_alarms, k_either)."
     }
    },
    "case_id": "sleep_circadian"
@@ -281,11 +308,11 @@
     }
    },
    "definition": {
-    "text": "SDNN of normal-to-normal intervals over 5-min windows in the main sleep period, averaged",
+    "text": "pulse-rate variability: the SD of the band's PPG (optical pulse) inter-beat intervals over 5-min windows in the main sleep period, averaged. It stands in for heart rate variability; it is not computed from ECG normal-to-normal (NN) intervals",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "Short windows in sleep keep the recording conditions comparable."
+     "rationale": "The band measures the pulse optically (photoplethysmography, PPG); it records no continuous ECG, so there are no NN intervals. Short windows in sleep keep the recording conditions comparable from night to night."
     }
    },
    "case_id": null,
@@ -559,7 +586,23 @@
      "rationale": "LANDFALL makes no psychiatric alert and embeds no licensed questionnaire."
     }
    },
-   "case_id": null
+   "case_id": null,
+   "chance_rate": {
+    "caution_multiplier": 0.99,
+    "flag_multiplier": 0.5,
+    "text": "Measured, not assumed: with no real change under the scenario's noise model (a 1-5 score, mostly 3 or 4), a seeded Monte Carlo laid out like the scenario (620,000 tests) showed a reliable drop 0.99 times as often as the nominal alpha/2 and never a reliable rise, so reliable changes in either direction came 0.5 times as often as alpha. Mood never alerts: this is how often a chance change is shown, never alarmed.",
+    "chip": "derived",
+    "source": {
+     "kind": "derived",
+     "from": [
+      "mood",
+      "rci.alpha_two_tailed",
+      "rci.baseline_window_days"
+     ],
+     "arithmetic": "caution multiplier = 307 reliable drops / 620,000 tests / 0.0005 = 0.99; flag multiplier = 307 reliable changes in either direction / 620,000 tests / 0.001 = 0.5 (seeded Monte Carlo with ingest/_sim_model.py's noise model, 5,000 simulated 45-day records per crewmember; 3 of the 20,000 baselines had SD 0 and could not flag)",
+     "note": "Replayed through the engine itself by engine/tests/test_chance_rates.py, which requires these values; the same study, for every indicator, is published in sim_crew data.self_check.chance_rates."
+    }
+   }
   }
  ]
 }

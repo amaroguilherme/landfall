@@ -19,6 +19,11 @@
     "finding": {
      "action_id": null,
      "approach_at": null,
+     "band": {
+      "high": 4.840909460734407,
+      "low": -1.2694808893058351
+     },
+     "baseline_mean": 1.7857142857142858,
      "case_id": "sleep_circadian",
      "category": "PERSONAL",
      "chip": "literature",
@@ -31,6 +36,7 @@
      "rci": {
       "alpha": 0.001,
       "critical": 4.2208317280747,
+      "current": 8,
       "df": 13,
       "mdc": 3.055195175020121,
       "mean": 1.7857142857142858,
@@ -40,7 +46,8 @@
       "reason": null,
       "reliable": true,
       "s_diff": 0.7238372367935466,
-      "sd": 0.6992932067530679
+      "sd": 0.6992932067530679,
+      "transform": null
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
@@ -54,9 +61,10 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 vs own baseline mean 1.786 (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
+    "instance": 1,
     "log": [
      {
       "detail": "opened by pvt_lapses (reliable_change, caution)",
@@ -137,6 +145,7 @@
      "text": "Shifted light schedule; nap taken."
     },
     "packet_queued_at": 35907900,
+    "previous_instances": [],
     "reassess_at": 35907900,
     "schema": "landfall.case_state/1",
     "spec": {
@@ -492,6 +501,11 @@
     "finding": {
      "action_id": null,
      "approach_at": null,
+     "band": {
+      "high": 4.840909460734407,
+      "low": -1.2694808893058351
+     },
+     "baseline_mean": 1.7857142857142858,
      "case_id": "sleep_circadian",
      "category": "PERSONAL",
      "chip": "literature",
@@ -504,6 +518,7 @@
      "rci": {
       "alpha": 0.001,
       "critical": 4.2208317280747,
+      "current": 8,
       "df": 13,
       "mdc": 3.055195175020121,
       "mean": 1.7857142857142858,
@@ -513,7 +528,8 @@
       "reason": null,
       "reliable": true,
       "s_diff": 0.7238372367935466,
-      "sd": 0.6992932067530679
+      "sd": 0.6992932067530679,
+      "transform": null
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
@@ -527,9 +543,10 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 vs own baseline mean 1.786 (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
+    "instance": 1,
     "log": [
      {
       "detail": "opened by pvt_lapses (reliable_change, caution)",
@@ -610,6 +627,7 @@
      "text": "Shifted light schedule; nap taken."
     },
     "packet_queued_at": 35907900,
+    "previous_instances": [],
     "reassess_at": 35907900,
     "schema": "landfall.case_state/1",
     "spec": {
@@ -967,6 +985,11 @@
     "finding": {
      "action_id": null,
      "approach_at": null,
+     "band": {
+      "high": 4.840909460734407,
+      "low": -1.2694808893058351
+     },
+     "baseline_mean": 1.7857142857142858,
      "case_id": "sleep_circadian",
      "category": "PERSONAL",
      "chip": "literature",
@@ -979,6 +1002,7 @@
      "rci": {
       "alpha": 0.001,
       "critical": 4.2208317280747,
+      "current": 8,
       "df": 13,
       "mdc": 3.055195175020121,
       "mean": 1.7857142857142858,
@@ -988,7 +1012,8 @@
       "reason": null,
       "reliable": true,
       "s_diff": 0.7238372367935466,
-      "sd": 0.6992932067530679
+      "sd": 0.6992932067530679,
+      "transform": null
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
@@ -1002,9 +1027,10 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 vs own baseline mean 1.786 (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
+    "instance": 1,
     "log": [
      {
       "detail": "opened by pvt_lapses (reliable_change, caution)",
@@ -1085,6 +1111,7 @@
      "text": "Shifted light schedule; nap taken."
     },
     "packet_queued_at": 35907900,
+    "previous_instances": [],
     "reassess_at": 35907900,
     "schema": "landfall.case_state/1",
     "spec": {
@@ -1486,6 +1513,11 @@
     "finding": {
      "action_id": null,
      "approach_at": null,
+     "band": {
+      "high": 4.840909460734407,
+      "low": -1.2694808893058351
+     },
+     "baseline_mean": 1.7857142857142858,
      "case_id": "sleep_circadian",
      "category": "PERSONAL",
      "chip": "literature",
@@ -1498,6 +1530,7 @@
      "rci": {
       "alpha": 0.001,
       "critical": 4.2208317280747,
+      "current": 8,
       "df": 13,
       "mdc": 3.055195175020121,
       "mean": 1.7857142857142858,
@@ -1507,7 +1540,8 @@
       "reason": null,
       "reliable": true,
       "s_diff": 0.7238372367935466,
-      "sd": 0.6992932067530679
+      "sd": 0.6992932067530679,
+      "transform": null
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
@@ -1521,9 +1555,10 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 vs own baseline mean 1.786 (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
+    "instance": 1,
     "log": [
      {
       "detail": "opened by pvt_lapses (reliable_change, caution)",
@@ -1604,6 +1639,7 @@
      "text": "Shifted light schedule; nap taken."
     },
     "packet_queued_at": 35907900,
+    "previous_instances": [],
     "reassess_at": 35907900,
     "schema": "landfall.case_state/1",
     "spec": {
@@ -1902,6 +1938,11 @@
     "finding": {
      "action_id": null,
      "approach_at": null,
+     "band": {
+      "high": 4.840909460734407,
+      "low": -1.2694808893058351
+     },
+     "baseline_mean": 1.7857142857142858,
      "case_id": "sleep_circadian",
      "category": "PERSONAL",
      "chip": "literature",
@@ -1914,6 +1955,7 @@
      "rci": {
       "alpha": 0.001,
       "critical": 4.2208317280747,
+      "current": 8,
       "df": 13,
       "mdc": 3.055195175020121,
       "mean": 1.7857142857142858,
@@ -1923,7 +1965,8 @@
       "reason": null,
       "reliable": true,
       "s_diff": 0.7238372367935466,
-      "sd": 0.6992932067530679
+      "sd": 0.6992932067530679,
+      "transform": null
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
@@ -1937,9 +1980,10 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 vs own baseline mean 1.786 (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
+    "instance": 1,
     "log": [
      {
       "detail": "opened by pvt_lapses (reliable_change, caution)",
@@ -2020,6 +2064,7 @@
      "text": "Shifted light schedule; nap taken."
     },
     "packet_queued_at": 35907900,
+    "previous_instances": [],
     "reassess_at": 35907900,
     "schema": "landfall.case_state/1",
     "spec": {
@@ -2377,6 +2422,11 @@
     "finding": {
      "action_id": null,
      "approach_at": null,
+     "band": {
+      "high": 4.840909460734407,
+      "low": -1.2694808893058351
+     },
+     "baseline_mean": 1.7857142857142858,
      "case_id": "sleep_circadian",
      "category": "PERSONAL",
      "chip": "literature",
@@ -2389,6 +2439,7 @@
      "rci": {
       "alpha": 0.001,
       "critical": 4.2208317280747,
+      "current": 8,
       "df": 13,
       "mdc": 3.055195175020121,
       "mean": 1.7857142857142858,
@@ -2398,7 +2449,8 @@
       "reason": null,
       "reliable": true,
       "s_diff": 0.7238372367935466,
-      "sd": 0.6992932067530679
+      "sd": 0.6992932067530679,
+      "transform": null
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
@@ -2412,9 +2464,10 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 vs own baseline mean 1.786 (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
+    "instance": 1,
     "log": [
      {
       "detail": "opened by pvt_lapses (reliable_change, caution)",
@@ -2495,6 +2548,7 @@
      "text": "Shifted light schedule; nap taken."
     },
     "packet_queued_at": 35907900,
+    "previous_instances": [],
     "reassess_at": 35907900,
     "schema": "landfall.case_state/1",
     "spec": {
@@ -2628,6 +2682,11 @@
     "finding": {
      "action_id": null,
      "approach_at": null,
+     "band": {
+      "high": 4.840909460734407,
+      "low": -1.2694808893058351
+     },
+     "baseline_mean": 1.7857142857142858,
      "case_id": "sleep_circadian",
      "category": "PERSONAL",
      "chip": "literature",
@@ -2640,6 +2699,7 @@
      "rci": {
       "alpha": 0.001,
       "critical": 4.2208317280747,
+      "current": 8,
       "df": 13,
       "mdc": 3.055195175020121,
       "mean": 1.7857142857142858,
@@ -2649,7 +2709,8 @@
       "reason": null,
       "reliable": true,
       "s_diff": 0.7238372367935466,
-      "sd": 0.6992932067530679
+      "sd": 0.6992932067530679,
+      "transform": null
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
@@ -2663,9 +2724,10 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 vs own baseline mean 1.786 (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
+    "instance": 1,
     "log": [
      {
       "detail": "opened by pvt_lapses (reliable_change, caution)",
@@ -2746,6 +2808,7 @@
      "text": "Shifted light schedule; nap taken."
     },
     "packet_queued_at": 35907900,
+    "previous_instances": [],
     "reassess_at": 35907900,
     "schema": "landfall.case_state/1",
     "spec": {
@@ -2879,6 +2942,11 @@
     "finding": {
      "action_id": null,
      "approach_at": null,
+     "band": {
+      "high": 4.840909460734407,
+      "low": -1.2694808893058351
+     },
+     "baseline_mean": 1.7857142857142858,
      "case_id": "sleep_circadian",
      "category": "PERSONAL",
      "chip": "literature",
@@ -2891,6 +2959,7 @@
      "rci": {
       "alpha": 0.001,
       "critical": 4.2208317280747,
+      "current": 8,
       "df": 13,
       "mdc": 3.055195175020121,
       "mean": 1.7857142857142858,
@@ -2900,7 +2969,8 @@
       "reason": null,
       "reliable": true,
       "s_diff": 0.7238372367935466,
-      "sd": 0.6992932067530679
+      "sd": 0.6992932067530679,
+      "transform": null
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
@@ -2914,9 +2984,10 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 vs own baseline mean 1.786 (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
+    "instance": 1,
     "log": [
      {
       "detail": "opened by pvt_lapses (reliable_change, caution)",
@@ -2997,6 +3068,7 @@
      "text": "Shifted light schedule; nap taken."
     },
     "packet_queued_at": 35907900,
+    "previous_instances": [],
     "reassess_at": 35907900,
     "schema": "landfall.case_state/1",
     "spec": {
@@ -3178,6 +3250,11 @@
     "finding": {
      "action_id": null,
      "approach_at": null,
+     "band": {
+      "high": 4.840909460734407,
+      "low": -1.2694808893058351
+     },
+     "baseline_mean": 1.7857142857142858,
      "case_id": "sleep_circadian",
      "category": "PERSONAL",
      "chip": "literature",
@@ -3190,6 +3267,7 @@
      "rci": {
       "alpha": 0.001,
       "critical": 4.2208317280747,
+      "current": 8,
       "df": 13,
       "mdc": 3.055195175020121,
       "mean": 1.7857142857142858,
@@ -3199,7 +3277,8 @@
       "reason": null,
       "reliable": true,
       "s_diff": 0.7238372367935466,
-      "sd": 0.6992932067530679
+      "sd": 0.6992932067530679,
+      "transform": null
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
@@ -3213,9 +3292,10 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 vs own baseline mean 1.786 (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
+    "instance": 1,
     "log": [
      {
       "detail": "opened by pvt_lapses (reliable_change, caution)",
@@ -3296,6 +3376,7 @@
      "text": "Shifted light schedule; nap taken."
     },
     "packet_queued_at": 35907900,
+    "previous_instances": [],
     "reassess_at": 35907900,
     "schema": "landfall.case_state/1",
     "spec": {
@@ -3586,6 +3667,11 @@
     "finding": {
      "action_id": null,
      "approach_at": null,
+     "band": {
+      "high": 4.840909460734407,
+      "low": -1.2694808893058351
+     },
+     "baseline_mean": 1.7857142857142858,
      "case_id": "sleep_circadian",
      "category": "PERSONAL",
      "chip": "literature",
@@ -3598,6 +3684,7 @@
      "rci": {
       "alpha": 0.001,
       "critical": 4.2208317280747,
+      "current": 8,
       "df": 13,
       "mdc": 3.055195175020121,
       "mean": 1.7857142857142858,
@@ -3607,7 +3694,8 @@
       "reason": null,
       "reliable": true,
       "s_diff": 0.7238372367935466,
-      "sd": 0.6992932067530679
+      "sd": 0.6992932067530679,
+      "transform": null
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
@@ -3621,9 +3709,10 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 vs own baseline mean 1.786 (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
+    "instance": 1,
     "log": [
      {
       "detail": "opened by pvt_lapses (reliable_change, caution)",
@@ -3704,6 +3793,7 @@
      "text": "Shifted light schedule; nap taken."
     },
     "packet_queued_at": 35907900,
+    "previous_instances": [],
     "reassess_at": 35907900,
     "schema": "landfall.case_state/1",
     "spec": {
@@ -3833,6 +3923,11 @@
     "finding": {
      "action_id": null,
      "approach_at": null,
+     "band": {
+      "high": 4.840909460734407,
+      "low": -1.2694808893058351
+     },
+     "baseline_mean": 1.7857142857142858,
      "case_id": "sleep_circadian",
      "category": "PERSONAL",
      "chip": "literature",
@@ -3845,6 +3940,7 @@
      "rci": {
       "alpha": 0.001,
       "critical": 4.2208317280747,
+      "current": 8,
       "df": 13,
       "mdc": 3.055195175020121,
       "mean": 1.7857142857142858,
@@ -3854,7 +3950,8 @@
       "reason": null,
       "reliable": true,
       "s_diff": 0.7238372367935466,
-      "sd": 0.6992932067530679
+      "sd": 0.6992932067530679,
+      "transform": null
      },
      "role": "alert",
      "rule_id": "pvt_lapses",
@@ -3868,9 +3965,10 @@
      "tier": "B",
      "unit": "count",
      "value": 8,
-     "why": "PVT-B lapses: 8 count vs own baseline mean 1.786 count (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
+     "why": "PVT-B lapses: 8 vs own baseline mean 1.786 (n=14); t = 8.585, critical 4.221 (df 13, two-tailed alpha 0.001); reliable change in the worse direction. Basis: literature.",
      "worse": "increase"
     },
+    "instance": 1,
     "log": [
      {
       "detail": "opened by pvt_lapses (reliable_change, caution)",
@@ -3951,6 +4049,7 @@
      "text": "Shifted light schedule; nap taken."
     },
     "packet_queued_at": 35907900,
+    "previous_instances": [],
     "reassess_at": 35907900,
     "schema": "landfall.case_state/1",
     "spec": {

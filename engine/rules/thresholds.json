@@ -1123,7 +1123,7 @@
    "case_id": "spe_shelter",
    "notes": [
     "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
-    "Footnote ***: calculated at the hippocampus. Table 4.8-1 gives no 30-day limit for Z>=10 ('-').",
+    "Footnote ***: calculated at the hippocampus. Table 4.8-1 gives no 30-day limit for Z≥10 ('-').",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
    ],
@@ -1180,7 +1180,7 @@
    "case_id": "spe_shelter",
    "notes": [
     "Unit is the one printed in Table 4.8-1 (mGy-Eq or mGy). These are non-cancer organ dose limits, never mSv.",
-    "Footnote ***: calculated at the hippocampus. Table 4.8-1 gives no 30-day limit for Z>=10 ('-').",
+    "Footnote ***: calculated at the hippocampus. Table 4.8-1 gives no 30-day limit for Z≥10 ('-').",
     "Table 4.8-1 does not say strict or inclusive; we read 'limit' as not-to-exceed (op le).",
     "Organ dose needs an organ-dose model; LANDFALL compares only values the vehicle radiation monitoring system or ground analysts report in this unit ([V2 6164])."
    ],
@@ -1476,7 +1476,7 @@
    "action_id": null,
    "case_id": "spe_shelter",
    "notes": [
-    "Compliant (within) while the >=10 MeV integral proton flux is below this level; 'outside' means S1 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "Compliant (within) while the ≥10 MeV integral proton flux is below this level; 'outside' means S1 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
     "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID."
    ]
   },
@@ -1515,7 +1515,7 @@
    "action_id": null,
    "case_id": "spe_shelter",
    "notes": [
-    "Compliant (within) while the >=10 MeV integral proton flux is below this level; 'outside' means S2 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "Compliant (within) while the ≥10 MeV integral proton flux is below this level; 'outside' means S2 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
     "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID."
    ]
   },
@@ -1554,7 +1554,7 @@
    "action_id": "spe_shelter",
    "case_id": "spe_shelter",
    "notes": [
-    "Compliant (within) while the >=10 MeV integral proton flux is below this level; 'outside' means S3 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "Compliant (within) while the ≥10 MeV integral proton flux is below this level; 'outside' means S3 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
     "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID.",
     "Outside (S3 or higher) is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
    ]
@@ -1594,7 +1594,7 @@
    "action_id": "spe_shelter",
    "case_id": "spe_shelter",
    "notes": [
-    "Compliant (within) while the >=10 MeV integral proton flux is below this level; 'outside' means S4 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "Compliant (within) while the ≥10 MeV integral proton flux is below this level; 'outside' means S4 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
     "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID.",
     "Outside (S3 or higher) is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
    ]
@@ -1634,14 +1634,14 @@
    "action_id": "spe_shelter",
    "case_id": "spe_shelter",
    "notes": [
-    "Compliant (within) while the >=10 MeV integral proton flux is below this level; 'outside' means S5 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
+    "Compliant (within) while the ≥10 MeV integral proton flux is below this level; 'outside' means S5 or higher has been reached. pfu = particles cm^-2 s^-1 sr^-1.",
     "NOAA operational scale, not a NASA crew-health limit and no NASA requirement ID.",
     "Outside (S3 or higher) is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
    ]
   },
   {
    "id": "ops_onboard_proton_s3",
-   "label": "Mars-orbit space-weather monitor: >=10 MeV protons at the NOAA S3 level",
+   "label": "Mars-orbit space-weather monitor: ≥10 MeV protons at the NOAA S3 level",
    "variable": "proton_flux_10mev",
    "unit": "pfu",
    "op": "lt",
@@ -1660,14 +1660,14 @@
    "chip": "design choice",
    "source": {
     "kind": "design_choice",
-    "rationale": "[V2 6164] requires the radiation monitoring system to alert the crew 'when radiation exposure rates exceed predefined thresholds' and leaves the threshold to the program. At Mars no NOAA alert reaches the crew. The scenario assumes an external space-weather monitor above the atmosphere, in Mars orbit, whose >=10 MeV proton reading is relayed to the habitat locally, with no Earth link: the in-situ extravehicular monitoring of 'proton flux spectra' that [V2 6165] requires. LANDFALL reuses NOAA's S3 threshold (10^3 pfu at >=10 MeV, rule ops_noaa_s3) on that reading; NOAA does not define its scale away from Earth, so applying it at Mars is ours. The vehicle's radiation monitoring system raises the alarm ([V2 6164]); this rule opens the health case that follows."
+    "rationale": "[V2 6164] requires the radiation monitoring system to alert the crew 'when radiation exposure rates exceed predefined thresholds' and leaves the threshold to the program. At Mars no NOAA alert reaches the crew. The scenario assumes an external space-weather monitor above the atmosphere, in Mars orbit, whose ≥10 MeV proton reading is relayed to the habitat locally, with no Earth link: the in-situ extravehicular monitoring of 'proton flux spectra' that [V2 6165] requires. LANDFALL reuses NOAA's S3 threshold (10^3 pfu at ≥10 MeV, rule ops_noaa_s3) on that reading; NOAA does not define its scale away from Earth, so applying it at Mars is ours. The vehicle's radiation monitoring system raises the alarm ([V2 6164]); this rule opens the health case that follows."
    },
    "derived_from_rule": "ops_noaa_s3",
    "action_id": "spe_shelter",
    "case_id": "spe_shelter",
    "notes": [
     "Same variable as the NOAA rules; applies_to keeps exactly one of the two rule sets active.",
-    "Scenario assumption: the demo values are the GOES-7 October 1989 >=10 MeV replay, with no radial-distance or atmospheric correction. A monitor on the surface would read less, because the atmosphere stops the lower-energy protons; that is why the scenario's monitor sits above it, in orbit.",
+    "Scenario assumption: the demo values are the GOES-7 October 1989 ≥10 MeV replay, with no radial-distance or atmospheric correction. A monitor on the surface would read less, because the atmosphere stops the lower-energy protons; that is why the scenario's monitor sits above it, in orbit.",
     "Outside (S3 or higher) is a Warning: the rule carries the shelter action, which is immediate (Table 10.3-1)."
    ]
   },

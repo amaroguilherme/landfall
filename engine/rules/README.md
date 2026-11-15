@@ -7,7 +7,7 @@ the `/provenance` page all read the same files. The contract is `engine/SPEC.md`
 |---|---|
 | `environments.json` | ISS, cislunar, lunar surface and Mars surface: gravity, EVA type, dose snapshot, whether the NOAA scale reaches the crew, and comms light time. |
 | `thresholds.json` | Tier A rules: NASA-published FFD / PEL / POL limits with requirement IDs, Table 4.8-1 organ limits (mGy-Eq / mGy, never mSv), vehicle design requirements as `role: "context"`, NOAA S1-S5 as `OPS`, the onboard S3 rule for Mars, and the renal `TARGET` rule (a countermeasure target from a NASA report). Also `constants` that derived numbers point to. |
-| `personal.json` | Tier B: the settings of the single-case t-test (Crawford & Howell 1998; two-tailed alpha 0.001, minimum and full baseline length; see `rci.method`, `rci.detectable_change`, `rci.caveat` and `rci.change_note`) and the fourteen personal indicators, including the manual cuff blood pressure and fingerstick glucose readings. No test-retest reliability is used. |
+| `personal.json` | Tier B: the settings of the single-case t-test (Crawford & Howell 1998; two-tailed alpha 0.001, minimum and full baseline length; see `rci.method`, `rci.detectable_change`, `rci.caveat` and `rci.change_note`) and the fourteen personal indicators, including the manual cuff blood pressure and fingerstick glucose readings. A count (PVT-B lapses) declares `transform: "anscombe"`; an indicator whose measured chance rate is not within 0.5-2 times the printed one declares it in `chance_rate`. No test-retest reliability is used. |
 | `cases.json` | The three deep cases (`renal_stone`, `sleep_circadian`, `spe_shelter`): triggers, interpretation, one primary countermeasure, guided procedure (with required, red-flag and packet-release steps), tripwire (environment-aware through `by_env`), ground packet, hand-offs and refusals. |
 | `meta.json` | The vocabulary: chips, categories (with NASA glossary text), severity mapping (quoting NASA-STD-3001 Vol 2 Table 10.3-1), escalation tiers, packet states, hazards, body regions, principles and refusals. |
 
@@ -57,6 +57,15 @@ Every number has a `chip` and a `source` (on the object itself or the object tha
   so readers built for the old shape keep working; its rationale says why no value is claimed.
 - A non-alerting indicator (mood, daytime light, skin temperature) shows a reliable change with severity
   `nominal`: it never alerts.
+- PVT-B lapses are tested on the Anscombe scale, `2√(x + 3/8)` (`transform`, Anscombe 1948): as raw counts their
+  chance cautions came about 10 times as often as printed. The band is mapped back to lapses for the crew.
+- The sleep midpoint shift is **signed** (later is positive) and alerts in both directions (`worse: "either"`, like
+  glucose). The earlier absolute shift folded the noise at zero and flagged about 12.7 times too often.
+- `chance_rate` on PVT-B lapses and mood is a measurement, not a choice: a seeded Monte Carlo under the scenario's
+  own noise model (`engine/tests/test_chance_rates.py` requires the declared multipliers, and requires every other
+  indicator to be within 0.5-2 times its printed rate).
+- `hrv_sdnn` is pulse-rate variability from the band's optical (PPG) pulse, not ECG normal-to-normal intervals.
+- Crew-facing text prints comparisons as signs (≥, ≤, ±), never `>=`; a test checks every string.
 - Every `not_measurable_here` requirement ID carries a `requirement_quote` that the test finds in that
   requirement's own text. `[V1 3004](i)` asks for in-mission imaging in general (cardiac, vascular, ocular
   examples), so the kidney-imaging hand-off says it names neither the kidney nor ultrasound.

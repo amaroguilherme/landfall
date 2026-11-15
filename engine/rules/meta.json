@@ -107,7 +107,7 @@
   },
   {
    "id": "B",
-   "definition": "Reliable change against the crewmember's own baseline: the single-case t-test of Crawford & Howell (1998), t = (value - baseline mean) / (baseline SD x sqrt(1 + 1/n)), df = n - 1, flagged when |t| exceeds the two-tailed critical value at alpha 0.001 (4.221 for a 14-day baseline). The idea of reliable change comes from Jacobson & Truax (1991); their arithmetic is not used."
+   "definition": "Reliable change against the crewmember's own baseline: the single-case t-test of Crawford & Howell (1998), t = (value - baseline mean) / (baseline SD x sqrt(1 + 1/n)), df = n - 1, flagged when |t| exceeds the two-tailed critical value at alpha 0.001 (4.221 for a 14-day baseline). The idea of reliable change comes from Jacobson & Truax (1991); their arithmetic is not used. The test runs on the indicator's declared scale: counts (PVT-B lapses) on the Anscombe transform 2√(x + 3/8), with the band mapped back to the count."
   }
  ],
  "statuses": [
@@ -366,7 +366,7 @@
   },
   {
    "id": "no_dosing",
-   "text": "No medication or dosing advice of any kind."
+   "text": "No medication or dosing advice to the crew; medication decisions belong to the flight surgeon."
   },
   {
    "id": "no_psychiatric_alert",

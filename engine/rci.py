@@ -25,8 +25,27 @@ at r = 0.8 the realized two-sided rate was about 6.6% per indicator-day instead 
 (engine/tests/test_rci.py, test_old_jacobson_truax_arithmetic_overstated_reliability). The engine
 no longer uses any test-retest reliability.
 
+Counts (SPEC section 3.3, indicator "transform"): an indicator may declare a variance-stabilizing
+transform that evaluate_personal applies to every baseline value and to the current value before the
+test. The only one is "anscombe", y = 2 * sqrt(x + 3/8) for a count x >= 0 (Anscombe 1948), which
+turns a Poisson count into a variable with roughly constant variance. Raw PVT-B lapse counts, whose
+small means make the day-to-day noise skewed, raised a chance caution about 10 times as often as the
+printed alpha/2; on the Anscombe scale the realized rate is close to or below it. The personal band is
+computed on the transformed scale and mapped back to the raw scale with the algebraic inverse,
+x = (y / 2)^2 - 3/8. The transform is monotone, so a raw value is outside the mapped band exactly when
+its transform is outside the band on the test scale: the inverse is exact for band edges (its known
+bias concerns estimating a mean, which this never does).
+
+Chance rates (chance_rate): the nominal rate of the test is alpha per indicator-day for a flag in
+either direction and alpha/2 for a caution (alpha for an indicator whose worse is "either"). An
+indicator whose realized rate is far from that (a seeded Monte Carlo under the scenario's noise
+model, engine/tests/test_chance_rates.py) declares the measured multipliers in personal.json, and
+chance_rate prints those instead of the nominal rate.
+
 Crawford JR, Howell DC. Comparing an individual's test score against norms derived from small
 samples. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241
+Anscombe FJ. The transformation of Poisson, binomial and negative-binomial data. Biometrika
+1948;35(3-4):246-254. doi:10.1093/biomet/35.3-4.246
 """
 
 from __future__ import annotations
@@ -35,12 +54,16 @@ import functools
 import math
 
 from .errors import EngineError
-from .fmt import fmt_num, require_number, sum_lr
+from .fmt import fmt_num, is_number, require_number, sum_lr
 from .tdist import t_critical
 from .thresholds import basis_text, coerce_value
 
 WORSE_VALUES = ("increase", "decrease", "either")
 METHOD = "crawford_howell_1998"
+TRANSFORMS = ("anscombe",)
+ANSCOMBE_OFFSET = 0.375          # 3/8 (Anscombe 1948): y = 2 * sqrt(x + 3/8)
+ANSCOMBE_SCALE_TEXT = "2√(x + 3/8)"
+CHANCE_TEXT_MAX_DAYS = 1e12      # "about 1 in N days" is printed below this; above it, "fewer than 1 in 10^12"
 
 
 @functools.lru_cache(maxsize=4096)
@@ -142,6 +165,38 @@ def _validate_indicator(ind: dict) -> None:
         raise EngineError("invalid_rule", f"indicator {ind['id']!r}: worse must be one of {WORSE_VALUES}")
     if not isinstance(ind["alerting"], bool):
         raise EngineError("invalid_rule", f"indicator {ind['id']!r}: alerting must be true or false")
+    tf = ind.get("transform")
+    if tf is not None and tf not in TRANSFORMS:
+        raise EngineError("invalid_rule", f"indicator {ind['id']!r}: transform must be one of {TRANSFORMS} or null")
+
+
+def _transform(tf: str | None, x: float | None, what: str) -> float | None:
+    """The declared transform of one raw value (None passes through; no transform is the identity).
+
+    anscombe: 2 * sqrt(x + 3/8) for a count x >= 0; a negative value raises invalid_argument.
+    """
+    if x is None or tf is None:
+        return x
+    if x < 0:
+        raise EngineError("invalid_argument", f"{what}: the anscombe transform needs a count >= 0, got {x!r}")
+    return 2.0 * math.sqrt(x + ANSCOMBE_OFFSET)
+
+
+def _untransform(tf: str | None, y: float) -> float:
+    """A band edge on the test scale mapped back to the raw scale (identity without a transform).
+
+    anscombe: (y / 2)^2 - 3/8, the algebraic inverse, for y >= 0. An edge below 0 has no preimage: it
+    maps to -3/8, the bottom of the transform's domain, so no count can fall below it.
+    """
+    if tf is None:
+        return y
+    h = (y if y > 0.0 else 0.0) / 2.0
+    return h * h - ANSCOMBE_OFFSET
+
+
+def _qty(x: float, unit: str) -> str:
+    """'4.5 h', or a bare '4' for a count."""
+    return fmt_num(x) if unit == "count" else f"{fmt_num(x)} {unit}"
 
 
 def _validate_cfg(cfg: dict) -> None:
@@ -158,6 +213,11 @@ def evaluate_personal(indicator: dict, baseline: list, current: object, cfg: dic
 
     baseline: list of numbers / None / observations (same unit as the indicator).
     current: number, None or an observation. cfg: the `rci` block of personal.json.
+    An indicator that declares a transform (SPEC 3.3; "anscombe" for counts) is tested on that scale:
+    the transform is applied to every baseline value and to the current value, and the band is mapped
+    back. Every top-level number of the finding is on the raw scale of the indicator's unit (value,
+    limit, margin, baseline_mean, band); the rci block holds the test's statistics on the scale named by
+    rci.transform (null = raw), with rci.current the tested current value on that scale.
     Severity: reliable change in the worse direction -> caution (never warning), but nominal for a
     non-alerting indicator, which never alerts; reliable change in the other direction -> nominal
     (shown, no alert; LANDFALL does not call it better); insufficient data -> advisory; within ->
@@ -169,6 +229,7 @@ def evaluate_personal(indicator: dict, baseline: list, current: object, cfg: dic
         require_number(t, "t")
     unit = indicator["unit"]
     what = f"indicator {indicator['id']}"
+    tf = indicator.get("transform")
     cur, _ = coerce_value(current, unit, indicator["variable"], what)
     base = []
     if not isinstance(baseline, list):
@@ -177,10 +238,25 @@ def evaluate_personal(indicator: dict, baseline: list, current: object, cfg: dic
         bv, _ = coerce_value(b, unit, indicator["variable"], what + " baseline")
         base.append(bv)
     alpha = cfg["alpha_two_tailed"]
-    res = rci(base, cur, alpha=alpha, min_baseline_n=cfg["min_baseline_n"])
+    cur_t = _transform(tf, cur, what)
+    base_t = [_transform(tf, b, what + " baseline") for b in base]
+    res = rci(base_t, cur_t, alpha=alpha, min_baseline_n=cfg["min_baseline_n"])
+    raw = [b for b in base if b is not None]
+    baseline_mean = sum_lr(raw) / len(raw) if raw else None
+    if baseline_mean is not None and not math.isfinite(baseline_mean):
+        raise EngineError("invalid_argument", f"{what}: baseline mean is not finite (values too large)")
     worse = indicator["worse"]
     label = indicator.get("label") or indicator["id"]
 
+    band = None
+    if res["mdc"] is not None:
+        # the band on the test scale is mean +/- critical * s_diff; its edges are mapped back to the raw scale
+        mean, s_diff, critical = res["mean"], res["s_diff"], res["critical"]
+        high = _untransform(tf, mean + critical * s_diff)
+        low = _untransform(tf, mean - critical * s_diff)
+        if not (math.isfinite(high) and math.isfinite(low)):
+            raise EngineError("invalid_argument", f"{what}: personal band edge is not finite (values too large)")
+        band = {"low": low, "high": high}
     limit = None
     margin = None
     if res["status"] != "ok":
@@ -193,15 +269,13 @@ def evaluate_personal(indicator: dict, baseline: list, current: object, cfg: dic
         else:
             why = f"{label}: baseline SD is 0, so the single-case test is undefined."
     else:
-        mean, s_diff, direction, critical = res["mean"], res["s_diff"], res["direction"], res["critical"]
-        high = mean + critical * s_diff
-        low = mean - critical * s_diff
+        direction, critical = res["direction"], res["critical"]
         if worse == "increase" or (worse == "either" and direction != "decrease"):
-            limit = high
-            margin = high - cur
+            limit = band["high"]
+            margin = band["high"] - cur
         else:
-            limit = low
-            margin = cur - low
+            limit = band["low"]
+            margin = cur - band["low"]
         if not (math.isfinite(limit) and math.isfinite(margin)):
             raise EngineError("invalid_argument", f"{what}: personal band edge is not finite (values too large)")
         if res["reliable"]:
@@ -214,8 +288,11 @@ def evaluate_personal(indicator: dict, baseline: list, current: object, cfg: dic
             status = "within"
             severity = "nominal"
             txt = "no reliable change"
-        why = (f"{label}: {fmt_num(cur)} {unit} vs own baseline mean {fmt_num(mean)} {unit} "
-               f"(n={res['n']}); t = {fmt_num(res['rc'])}, critical {fmt_num(critical)} "
+        scale = "" if tf is None else \
+            (f" tested on the Anscombe scale {ANSCOMBE_SCALE_TEXT}: {fmt_num(cur_t)} vs mean "
+             f"{fmt_num(res['mean'])};")
+        why = (f"{label}: {_qty(cur, unit)} vs own baseline mean {_qty(baseline_mean, unit)} "
+               f"(n={res['n']});{scale} t = {fmt_num(res['rc'])}, critical {fmt_num(critical)} "
                f"(df {res['df']}, two-tailed alpha {fmt_num(alpha, 6)}); {txt}.")
     if not indicator["alerting"]:
         if status == "reliable_change":
@@ -244,8 +321,11 @@ def evaluate_personal(indicator: dict, baseline: list, current: object, cfg: dic
         "direction": res["direction"],
         "worse": worse,
         "private": indicator.get("private") is True,
+        "baseline_mean": baseline_mean,
+        "band": band,
         "rci": {
-            "method": res["method"], "rc": res["rc"], "df": res["df"], "critical": res["critical"],
+            "method": res["method"], "transform": tf, "current": cur_t,
+            "rc": res["rc"], "df": res["df"], "critical": res["critical"],
             "alpha": res["alpha"], "s_diff": res["s_diff"], "mean": res["mean"], "sd": res["sd"],
             "n": res["n"], "reliable": res["reliable"], "reason": res["reason"], "mdc": res["mdc"],
         },
@@ -322,3 +402,73 @@ def expected_false_alarms(k_indicators: float, days: float, alpha: float = 0.001
             "caution_every_n_days": caution_every, "caution_text": caution_text,
             "assumes": FALSE_ALARM_ASSUMES,
             "k_indicators": k_indicators, "days": days, "alpha": alpha, "k_either": k_either}
+
+
+def _about(n: float) -> str:
+    """N for "about 1 in N days": two significant figures (2000, 1000, 3800), a whole number below 100."""
+    m = 1.0
+    while n >= 100.0 * m:
+        m = m * 10.0
+    return fmt_num(math.floor(n / m + 0.5) * m, 0)
+
+
+def _declared_multiplier(decl: dict, key: str, iid: object) -> float:
+    x = decl.get(key)
+    if not is_number(x) or x < 0:
+        raise EngineError("invalid_rule", f"indicator {iid!r}: chance_rate.{key} must be a finite number >= 0")
+    return x
+
+
+def chance_rate(indicator: dict, cfg: dict) -> dict:
+    """How often this indicator flags by chance alone, per crewmember and day (SPEC section 5).
+
+    Nominal (no declaration): the single-case test's own rate under normal, independent day-to-day noise:
+    a flag (reliable change in either direction) on alpha of days, a caution (worse direction) on alpha/2,
+    or alpha for an indicator whose worse is "either". An indicator that declares `chance_rate` in
+    personal.json ({caution_multiplier, flag_multiplier, text, chip, source}: measured by seeded Monte
+    Carlo under the scenario's noise model) gets those multiples of the nominal rates instead, with basis
+    "measured". A non-alerting indicator never raises a caution: its caution rate is 0 and its text
+    names the flag rate.
+    """
+    _validate_indicator(indicator)
+    _validate_cfg(cfg)
+    alpha = _validate_alpha(cfg["alpha_two_tailed"])
+    iid = indicator["id"]
+    worse, alerting = indicator["worse"], indicator["alerting"]
+    nominal_caution = alpha if worse == "either" else alpha / 2.0
+    nominal_flag = alpha
+    decl = indicator.get("chance_rate")
+    if decl is None:
+        basis, cm, fm, note, chip, source = "nominal", 1.0, 1.0, None, cfg["chip"], cfg["source"]
+    else:
+        if not isinstance(decl, dict):
+            raise EngineError("invalid_rule", f"indicator {iid!r}: chance_rate must be an object")
+        for key in ("chip", "source"):
+            if key not in decl:
+                raise EngineError("invalid_rule", f"indicator {iid!r}: chance_rate lacks {key!r}")
+        cm = _declared_multiplier(decl, "caution_multiplier", iid)
+        fm = _declared_multiplier(decl, "flag_multiplier", iid)
+        note = decl.get("text") if isinstance(decl.get("text"), str) else None
+        basis, chip, source = "measured", decl["chip"], decl["source"]
+    caution = nominal_caution * cm if alerting else 0.0
+    flag = nominal_flag * fm
+    if not (math.isfinite(caution) and math.isfinite(flag)) or caution > 1.0 or flag > 1.0:
+        raise EngineError("invalid_rule", f"indicator {iid!r}: a chance rate above 1 per day is impossible")
+    caution_every = 1.0 / caution if caution > 0 else None
+    flag_every = 1.0 / flag if flag > 0 else None
+    if alerting:
+        every, lead, what = caution_every, "", "would flag like this"
+    else:
+        every, lead, what = flag_every, "never alerts; ", "would show a reliable change like this"
+    if every is None:
+        text = lead + ("no chance cautions expected" if alerting else "no chance flags expected")
+    elif every >= CHANCE_TEXT_MAX_DAYS:
+        text = f"{lead}fewer than 1 in 10^12 days per crewmember {what} with no real change"
+    else:
+        text = f"{lead}about 1 in {_about(every)} days per crewmember {what} with no real change"
+    return {"indicator_id": iid, "worse": worse, "alerting": alerting, "alpha": alpha, "basis": basis,
+            "nominal_caution_per_day": nominal_caution, "nominal_flag_per_day": nominal_flag,
+            "caution_multiplier": cm, "flag_multiplier": fm,
+            "caution_per_day": caution, "flag_per_day": flag,
+            "caution_every_n_days": caution_every, "flag_every_n_days": flag_every,
+            "text": text, "note": note, "chip": chip, "source": source}

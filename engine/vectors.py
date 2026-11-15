@@ -13,8 +13,8 @@ decoded to that float before the call (decode_args), at any depth.
 The randomized vectors (engine/tests/vectors_random/random_<fn>.json) keep their seeded inputs
 frozen; --random recomputes their expectations with the current engine, migrates the arguments of
 a function whose signature changed (rci and evaluate_personal lost the reliability r and the fixed
-critical z; case states gained the required-step, escalation and packet fields), and draws seeded
-inputs for a function that has no random file yet.
+critical z; case states gained the required-step, escalation and packet fields, then the instance
+fields), and draws seeded inputs for a function that has no random file yet.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from .comms import comms_eta
 from .errors import EngineError
 from .fmt import fmt_num, format_met, met_to_iso
 from .packet import build_ground_packet
-from .rci import evaluate_personal, expected_false_alarms, min_detectable_change, rci
+from .rci import chance_rate, evaluate_personal, expected_false_alarms, min_detectable_change, rci
 from .tdist import t_cdf, t_critical, t_quantile
 from .thresholds import evaluate_rule, s_level
 
@@ -48,6 +48,7 @@ FUNCTIONS = {
     "evaluate_personal": evaluate_personal,
     "expected_false_alarms": expected_false_alarms,
     "min_detectable_change": min_detectable_change,
+    "chance_rate": chance_rate,
     "t_cdf": t_cdf,
     "t_quantile": t_quantile,
     "t_critical": t_critical,
@@ -348,6 +349,48 @@ def build_vectors() -> dict[str, list[dict]]:
     # finite statistic (t = -0.577) but critical 6.4e279 x s_diff 8.7e99 overflows the band edge
     add("evaluate_personal", "band_edge_overflow_rejected", indicator=sleep, baseline=[0, 1e100], current=0,
         cfg=dict(cfg, alpha_two_tailed=1e-280, min_baseline_n=2), t=NOW)
+    # S2: counts tested on the Anscombe scale, y = 2 sqrt(x + 3/8); band and limit mapped back to counts
+    pvt_a = dict(pvt, transform="anscombe")
+    add("evaluate_personal", "anscombe_reliable_worse_caution", indicator=pvt_a, baseline=pvt_base, current=8,
+        cfg=cfg, t=NOW)
+    add("evaluate_personal", "anscombe_within_where_raw_counts_flag", indicator=pvt_a, baseline=pvt_base, current=5,
+        cfg=cfg, t=NOW)
+    add("evaluate_personal", "raw_counts_flag_the_same_day", indicator=pvt, baseline=pvt_base, current=5, cfg=cfg,
+        t=NOW)
+    add("evaluate_personal", "anscombe_within", indicator=pvt_a, baseline=pvt_base, current=3, cfg=cfg, t=NOW)
+    add("evaluate_personal", "anscombe_reliable_drop_nominal", indicator=pvt_a,
+        baseline=[6, 7, 6, 8, 7, 6, 7, 6, 7, 8, 6, 7, 7, 6], current=0, cfg=cfg, t=NOW)
+    add("evaluate_personal", "anscombe_low_edge_below_the_domain", indicator=pvt_a,
+        baseline=[0, 4] * 7, current=2, cfg=cfg, t=NOW)
+    add("evaluate_personal", "anscombe_no_current_reports_band", indicator=pvt_a, baseline=pvt_base, current=None,
+        cfg=cfg, t=NOW)
+    add("evaluate_personal", "anscombe_too_short_no_band", indicator=pvt_a, baseline=pvt_base[:5], current=8, cfg=cfg,
+        t=NOW)
+    add("evaluate_personal", "anscombe_zero_sd", indicator=pvt_a, baseline=[0] * 14, current=3, cfg=cfg, t=NOW)
+    add("evaluate_personal", "anscombe_observations_as_inputs", indicator=pvt_a,
+        baseline=[{"variable": "pvt_lapses", "value": v, "unit": "count", "t": i * DAY} for i, v in enumerate(pvt_base)]
+        + [None], current={"variable": "pvt_lapses", "value": 8, "unit": "count", "t": NOW}, cfg=cfg, t=NOW)
+    add("evaluate_personal", "anscombe_fractional_count_accepted", indicator=pvt_a, baseline=pvt_base, current=6.5,
+        cfg=cfg, t=NOW)
+    add("evaluate_personal", "anscombe_negative_count_rejected", indicator=pvt_a, baseline=pvt_base, current=-1,
+        cfg=cfg, t=NOW)
+    add("evaluate_personal", "anscombe_negative_baseline_rejected", indicator=pvt_a, baseline=pvt_base + [-0.5],
+        current=2, cfg=cfg, t=NOW)
+    add("evaluate_personal", "transform_null_is_the_identity", indicator=dict(pvt, transform=None), baseline=pvt_base,
+        current=8, cfg=cfg, t=NOW)
+    add("evaluate_personal", "unknown_transform_rejected", indicator=dict(pvt, transform="log"), baseline=pvt_base,
+        current=8, cfg=cfg, t=NOW)
+    add("evaluate_personal", "anscombe_band_edge_overflow_rejected", indicator=pvt_a, baseline=[0, 1e300], current=0,
+        cfg=dict(cfg, min_baseline_n=2), t=NOW)
+    # S1: the sleep midpoint as a signed shift, tested in both directions
+    mid_ind = dict(sleep, id="sleep_midpoint_shift", label="Sleep midpoint shift", variable="sleep_midpoint_shift",
+                   worse="either")
+    mid_base = [0.12, -0.35, 0.4, -0.08, 0.0, 0.27, -0.5, 0.15, -0.22, 0.31, -0.1, 0.05, -0.4, 0.2]
+    add("evaluate_personal", "midpoint_later_caution", indicator=mid_ind, baseline=mid_base, current=2.4, cfg=cfg,
+        t=NOW)
+    add("evaluate_personal", "midpoint_earlier_caution", indicator=mid_ind, baseline=mid_base, current=-2.4, cfg=cfg,
+        t=NOW)
+    add("evaluate_personal", "midpoint_within", indicator=mid_ind, baseline=mid_base, current=0.9, cfg=cfg, t=NOW)
 
     # ---- expected_false_alarms ----
     add("expected_false_alarms", "k10_30d", k_indicators=10, days=30, alpha=0.001)
@@ -383,6 +426,51 @@ def build_vectors() -> dict[str, list[dict]]:
                      ("df_above_1e6_rejected", {"sd": 1.0, "n": 1000002}),
                      ("overflow_rejected", {"sd": 1e308, "n": 14})):
         add("min_detectable_change", name, **kw)
+
+    # ---- chance_rate: how often an indicator flags with no real change (nominal, or measured and declared) ----
+    measured = {"caution_multiplier": 0.45, "flag_multiplier": 0.24, "text": "fixture: measured by Monte Carlo",
+                "chip": "derived", "source": {"kind": "derived", "from": ["pvt_lapses"], "arithmetic": "fixture"}}
+    add("chance_rate", "nominal_one_sided_increase", indicator=pvt, cfg=cfg)
+    add("chance_rate", "nominal_one_sided_decrease", indicator=sleep, cfg=cfg)
+    add("chance_rate", "nominal_either_counts_both_directions", indicator=skin, cfg=cfg)
+    add("chance_rate", "nominal_non_alerting_never_cautions", indicator=mood, cfg=cfg)
+    add("chance_rate", "nominal_midpoint_either", indicator=mid_ind, cfg=cfg)
+    add("chance_rate", "measured_declared_multipliers", indicator=dict(pvt_a, chance_rate=measured), cfg=cfg)
+    add("chance_rate", "measured_non_alerting", indicator=dict(mood, chance_rate=dict(measured, caution_multiplier=0.99,
+                                                                                      flag_multiplier=0.5)), cfg=cfg)
+    add("chance_rate", "measured_either", indicator=dict(skin, chance_rate=dict(measured, caution_multiplier=1.6,
+                                                                                flag_multiplier=1.6)), cfg=cfg)
+    add("chance_rate", "measured_zero_never_flags", indicator=dict(pvt, chance_rate=dict(measured, caution_multiplier=0,
+                                                                                         flag_multiplier=0)), cfg=cfg)
+    add("chance_rate", "measured_zero_non_alerting", indicator=dict(mood, chance_rate=dict(measured, flag_multiplier=0)),
+        cfg=cfg)
+    add("chance_rate", "integer_multiplier", indicator=dict(pvt, chance_rate=dict(measured, caution_multiplier=3,
+                                                                                  flag_multiplier=2)), cfg=cfg)
+    add("chance_rate", "text_without_note", indicator=dict(pvt, chance_rate={k: v for k, v in measured.items()
+                                                                             if k != "text"}), cfg=cfg)
+    add("chance_rate", "alpha_0_05_rounds_n", indicator=pvt, cfg=dict(cfg, alpha_two_tailed=0.05))
+    add("chance_rate", "alpha_0_3_small_n", indicator=skin, cfg=dict(cfg, alpha_two_tailed=0.3))
+    add("chance_rate", "tiny_alpha_fewer_than_10_12", indicator=pvt, cfg=dict(cfg, alpha_two_tailed=1e-13))
+    add("chance_rate", "n_rounds_to_two_significant_figures", indicator=dict(pvt, chance_rate=dict(
+        measured, caution_multiplier=0.37)), cfg=cfg)
+    add("chance_rate", "n_just_below_1000", indicator=dict(skin, chance_rate=dict(measured, caution_multiplier=1.0004,
+                                                                                   flag_multiplier=1.0004)), cfg=cfg)
+    for name, decl in (("negative_multiplier_rejected", dict(measured, caution_multiplier=-0.1)),
+                       ("nan_multiplier_rejected", dict(measured, flag_multiplier=NAN)),
+                       ("string_multiplier_rejected", dict(measured, caution_multiplier="0.45")),
+                       ("boolean_multiplier_rejected", dict(measured, flag_multiplier=True)),
+                       ("missing_multiplier_rejected", {k: v for k, v in measured.items() if k != "flag_multiplier"}),
+                       ("declaration_not_an_object_rejected", 0.45),
+                       ("declaration_without_chip_rejected", {k: v for k, v in measured.items() if k != "chip"}),
+                       ("declaration_without_source_rejected", {k: v for k, v in measured.items() if k != "source"}),
+                       ("rate_above_one_per_day_rejected", dict(measured, caution_multiplier=5000))):
+        add("chance_rate", name, indicator=dict(pvt, chance_rate=decl), cfg=cfg)
+    add("chance_rate", "cfg_without_alpha_rejected", indicator=pvt,
+        cfg={k: v for k, v in cfg.items() if k != "alpha_two_tailed"})
+    add("chance_rate", "cfg_alpha_out_of_range_rejected", indicator=pvt, cfg=dict(cfg, alpha_two_tailed=1.5))
+    add("chance_rate", "indicator_without_worse_rejected", indicator={k: v for k, v in pvt.items() if k != "worse"},
+        cfg=cfg)
+    add("chance_rate", "unknown_transform_rejected", indicator=dict(pvt, transform="sqrt"), cfg=cfg)
 
     # ---- new_case ----
     case_def = fx["case"]
@@ -480,6 +568,33 @@ def build_vectors() -> dict[str, list[dict]]:
     s_ = step("tick_reassess_resolved", s_, {"type": "TICK", "t": t0 + 300 + 3 * DAY, "observations": obs_ok})
     step("tick_after_resolved_ignored", s_, {"type": "TICK", "t": t0 + 300 + 4 * DAY, "observations": []})
     step("dismiss_after_resolved_rejected", s_, {"type": "DISMISS", "reason": "late", "t": t0 + 300 + 4 * DAY})
+    # ---- case_reduce: case instances; a closed case opens again as the next instance (S4) ----
+    resolved_state = s_
+    r2 = step("reopen_after_resolved_new_instance", resolved_state,
+              {"type": "OPEN", "finding": finding, "t": t0 + 300 + 5 * DAY})
+    r2a = step("reopened_instance_runs_again", r2, {"type": "SELECT", "countermeasure_id": "cm_alt_1",
+                                                    "t": t0 + 300 + 5 * DAY + 60})
+    r2w = step("reopened_instance_outcome_arms_its_own_tripwire", r2a,
+               {"type": "OUTCOME", "text": "Re-measured.", "t": t0 + 300 + 5 * DAY + 120})
+    # instance 1's readings (before this watch started) do not count again; only the new ones decide
+    step("reopened_instance_tripwire_judged_on_its_own_readings", r2w,
+         {"type": "TICK", "t": t0 + 300 + 8 * DAY + 120,
+          "observations": obs_ok + [dict(obs_ok[0], value=6, t=t0 + 300 + 6 * DAY),
+                                    dict(obs_ok[0], value=1, t=t0 + 300 + 7 * DAY)]})
+    step("open_while_open_rejected", r2, {"type": "OPEN", "finding": finding, "t": t0 + 300 + 5 * DAY + 1})
+    step("reopen_time_reversed_rejected", resolved_state,
+         {"type": "OPEN", "finding": finding, "t": t0 + 300 + 2 * DAY})
+    step("reopen_below_threshold_rejected", resolved_state,
+         {"type": "OPEN", "finding": dict(finding, severity="advisory"), "t": t0 + 300 + 5 * DAY})
+    step("reopen_not_a_trigger_rejected", resolved_state,
+         {"type": "OPEN", "finding": dict(finding, rule_id="mood"), "t": t0 + 300 + 5 * DAY})
+    step("malformed_state_without_instance_raises", {k: v for k, v in resolved_state.items() if k != "instance"},
+         {"type": "TICK", "t": t0 + 300 + 5 * DAY, "observations": []})
+    step("malformed_state_instance_zero_raises", dict(resolved_state, instance=0),
+         {"type": "TICK", "t": t0 + 300 + 5 * DAY, "observations": []})
+    step("malformed_state_without_previous_instances_raises",
+         {k: v for k, v in resolved_state.items() if k != "previous_instances"},
+         {"type": "TICK", "t": t0 + 300 + 5 * DAY, "observations": []})
 
     # ---- case_reduce: tripwire 2-of-3 -> escalated, judged only at reassess time (T+72 h) ----
     obs_bad = [{"crew_id": "CM-1", "variable": "pvt_lapses", "value": v, "unit": "count", "t": t0 + 300 + d * 43200}
@@ -492,7 +607,7 @@ def build_vectors() -> dict[str, list[dict]]:
               {"type": "TICK", "t": t0 + 300 + 3 * 43200, "observations": obs_bad})
     s_ = step("tripwire_two_of_three_escalated_at_reassess", s_,
               {"type": "TICK", "t": t0 + 300 + 3 * DAY, "observations": obs_bad})
-    step("open_after_escalated_rejected", s_, {"type": "OPEN", "finding": finding, "t": t0 + 300 + 4 * DAY})
+    step("reopen_after_escalated_new_instance", s_, {"type": "OPEN", "finding": finding, "t": t0 + 300 + 4 * DAY})
     vehicle_obs = {"crew_id": None, "variable": "pvt_lapses", "value": 7, "unit": "count", "t": t0 + 400}
     step("tick_vehicle_obs_crew_id_null_counts", watch_state,
          {"type": "TICK", "t": t0 + 500, "observations": [vehicle_obs]})
@@ -510,8 +625,12 @@ def build_vectors() -> dict[str, list[dict]]:
     step("select_alternative", opened, {"type": "SELECT", "countermeasure_id": "cm_alt_1", "t": t0 + 1})
     step("time_reversed_rejected", opened, {"type": "SELECT", "countermeasure_id": "cm_primary", "t": t0 - 1})
     step("dismiss_without_reason_rejected", opened, {"type": "DISMISS", "reason": " ", "t": t0 + 2})
-    step("dismiss_from_detected", opened, {"type": "DISMISS", "reason": "Sensor off-wrist; repeat test normal.",
-                                           "t": t0 + 2})
+    dismissed = step("dismiss_from_detected", opened, {"type": "DISMISS",
+                                                       "reason": "Sensor off-wrist; repeat test normal.", "t": t0 + 2})
+    third = step("reopen_after_dismissed_new_instance", dismissed, {"type": "OPEN", "finding": finding, "t": t0 + 3})
+    third = run("case_reduce", {"state": third, "event": {"type": "DISMISS", "reason": "Off-wrist again.",
+                                                          "t": t0 + 4}})["expect"]
+    step("third_instance_keeps_both_previous", third, {"type": "OPEN", "finding": finding, "t": t0 + 5})
     step("tick_outside_watch_ignored", opened, {"type": "TICK", "t": t0 + 5, "observations": obs_bad})
     step("tick_unit_mismatch_rejected", watch_state,
          {"type": "TICK", "t": t0 + 300 + DAY,
@@ -685,7 +804,8 @@ def _alpha_from_z(z: object) -> object:
 def _upgrade_state(state: object) -> None:
     """Give an old case state the fields new_case now writes, with the values of a case that has no
     required, red-flag or packet steps: spec env_id and condition.ref_id (null), the step lists (empty),
-    and the state's steps_declined (empty), escalation and packet_queued_at (null)."""
+    the state's steps_declined (empty), escalation and packet_queued_at (null), and its first instance
+    (instance 1, no previous_instances)."""
     if not isinstance(state, dict):
         return
     spec = state.get("spec")
@@ -694,6 +814,8 @@ def _upgrade_state(state: object) -> None:
     state.setdefault("steps_declined", [])
     state.setdefault("escalation", None)
     state.setdefault("packet_queued_at", None)
+    state.setdefault("instance", 1)
+    state.setdefault("previous_instances", [])
     spec.setdefault("env_id", None)
     for key in ("required_step_ids", "red_flag_step_ids", "packet_step_ids", "step_inputs"):
         spec.setdefault(key, [])
@@ -770,14 +892,57 @@ def _random_mdc_args(rng: random.Random) -> dict:
     return args
 
 
+def _random_multiplier(rng: random.Random) -> object:
+    u = rng.random()
+    if u < 0.5:
+        return round(rng.uniform(0.0, 3.0), 2)
+    if u < 0.7:
+        return rng.choice([0, 1, 0.45, 0.24, 2, 1.0004])
+    if u < 0.85:
+        return rng.uniform(0.0, 60.0)
+    return rng.choice([-0.1, NAN, INF, "0.5", True, None])
+
+
+def _random_chance_rate_args(rng: random.Random, k: int) -> dict:
+    ind = {"id": f"rand_ind_{k}", "variable": "x", "unit": rng.choice(["count", "h", "mL"]),
+           "worse": rng.choice(["increase", "decrease", "either", "either", "increase", "sideways"]),
+           "alerting": rng.choice([True, True, True, False, False, "yes"])}
+    if rng.random() < 0.2:
+        ind["transform"] = rng.choice(["anscombe", None, "log"])
+    if rng.random() < 0.03:
+        del ind[rng.choice(["id", "variable", "unit", "worse", "alerting"])]
+    u = rng.random()
+    if u < 0.4:
+        pass
+    elif u < 0.9:
+        decl = {"caution_multiplier": _random_multiplier(rng), "flag_multiplier": _random_multiplier(rng),
+                "chip": "derived", "source": {"kind": "derived", "from": ["x"], "arithmetic": "random"}}
+        if rng.random() < 0.7:
+            decl["text"] = rng.choice(["random note", 5, None])
+        if rng.random() < 0.08:
+            del decl[rng.choice(["caution_multiplier", "flag_multiplier", "chip", "source"])]
+        ind["chance_rate"] = decl
+    else:
+        ind["chance_rate"] = rng.choice([0.5, "measured", [1, 1], True])
+    cfg = {"alpha_two_tailed": 0.001 if rng.random() < 0.4 else _random_unit_interval(rng, [0, 1, -0.5, NAN, True,
+                                                                                            "0.001"]),
+           "min_baseline_n": 7, "chip": "literature", "source": {"kind": "literature", "citation": "random"}}
+    if rng.random() < 0.04:
+        del cfg[rng.choice(["alpha_two_tailed", "chip", "source", "min_baseline_n"])]
+    return {"indicator": ind, "cfg": cfg}
+
+
 def random_inputs(fn: str, n: int = 160) -> list[dict]:
-    """Seeded inputs for a function that has no random file yet (the t distribution and the minimum
-    detectable change so far)."""
+    """Seeded inputs for a function that has no random file yet (the t distribution, the minimum
+    detectable change and the chance rate so far)."""
     rng = random.Random(f"{RANDOM_SEED}:{fn}")
     out = []
-    for _ in range(n):
+    for k in range(n):
         if fn == "min_detectable_change":
             out.append(_random_mdc_args(rng))
+            continue
+        if fn == "chance_rate":
+            out.append(_random_chance_rate_args(rng, k))
             continue
         df = _random_df(rng)
         if fn == "t_cdf":

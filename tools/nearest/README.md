@@ -157,7 +157,7 @@ the next passing one; the new passage then needs its own verdict. `test_nearest.
 - Result: 48 of 48 `ok`. Nothing was dropped, so the cut rule never applied, and re-running `rank.py`
   with `review.json` in place gave a byte-identical `nearest.json` (run log below).
 - The verdict judges the text only. Separately, the reviewer flagged the shown passages that weaken or
-  contradict their claim (`SME:` in the notes). They stay shown: that is the point of the list.
+  contradict their claim (`Reviewer:` in the notes). They stay shown: that is the point of the list.
   - `storage`: [V2 6020] (automatic recording of atmosphere data) contradicts the old wording "No data
     storage or log-duration requirement"; [V2 9120] weakens it slightly. None of them sets a capacity,
     retention or duration.
@@ -171,17 +171,16 @@ the next passing one; the new passage then needs its own verdict. `test_nearest.
 ## Notes (`web/src/features/nearest/notes.json`)
 
 LANDFALL's own sentences, written after the review and shown under the card they are about: one factual
-sentence under a shown passage the reviewer flagged, quoting NASA's words. Two claims have one:
-`sensor_set` ([V2 6088]) and `storage` ([V2 6020]). Every phrase in curly
+sentence under a shown passage the reviewer flagged, quoting NASA's words. Three claims have one:
+`sensor_set` ([V2 6088]), `storage` ([V2 6020]) and `alert_number` ([V2 6153]). Every phrase in curly
 quotes is listed in the note's `quotes` with its requirement and part (statement or rationale), and the
 tests check it against `nearest.json`, the corpus and pdfminer's text of the PDF page. A note never
 changes a rank, a count, a pattern or a claim; `rank.py` does not read it.
 
-A third note, under [V2 6153] for `alert_number`, was withdrawn on 15 Nov 2026. It said that Vol 2 sets
-dust limits in numbers ([V2 6053]) but never says how close counts as "approaching". That disagreed with
-the `std_vol2` snapshot's volume reading, which the gap section shows just above the list: the alert
-requirements, [V2 6153] among them, "delegate limits to the program". Rewording that reading is a snapshot
-change for the lead to decide; until then the page carries one reading.
+The `alert_number` note under [V2 6153] was withdrawn on 15 Nov 2026 while the `std_vol2` volume reading said the
+alert requirements "delegate limits to the program". It was restored in round 5, once the reading said they "leave the
+alert point to the program", even where Vol 2 sets the limit itself. The note says that Vol 2 sets the lunar dust limit
+itself ([V2 6053]) but never says how close counts as "approaching".
 
 ## The storage claim, narrowed (lead's decision, 15 Nov 2026)
 

@@ -4,7 +4,7 @@
 
 ![LANDFALL's Now view at a Mars surface base during a solar conjunction: with no link, Houston's earliest reply is days away, while LANDFALL's onboard guidance is already on screen. Simulated crew data.](web/public/og.png)
 
-LANDFALL is offline-first health-monitoring software for crews who cannot wait for Houston. It checks each crewmember against the limits NASA and NOAA publish (Tier A: NASA-STD-3001 requirements frozen verbatim, an HRP evidence report's urine target and the NOAA S-scale) and against their own baseline (Tier B: a single-case test whose chance rate is measured and printed). A trigger reaching Caution or Warning opens one of three guided cases (radiation shelter, renal stone risk, sleep): one countermeasure, required steps, a reassessment tripwire, and escalation to the onboard Crew Medical Officer now and to the flight surgeon through a consent-filtered FHIR packet that waits for the link. NASA-STD-3001 leaves alert numbers to programs, so every number LANDFALL chose is labelled "design choice", and every case also prints as a paper cue card for when the screen is lost. The demo is a simulated Mars crew inside a solar conjunction modelled from JPL Horizons, during a replay of the real October 1989 proton event.
+LANDFALL is offline-first health-monitoring software for crews who cannot wait for Houston. It checks each crewmember against NASA's limits and NOAA's storm-scale thresholds (Tier A: NASA-STD-3001 requirements frozen verbatim, an HRP evidence report's urine target and the NOAA S-scale) and against their own baseline (Tier B: a single-case test whose chance rate is measured and printed). A trigger reaching Caution or Warning opens one of three guided cases (radiation shelter, renal stone risk, sleep): one countermeasure, required steps, a reassessment tripwire, and escalation to the onboard Crew Medical Officer now (the Commander, the crew's second Crew Medical Officer, when the CMO is the patient) and to the flight surgeon through a consent-filtered FHIR packet that waits for the link. Escalations and overdue reassessments also raise annunciator alerts. NASA-STD-3001 leaves alert numbers to programs, so every number LANDFALL chose is labelled "design choice", and every case also prints as a paper cue card for when the screen is lost. The demo is a simulated Mars crew inside a solar conjunction modelled from JPL Horizons, during a replay of the real October 1989 proton event.
 
 - **Live app:** https://landfall.landfall-web.workers.dev (static files, no backend; it reloads offline after one visit)
 - **Demo video (30 s):** [VIDEO-TBC]
@@ -15,13 +15,13 @@ LANDFALL is offline-first health-monitoring software for crews who cannot wait f
 Each link opens one view. `?env=` sets the environment (`iss`, `cislunar`, `lunar_surface` or `mars_surface`), and the footer's "Copy link to this view" makes a link to any view.
 
 1. https://landfall.landfall-web.workers.dev/ : the scenario plays unprompted. Houston's earliest reply is 11 d 06 h away; LANDFALL's guidance is on screen in hundredths of a second.
-2. https://landfall.landfall-web.workers.dev/#/case/spe_shelter?env=mars_surface : open "Why this fired" for the reading, the limit, the margin and the requirement.
+2. https://landfall.landfall-web.workers.dev/#/case/spe_shelter?env=mars_surface : open "Why this fired" for the reading, the NOAA S3 threshold it reached, how far above it, and the requirement behind the rule.
 3. https://landfall.landfall-web.workers.dev/#/method?s=gap : NASA-STD-3001's alert requirements leave the number to the program, verbatim.
 4. https://landfall.landfall-web.workers.dev/#/provenance?chip=design+choice : the 54 of 107 rule entries that are ours.
-5. https://landfall.landfall-web.workers.dev/#/radiation?env=mars_surface : the MSL RAD team's published storm rule (Löwe et al. 2025) replayed on the whole Curiosity RAD record that NASA's iSWA serves and checked row by row against the paper; STS-34 in orbit during the 1989 storm.
+5. https://landfall.landfall-web.workers.dev/#/radiation?env=mars_surface : the MSL RAD team's published storm rule (Löwe et al. 2025) replayed on the whole Curiosity RAD record that NASA's iSWA serves and checked row by row against the paper (7 of its 16 Table 1 surface rows reproduce; every difference is printed); STS-34 in orbit during the 1989 storm.
 6. https://landfall.landfall-web.workers.dev/#/card/spe_shelter : the paper cue card ([V2 10130]); https://landfall.landfall-web.workers.dev/#/cards prints all three.
-7. https://landfall.landfall-web.workers.dev/#/body?env=iss&crew=CM-2&region=heart and https://landfall.landfall-web.workers.dev/#/body?env=mars_surface&crew=CM-2&region=heart : one VO₂max reading (35.1 ml/min/kg) meets NASA's microgravity-EVA floor [V1 4001] and misses the surface-EVA floor [V1 4002].
-8. https://landfall.landfall-web.workers.dev/#/method?s=coverage : LANDFALL's scope scored against NASA's sample Integrated Medical Model output (Vol 1 Table E.2-1).
+7. https://landfall.landfall-web.workers.dev/#/body?env=iss&crew=CM-2&region=muscles and https://landfall.landfall-web.workers.dev/#/body?env=mars_surface&crew=CM-2&region=muscles : one VO₂max reading (35.1 ml/min/kg) meets NASA's microgravity-EVA floor [V1 4001] and misses the surface-EVA floor [V1 4002], so at Mars it reads "EVA fitness floor not met"; EVA clearance itself is ground medical support's [V1 6006].
+8. https://landfall.landfall-web.workers.dev/#/method?s=coverage : LANDFALL's scope scored against NASA's sample Integrated Medical Model output (Vol 1 Table E.2-1): 13.6 % watched by a case, 23.2 % asked daily, 6.3 % asked by a symptom only, 56.9 % not measurable here. Watched or asked does not mean detected.
 9. https://landfall.landfall-web.workers.dev/#/band and https://landfall.landfall-web.workers.dev/#/data : the NOT MEASURABLE HERE boundary of the wearable concept; all 26 data snapshots and their caveats.
 
 ## Real or simulated
@@ -47,13 +47,13 @@ Each link opens one view. `?env=` sets the environment (`iss`, `cislunar`, `luna
 ```bash
 git clone https://github.com/amaroguilherme/landfall && cd landfall
 uv sync --all-extras
-uv run pytest -q                          # 1,359 passed, 11 skipped on a fresh clone
+uv run pytest -q                          # 1,365 passed, 11 skipped on a fresh clone
 uv run python -m engine.vectors --check   # "vectors up to date": 801 fixed + 5,659 seeded random = 6,460
-cd web && npm ci && npx vitest run        # 6,916 passed, 1 skipped (25 files)
+cd web && npm ci && npx vitest run        # 7,011 passed, 1 skipped (27 files)
 npx tsc -p tsconfig.app.json --noEmit && npx vite build
 ```
 
-Measured on 14–15 November 2026 on the code deployed as commit a68016d. Of the 11 Python skips, 3 are tests superseded by the scenario generator's own Tier B report, and 8 re-parse cached sources (the Vol 1 PDF, the arXiv preprint and the iSWA RAD record, the STS-34 sources) that live in the gitignored `.cache/`; with that cache present, pytest reports 1,367 passed (1,025 engine, 342 ingest) and 3 skipped. The TypeScript suite replays every shared vector in the browser engine (`web/src/engine/conformance.test.ts`), and the two engines agree to 1e-9.
+Measured on 15 November 2026 on the code deployed as commit a796d65 (a clean export of that tree builds the live site byte for byte). Of the 11 Python skips, 3 are tests superseded by the scenario generator's own Tier B report, and 8 re-parse cached sources (the Vol 1 PDF, the arXiv preprint and the iSWA RAD record, the STS-34 sources) that live in the gitignored `.cache/`; with that cache present, pytest reports 1,373 passed (1,027 engine, 346 ingest) and 3 skipped. The TypeScript suite replays every shared vector in the browser engine (`web/src/engine/conformance.test.ts`), and the two engines agree to 1e-9.
 
 ## Architecture
 

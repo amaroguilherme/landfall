@@ -45,11 +45,10 @@ import {
   EMPTY_ANSWERS,
   EMPTY_KIT,
   PROVENANCE_MEASURED,
-  RENAL_SYMPTOMS,
   SYMPTOMS,
-  URGENT_SYMPTOMS,
   baselineMean,
   buildObservations,
+  catchAllLine,
   collectFixes,
   computeStreak,
   kitSchedule,
@@ -57,10 +56,11 @@ import {
   logbookText,
   metDayOf,
   parseMl,
+  routeSymptoms,
   seriesPoints,
   simMember,
   simObservations,
-  symptomLabel,
+  tierOnePhrase,
   weekCompleteness,
 } from './record'
 import type { KitDraft, NoonAnswers, SimCrewData, SimCrewMember, SymptomId } from './record'
@@ -506,6 +506,8 @@ function NoonSightView({ crewId, initialStep }: { crewId: CrewId; initialStep: S
                   </label>
                 ))}
               </fieldset>
+              {/* The catch-all: a plain line, not a SymptomId, never recorded (so the IMM coverage map and the packet stay as they are). */}
+              <p className="ns-note">{catchAllLine(tierOnePhrase(tierOneFor(crewId)))}</p>
               <p className="ns-note">
                 LANDFALL records what you report. It does not diagnose and it does not suggest medicine.
               </p>
@@ -558,67 +560,37 @@ function NoonSightView({ crewId, initialStep }: { crewId: CrewId; initialStep: S
 // Pieces
 // ---------------------------------------------------------------------------------------------
 
-/** Plain-language list: "a, b and c". */
-function listWords(items: string[]): string {
-  if (items.length <= 1) return items.join('')
-  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
-}
-
 /**
- * What a ticked symptom asks of the crewmember. Escalation has two tiers (meta.json escalation):
- * the Crew Medical Officer now (the backup, the Commander, when the Crew Medical Officer is the patient),
- * the flight surgeon with the link. No diagnosis, no medicine.
+ * What the ticked symptoms ask of the crewmember: routeSymptoms (record.ts) decides, from the ticks, this crewmember's
+ * renal and shelter case statuses, the link and tier 1 (the Crew Medical Officer; on the Crew Medical Officer's own
+ * report, the crew's second Crew Medical Officer, the Commander). No diagnosis, no medicine.
  */
 function SymptomPrompts({ symptoms, crewId }: { symptoms: Record<SymptomId, boolean>; crewId: CrewId }) {
   const comms = useComms()
   const { get } = useCases()
-  const renal = RENAL_SYMPTOMS.filter((id) => symptoms[id])
-  const urgent = URGENT_SYMPTOMS.filter((id) => symptoms[id])
-  if (!renal.length && !urgent.length) return null
-  const renalStatus = get('renal_stone', crewId)?.state.status ?? 'idle'
-  // Tier 1 for this crewmember: the Crew Medical Officer, or the Commander on the Crew Medical Officer's own report.
-  const t1 = tierOneFor(crewId)
-  const who = t1.name
-  const tellNow = t1.backup ? `Tell ${t1.name} (${t1.crewId}), the backup medical officer, now.` : 'Tell your Crew Medical Officer now.'
-  const ground =
-    comms.link === 'AOS'
-      ? 'With the link up, Mission Control and the flight surgeon can join within the round trip.'
-      : `With no link now, ${who} acts onboard; the flight surgeon gets the case when the link resumes.`
+  const notes = routeSymptoms({
+    crewId,
+    symptoms,
+    cases: {
+      renal_stone: get('renal_stone', crewId)?.state.status ?? null,
+      spe_shelter: get('spe_shelter', crewId)?.state.status ?? null,
+    },
+    link: comms.link,
+    tier1: tierOnePhrase(tierOneFor(crewId)),
+  })
+  if (!notes.length) return null
   return (
     <>
-      {renal.length ? (
-        <div className="ns-procedure" role="note">
+      {notes.map((n) => (
+        <div key={n.kind} className="ns-procedure" role="note" data-note={n.kind}>
           <p>
-            <strong>{tellNow}</strong> {capitalize(listWords(renal.map((id) => symptomLabel(id).toLowerCase())))}{' '}
-            {renal.length === 1 ? 'is a red flag' : 'are red flags'} of the renal-stone procedure.{' '}
-            {renalStatus === 'acting'
-              ? `Your renal-stone case is open: answer its red-flag question there now. A “yes” escalates the case at once, to ${who} now and to the flight surgeon through the ground packet.`
-              : renalStatus === 'detected'
-                ? `Your renal-stone case is open: start it and answer its red-flag question. A “yes” escalates the case at once, to ${who} now and to the flight surgeon through the ground packet.`
-                : renalStatus === 'watch'
-                  ? `Your renal-stone case is in watch (its tripwire is armed), so ${who} decides what follows.`
-                  : renalStatus === 'escalated'
-                    ? `Your renal-stone case is already escalated: ${who} has it.`
-                    : `Your renal-stone case is not open now, so ${who} decides what follows.`}{' '}
-            {ground}
+            <strong>{n.lead}</strong> {n.text}
           </p>
-          <a href="#/case/renal_stone">Open the renal-stone case</a>
+          {n.href ? <a href={n.href}>{n.linkLabel}</a> : null}
         </div>
-      ) : null}
-      {urgent.length ? (
-        <div className="ns-procedure" role="note">
-          <p>
-            <strong>{tellNow}</strong> LANDFALL has no guided case for{' '}
-            {listWords(urgent.map((id) => symptomLabel(id).toLowerCase()))}: {who} uses the vehicle medical procedures. {ground}
-          </p>
-        </div>
-      ) : null}
+      ))}
     </>
   )
-}
-
-function capitalize(text: string): string {
-  return text ? text[0].toUpperCase() + text.slice(1) : text
 }
 
 function MetNowLabel() {

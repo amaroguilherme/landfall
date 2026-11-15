@@ -9,10 +9,12 @@ import type { ReactNode } from 'react'
 import { RULES, getIndicator } from '../../app/engine'
 import type { Indicator } from '../../app/engine'
 import { useCrewEvaluation } from '../../app/model'
+import { useMission } from '../../app/mission'
 import { tierOneFor } from '../../app/caseTimeline'
+import { environment } from '../../app/scenario'
 import type { CrewId } from '../../app/vocab'
 import { Chip, Expander, ExternalIcon, Num, UnavailableIcon } from '../../ui'
-import { KIT_ENTRY_RANGE_RATIONALE, KIT_INTERVAL_DAYS, KIT_SKIP_REASONS, KIT_SPECS, checkKit } from './record'
+import { KIT_ENTRY_RANGE_RATIONALE, KIT_INTERVAL_DAYS, KIT_SKIP_REASONS, KIT_SPECS, checkKit, cuffPosture, tellTierOne, tierOnePhrase } from './record'
 import type { Band, KitDraft, KitSchedule, KitSkipId, KitVariable } from './record'
 
 const KIT_VARIABLES: KitVariable[] = ['bp_systolic', 'bp_diastolic', 'glucose']
@@ -124,9 +126,12 @@ export function KitStep({
   stepNav: (p: { onBack: () => void; onNext: () => void; nextLabel: string; nextDisabled: boolean; skipHint?: string }) => ReactNode
 }) {
   const bands = useKitBands(crewId)
-  // Who to tell now: the Crew Medical Officer, or the backup (the Commander) when the Crew Medical Officer is the one reading.
-  const t1 = tierOneFor(crewId)
-  const tellNow = t1.backup ? `tell ${t1.name} (${t1.crewId}), the backup medical officer, now` : 'tell your Crew Medical Officer now'
+  // Who to tell now: the Crew Medical Officer, or, when the Crew Medical Officer is the one reading, the crew's second
+  // Crew Medical Officer (the Commander).
+  const tellNow = `tell ${tellTierOne(tierOnePhrase(tierOneFor(crewId)), 'now')}`
+  // The cuff posture follows the environment's gravity (environments.json): restrained only in weightlessness.
+  const { state } = useMission()
+  const posture = cuffPosture(environment(state.envId).gravity)
   const set = (patch: Partial<KitDraft>) => onDraft({ ...draft, ...patch })
   const sysInd = indicator('bp_systolic')
   const gluInd = indicator('glucose')
@@ -170,7 +175,7 @@ export function KitStep({
         <legend>Blood pressure, cuff</legend>
         <ol className="ns-how">
           <li>At the same time as your baseline readings: 30 minutes after waking, before breakfast.</li>
-          <li>Sit still for 5 minutes first (restrained, in weightlessness), back supported, arm resting at heart level.</li>
+          <li>Sit still for 5 minutes first ({posture}), back supported, arm resting at heart level.</li>
           <li>Cuff on the bare upper arm, the same arm every time. Stay quiet while it measures.</li>
           <li>Type the two numbers it shows: the top one (systolic) and the bottom one (diastolic).</li>
         </ol>
@@ -247,7 +252,7 @@ export function KitStep({
           </li>
           <li>
             A reading above your band (for glucose, above or below it) is a reliable change in the worse direction: it raises a caution
-            that asks you to repeat the reading and tell your Crew Medical Officer today.
+            that asks you to repeat the reading and tell a Crew Medical Officer today.
           </li>
         </ul>
         <Expander summary="Why there is no NASA number, and the entry checks">

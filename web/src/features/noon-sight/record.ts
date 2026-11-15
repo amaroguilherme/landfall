@@ -1,6 +1,10 @@
 // Pure helpers for the Noon Sight: reading the simulated crew record, the streak and weekly
-// logbook completeness (the sober gamification), and turning the crewmember's answers into
-// SPEC section 4 observations. No React; tested in record.test.ts.
+// logbook completeness (the sober gamification), what a ticked symptom asks of the crewmember,
+// and turning the crewmember's answers into SPEC section 4 observations. No React; tested in
+// record.test.ts.
+import { RULES } from '../../app/engine'
+import type { CaseStatus } from '../../app/engine'
+import type { TierOne } from '../../app/caseTimeline'
 import type { CrewId, Observation, ObservationSource } from '../../app/vocab'
 import type { PvtScore } from './pvt'
 
@@ -222,10 +226,10 @@ export function weekCompleteness(observations: readonly Observation[], crew: Cre
 }
 
 // ---------------------------------------------------------------------------------------------
-// Symptoms. The six renal ones are, in order and in the same words, the red flags of the renal-stone
-// case's red-flag question (engine/rules/cases.json renal_stone, step r4 red_flags; a test checks
-// them), which follow the HRR risk statement (D5). Chest pain, shortness of breath and a change in
-// vision have no LANDFALL case: they prompt "tell your Crew Medical Officer now".
+// Symptoms. The six renal ones are, in order and in the same words, the renal-stone case's red-flag
+// list (engine/rules/cases.json renal_stone, step r4 red_flags; a test checks them), which follows
+// the HRR risk statement (D5). Chest pain, shortness of breath and a change in
+// vision have no LANDFALL case: they prompt "tell your Crew Medical Officer now" (routeSymptoms below).
 // ---------------------------------------------------------------------------------------------
 
 export const SYMPTOMS = [
@@ -247,11 +251,199 @@ export type SymptomId = (typeof SYMPTOMS)[number]['id']
 /** The renal-stone case's red flags (cases.json renal_stone r4 red_flags, same order and words). */
 export const RENAL_SYMPTOMS: readonly SymptomId[] = ['flank_pain', 'blood_in_urine', 'painful_urination', 'fever_chills', 'nausea_vomiting', 'cannot_pass_urine']
 
-/** Symptoms no LANDFALL case covers that still mean "tell your Crew Medical Officer now". */
+/** Symptoms no LANDFALL case covers that still mean "tell your Crew Medical Officer now" (tier 1: the second Crew Medical Officer on CM-4's report). */
 export const URGENT_SYMPTOMS: readonly SymptomId[] = ['chest_pain', 'short_of_breath', 'vision_change']
 
 export function symptomLabel(id: SymptomId): string {
   return SYMPTOMS.find((s) => s.id === id)?.label ?? id
+}
+
+// ---------------------------------------------------------------------------------------------
+// Symptom routing: what the ticked symptoms ask of the crewmember. Two escalation tiers (meta.json
+// escalation): tier 1 onboard, now; the flight surgeon through a case's ground packet, with the link.
+// A symptom reaches a ground packet only through an open case that carries it (the renal case's packet
+// lists renal_symptoms); no other symptom has a case, so none has a packet. No diagnosis, no medicine,
+// and no claim about what causes a symptom.
+// ---------------------------------------------------------------------------------------------
+
+/** Statuses at which the prompts treat a case as open: an escalated case is still being acted on. */
+export const PROMPT_OPEN_STATUSES: readonly CaseStatus[] = ['detected', 'acting', 'watch', 'escalated']
+
+const isOpenForPrompts = (status: CaseStatus | null | undefined): boolean => !!status && PROMPT_OPEN_STATUSES.includes(status)
+
+interface MetaTexts {
+  packet_states?: Array<{ id?: unknown; label?: unknown }>
+  escalation?: { tiers?: Array<{ tier?: unknown; backup?: { role_text?: unknown } }> }
+}
+const META = (RULES.meta ?? {}) as unknown as MetaTexts
+
+/** meta.json packet_states label ("Prepared (held on board)", "Queued"): the words app/packet.ts packetStateLabel prints. */
+function packetLabel(id: 'prepared' | 'queued'): string {
+  const label = Array.isArray(META.packet_states) ? META.packet_states.find((d) => d?.id === id)?.label : undefined
+  return typeof label === 'string' && label ? label : id === 'prepared' ? 'Prepared (held on board)' : 'Queued'
+}
+
+/**
+ * The role of tier 1's backup, who takes tier 1 when the Crew Medical Officer is the patient: meta.json escalation tier 1
+ * `backup.role_text` when the rules carry it, else the same words.
+ */
+export const SECOND_CMO: string = (() => {
+  const t1 = Array.isArray(META.escalation?.tiers) ? META.escalation.tiers.find((t) => t?.tier === 1) : undefined
+  const text = t1?.backup?.role_text
+  return typeof text === 'string' && text.trim() ? text.trim() : "the crew's second Crew Medical Officer"
+})()
+
+/** How the prompts name tier 1 for this crewmember (from tierOneFor in app/caseTimeline.ts). */
+export interface TierOnePhrase {
+  /** Whom to tell: "your Crew Medical Officer", or on the Crew Medical Officer's own report "the Commander (CM-1), the crew's second Crew Medical Officer". */
+  tell: string
+  /** The same person as the subject of a sentence: "the Crew Medical Officer" / "the Commander". */
+  who: string
+  /** `tell` ends in an appositive, so a comma closes it before the next words. */
+  appositive: boolean
+}
+
+export function tierOnePhrase(t1: Pick<TierOne, 'name' | 'crewId' | 'backup'>): TierOnePhrase {
+  if (t1.backup) return { tell: `${t1.name}${t1.crewId ? ` (${t1.crewId})` : ''}, ${SECOND_CMO}`, who: t1.name, appositive: true }
+  return { tell: 'your Crew Medical Officer', who: t1.name, appositive: false }
+}
+
+/** "<tier 1> <tail>", with the comma that closes an appositive: tellTierOne(p, 'now'). */
+export function tellTierOne(p: TierOnePhrase, tail: string): string {
+  return `${p.tell}${p.appositive ? ',' : ''} ${tail}`
+}
+
+/** The catch-all line under the symptom list. It is not a SymptomId and is never recorded. */
+export function catchAllLine(p: TierOnePhrase): string {
+  return `Something else worries you? Tell ${tellTierOne(p, 'now')}; LANDFALL has no question for it.`
+}
+
+/** Plain-language list: "a, b and c". */
+export function listWords(items: readonly string[]): string {
+  if (items.length <= 1) return items.join('')
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+}
+
+const capitalize = (text: string): string => (text ? text[0].toUpperCase() + text.slice(1) : text)
+
+export interface SymptomNote {
+  kind: 'shelter' | 'renal' | 'urgent'
+  /** The instruction, shown first (bold). */
+  lead: string
+  /** What follows the instruction. */
+  text: string
+  /** The case the note links to, or null. */
+  href: string | null
+  linkLabel: string | null
+}
+
+export interface SymptomRoutingInput {
+  /**
+   * The crewmember reporting (the store's). The renal note links to this crewmember's own case: a #/case link without
+   * ?crew opens the first crewmember whose case is not idle (cases/model.ts pickCrew), so in the demo, from CM-1, CM-2 or
+   * CM-4, whose renal case is not open, it would open CM-3's. The shelter note shows only while this crewmember's shelter
+   * case is not idle, so its link opens this crewmember's case already.
+   */
+  crewId: CrewId
+  /** The ticked symptoms (unticked or absent = no). */
+  symptoms: Partial<Record<SymptomId, boolean>>
+  /** This crewmember's case statuses (useCases().get(caseId, crewId)?.state.status); absent or null = idle. */
+  cases: Partial<Record<'renal_stone' | 'spe_shelter', CaseStatus | null>>
+  /** The link now (useComms().link). */
+  link: 'AOS' | 'LOS'
+  /** tierOnePhrase(tierOneFor(crewId)). */
+  tier1: TierOnePhrase
+}
+
+/** A note as one string: its lead, then its text. */
+export function noteText(n: SymptomNote): string {
+  return n.text ? `${n.lead} ${n.text}` : n.lead
+}
+
+/**
+ * The notes for the ticked symptoms, in display order:
+ *   - shelter: any symptom while the radiation-shelter case is open (or escalated): tell tier 1 about it now. It never says
+ *     radiation causes the symptom;
+ *   - renal: a symptom on the renal-stone case's red-flag list, with what the renal case's status asks;
+ *   - urgent: a symptom no case covers that still means telling tier 1 now.
+ * The last sentence of the renal and urgent notes says how the ground hears of it. With the link up, the ground can join within
+ * the round trip. Without it, only an open case has a ground packet: the renal case's, for a renal symptom. Its packet is
+ * queued exactly when the case escalates, because the renal procedure has no crew-release step (a test checks it), so it is
+ * Prepared (held on board) until then. For anything else LANDFALL makes no packet, and tier 1 decides what the flight surgeon
+ * gets.
+ */
+export function routeSymptoms({ crewId, symptoms, cases, link, tier1 }: SymptomRoutingInput): SymptomNote[] {
+  const ticked = SYMPTOMS.filter((s) => symptoms[s.id] === true)
+  if (!ticked.length) return []
+  const who = tier1.who
+  const notes: SymptomNote[] = []
+
+  const shelter = cases.spe_shelter ?? 'idle'
+  if (isOpenForPrompts(shelter)) {
+    notes.push({
+      kind: 'shelter',
+      lead: `Your radiation-shelter case is ${shelter === 'escalated' ? 'escalated' : 'open'}: tell ${tellTierOne(tier1, 'about this now')};`,
+      text: 'LANDFALL does not judge what causes it.',
+      href: '#/case/spe_shelter',
+      linkLabel: 'Open the radiation-shelter case',
+    })
+  }
+
+  const tellNow = `Tell ${tellTierOne(tier1, 'now')}.`
+  const aos = 'With the link up, Mission Control and the flight surgeon can join within the round trip.'
+  const noPacket = (what: string) => `LANDFALL has no ${what} for this, so it makes no ground packet: ${who} decides what goes to the flight surgeon when the link resumes.`
+
+  const renal = RENAL_SYMPTOMS.filter((id) => symptoms[id] === true)
+  if (renal.length) {
+    const status = cases.renal_stone ?? 'idle'
+    const yes = `A “yes” escalates the case at once, to ${who} now and to the flight surgeon through the ground packet.`
+    const statusLine =
+      status === 'acting'
+        ? `Your renal-stone case is open: answer its red-flag question there now. ${yes}`
+        : status === 'detected'
+          ? `Your renal-stone case is open: start it and answer its red-flag question. ${yes}`
+          : status === 'watch'
+            ? `Your renal-stone case is in watch (its tripwire is armed), so ${who} decides what follows.`
+            : status === 'escalated'
+              ? `Your renal-stone case is already escalated: ${who} has it.`
+              : `Your renal-stone case is not open now, so ${who} decides what follows.`
+    const ground =
+      link === 'AOS'
+        ? aos
+        : !isOpenForPrompts(status)
+          ? noPacket('open case')
+          : status === 'escalated'
+            ? `With no link now, ${who} acts onboard; the case's ground packet is ${packetLabel('queued')} and goes to the flight surgeon when the link resumes.`
+            : `With no link now, ${who} acts onboard; the case's ground packet stays ${packetLabel('prepared')} until the case escalates, then it is ${packetLabel('queued')} and goes to the flight surgeon when the link resumes.`
+    notes.push({
+      kind: 'renal',
+      lead: tellNow,
+      text: `${capitalize(listWords(renal.map((id) => symptomLabel(id).toLowerCase())))} ${renal.length === 1 ? 'is' : 'are'} on the renal-stone red-flag list. ${statusLine} ${ground}`,
+      href: `#/case/renal_stone?crew=${crewId}`,
+      linkLabel: 'Open the renal-stone case',
+    })
+  }
+
+  const urgent = URGENT_SYMPTOMS.filter((id) => symptoms[id] === true)
+  if (urgent.length) {
+    notes.push({
+      kind: 'urgent',
+      lead: tellNow,
+      text: `LANDFALL has no guided case for ${listWords(urgent.map((id) => symptomLabel(id).toLowerCase()))}: ${who} uses the vehicle medical procedures. ${link === 'AOS' ? aos : noPacket('case')}`,
+      href: null,
+      linkLabel: null,
+    })
+  }
+  return notes
+}
+
+// ---------------------------------------------------------------------------------------------
+// Blood-pressure posture by gravity (environments.json `gravity`: microgravity, lunar, martian)
+// ---------------------------------------------------------------------------------------------
+
+/** How to sit for the cuff reading: restrained only in weightlessness; with gravity (lunar, martian), seated, feet on the floor. */
+export function cuffPosture(gravity: string | null | undefined): string {
+  return gravity === 'microgravity' ? 'restrained, in weightlessness' : 'seated, feet flat on the floor'
 }
 
 // ---------------------------------------------------------------------------------------------

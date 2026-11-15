@@ -603,8 +603,10 @@ def build_msl(ctx: RunContext) -> dict:
             "detector E'. The description does not say whether dose_e_total is RTG-corrected. "
             "headline_parameter (dose_e_total) is chosen because tissue-equivalent plastic is "
             "closer to tissue than silicon - a display choice, not a publisher recommendation.",
-            "The dataset startDate (2011-11-20) precedes landing, so early records are cruise "
-            "data; this snapshot uses only the most recent 90 days.",
+            "The dataset's /info startDate (2011-11-20) precedes landing, but the served series "
+            "starts at 2012-08-17T10:20:37Z: every earlier window returns HAPI 1406 'No data "
+            "available' (probed by the rad_events adapter), so it holds no cruise data. This "
+            "snapshot uses the latest 90 days.",
         ],
         derived_caveats=_msl_rtg_caveat)
 

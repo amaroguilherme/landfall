@@ -63,6 +63,8 @@ import {
   windowSeconds,
 } from './model'
 import type { DonkiData, HapiDoseData, IssTrackData, ProtonsLiveData, ReplayData, RequirementRec, SScaleData, SpeListData, TepcData } from './model'
+import MarsSepRecord, { MarsSepContext } from './MarsSepRecord'
+import StormWitnesses from './StormWitnesses'
 import '../trends/trends.css'
 import './radiation.css'
 
@@ -192,8 +194,8 @@ function ProtonPanel({
     ]
     if (env100) {
       out.push(
-        { label: '>=100 MeV seen', values: seen(env100.max), color: '--lf-text-2', width: 1, dash: [1, 2] },
-        { label: '>=100 MeV ahead', values: ahead(env100.max), color: '--lf-text-muted', width: 1, dash: [1, 3] },
+        { label: '≥100 MeV seen', values: seen(env100.max), color: '--lf-text-2', width: 1, dash: [1, 2] },
+        { label: '≥100 MeV ahead', values: ahead(env100.max), color: '--lf-text-muted', width: 1, dash: [1, 3] },
       )
     }
     return out
@@ -753,6 +755,7 @@ function OnboardDoseToday({ index, runtime, t, sim }: { index: ScenarioIndex; ru
         The quiet rate is the real MSL RAD detector-E median, which may include the rover’s own power-source background (see the dosimetry
         above).
       </p>
+      <MarsSepContext multiple={multiple} />
     </div>
   )
 }
@@ -997,6 +1000,7 @@ function MeasuredPanel({ envId, index, runtime, t, sim }: { envId: EnvId; index:
           </Expander>
         </>
       ) : null}
+      {envId === 'mars_surface' ? <MarsSepRecord /> : null}
       {envId === 'mars_surface' && index ? <OnboardDoseToday index={index} runtime={runtime} t={t} sim={sim} /> : null}
     </Panel>
   )
@@ -1325,6 +1329,7 @@ export default function Radiation(_props: FeatureProps) {
         t={t}
         envId={envId}
       />
+      <StormWitnesses />
       <MeasuredPanel envId={envId} index={index} runtime={runtime} t={t} sim={scenario.sim.data} />
       {index ? <LimitsPanel index={index} runtime={runtime} envId={envId} t={t} crewId={state.crewId} vol1={vol1} /> : null}
       <LiveGoesPanel

@@ -62,7 +62,7 @@ import {
   utcToMet,
   windowSeconds,
 } from './model'
-import type { DonkiData, HapiDoseData, IssTrackData, ProtonsLiveData, ReplayData, RequirementRec, SScaleData, SpeListData, TepcData } from './model'
+import type { DonkiData, HapiDoseData, IssTrackData, ProtonsLiveData, ReplayData, RequirementRec, SScaleData, SpeListData, TepcData, Transition } from './model'
 import MarsSepRecord, { MarsSepContext } from './MarsSepRecord'
 import StormWitnesses from './StormWitnesses'
 import '../trends/trends.css'
@@ -108,6 +108,23 @@ function Quote({ req, doc }: { req: RequirementRec | null; doc: string }) {
       </footer>
     </blockquote>
   )
+}
+
+/**
+ * The 1989 first-reach times split at the scenario clock: a level is "reached" only when its first sample is at or
+ * before the clock (met <= t); later ones are still ahead in the record, and an unmapped one (met null) is neither.
+ */
+export function reachOnClock(reach: readonly Transition[], t: number): { reached: Transition[]; ahead: Transition[] } {
+  return {
+    reached: reach.filter((r) => r.met !== null && r.met <= t),
+    ahead: reach.filter((r) => r.met !== null && r.met > t),
+  }
+}
+
+/** The first sentence of a requirement's frozen rationale that matches `re` (verbatim), or null. */
+export function rationaleSentence(req: RequirementRec | null, re: RegExp): string | null {
+  const sentences = (req?.rationale ?? '').match(/[^.]+\./g) ?? []
+  return sentences.map((x) => x.trim()).find((x) => re.test(x)) ?? null
 }
 
 function useMeta<T>(id: string | null) {
@@ -230,10 +247,21 @@ function ProtonPanel({
   const vlines = useMemo<VLineSpec[]>(() => [{ x: nowDay, label: 'NOW (scenario)', color: '--lf-text', labelAt: 'bottom' }], [nowDay])
   const trs = useMemo(() => (replay ? transitions(replay, mapping) : []), [replay, mapping])
   const reach = useMemo(() => firstReach(trs), [trs])
+  // "First reached" only up to the clock: the rest of the 1989 record is the dashed part ahead of it.
+  const { reached, ahead } = useMemo(() => reachOnClock(reach, t), [reach, t])
+  const neverInRecord = (scale?.levels ?? []).filter((l) => l.n > Math.max(0, ...reach.map((r) => r.level)))
   const marks = useMemo<MarkSpec[]>(() => {
     const out: MarkSpec[] = reach
       .filter((r) => r.met !== null)
-      .map((r) => ({ x: (r.met as number) / 86_400, y: scale?.levels.find((l) => l.n === r.level)?.threshold_pfu ?? 1, shape: 'diamond' as const, hollow: true, color: '--lf-text', size: 4.5, label: `S${r.level}` }))
+      .map((r) => ({
+        x: (r.met as number) / 86_400,
+        y: scale?.levels.find((l) => l.n === r.level)?.threshold_pfu ?? 1,
+        shape: 'diamond' as const,
+        hollow: true,
+        color: (r.met as number) <= t ? '--lf-text' : '--lf-text-muted',
+        size: 4.5,
+        label: `S${r.level}`,
+      }))
     // Label the >=100 MeV channel on the canvas at its peak, so the dotted trace is named where it is drawn.
     const p = replay?.max_ge100mev
     const pMs = p ? Date.parse(p.time_tag) : Number.NaN
@@ -241,13 +269,14 @@ function ProtonPanel({
       out.push({ x: utcToMet(pMs, mapping) / 86_400, y: p.flux_pfu, shape: 'circle', hollow: true, color: '--lf-text-2', size: 3.5, label: '≥100 MeV peak' })
     }
     return out
-  }, [reach, scale, replay, mapping, env100])
+  }, [reach, scale, replay, mapping, env100, t])
   const level = ops?.s_level ?? null
   const levelDef = scale?.levels.find((l) => l.n === level) ?? null
   // Where noaa_scale_available is false (Mars) the feed is the scenario's own space-weather monitor.
   const onboard = ops?.kind === 'onboard_monitor'
   const r6165 = findRequirement(vol2.reqs, 'V2 6165')
   const r6164 = findRequirement(vol2.reqs, 'V2 6164')
+  const earlyWarning = rationaleSentence(r6165, /early warning/)
   const listed = replay?.noaa_spe_list_entry?.start && speList ? speRank(speList, replay.noaa_spe_list_entry.start) : null
   const peak100 = replay?.max_ge100mev?.flux_pfu ?? null
   const noaa100 = replay?.noaa_note_oct1989_ge100mev_pfu ?? null
@@ -316,7 +345,7 @@ function ProtonPanel({
           yFormat={logLabel}
           height={260}
           onPlotWidth={(w) => setCols((c) => (Math.abs(c - Math.round(w)) >= 2 ? Math.max(60, Math.round(w)) : c))}
-          ariaLabel={`October 1989 GOES-7 proton flux replayed on the scenario clock, log scale: the ≥10 MeV channel with NOAA S1 to S5 thresholds (${reach.length} S-levels reached) and, dotted, the ≥100 MeV channel of the same file.`}
+          ariaLabel={`October 1989 GOES-7 proton flux replayed on the scenario clock, log scale: the ≥10 MeV channel with NOAA S1 to S5 thresholds (${reached.length} S-levels reached) and, dashed, the rest of the event${ahead.length ? `, where ${ahead.map((r) => `S${r.level}`).join(' and ')} ${ahead.length === 1 ? 'comes' : 'come'} later` : ''}; dotted, the ≥100 MeV channel of the same file.`}
         />
       ) : (
         <EmptyState kind={replayStatus === 'loading' ? 'loading' : 'missing'} title="Replay not available" headingLevel={3}>
@@ -369,12 +398,34 @@ function ProtonPanel({
         </p>
       ) : null}
       {reach.length ? (
-        <ul className="lf-rad-reach">
-          {reach.map((r) => (
-            <li key={r.level}>
-              <span className="lf-rad-s">S{r.level}</span> first reached {utcLabel(Date.parse(r.utc))} (1989){r.met !== null ? <> → <MetTime t={r.met} label /></> : null}
+        <ul className="lf-rad-reach" aria-label={`S-levels: ${reached.length} reached by the scenario clock`}>
+          {reach.map((r) =>
+            reached.includes(r) ? (
+              <li key={r.level} data-reached="">
+                <span className="lf-rad-s">S{r.level}</span> first reached {utcLabel(Date.parse(r.utc))} (1989) → <MetTime t={r.met as number} label />
+              </li>
+            ) : (
+              <li key={r.level} data-ahead={ahead.includes(r) || undefined}>
+                <span className="lf-rad-s">S{r.level}</span> in the 1989 record at {utcLabel(Date.parse(r.utc))}
+                {r.met !== null ? (
+                  <>
+                    {' '}
+                    → <MetTime t={r.met} label /> (not yet reached on this clock)
+                  </>
+                ) : null}
+              </li>
+            ),
+          )}
+          {neverInRecord.length ? (
+            <li>
+              {neverInRecord.map((l) => (
+                <span key={l.level}>
+                  <span className="lf-rad-s">{l.level}</span> (≥ <Num value={l.threshold_pfu} unit="pfu" />){' '}
+                </span>
+              ))}
+              is not reached anywhere in the 1989 record.
             </li>
-          ))}
+          ) : null}
         </ul>
       ) : null}
       {trs.length ? (
@@ -408,10 +459,12 @@ function ProtonPanel({
             <p>
               At {environment(envId).label} no NOAA alert reaches the crew in time, and none at all during solar conjunction. In this
               scenario the proton reading comes from an external space-weather monitor above the atmosphere, in Mars orbit, relayed to the
-              habitat locally with no Earth link needed: the kind of monitoring <ReqId id="V2 6165" /> requires. The habitat’s radiation
-              monitoring system raises the radiation alarm, as <ReqId id="V2 6164" /> requires; LANDFALL is not that alarm. It opens the
-              health case that follows and guides the crew through the shelter steps; an escalation goes to the Crew Medical Officer at
-              once and is queued for the flight surgeon until the link returns.
+              habitat locally with no Earth link needed (continuous relay is a scenario assumption). It is an external early-warning
+              monitor of the kind <ReqId id="V2 6165" />’s rationale describes: one ≥10 MeV channel, not the in-situ spectra{' '}
+              <ReqId id="V2 6165" /> asks for, so the shelter case lists the proton energy spectrum as not measurable here. The habitat’s
+              radiation monitoring system raises the radiation alarm, as <ReqId id="V2 6164" /> requires; LANDFALL is not that alarm. It
+              opens the health case that follows and guides the crew through the shelter steps; an escalation goes to the Crew Medical
+              Officer at once and is queued for the flight surgeon until the link returns.
             </p>
             <p className="lf-tr-muted">
               Scenario assumption: the monitor’s values are the GOES-7 October 1989 ≥10 MeV record, time-shifted, with no correction for
@@ -428,6 +481,14 @@ function ProtonPanel({
           </p>
         )}
         <Quote req={r6165} doc={vol2.doc} />
+        {onboard && earlyWarning ? (
+          <blockquote className="lf-rad-quote">
+            <p>“{earlyWarning}”</p>
+            <footer>
+              <ReqId id="V2 6165" /> rationale · {vol2.doc}
+            </footer>
+          </blockquote>
+        ) : null}
         <Quote req={r6164} doc={vol2.doc} />
       </div>
     </Panel>
@@ -436,7 +497,7 @@ function ProtonPanel({
 
 // ---- measured dose here --------------------------------------------------------------------------------------
 
-function SaaStrip({ track, snap, status }: { track: IssTrackData; snap: Snapshot<IssTrackData> | null; status: LoadStatus }) {
+export function SaaStrip({ track, snap, status }: { track: IssTrackData; snap: Snapshot<IssTrackData> | null; status: LoadStatus }) {
   // Wall clock read once per mount: "next" passes are judged against the real time the page opened.
   const [nowMs] = useState(() => Date.now())
   const plan = useMemo(() => nextPasses(track, snap?.retrieved_at ?? track.saa_rule.window.start, nowMs), [track, snap, nowMs])
@@ -474,6 +535,9 @@ function SaaStrip({ track, snap, status }: { track: IssTrackData; snap: Snapshot
       </p>
       <div className="lf-tr-table-wrap">
         <table className="lf-tr-table">
+          <caption className="lf-rad-caption">
+            All {fmt(plan.passes.length)} predicted {plan.passes.length === 1 ? 'pass' : 'passes'} in these 24 h
+          </caption>
           <thead>
             <tr>
               <th scope="col">Start (UTC)</th>
@@ -487,7 +551,7 @@ function SaaStrip({ track, snap, status }: { track: IssTrackData; snap: Snapshot
             </tr>
           </thead>
           <tbody>
-            {plan.passes.slice(0, 8).map((p) => (
+            {plan.passes.map((p) => (
               <tr key={p.start}>
                 <td className="num">{utcLabel(p.startMs)}</td>
                 <td className="num">
@@ -684,6 +748,18 @@ function TepcChart({ data }: { data: TepcData }) {
 interface SpeDayBlock {
   baseline?: { value?: number; unit?: string; parameter?: string; chip?: string; source?: Record<string, unknown> }
   scaling?: { dose_multiple_at_s3?: number; chip?: string; source?: Record<string, unknown> }
+  /** sim_crew's own crossings of the simulated habitat rate: "2x_baseline" -> {met_s, met}. */
+  crossings?: Record<string, { met_s?: number; met?: string }>
+}
+
+/** The simulated rate's crossings up to the S3-level multiple, in order ([multiple, MET]), from sim_crew's own report. */
+export function crossingsUpToS3(block: SpeDayBlock | undefined): Array<[number, number]> {
+  const atS3 = block?.scaling?.dose_multiple_at_s3
+  if (typeof atS3 !== 'number') return []
+  return Object.entries(block?.crossings ?? {})
+    .map(([k, v]) => [Number(/^(\d+(?:\.\d+)?)x_baseline$/.exec(k)?.[1]), v?.met_s] as [number, number | undefined])
+    .filter((x): x is [number, number] => Number.isFinite(x[0]) && typeof x[1] === 'number' && x[0] <= atS3)
+    .sort((a, b) => a[0] - b[0])
 }
 
 function OnboardDoseToday({ index, runtime, t, sim }: { index: ScenarioIndex; runtime: readonly Observation[]; t: number; sim: unknown }) {
@@ -692,6 +768,7 @@ function OnboardDoseToday({ index, runtime, t, sim }: { index: ScenarioIndex; ru
   const base = (sim as { spe_day?: SpeDayBlock })?.spe_day
   const quiet = typeof base?.baseline?.value === 'number' ? base.baseline.value : null
   const multiple = typeof base?.scaling?.dose_multiple_at_s3 === 'number' ? base.scaling.dose_multiple_at_s3 : null
+  const crossings = useMemo(() => crossingsUpToS3(base), [base])
   const x = useMemo(() => obs.map((o) => o.t), [obs])
   const lines = useMemo<LineSpec[]>(() => [{ label: 'simulated habitat dose rate', values: obs.map((o) => o.value), color: '--lf-text-2', width: 1.5 }], [obs])
   const hlines = useMemo<HLineSpec[]>(
@@ -742,7 +819,22 @@ function OnboardDoseToday({ index, runtime, t, sim }: { index: ScenarioIndex; ru
         {multiple !== null ? (
           <>
             The 1989 ≥10 MeV profile is mapped linearly so that NOAA’s S3 flux gives <Num value={multiple} unit="×" /> the measured Mars quiet
-            rate.{' '}
+            rate. Because the mapping is linear in the ≥10 MeV flux, the simulated habitat rate climbs from the S1 level on, hours before the
+            S3 trigger
+            {crossings.length ? (
+              <>
+                {' '}
+                (the simulated rate passes{' '}
+                {crossings.map(([k, met], i) => (
+                  <span key={k}>
+                    {i ? (i === crossings.length - 1 ? ' and ' : ', ') : ''}
+                    <Num value={k} unit="×" /> {i ? '' : 'the quiet rate '}at <MetTime t={met} label />
+                  </span>
+                ))}
+                , in the simulator’s own report)
+              </>
+            ) : null}
+            ; a habitat behind the Martian atmosphere responds mainly to the most energetic protons.{' '}
           </>
         ) : null}
         {rationale ? (

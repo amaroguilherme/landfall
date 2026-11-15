@@ -3,7 +3,7 @@
 // the measured context line under the habitat dose panel. A replay of a measured record: nothing here feeds the
 // engine, the rules, the hero or the scenario. Absorbed dose in plastic only; never converted, never compared
 // with a crew limit.
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useSnapshot } from '../../app/data'
 import type { LoadStatus, Snapshot } from '../../app/data'
@@ -15,6 +15,7 @@ import { unitText } from './model'
 import {
   SEP_SNAPSHOT_ID,
   STATUS_TEXT,
+  STORM_MATCH_DAYS,
   donkiGap,
   firstAuthorFamily,
   fmtDhm,
@@ -26,11 +27,14 @@ import {
   quoteById,
   rowsWithStatus,
   ruleQuotes,
+  s3StormsOnTable,
   tableRows,
   tableSummary,
   triggersWith,
+  unconfirmedOf,
+  unconfirmedText,
 } from './marsSep'
-import type { SepEventsData, Table1Row, TriggerFlag } from './marsSep'
+import type { SepEventsData, SpeListLike, Table1Row, TriggerFlag } from './marsSep'
 
 const chipFor = (kind: string, fallback: string) => CHIP_DEFS.find((c) => c.source_kind === kind)?.id ?? fallback
 const LIT = chipFor('literature', 'literature')
@@ -153,11 +157,15 @@ function resultText(r: Table1Row): string {
     const counts = Object.values(rp.samples_per_day ?? {})
     const sorted = [...counts].sort((a, b) => a - b)
     const typical = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0
-    const gap = typical > 0 && counts.some((n) => n < 0.5 * typical)
-    return `${base}${ratio !== null ? ` (max ${formatNumber(ratio, 2)} × within 48 h${gap ? ', iSWA gap' : ''})` : ''}`
+    const gap = typical > 0 && counts.some((n) => n < 0.5 * typical) ? ', iSWA gap' : ''
+    // A crossing the next sample did not confirm is not an onset (the paper's cross-check): say so, never "max 1.25 ×".
+    const un = unconfirmedOf(r)
+    if (un.length === 1) return `${base} (one sample at ${formatNumber(un[0].ratio_to_background, 3)} ×, not confirmed by the next${gap})`
+    if (un.length > 1) return `${base} (${un.length} samples above the threshold, none confirmed by the next${gap})`
+    return `${base}${ratio !== null ? ` (max ${formatNumber(ratio, 2)} × within 48 h${gap})` : ''}`
   }
   if (r.comparison.status === 'replay_triggered_paper_not') {
-    return `${base} (one sample at ${formatNumber(rp.peak.ratio_to_background, 2)} ×${rp.confirmation.above_threshold ? '' : ', not confirmed'})`
+    return `${base} (peak ${formatNumber(rp.peak.ratio_to_background, 2)} ×, confirmed by the next sample)`
   }
   return base
 }
@@ -246,38 +254,80 @@ function Table({ rows, caption }: { rows: Table1Row[]; caption: string }) {
 
 const dates = (rows: Table1Row[]) => rows.map((r) => r.paper_date).join(', ')
 
+/** "a", "a and b", "a, b and c": the summary's clauses, whatever the counts. */
+function joinClauses(parts: ReactNode[]): ReactNode {
+  return parts.map((p, i) => (
+    <Fragment key={i}>
+      {i === 0 ? null : i === parts.length - 1 ? ' and ' : ', '}
+      {p}
+    </Fragment>
+  ))
+}
+
 function Comparison({ data }: { data: SepEventsData }) {
   const rows = useMemo(() => tableRows(data), [data])
   const sum = useMemo(() => tableSummary(data), [data])
   const dev = rowsWithStatus(data, 'deviates')
   const miss = rowsWithStatus(data, 'not_reproduced')
+  const agree = rowsWithStatus(data, 'agrees_not_triggered')
   const only = rowsWithStatus(data, 'replay_triggered_paper_not')
   const tol = data.rule.reproduce
+  const gapS = data.rule.scan.max_pair_gap_s
+  // Rows the paper lists as not triggered where one sample crossed 1.25 × and the next did not confirm it.
+  const agreeUnconfirmed = agree.filter((r) => unconfirmedOf(r).length > 0)
+  const one = (n: number, singular: string, plural: string) => (n === 1 ? singular : plural)
+  const clauses: ReactNode[] = [
+    <>
+      <Num value={sum.counts.reproduced} /> {one(sum.counts.reproduced, 'reproduces', 'reproduce')} (total SEP dose within ±
+      <Num value={tol.dose_tol_pct} /> % and time to peak within ±<Num value={tol.time_to_peak_tol_min} /> min, a tolerance that is ours{' '}
+      <Chip kind={DESIGN} />)
+    </>,
+  ]
+  if (dev.length) {
+    clauses.push(
+      <>
+        <Num value={dev.length} /> {one(dev.length, 'deviates', 'deviate')} ({dev.map((r) => `${r.paper_date}, ${signedPct(r.comparison.total_pct ?? 0)}`).join('; ')})
+      </>,
+    )
+  }
+  if (miss.length) {
+    clauses.push(
+      <>
+        <Num value={miss.length} /> {one(miss.length, 'does', 'do')} not trigger in this replay ({dates(miss)})
+      </>,
+    )
+  }
+  if (agree.length) {
+    clauses.push(
+      <>
+        <Num value={agree.length} /> {one(agree.length, 'is', 'are')} not triggered in either
+        {agreeUnconfirmed.length ? (
+          <>
+            {' '}
+            (
+            {agreeUnconfirmed
+              .map((r) => `for ${r.paper_date}, ${unconfirmedOf(r).map((u) => unconfirmedText(u, gapS)).join('; ')}`)
+              .join('; ')}
+            )
+          </>
+        ) : null}
+      </>,
+    )
+  }
+  if (only.length) {
+    clauses.push(
+      <>
+        <Num value={only.length} /> {one(only.length, 'triggers', 'trigger')} here only ({dates(only)})
+      </>,
+    )
+  }
   return (
     <>
       <h4 className="lf-rad-h4">Replay against the paper’s Table 1 (Martian surface)</h4>
       <p className="lf-tr-muted">
-        Of the paper’s <Num value={sum.rows} /> rows, <Num value={sum.counts.reproduced} /> reproduce (total SEP dose within ±
-        <Num value={tol.dose_tol_pct} /> % and time to peak within ±<Num value={tol.time_to_peak_tol_min} /> min, a tolerance that is ours{' '}
-        <Chip kind={DESIGN} />)
-        {dev.length ? (
-          <>
-            , <Num value={dev.length} /> deviates ({dev.map((r) => `${r.paper_date}, ${signedPct(r.comparison.total_pct ?? 0)}`).join('; ')})
-          </>
-        ) : null}
-        {miss.length ? (
-          <>
-            , <Num value={miss.length} /> do not trigger in this replay ({dates(miss)})
-          </>
-        ) : null}
-        , <Num value={sum.counts.agrees_not_triggered} /> are not triggered in either
-        {only.length ? (
-          <>
-            {' '}
-            and <Num value={only.length} /> triggers here only ({dates(only)})
-          </>
-        ) : null}
-        . Largest events first; durations in the paper’s own format. Paper values <Chip kind={LIT} />, replay values <Chip kind={DERIVED} />
+        Of the paper’s <Num value={sum.rows} /> rows, {joinClauses(clauses)}. An onset counts only when the next sample, less than{' '}
+        <Num value={gapS / 3600} unit="h" /> later, is above the threshold too (the paper’s cross-check; the limit is ours <Chip kind={DESIGN} />
+        ). Largest events first; durations in the paper’s own format. Paper values <Chip kind={LIT} />, replay values <Chip kind={DERIVED} />
       </p>
       <Table rows={rows.slice(0, VISIBLE_ROWS)} caption={`The ${VISIBLE_ROWS} largest events in the paper’s table`} />
       <Expander summary={`The other ${rows.length - VISIBLE_ROWS} rows, deviations and misses included`}>
@@ -322,7 +372,9 @@ function RuleQuotes({ data }: { data: SepEventsData }) {
           <li key={r}>{r}</li>
         ))}
       </ul>
-      <p className="lf-tr-muted">How this replay applies it: {unitText(data.rule.method.join(' '))}</p>
+      <p className="lf-tr-muted">
+        How this replay applies it: {unitText(data.rule.method.join(' '))} <Chip kind={DESIGN} />
+      </p>
     </Expander>
   )
 }
@@ -466,22 +518,65 @@ export default function MarsSepRecord() {
   return <MarsSepRecordView data={s.status === 'ready' ? (s.data ?? null) : null} snap={(s.snapshot as Snapshot<SepEventsData> | null) ?? null} status={s.status} />
 }
 
-/** One measured context line under the habitat dose panel's assumed scaling (the scaling stays a design choice). */
+type StormsOnTable = ReturnType<typeof s3StormsOnTable>
+
+/**
+ * The measured context lines under the habitat dose panel's assumed scaling (the scaling stays a design choice): the
+ * range of the rule's peaks at Gale, then NOAA's S3 storms at Earth that fall on rows of the RAD team's table. No dose
+ * in µGy is printed, and a date match is never called the same event.
+ */
+export function MarsSepContextView({ data, storms, multiple }: { data: SepEventsData; storms: StormsOnTable | null; multiple: number | null }) {
+  const range = peakRatioRange(data)
+  if (!range) return null
+  const design =
+    multiple !== null ? (
+      <>
+        {' '}
+        The {formatNumber(multiple)}× above stays a design choice <Chip kind={DESIGN} />.
+      </>
+    ) : null
+  const ms = storms?.matches ?? []
+  return (
+    <>
+      <p className="lf-tr-muted lf-rad-sep-context">
+        For context, not a calibration: at Gale crater, the peak of each of the <Num value={range.n} /> triggers of the RAD team’s rule above in the MSL RAD record was{' '}
+        <Num value={Number(oneDecimal(range.min))} digits={1} unit="×" /> to <Num value={Number(oneDecimal(range.max))} digits={1} unit="×" /> its own 5-day
+        background (measured) <Chip kind={DERIVED} />.
+        {ms.length ? null : design}
+      </p>
+      {storms && ms.length ? (
+        <p className="lf-tr-muted lf-rad-sep-context" data-storms-on-rows="">
+          At Earth, NOAA’s list of solar proton events has <Num value={storms.inRecord} /> storms at S3 or above during Curiosity’s record
+          {storms.listEnd ? <> (this copy of the list ends on {storms.listEnd.slice(0, 10)})</> : null}. Of these, <Num value={ms.length} />{' '}
+          {ms.length === 1 ? 'falls' : 'fall'} within <Num value={STORM_MATCH_DAYS} /> days of a row of the RAD team’s surface table <Chip kind={DESIGN} />:{' '}
+          {ms.map((m, i) => (
+            <span key={m.start}>
+              {i ? (i === ms.length - 1 ? ' and ' : ', ') : ''}
+              {m.start.slice(0, 10)} (<Num value={m.peak_pfu} unit="pfu" digits={0} /> at Earth;{' '}
+              {m.row.paper_date !== m.start.slice(0, 10) ? `Table 1 row ${m.row.paper_date}, ` : ''}
+              {m.row.replay.triggered ? (
+                <>
+                  peak <Num value={m.row.replay.peak.ratio_to_background} digits={3} unit="×" /> background at Gale
+                </>
+              ) : (
+                'not triggered at Gale'
+              )}
+              )
+            </span>
+          ))}{' '}
+          <Chip kind={DERIVED} />. Matching dates is not identity.
+          {design}
+        </p>
+      ) : null}
+    </>
+  )
+}
+
+/** Mounted under the Mars habitat dose panel. */
 export function MarsSepContext({ multiple }: { multiple: number | null }) {
   const s = useSnapshot<SepEventsData>(SEP_SNAPSHOT_ID)
-  const range = useMemo(() => (s.status === 'ready' && s.data ? peakRatioRange(s.data) : null), [s.status, s.data])
-  if (!range) return null
-  return (
-    <p className="lf-tr-muted lf-rad-sep-context">
-      For context, not a calibration: at Gale crater, the peak of each of the <Num value={range.n} /> triggers of the RAD team’s rule above in the MSL RAD record was{' '}
-      <Num value={Number(oneDecimal(range.min))} digits={1} unit="×" /> to <Num value={Number(oneDecimal(range.max))} digits={1} unit="×" /> its own 5-day
-      background (measured) <Chip kind={DERIVED} />.
-      {multiple !== null ? (
-        <>
-          {' '}
-          The {formatNumber(multiple)}× above stays a design choice <Chip kind={DESIGN} />.
-        </>
-      ) : null}
-    </p>
-  )
+  const list = useSnapshot<SpeListLike>('swpc_spe_list')
+  const data = s.status === 'ready' ? (s.data ?? null) : null
+  const storms = useMemo(() => (data && list.status === 'ready' && list.data ? s3StormsOnTable(data, list.data) : null), [data, list.status, list.data])
+  return data ? <MarsSepContextView data={data} storms={storms} multiple={multiple} /> : null
 }

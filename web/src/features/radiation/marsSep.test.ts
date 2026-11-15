@@ -5,9 +5,9 @@ import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { MarsSepRecordView } from './MarsSepRecord'
-import { donkiGap, fmtDhm, isoMinute, mayTimeline, oneDecimal, peakRatioRange, ruleQuotes, tableRows, tableSummary, triggersWith } from './marsSep'
-import type { SepEventsData } from './marsSep'
+import { MarsSepContextView, MarsSepRecordView } from './MarsSepRecord'
+import { STORM_MATCH_DAYS, donkiGap, fmtDhm, isoMinute, mayTimeline, oneDecimal, peakRatioRange, ruleQuotes, s3StormsOnTable, tableRows, tableSummary, triggersWith, unconfirmedOf, unconfirmedText } from './marsSep'
+import type { SepEventsData, SpeListLike } from './marsSep'
 
 const raw = (id: string) => JSON.parse(readFileSync(new URL(`../../../public/data/${id}.json`, import.meta.url), 'utf8'))
 const snap = raw('hapi_msl_rad_sep_events')
@@ -55,9 +55,20 @@ describe('replay against the paper', () => {
   })
   it('counts every status and prints the deviations, never hides them', () => {
     const s = tableSummary(data)
-    expect(s.counts).toEqual({ reproduced: 7, deviates: 1, not_reproduced: 4, agrees_not_triggered: 3, replay_triggered_paper_not: 1 })
+    expect(s.counts).toEqual({ reproduced: 7, deviates: 1, not_reproduced: 4, agrees_not_triggered: 4, replay_triggered_paper_not: 0 })
+    expect(data.table1_counts).toEqual(s.counts)
     const dev = data.table1.find((r) => r.paper_date === '2014-09-02')!
     expect(Math.round(dev.comparison.total_pct!)).toBe(-33)
+  })
+  it('2014-01-05: one sample crossed 1.25 × and the next did not confirm it, so the replay agrees with the paper', () => {
+    const r = data.table1.find((x) => x.paper_date === '2014-01-05')!
+    expect(r.comparison.status).toBe('agrees_not_triggered')
+    expect(r.replay.triggered).toBe(false)
+    const [u, ...rest] = unconfirmedOf(r)
+    expect(rest).toEqual([])
+    expect(unconfirmedText(u, data.rule.scan.max_pair_gap_s)).toBe('one sample at 2014-01-06T12:45:21Z reached 1.251 × background and the next did not confirm it')
+    // every onset the replay keeps is confirmed by the next sample
+    for (const x of data.table1) if (x.replay.triggered) expect(x.replay.confirmation.above_threshold, x.paper_date).toBe(true)
   })
   it('formats durations exactly like the paper and the adapter', () => {
     expect(fmtDhm(2515)).toBe('01d 17h:55m')
@@ -107,6 +118,16 @@ describe('what the section renders', () => {
     expect(t).toContain('not reproduced (max 1.02 × within 48 h, iSWA gap)')
     expect(t).toContain('“the astronaut will receive an official alert”')
   })
+  it('summarises the table with no replay-only clause, and says why 2014-01-05 agrees', () => {
+    expect(t).toContain('Of the paper’s 16 rows, 7 reproduce (total SEP dose within ±')
+    expect(t).toMatch(/1 deviates \(2014-09-02, −33\.\d %\), 4 do not trigger in this replay \(2013-04-10, 2013-10-10, 2014-09-10, 2023-03-12\) and 4 are not triggered in either/)
+    expect(t).toContain('(for 2014-01-05, one sample at 2014-01-06T12:45:21Z reached 1.251 × background and the next did not confirm it)')
+    expect(t).not.toMatch(/here only|replay only/)
+    expect(t).toContain('not triggered in either (one sample at 1.251 ×, not confirmed by the next)')
+    expect((html.match(/<tr data-status="agrees_not_triggered"/g) ?? []).length).toBe(4)
+    expect(html).not.toContain('data-status="replay_triggered_paper_not"')
+    expect(t).toContain('An onset counts only when the next sample, less than 3 h later, is above the threshold too')
+  })
   it('cites the journal with the publisher’s author list (Crossref), not the preprint’s spelling', () => {
     const cr = data.literature.journal.authors_crossref!
     const journal = cr.map((a) => a.replace(/\u2010/g, '-')).join(', ')
@@ -122,5 +143,38 @@ describe('what the section renders', () => {
     expect(t.toLowerCase()).not.toContain('false alarm')
     expect(t).not.toMatch(/Earth never recorded/i)
     expect(t).not.toContain('8,100')
+  })
+})
+
+describe("NOAA's S3 storms at Earth on rows of the RAD team's table", () => {
+  const list = raw('swpc_spe_list').data as SpeListLike
+  const storms = s3StormsOnTable(data, list)
+  it('joins on UTC dates within the design-choice window: 2 of the 4 storms in the record fall on rows', () => {
+    expect(STORM_MATCH_DAYS).toBe(2)
+    expect(storms.inRecord).toBe(4)
+    expect(storms.listEnd).toBe('2017-09-10T16:45:00Z')
+    expect(storms.matches.map((m) => [m.start.slice(0, 10), m.peak_pfu, m.row.paper_date, m.gapDays])).toEqual([
+      ['2014-01-06', 1033, '2014-01-05', 1],
+      ['2017-09-10', 1490, '2017-09-10', 0],
+    ])
+    const [jan, sep] = storms.matches
+    expect(jan.row.replay.triggered).toBe(false)
+    expect(sep.row.replay.triggered && sep.row.replay.peak.ratio_to_background).toBe(2.235)
+    // a narrower window keeps only the same-day storm
+    expect(s3StormsOnTable(data, list, 0).matches.map((m) => m.row.paper_date)).toEqual(['2017-09-10'])
+  })
+  it('prints the two storms, no dose in µGy, and says a date match is not identity', () => {
+    const html = renderToStaticMarkup(createElement(MarsSepContextView, { data, storms, multiple: 10 }))
+    const t = text(html)
+    expect(t).toContain('NOAA’s list of solar proton events has 4 storms at S3 or above during Curiosity’s record (this copy of the list ends on 2017-09-10). Of these, 2 fall within 2 days of a row of the RAD team’s surface table')
+    expect(t).toMatch(/2014-01-06 \(\s?1033\s?pfu at Earth; Table 1 row 2014-01-05, not triggered at Gale\) and 2017-09-10 \(\s?1490\s?pfu at Earth; peak 2\.235\s?× background at Gale\)/)
+    expect(t).toContain('Matching dates is not identity.')
+    expect(t).toContain('The 10× above stays a design choice')
+    expect(t).not.toMatch(/µGy|uGy/)
+    // without the NOAA list the measured range still renders, with the design-choice sentence
+    const alone = text(renderToStaticMarkup(createElement(MarsSepContextView, { data, storms: null, multiple: 10 })))
+    expect(alone).toContain('For context, not a calibration')
+    expect(alone).toContain('The 10× above stays a design choice')
+    expect(alone).not.toContain('NOAA’s list')
   })
 })

@@ -311,9 +311,28 @@ def median_spacing_min(T: list[int], lo: int, hi: int) -> float | None:
     return round(g / 60.0, 1)
 
 
+def confirms(T: list[int], E: list[float], j: int, thr: float) -> bool:
+    """The paper's cross-check ("A consecutive measurement is then used as a cross-check to verify or
+    falsify the SEP event"): sample j is an onset only if it is above the threshold and so is the next
+    sample, less than SCAN_MAX_PAIR_GAP_S later (the whole-record scan's own limit, a design choice)."""
+    return (E[j] > thr and j + 1 < len(T) and E[j + 1] > thr
+            and T[j + 1] - T[j] < SCAN_MAX_PAIR_GAP_S)
+
+
+def unconfirmed_sample(T: list[int], E: list[float], j: int, bg: float, thr: float) -> dict:
+    """A sample above the threshold that the next sample does not confirm (no onset): it and its successor."""
+    nxt = j + 1
+    return {"t": iso(T[j]), "ratio_to_background": round(E[j] / bg, 3),
+            "next": ({"t": iso(T[nxt]), "ratio_to_background": round(E[nxt] / bg, 3),
+                      "after_min": round((T[nxt] - T[j]) / 60.0, 2), "above_threshold": E[nxt] > thr}
+                     if nxt < len(T) else None)}
+
+
 def replay_date(T: list[int], E: list[float], day: str) -> dict:
     """Mode (a): the rule anchored on one listed date. Background = mean of E over the 5 UTC days
-    before that day; onset = first sample above 1.25 x background within 2 days of 00:00 UTC on it;
+    before that day; onset = first sample above 1.25 x background within 2 days of 00:00 UTC on it
+    whose next sample, less than SCAN_MAX_PAIR_GAP_S later, is above too (the paper's cross-check;
+    a sample the next one does not confirm is listed in `unconfirmed`, not taken as an onset);
     end = first later sample below the threshold."""
     d0 = epoch(day)
     bg, n_bg = mean_between(T, E, d0 - BACKGROUND_DAYS * DAY_S, d0)
@@ -323,8 +342,11 @@ def replay_date(T: list[int], E: list[float], day: str) -> dict:
     out = {"background_uGy_per_day": round(bg, 2), "threshold_uGy_per_day": round(thr, 2),
            "background_n_samples": n_bg}
     i1, jend = bisect.bisect_left(T, d0), bisect.bisect_left(T, d0 + SEARCH_S)
+    unconfirmed = []
     j = i1
-    while j < jend and E[j] <= thr:
+    while j < jend and not confirms(T, E, j, thr):
+        if E[j] > thr:
+            unconfirmed.append(unconfirmed_sample(T, E, j, bg, thr))
         j += 1
     if j >= jend:
         pk = max(range(i1, jend), key=E.__getitem__) if jend > i1 else None
@@ -333,7 +355,8 @@ def replay_date(T: list[int], E: list[float], day: str) -> dict:
                     "max_at": iso(T[pk]) if pk is not None else None,
                     "search_window_samples": jend - i1,
                     "samples_per_day": samples_per_day(T, d0 // DAY_S - 1, 4),
-                    "median_spacing_min": median_spacing_min(T, d0 - BACKGROUND_DAYS * DAY_S, d0 + SEARCH_S)})
+                    "median_spacing_min": median_spacing_min(T, d0 - BACKGROUND_DAYS * DAY_S, d0 + SEARCH_S),
+                    "unconfirmed": unconfirmed})
         return out
     k = j
     while k < len(E) and E[k] >= thr:
@@ -341,7 +364,8 @@ def replay_date(T: list[int], E: list[float], day: str) -> dict:
     if k >= len(E):
         raise ValueError(f"event of {day} still running at the end of the record")
     out.update({"triggered": True, **event_metrics(T, E, j, k, bg),
-                "onset_after_listed_date_h": round((T[j] - d0) / 3600.0, 2)})
+                "onset_after_listed_date_h": round((T[j] - d0) / 3600.0, 2),
+                "unconfirmed": unconfirmed})
     return out
 
 
@@ -372,7 +396,7 @@ def scan_record(T: list[int], E: list[float]) -> list[tuple[int, int, float, int
             i += 1
             continue
         thr = THRESHOLD_FACTOR * bg
-        if E[i] > thr and E[i + 1] > thr and T[i + 1] - T[i] < SCAN_MAX_PAIR_GAP_S:
+        if confirms(T, E, i, thr):
             j = i
             while j < n and E[j] >= thr:
                 j += 1
@@ -385,8 +409,11 @@ def scan_record(T: list[int], E: list[float]) -> list[tuple[int, int, float, int
     return events
 
 
+ROW_STATUSES = ("agrees_not_triggered", "deviates", "not_reproduced", "replay_triggered_paper_not", "reproduced")
+
+
 def compare(paper: dict, replay: dict) -> dict:
-    """Row status and the deviations, replay minus paper."""
+    """Row status (one of ROW_STATUSES) and the deviations, replay minus paper."""
     if not paper["triggered"]:
         return {"status": "replay_triggered_paper_not" if replay["triggered"] else "agrees_not_triggered"}
     if not replay["triggered"]:
@@ -663,7 +690,8 @@ def build(ctx: RunContext) -> dict:
     instruments = sorted({i.split(":")[0].strip() for e in donki["events"] for i in e["instruments"]})
 
     status_of = {r["paper_date"]: r["comparison"]["status"] for r in table}
-    counts: dict[str, int] = defaultdict(int)
+    # Every status, a zero included, so the snapshot itself says how many rows trigger only here.
+    counts: dict[str, int] = dict.fromkeys(ROW_STATUSES, 0)
     for s in status_of.values():
         counts[s] += 1
 
@@ -699,9 +727,11 @@ def build(ctx: RunContext) -> dict:
                 "Samples with E > 0 are kept.",
                 "Background = arithmetic mean of E over the 5 UTC days before the event day (a "
                 "least-squares constant fit equals the mean of the points).",
-                "Onset = first sample above 1.25 x background within 2 days of 00:00 UTC on the date; "
-                "confirmation = the next sample, also above (the paper's case 2); end = first later "
-                "sample below the threshold.",
+                "Onset = first sample above 1.25 x background within 2 days of 00:00 UTC on the date "
+                "whose next sample, less than 3 h later, is above too: that next sample is the paper's "
+                "cross-check (its case 2), and the 3 h limit is the whole-record scan's design choice. A "
+                "sample the next one does not confirm is not an onset. End = first later sample below "
+                "the threshold.",
                 "Total SEP dose = trapezoid of (E - background) from onset to end, in uGy; time to peak "
                 "and lead time are measured from the onset sample; lead time ends at the first sample "
                 "at which 10% of the total has accumulated (sample resolution).",
@@ -754,19 +784,23 @@ def build(ctx: RunContext) -> dict:
     bad = [r for r in table if r["comparison"]["status"] == "not_reproduced"]
     dev = [r for r in table if r["comparison"]["status"] == "deviates"]
     extra = [r for r in table if r["comparison"]["status"] == "replay_triggered_paper_not"]
+    agree_unconfirmed = [r for r in table if r["comparison"]["status"] == "agrees_not_triggered" and r["replay"]["unconfirmed"]]
     may_r = may["replay"]
     late = [r for r in table if r["replay"]["triggered"] and r["replay"]["onset_after_listed_date_h"] >= 24]
     gaps = data["record"]["gaps_over_2_days"]
     longest = max(gaps, key=lambda g: g["days"]) if gaps else {"from": None, "to": None, "days": 0}
+    miss_basis = ("no sample above 1.25 x background" if not any(r["replay"]["unconfirmed"] for r in bad)
+                  else "no sample above 1.25 x background confirmed by the next one")
     caveats = [
-        "Not reproduced (no sample above 1.25 x background within 48 h of the listed date): "
+        f"Not reproduced ({miss_basis} within 48 h of the listed date): "
         + "; ".join(_miss_text(r) for r in bad) + ".",
         *(f"Deviation: {r['paper_date']} reproduces at {r['comparison']['total_pct']:+.0f}% total SEP dose "
           f"({r['replay']['total_uGy']:.2f} uGy against the paper's {r['paper']['total_uGy']:.2f} uGy)." for r in dev),
-        *(f"{r['paper_date']}: the paper lists this event as not triggered; this replay's onset rule fires on one "
-          f"sample at {r['replay']['onset']} ({r['replay']['peak']['ratio_to_background']:.3f} x background), "
-          f"{'confirmed' if r['replay']['confirmation']['above_threshold'] else 'not confirmed'} by the next sample "
-          f"({r['replay']['total_uGy']:.1f} uGy, {fmt_dhm(r['replay']['shelter_min'])} shelter)." for r in extra),
+        *(f"{r['paper_date']}: the paper lists this event as not triggered; this replay's rule triggers at "
+          f"{r['replay']['onset']}, confirmed by the next sample (peak {r['replay']['peak']['ratio_to_background']:.3f} x "
+          f"background, {r['replay']['total_uGy']:.1f} uGy, {fmt_dhm(r['replay']['shelter_min'])} shelter)." for r in extra),
+        *(f"{r['paper_date']}: the paper lists this event as not triggered, and the replay agrees: "
+          + "; ".join(_unconfirmed_text(u) for u in r["replay"]["unconfirmed"]) + "." for r in agree_unconfirmed),
         *([f"For {', '.join(r['paper_date'] for r in late)} the replay's onset falls on a later UTC day ("
            + ", ".join(f"{r['replay']['onset_after_listed_date_h']:.1f} h" for r in late)
            + " after 00:00 UTC of the listed date); Table 1 prints dates only."] if late else []),
@@ -817,6 +851,17 @@ def build(ctx: RunContext) -> dict:
         coverage={"start": iso(T[0]), "stop": iso(T[-1]), "cadence": None},
         freshness={"kind": "historical", "stale_after": None},
         provenance="derived", caveats=caveats, data=data)
+
+
+def _unconfirmed_text(u: dict) -> str:
+    """'one sample at <t> reached <ratio> x background and the next did not confirm it' (or why it could not)."""
+    s = f"one sample at {u['t']} reached {u['ratio_to_background']:.3f} x background and the next"
+    nxt = u["next"]
+    if nxt is None:
+        return s + " is past the end of the record"
+    if nxt["above_threshold"]:
+        return s + f", {nxt['after_min'] / 60.0:.1f} h later, came after the {SCAN_MAX_PAIR_GAP_S // 3600} h confirmation limit"
+    return s + " did not confirm it"
 
 
 def _miss_text(r: dict) -> str:

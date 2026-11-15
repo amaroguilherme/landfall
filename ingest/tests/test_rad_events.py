@@ -104,10 +104,42 @@ def test_replay_date_background_onset_and_not_triggered():
     assert r["triggered"] and r["onset"] == R.iso(T[5 * 96 + 30])
     assert r["confirmation"]["above_threshold"] is True
     assert r["end"] == R.iso(T[5 * 96 + 32])     # 240 < 250: first sample below the threshold
+    assert r["unconfirmed"] == []
     flat = quiet + [240.0] * 300
     T2, E2 = _series(day0 - timedelta(days=5), 900, flat)
     r2 = R.replay_date(T2, E2, "2024-03-06")
-    assert r2["triggered"] is False and r2["max_ratio_to_background"] == 1.2
+    assert r2["triggered"] is False and r2["max_ratio_to_background"] == 1.2 and r2["unconfirmed"] == []
+
+
+def test_replay_date_needs_the_next_sample_to_confirm_the_onset():
+    # The paper: "A consecutive measurement is then used as a cross-check to verify or falsify the SEP event."
+    day0 = datetime(2024, 3, 6, tzinfo=UTC)
+    quiet = [200.0] * (5 * 96)
+    # one sample above 1.25 x (260 > 250), the next below: no onset, and the sample is listed as unconfirmed
+    T, E = _series(day0 - timedelta(days=5), 900, quiet + [210.0] * 30 + [260.0, 249.0] + [200.0] * 300)
+    r = R.replay_date(T, E, "2024-03-06")
+    assert r["triggered"] is False and r["max_ratio_to_background"] == 1.3
+    assert r["unconfirmed"] == [{"t": R.iso(T[5 * 96 + 30]), "ratio_to_background": 1.3,
+                                 "next": {"t": R.iso(T[5 * 96 + 31]), "ratio_to_background": 1.245,
+                                          "after_min": 15.0, "above_threshold": False}}]
+    assert R.compare(R.parse_paper_row("2014-01-05"), r)["status"] == "agrees_not_triggered"
+    # an unconfirmed sample, then a confirmed pair later in the 48-h search: the onset is the pair's first sample
+    T, E = _series(day0 - timedelta(days=5), 900, quiet + [260.0, 200.0] + [200.0] * 20 + [270.0, 280.0, 200.0] + [200.0] * 300)
+    r = R.replay_date(T, E, "2024-03-06")
+    assert r["triggered"] and r["onset"] == R.iso(T[5 * 96 + 22]) and r["confirmation"]["above_threshold"] is True
+    assert [u["t"] for u in r["unconfirmed"]] == [R.iso(T[5 * 96])]
+    # two samples above, the second 3 h or more after the first: the scan's pair-gap limit, no onset
+    T, E = _series(day0 - timedelta(days=5), 900, quiet + [300.0])
+    T.append(T[-1] + R.SCAN_MAX_PAIR_GAP_S)
+    E.append(310.0)
+    T += [T[-1] + 900 * k for k in range(1, 300)]
+    E += [200.0] * 299
+    r = R.replay_date(T, E, "2024-03-06")
+    assert r["triggered"] is False
+    assert [(u["t"], u["next"]["above_threshold"], u["next"]["after_min"]) for u in r["unconfirmed"]] == [
+        (R.iso(T[5 * 96]), True, 180.0), (R.iso(T[5 * 96 + 1]), False, 15.0)]
+    assert R._unconfirmed_text(r["unconfirmed"][0]).endswith("3.0 h later, came after the 3 h confirmation limit")
+    assert R._unconfirmed_text(r["unconfirmed"][1]).endswith("and the next did not confirm it")
 
 
 def test_scan_needs_two_consecutive_samples_close_in_time():
@@ -222,8 +254,39 @@ def test_rows_that_reproduce(day):
 def test_paper_not_triggered_rows_never_exceed_the_threshold_within_48_h(day):
     r = _row(_snap(), day)
     assert r["paper"]["triggered"] is False and r["replay"]["triggered"] is False
-    assert r["replay"]["max_ratio_to_background"] <= 1.25
+    assert r["replay"]["max_ratio_to_background"] <= 1.25 and r["replay"]["unconfirmed"] == []
     assert r["comparison"]["status"] == "agrees_not_triggered"
+
+
+def test_2014_01_05_one_unconfirmed_sample_so_the_replay_agrees_with_the_paper():
+    r = _row(_snap(), "2014-01-05")
+    assert r["paper"]["triggered"] is False and r["replay"]["triggered"] is False
+    assert r["comparison"]["status"] == "agrees_not_triggered"
+    (u,) = r["replay"]["unconfirmed"]
+    assert u["t"] == "2014-01-06T12:45:21Z" and u["ratio_to_background"] == 1.251
+    assert u["next"]["t"] == "2014-01-06T13:18:52Z" and u["next"]["above_threshold"] is False
+    assert u["next"]["after_min"] < R.SCAN_MAX_PAIR_GAP_S / 60
+    assert r["replay"]["max_at"] == u["t"] and r["replay"]["max_ratio_to_background"] == 1.251
+    assert r["scan_trigger"] is None
+
+
+def test_every_triggered_row_has_its_onset_confirmed_by_the_next_sample():
+    for r in _snap()["data"]["table1"]:
+        rp = r["replay"]
+        if rp["triggered"]:
+            assert rp["confirmation"]["above_threshold"] is True, r["paper_date"]
+            assert rp["confirmation"]["after_onset_min"] * 60 < R.SCAN_MAX_PAIR_GAP_S, r["paper_date"]
+            assert rp["unconfirmed"] == [], r["paper_date"]
+
+
+def test_row_counts_7_1_4_4_0():
+    s = _snap()
+    counts = s["data"]["table1_counts"]
+    assert counts == {"agrees_not_triggered": 4, "deviates": 1, "not_reproduced": 4,
+                      "replay_triggered_paper_not": 0, "reproduced": 7}
+    assert set(counts) == set(R.ROW_STATUSES) and sum(counts.values()) == len(R.PAPER_TABLE1_SURFACE) == 16
+    for status, n in counts.items():
+        assert sum(1 for r in s["data"]["table1"] if r["comparison"]["status"] == status) == n
 
 
 def test_known_differences_are_in_the_caveats_with_their_ratios():
@@ -238,10 +301,13 @@ def test_known_differences_are_in_the_caveats_with_their_ratios():
     dev = _row(s, "2014-09-02")
     assert dev["comparison"]["status"] == "deviates" and round(dev["comparison"]["total_pct"]) == -33
     assert "2014-09-02 reproduces at -33%" in cav
-    extra = _row(s, "2014-01-05")
-    assert extra["comparison"]["status"] == "replay_triggered_paper_not"
-    assert round(extra["replay"]["total_uGy"], 1) == 1.2
-    assert "2014-01-05: the paper lists this event as not triggered" in cav
+    assert _row(s, "2014-01-05")["comparison"]["status"] == "agrees_not_triggered"
+    assert ("2014-01-05: the paper lists this event as not triggered, and the replay agrees: one sample at "
+            "2014-01-06T12:45:21Z reached 1.251 x background and the next did not confirm it.") in s["caveats"]
+    assert "triggers at" not in cav and "fires on one sample" not in cav
+    late = next(c for c in s["caveats"] if "later UTC day" in c)
+    assert late.startswith("For 2024-07-22, 2024-09-02 the replay's onset falls on a later UTC day (25.1 h, 33.5 h")
+    assert "2014-01-05" not in late
     assert "02d 00h:23m in this replay against the paper's 01d 17h:55m" in cav
     assert R.ABSORBED_DOSE_CAVEAT in s["caveats"]
     assert "15-minute PDS product" in cav and "RTG" in cav

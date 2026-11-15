@@ -21,6 +21,16 @@ export interface LightTime {
   note?: string
 }
 
+/**
+ * A sample above 1.25 x background that the next sample did not confirm (the paper's cross-check), so it is not
+ * an onset: the next one was below the threshold, or came 3 h or more later (the scan's pair-gap limit).
+ */
+export interface UnconfirmedSample {
+  t: string
+  ratio_to_background: number
+  next: { t: string; ratio_to_background: number; after_min: number; above_threshold: boolean } | null
+}
+
 export interface ReplayTriggered extends SepMetrics {
   triggered: true
   background_uGy_per_day: number
@@ -28,6 +38,8 @@ export interface ReplayTriggered extends SepMetrics {
   background_n_samples: number
   onset_after_listed_date_h: number
   light_time?: LightTime
+  /** Unconfirmed samples in the 48-h search before the onset (absent in snapshots built before the cross-check). */
+  unconfirmed?: UnconfirmedSample[]
 }
 
 export interface ReplayNotTriggered {
@@ -40,6 +52,8 @@ export interface ReplayNotTriggered {
   search_window_samples: number
   samples_per_day: Record<string, number>
   median_spacing_min: number | null
+  /** Samples above the threshold in the 48-h search that the next sample did not confirm. */
+  unconfirmed?: UnconfirmedSample[]
 }
 
 export type Replay = ReplayTriggered | ReplayNotTriggered
@@ -146,6 +160,9 @@ export interface SepEventsData {
 
 export const SEP_SNAPSHOT_ID = 'hapi_msl_rad_sep_events'
 const MIN_MS = 60_000
+const DAY_MS = 86_400_000
+/** A NOAA storm at Earth and a Table 1 row "fall together" when their UTC dates are at most this many days apart (design choice). */
+export const STORM_MATCH_DAYS = 2
 
 /** Minutes -> the paper's own duration format, "01d 17h:55m" (rounded to the minute, as the adapter does). */
 export function fmtDhm(minutes: number): string {
@@ -267,6 +284,19 @@ export function rowsWithStatus(d: SepEventsData, status: RowStatus): Table1Row[]
   return d.table1.filter((r) => r.comparison.status === status).sort((a, b) => a.paper_date.localeCompare(b.paper_date))
 }
 
+/** The samples of a row that crossed 1.25 x background without the next sample confirming them. */
+export function unconfirmedOf(r: Table1Row): UnconfirmedSample[] {
+  return r.replay.unconfirmed ?? []
+}
+
+/** "one sample at 2014-01-06T12:45:21Z reached 1.251 × background and the next did not confirm it" (or why it could not). */
+export function unconfirmedText(u: UnconfirmedSample, maxPairGapS: number): string {
+  const head = `one sample at ${u.t} reached ${u.ratio_to_background.toFixed(3)} × background and the next`
+  if (!u.next) return `${head} is past the end of the record`
+  if (u.next.above_threshold) return `${head}, ${(u.next.after_min / 60).toFixed(1)} h later, came after the ${maxPairGapS / 3600} h confirmation limit`
+  return `${head} did not confirm it`
+}
+
 // ---- whole-record scan, DONKI and the context line ---------------------------------------------------------
 
 export function triggersWith(d: SepEventsData, flag: TriggerFlag): ScanTrigger[] {
@@ -305,4 +335,44 @@ export function ruleQuotes(d: SepEventsData): PaperQuote[] {
 export function firstAuthorFamily(d: SepEventsData): string {
   const first = d.literature.authors[0] ?? ''
   return first.split(' ').slice(-1)[0] ?? first
+}
+
+// ---- NOAA's S3 storms at Earth on rows of the RAD team's table ----------------------------------------------
+
+/** The fields of NOAA's solar proton event list (snapshot swpc_spe_list) that the join reads. */
+export interface SpeListLike {
+  events: Array<{ start: string; peak_pfu: number | null; s_level?: number }>
+  list_last_start?: string
+}
+
+export interface StormOnRow {
+  /** NOAA's event start (UTC) and printed peak at >=10 MeV. */
+  start: string
+  peak_pfu: number
+  /** The nearest Table 1 surface row within STORM_MATCH_DAYS of it, and the gap in whole UTC days. */
+  row: Table1Row
+  gapDays: number
+}
+
+const utcDay = (iso: string) => Math.floor(Date.parse(`${iso.slice(0, 10)}T00:00:00Z`) / DAY_MS)
+
+/**
+ * NOAA's S3-or-above storms at Earth that start inside Curiosity's RAD record, and those that fall within `windowDays`
+ * of a row of the paper's Table 1 (nearest row; UTC dates). A date match is not the same event: it says only that a
+ * storm at Earth and a row at Gale share a few days.
+ */
+export function s3StormsOnTable(d: SepEventsData, list: SpeListLike, windowDays = STORM_MATCH_DAYS): { inRecord: number; listEnd: string | null; matches: StormOnRow[] } {
+  const inRecord = list.events.filter(
+    (e) => (e.s_level ?? 0) >= 3 && typeof e.peak_pfu === 'number' && e.start >= d.record.first_sample && e.start <= d.record.last_sample,
+  )
+  const matches: StormOnRow[] = []
+  for (const e of inRecord) {
+    let best: StormOnRow | null = null
+    for (const row of d.table1) {
+      const gap = Math.abs(utcDay(row.paper_date) - utcDay(e.start))
+      if (gap <= windowDays && (!best || gap < best.gapDays)) best = { start: e.start, peak_pfu: e.peak_pfu as number, row, gapDays: gap }
+    }
+    if (best) matches.push(best)
+  }
+  return { inRecord: inRecord.length, listEnd: list.list_last_start ?? null, matches }
 }

@@ -1,7 +1,10 @@
 // Radiation model: replay time mapping (sim_crew's own mapping), S-level transitions, the NEXT
 // predicted SAA passes (wall clock inside the window vs expired), and daily dose gaps.
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { SaaStrip, crossingsUpToS3, rationaleSentence, reachOnClock } from './index'
 import {
   dailySeries,
   dateRuns,
@@ -39,6 +42,48 @@ describe('replay mapping', () => {
     expect(reach.map((x) => x.level)).toEqual([1, 2, 3, 4])
     expect(reach[2].met).toBe(412 * 86_400 + 14 * 3600 + 15 * 60)
   })
+  it('calls a level reached only up to the clock: at 412/14:20 S1 to S3 are reached and S4 is still ahead', () => {
+    const r = snap('swpc_spe_replay').data as ReplayData
+    const reach = firstReach(transitions(r, m))
+    const now = 412 * 86_400 + 14 * 3600 + 20 * 60
+    const { reached, ahead } = reachOnClock(reach, now)
+    expect(reached.map((x) => x.level)).toEqual([1, 2, 3])
+    expect(ahead.map((x) => x.level)).toEqual([4])
+    expect(ahead[0].utc).toBe('1989-10-20T13:35:00Z')
+    expect(ahead[0].met).toBe(413 * 86_400 + 8 * 3600 + 55 * 60)
+    // the S3 sample itself counts as reached at its own minute, not a minute before
+    expect(reachOnClock(reach, 412 * 86_400 + 14 * 3600 + 15 * 60).reached.map((x) => x.level)).toEqual([1, 2, 3])
+    expect(reachOnClock(reach, 412 * 86_400 + 14 * 3600 + 14 * 60).reached.map((x) => x.level)).toEqual([1, 2])
+    // without a mapping nothing is claimed on the clock either way
+    expect(reachOnClock(firstReach(transitions(r, null)), now)).toEqual({ reached: [], ahead: [] })
+  })
+})
+
+describe('habitat dose rate: sim_crew crossings of the linear mapping', () => {
+  it('passes 2x at 412/10:25, 5x at 412/11:45 and 10x at 412/14:15 (the S3 trigger), hours after S1', () => {
+    const sim = snap('sim_crew').data
+    const c = crossingsUpToS3(sim.spe_day)
+    expect(c).toEqual([
+      [2, 412 * 86_400 + 10 * 3600 + 25 * 60],
+      [5, 412 * 86_400 + 11 * 3600 + 45 * 60],
+      [10, 412 * 86_400 + 14 * 3600 + 15 * 60],
+    ])
+    expect(c[c.length - 1][0]).toBe(sim.spe_day.scaling.dose_multiple_at_s3)
+    const m = replayMapping(sim)!
+    const s1 = firstReach(transitions(snap('swpc_spe_replay').data as ReplayData, m))[0]
+    expect(s1.level).toBe(1)
+    expect(s1.met!).toBeLessThan(c[0][1])
+  })
+})
+
+describe('[V2 6165] rationale', () => {
+  it('quotes the early-warning sentence verbatim from the frozen requirement', () => {
+    const req = findRequirement(snap('std_vol2_requirements').data.requirements, 'V2 6165')
+    const s = rationaleSentence(req, /early warning/)!
+    expect(s.startsWith('External radiation monitors can provide early warning to crew and ground personnel')).toBe(true)
+    expect(req!.rationale).toContain(s)
+    expect(rationaleSentence(req, /no such words/)).toBeNull()
+  })
 })
 
 describe('next SAA passes', () => {
@@ -56,6 +101,27 @@ describe('next SAA passes', () => {
     expect(plan.refKind).toBe('retrieval')
     expect(plan.refMs).toBe(Date.parse(s.retrieved_at))
     expect(plan.passes.length).toBeGreaterThan(0)
+  })
+  describe('the table lists every pass in the 24 h shown, not the first 8', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+    for (const [label, at] of [
+      ['expired window (from retrieval)', '2026-12-20T00:00:00Z'],
+      ['open window (from the wall clock)', '2026-11-15T06:00:00Z'],
+    ] as const) {
+      it(label, () => {
+        vi.useFakeTimers()
+        vi.setSystemTime(new Date(at))
+        const plan = nextPasses(track, s.retrieved_at, Date.parse(at))
+        expect(plan.passes.length).toBeGreaterThan(8)
+        const html = renderToStaticMarkup(createElement(SaaStrip, { track, snap: s, status: 'ready' }))
+        const body = html.slice(html.indexOf('<tbody>'), html.indexOf('</tbody>'))
+        expect((body.match(/<tr>/g) ?? []).length).toBe(plan.passes.length)
+        expect(html).toContain(`All ${plan.passes.length} predicted passes in these 24 h`)
+        expect((html.match(/class="lf-rad-pass"/g) ?? []).length).toBe(plan.passes.length)
+      })
+    }
   })
 })
 

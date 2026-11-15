@@ -90,8 +90,8 @@
    "adapter": "rad_events",
    "title": "Mars-surface solar particle events: the RAD team's nowcast rule replayed on MSL RAD (CCMC iSWA)",
    "file": "hapi_msl_rad_sep_events.json",
-   "bytes": 77358,
-   "sha256": "35ccc94d72c296f0db9e66cbaf9417ab9dd6d51c46a614298c3af5962cb6a812",
+   "bytes": 77641,
+   "sha256": "3882b003863172861aab61771e1d70df6f800e5d3f6c80d01362f4e55f312c3b",
    "retrieved_at": "2026-11-15T01:19:32Z",
    "provenance": "derived",
    "freshness": {

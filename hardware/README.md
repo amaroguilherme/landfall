@@ -61,9 +61,10 @@ operations), with its chip, a verbatim quote and the date it was read.
 
 The fourth kind of block is the point of the drawing: **NOT MEASURABLE HERE**, the hand-off boundary. Urine output
 and fluid intake go to manual entry. Radiation goes to two systems outside the band: the vehicle radiation monitoring
-system raises the alarm and reports dose rate (`[V2 6164]`), and an external space-weather monitor supplies the proton
-flux spectra (`[V2 6165]`, whose rationale names the October 1989 storms the SPE case replays). LANDFALL is not the
-radiation alarm; it opens the health case that follows. Blood pressure and blood glucose are measured with the
+system raises the alarm and reports dose rate (`[V2 6164]`), and the space weather outside the vehicle, proton flux
+spectra included, takes an external space-weather monitor (`[V2 6165]`, whose rationale names the October 1989 storms
+the SPE case replays). The scenario's monitor in Mars orbit reports one ≥10 MeV integral channel, not the spectra.
+LANDFALL is not the radiation alarm; it opens the health case that follows. Blood pressure and blood glucose are measured with the
 vehicle medical kit (a cuff and a fingerstick glucometer) and entered by hand. Blood chemistry and urinary calcium go
 to the lab, VO2max to the exercise system, bone density to ground DXA, cabin ppCO2 to the atmosphere monitor, and
 circadian phase and corneal light to research protocols and the lighting system. It is the same discipline as the

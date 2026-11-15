@@ -3,11 +3,14 @@
 //   1. auto OPEN  - LANDFALL opens a case when one of its triggers reports a finding at caution or
 //                   above (SPEC 3.4), found by evaluating each trigger at each of its observation
 //                   times (scenario + runtime + the post-"now" replay). Instances (SPEC 7): while an
-//                   instance is open, later trigger findings open nothing. After it closes (resolved,
-//                   escalated or dismissed, at closed_at), the next trigger finding at caution or above
-//                   observed after closed_at opens the next instance; after an escalation only one that
-//                   follows a finding of that trigger below caution (a new episode), so a condition that
-//                   persists through the escalation does not reopen its own case;
+//                   instance is open, later trigger findings open nothing. Re-open hysteresis: after it
+//                   closes (resolved, escalated or dismissed, at closed_at), the next instance opens only
+//                   at a trigger finding at caution or above, observed after closed_at, that ends a period
+//                   of at least the case's reassess_after_s with every trigger below caution (each reading
+//                   holds until the next one, so a gap after a caution is not clear). Its OPEN carries
+//                   clear_since, the start of that period, and
+//                   the engine checks it. So a condition that persists through an escalation (or a
+//                   dismissal) keeps that instance, and a reading that flaps around the level opens nothing;
 //   2. scenario   - the seeded crew actions of the simulated scenario (labelled SIMULATED), generated for
 //                   each instance the fold opens before the scenario's "now": a scripted episode's actions
 //                   for the instance its data opens, and a re-measure for a single Tier B flag;
@@ -17,7 +20,7 @@
 // Because the fold is a pure function of (data, events, env, t), moving the clock back shows each
 // case as it was then, and "reset scenario" is just dropping the user events.
 import { RULES, TERMINAL_STATES, caseReduce, getIndicator, getRule, newCase, triggerLookup } from './engine'
-import type { CaseDef, CaseEvent, CaseState, CaseStatus, ChanceRate, Finding } from './engine'
+import type { CaseDef, CaseEvent, CaseState, CaseStatus, ChanceRate, EscalationTier, Finding } from './engine'
 import { chanceRateOf, evaluatePersonalAt, evaluateRuleOn, opensCase } from './evaluate'
 import { episodeDays, observationDay, observationsFor, seriesKey } from './scenarioData'
 import type { ScenarioIndex } from './scenarioData'
@@ -27,6 +30,8 @@ import type { CrewId, EnvId, Observation } from './vocab'
 const DAY_S = 86_400
 const LOOKUP = triggerLookup(RULES)
 const CLOSED: ReadonlySet<string> = new Set(TERMINAL_STATES)
+/** rules/meta.json escalation: newCase names tier 1 for each crewmember from it (the backup for the CMO's own case). */
+const ESCALATION: unknown = (RULES.meta as { escalation?: unknown } | null | undefined)?.escalation ?? null
 
 /** Case definitions from engine/rules/cases.json, in file order. */
 export const CASE_DEFS: readonly CaseDef[] = Array.isArray(RULES.cases?.cases) ? (RULES.cases!.cases as CaseDef[]) : []
@@ -145,28 +150,73 @@ export function triggerStreams(def: CaseDef, crewId: CrewId, index: ScenarioInde
 }
 
 /**
- * The next trigger finding at caution or above observed after `after` (null: from the start) and at or before
- * `until`, earliest first (ties: trigger order). `afterBelow`: only one that follows a finding of the same
- * trigger below caution observed after `after` (a new episode after an escalation, SPEC 7).
+ * The first instance's opening: the next trigger finding at caution or above observed after `after` (null: from
+ * the start) and at or before `until`, earliest first (ties: trigger order). Later instances: nextReopening.
  */
-export function nextOpening(streams: readonly TriggerStream[], after: number | null, until: number, afterBelow = false): Opening | null {
+export function nextOpening(streams: readonly TriggerStream[], after: number | null, until: number): Opening | null {
   let best: Opening | null = null
   for (const s of streams) {
-    let below = false
     for (let i = after === null ? 0 : firstAfter(s.times, after); i < s.times.length; i++) {
       const t = s.times[i]
       if (t > until || (best && t >= best.t)) break
       const f = s.at(i)
-      if (!opensCase(f)) {
-        below = true
-        continue
-      }
-      if (afterBelow && !below) continue
+      if (!opensCase(f)) continue
       best = { t, finding: f, trigger: s.trigger }
       break
     }
   }
   return best
+}
+
+/** A re-opening (SPEC 7): the opening finding, and when every trigger of the case went below caution before it. */
+export interface Reopening extends Opening {
+  /** MET from which every trigger has been below caution (the OPEN's clear_since). */
+  clear_since: number
+}
+
+/**
+ * Re-open hysteresis (SPEC 7): the opening of the instance after a closed one. Each trigger is followed through its
+ * own readings, each holding until the next one (so a data gap after a caution is not a clear period: the caution
+ * holds until a reading below it); the case is clear while no trigger's latest finding is at caution or above. The next instance opens at the first trigger finding at caution or
+ * above observed after `closedAt` (and at or before `until`) that ends a clear period of at least `clearS` seconds
+ * (the case's reassess_after_s); `clear_since` is when that period began: the first reading below caution of the last
+ * trigger to clear, which may lie before `closedAt`. The walk starts at the closed instance's opening, `openedAt`,
+ * when its trigger was at caution. A reading at caution that ends a shorter clear period opens nothing and starts the
+ * wait again. Ties at one time: trigger order.
+ */
+export function nextReopening(
+  streams: readonly TriggerStream[],
+  openedAt: number,
+  closedAt: number,
+  until: number,
+  clearS: number,
+): Reopening | null {
+  const n = streams.length
+  const idx = streams.map((s) => firstAfter(s.times, openedAt))
+  // each trigger's state at the opening: the finding of its latest reading at or before openedAt
+  const held = streams.map((s, k) => idx[k] > 0 && opensCase(s.at(idx[k] - 1)))
+  let clearSince: number | null = held.some(Boolean) ? null : openedAt
+  for (;;) {
+    let t = Infinity
+    for (let k = 0; k < n; k++) if (idx[k] < streams[k].times.length && streams[k].times[idx[k]] < t) t = streams[k].times[idx[k]]
+    if (t === Infinity || t > until) return null
+    // clear just before t, and long enough: the first reading at caution at t (trigger order) opens the next instance
+    const ready = clearSince !== null && t > closedAt && t - clearSince >= clearS
+    let open: Reopening | null = null
+    for (let k = 0; k < n; k++) {
+      const s = streams[k]
+      while (idx[k] < s.times.length && s.times[idx[k]] === t) {
+        const f = s.at(idx[k])
+        const atCaution = opensCase(f)
+        if (atCaution && ready && !open) open = { t, finding: f, trigger: s.trigger, clear_since: clearSince as number }
+        held[k] = atCaution
+        idx[k]++
+      }
+    }
+    if (open) return open
+    if (held.some(Boolean)) clearSince = null
+    else if (clearSince === null) clearSince = t
+  }
 }
 
 /**
@@ -391,6 +441,83 @@ export function scriptedAnswers(events: readonly CaseEventRecord[], index: Scena
   return out.sort((a, b) => a.t - b.t)
 }
 
+// ---- escalation tier 1 for the patient (rules/meta.json escalation; SPEC 2) -------------------------------
+
+interface TierDefMeta {
+  tier?: number
+  id?: string
+  label?: string
+  name?: string
+  crew_id?: string | null
+  backup?: { id?: string; label?: string; name?: string; crew_id?: string; chip?: string; source?: Record<string, unknown>; citations?: Array<Record<string, unknown>> }
+}
+
+/** Who takes tier 1 of an escalation for this patient: the Crew Medical Officer, or the backup on the CMO's own cases. */
+export interface TierOne {
+  /** 'crew_medical_officer', or 'backup_medical_officer' when the patient is the Crew Medical Officer. */
+  id: string
+  /** meta.json label: "Crew Medical Officer (onboard)" / "Backup medical officer: the Commander (onboard)". */
+  label: string
+  /** "the Crew Medical Officer" / "the Commander". */
+  name: string
+  /** The crewmember who takes tier 1: 'CM-4', or 'CM-1' for CM-4's own cases. */
+  crewId: string | null
+  /** True when the patient holds tier 1's role, so the backup takes it. */
+  backup: boolean
+  /** One crew-facing sentence for the escalation, true for this patient. */
+  line: string
+  /** The basis of a backup (design choice, quoting [V2 7045]); null for the Crew Medical Officer. */
+  chip: string | null
+  source: Record<string, unknown> | null
+  citations: Array<Record<string, unknown>>
+}
+
+const TIER_DEFS: readonly TierDefMeta[] = (() => {
+  const tiers = (ESCALATION as { tiers?: unknown } | null)?.tiers
+  return Array.isArray(tiers) ? (tiers as TierDefMeta[]) : []
+})()
+
+/**
+ * Tier 1 for a patient, from meta.json escalation, as newCase resolves it (spec.escalation_tiers[0]): when the patient
+ * holds tier 1's role (the Crew Medical Officer, CM-4) and the tier has a backup, the backup (the Commander, CM-1).
+ */
+export function tierOneFor(crewId: CrewId): TierOne {
+  const t1 = TIER_DEFS.find((t) => t.tier === 1)
+  const holder = t1?.crew_id ?? null
+  const b = t1?.backup
+  const name = t1?.name ?? 'the Crew Medical Officer'
+  if (b && b.id && b.crew_id && holder === crewId) {
+    const bName = b.name ?? 'the backup medical officer'
+    return {
+      id: b.id,
+      label: b.label ?? 'Backup medical officer (onboard)',
+      name: bName,
+      crewId: b.crew_id,
+      backup: true,
+      line: `You are ${name} and the patient: tell ${bName} (${b.crew_id}), the backup medical officer, now.`,
+      chip: b.chip ?? null,
+      source: b.source ?? null,
+      citations: Array.isArray(b.citations) ? b.citations : [],
+    }
+  }
+  return {
+    id: t1?.id ?? 'crew_medical_officer',
+    label: t1?.label ?? 'Crew Medical Officer (onboard)',
+    name,
+    crewId: holder,
+    backup: false,
+    line: `Tell ${name}${holder ? ` (${holder})` : ''} now.`,
+    chip: null,
+    source: null,
+    citations: [],
+  }
+}
+
+/** The engine's resolved tier 1 of a case state (spec.escalation_tiers[0]), or null for an older state. */
+export function stateTierOne(state: Pick<CaseState, 'spec'>): EscalationTier | null {
+  return state.spec.escalation_tiers?.[0] ?? null
+}
+
 // ---- the fold ------------------------------------------------------------------------------------
 
 /** One instance (episode) of a case for a crewmember, as the fold saw it. */
@@ -420,6 +547,8 @@ export interface CaseView {
   instances: InstanceView[]
   /** The current instance's "Possibly chance" note when it is a single Tier B flag, else null. */
   chance: ChanceNote | null
+  /** Who takes tier 1 if this case escalates: the Crew Medical Officer, or the backup (the Commander) on CM-4's cases. */
+  tier1: TierOne
 }
 
 const ORIGIN_RANK: Record<CaseEventRecord['origin'], number> = { auto: 0, scenario: 1, user: 2 }
@@ -458,7 +587,7 @@ export interface FoldResult {
 export function foldCase(input: FoldInput): FoldResult {
   const { def, crewId, tripwireObs, tNow, onOpen } = input
   const streams = input.streams ?? []
-  let s = newCase(def, crewId, LOOKUP, input.envId ?? null)
+  let s = newCase(def, crewId, LOOKUP, input.envId ?? null, ESCALATION)
   const origins: CaseOrigin[] = []
   const applied: CaseEventRecord[] = []
   const openings = new Map<number, Opening>()
@@ -494,11 +623,17 @@ export function foldCase(input: FoldInput): FoldResult {
     const horizon = next ? next.event.t : tNow
     tickUntil(horizon)
     if (closedOrIdle() && streams.length) {
-      const after = s.status === 'idle' ? null : (s.closed_at ?? s.updated_at)
-      const from = after === null ? (blockedUntil === -Infinity ? null : blockedUntil) : Math.max(after, blockedUntil)
-      const o = nextOpening(streams, from, horizon, s.status === 'escalated')
+      let o: Opening | Reopening | null
+      if (s.status === 'idle') {
+        o = nextOpening(streams, blockedUntil === -Infinity ? null : blockedUntil, horizon)
+      } else {
+        // re-open hysteresis (SPEC 7): a new episode after the triggers stayed clear for the reassessment time
+        const after = Math.max(s.closed_at ?? s.updated_at ?? -Infinity, blockedUntil)
+        o = nextReopening(streams, s.opened_at ?? after, after, horizon, s.spec.tripwire.reassess_after_s)
+      }
       if (o) {
-        apply({ type: 'OPEN', t: o.t, finding: o.finding }, 'auto')
+        const clear = 'clear_since' in o ? { clear_since: o.clear_since } : {}
+        apply({ type: 'OPEN', t: o.t, finding: o.finding, ...clear }, 'auto')
         if (s.status !== 'detected') {
           blockedUntil = o.t
           continue
@@ -558,7 +693,7 @@ export interface CaseSchedule {
 }
 
 function tripwireFor(def: CaseDef, crewId: CrewId, index: ScenarioIndex, runtime: readonly Observation[], envId: EnvId): Observation[] {
-  const cond = newCase(def, crewId, LOOKUP, envId).spec.tripwire.condition
+  const cond = newCase(def, crewId, LOOKUP, envId, ESCALATION).spec.tripwire.condition
   return observationsFor(index, runtime, crewId, cond.variable).filter((o) => (o.crew_id === null || o.crew_id === crewId) && o.unit === cond.unit)
 }
 
@@ -641,6 +776,7 @@ export function computeCases(input: CaseTimelineInput, schedule = caseSchedule(i
         opening: schedule.openings.get(key) ?? null,
         instances: r.instances,
         chance: current?.chance ?? null,
+        tier1: tierOneFor(crewId),
       })
     }
   }

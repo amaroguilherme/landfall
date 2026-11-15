@@ -501,7 +501,7 @@ def test_other_nasa_citations_appear_verbatim(R, snap_id):
 def test_noaa_rules_match_s_scale_snapshot(R):
     snap = need_snapshot("swpc_s_scale")
     levels = {lv["n"]: lv for lv in snap["data"]["levels"]}
-    assert snap["data"]["unit"] == "pfu" and snap["data"]["energy"] == ">=10 MeV"
+    assert snap["data"]["unit"] == "pfu" and snap["data"]["energy"] == "≥10 MeV"   # LANDFALL's label; NOAA's wording is quoted in the caveats
     for r in R["thresholds"]["rules"]:
         if r["chip"] != "NOAA-published":
             continue
@@ -968,3 +968,77 @@ def test_s5_crew_facing_text_uses_math_signs_and_scoped_refusals(R):
     assert "≥10 MeV" in spe["tripwire"]["text"] and any("≥10 MeV" in p["text"] for p in spe["procedure"])
     onboard = next(r for r in R["thresholds"]["rules"] if r["id"] == "ops_onboard_proton_s3")
     assert "≥10 MeV" in onboard["label"]
+
+
+# ------------------------------------------------------------------ lane-polish (W6 leftovers)
+
+
+# prose fields of personal.json that views print; ids, units, citations, urls and `from` lists are structure
+_PROSE_SKIP_KEYS = {"id", "variable", "unit", "kind", "chip", "case_id", "url", "transform", "worse", "device",
+                    "schema", "snapshot", "citation", "label", "impl_note", "requirement_id", "section"}
+_CODE_IDENTIFIER = re.compile(r"[A-Za-z0-9]+_[A-Za-z0-9_]+|\b(?:rci|finding|data|sim_crew|engine|ingest)\.[A-Za-z_]"
+                              r"|\S+\.py\b|\bt_critical\(")
+
+
+def test_personal_prose_names_no_code_identifiers(R):
+    """Lead item 4: text shown on Trends, Method, Provenance and the case pages says what the method does in plain
+    English; implementation pointers live in rci.impl_notes / chance_rate.impl_note, which no view displays."""
+    found = []
+
+    def scan(x, path):
+        if isinstance(x, dict):
+            for k, v in x.items():
+                if k == "impl_notes" or (k == "from" and path and isinstance(v, list)):
+                    continue
+                scan(v, path + (k,))
+        elif isinstance(x, list):
+            for i, v in enumerate(x):
+                scan(v, path + (i,))
+        elif isinstance(x, str) and path and path[-1] not in _PROSE_SKIP_KEYS:
+            for m in _CODE_IDENTIFIER.finditer(x):
+                found.append(("/".join(map(str, path)), m.group(0)))
+
+    scan(R["personal"], ())
+    assert found == []
+    notes = R["personal"]["rci"]["impl_notes"]
+    assert "min_detectable_change" in notes["detectable_change"] and "test_chance_rates.py" in notes["caveat"]
+    for ind in R["personal"]["indicators"]:
+        if "chance_rate" in ind:
+            assert "test_chance_rates.py" in ind["chance_rate"]["impl_note"], ind["id"]
+
+
+def test_lapses_and_caveat_read_the_printed_rate_the_same_way(R):
+    """The W6 verifier: the lapses note called its printed rate an upper bound while the caveat says to read the
+    printed rate as a lower bound for real data. Both now say: under the model it is measured; for real
+    (autocorrelated) days, read it as a lower bound."""
+    lap = next(i for i in R["personal"]["indicators"] if i["id"] == "pvt_lapses")["chance_rate"]["text"]
+    assert "upper bound" not in lap and "lower bound" in lap
+    assert "lower bound" in R["personal"]["rci"]["caveat"] and "upper bound" not in R["personal"]["rci"]["caveat"]
+
+
+def test_backup_medical_officer_is_the_commander_and_the_texts_say_so(R):
+    """Lead item 7: when the patient is the Crew Medical Officer, tier 1 names the backup: the Commander (design
+    choice), whose basis quotes [V2 7045] verbatim (test_other_nasa_citations_appear_verbatim checks the quote
+    against the frozen requirement). The roster agrees with the simulator's crew, and every escalation text tells
+    the CMO who to tell."""
+    from ingest import _sim_model as model
+
+    t1 = R["meta"]["escalation"]["tiers"][0]
+    roles = {c["id"]: c["role"] for c in model.CREW}
+    assert roles[t1["crew_id"]] == "Crew Medical Officer"
+    b = t1["backup"]
+    assert (b["id"], b["role"], roles[b["crew_id"]]) == ("backup_medical_officer", "Commander", "Commander")
+    assert b["chip"] == "design choice" and b["source"]["kind"] == "design_choice"
+    (cite,) = b["citations"]
+    assert (cite["requirement_id"], cite["snapshot"], cite["section"]) == ("V2 7045", "std_vol2_requirements", "7.5.2")
+    assert cite["verbatim"] == "in the event that a physician crewmember is not present or is the one who requires " \
+                               "medical treatment"
+    assert cite["verbatim"] in b["source"]["rationale"]
+    req = requirement(need_snapshot("std_vol2_requirements"), "V2 7045")
+    assert cite["verbatim"] in req["text"] and req["section"] == cite["section"] and req["pdf_page"] == cite["page"]
+    backup_words = f"(if that is you, the {b['role']})"
+    renal = _case(R, "renal_stone")
+    escalation_texts = [c["tripwire"]["text"] for c in R["cases"]["cases"]]
+    escalation_texts += [st["text"] for st in renal["procedure"] if st.get("red_flag")]
+    for text in escalation_texts:
+        assert "Crew Medical Officer" in text and backup_words in text, text

@@ -108,14 +108,21 @@ export interface TierLine {
 /**
  * The two tiers with their timing for this link: tier 1 now; tier 2 within the round trip at AOS, or when the
  * link resumes (countdown) during LOS. Labels and order come from meta.json escalation.tiers.
+ * `tier1` is the patient's own tier 1 (`CaseView.tier1`, `tierOneFor(crewId)`): on the Crew Medical Officer's own
+ * cases it is the backup, the Commander (CM-1), as the engine records it. Without it, tier 1 is the Crew Medical Officer.
  */
 export function escalationTiers(
   comms: Pick<CommsStatus, 'blocked' | 'resumes_at' | 'one_way_s' | 'range' | 'basis'>,
   t: number,
+  tier1: { id: string; label: string; crewId: string | null } | null = null,
 ): TierLine[] {
   const defs = Array.isArray(META.escalation?.tiers) ? [...META.escalation!.tiers!].sort((a, b) => a.tier - b.tier) : []
   return defs.map((d) => {
-    if (d.id === 'crew_medical_officer') return { tier: d.tier, id: d.id, label: d.label, crew: CMO_ID, when: 'now' }
+    if (d.id === 'crew_medical_officer') {
+      return tier1
+        ? { tier: d.tier, id: tier1.id, label: tier1.label, crew: tier1.crewId, when: 'now' }
+        : { tier: d.tier, id: d.id, label: d.label, crew: CMO_ID, when: 'now' }
+    }
     const when = !comms.blocked
       ? `through the ground packet, at once: the link is up, so the ground has it within the round trip (${formatCommsLightTime(comms, true)})`
       : comms.resumes_at !== null

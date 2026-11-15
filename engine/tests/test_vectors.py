@@ -54,7 +54,14 @@ def test_non_finite_arguments_are_encoded_and_decoded():
     def in_rules_data(v):  # a non-finite number inside a rules object (an indicator's chance_rate) is a bad rule
         return any('"$float"' in json.dumps(v["args"].get(k)) for k in ("indicator", "rule"))
 
-    assert all(v.get("raises") == ("invalid_rule" if in_rules_data(v) else "invalid_argument") for v in encoded)
+    def in_case_event(v):  # case_reduce never raises for a bad event: it logs an atomic invalid_event rejection
+        return v["fn"] == "case_reduce" and '"$float"' in json.dumps(v["args"].get("event"))
+
+    for v in encoded:
+        if in_case_event(v):
+            assert v["expect"]["log"][-1]["error"] == "invalid_event", v["name"]
+        else:
+            assert v.get("raises") == ("invalid_rule" if in_rules_data(v) else "invalid_argument"), v["name"]
 
 
 @pytest.mark.parametrize("vec", [v for vs in _load_committed().values() for v in vs],

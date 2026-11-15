@@ -423,6 +423,33 @@
    ]
   }
  },
+ "escalation": {
+  "note": "fixture: the shape of rules/meta.json escalation (tier names, the holder of tier 1, its backup)",
+  "tiers": [
+   {
+    "tier": 1,
+    "id": "crew_medical_officer",
+    "label": "Crew Medical Officer (onboard)",
+    "name": "the Crew Medical Officer",
+    "crew_id": "CM-4",
+    "when": "now",
+    "backup": {
+     "id": "backup_medical_officer",
+     "label": "Backup medical officer: the Commander (onboard)",
+     "name": "the Commander",
+     "crew_id": "CM-1",
+     "when": "now"
+    }
+   },
+   {
+    "tier": 2,
+    "id": "flight_surgeon",
+    "label": "Flight surgeon (ground)",
+    "name": "the flight surgeon",
+    "when": "through the ground packet"
+   }
+  ]
+ },
  "environments": [
   {
    "id": "iss",

@@ -64,6 +64,8 @@ TRANSFORMS = ("anscombe",)
 ANSCOMBE_OFFSET = 0.375          # 3/8 (Anscombe 1948): y = 2 * sqrt(x + 3/8)
 ANSCOMBE_SCALE_TEXT = "2√(x + 3/8)"
 CHANCE_TEXT_MAX_DAYS = 1e12      # "about 1 in N days" is printed below this; above it, "fewer than 1 in 10^12"
+MULTIPLIER_DP = 3                # chance-rate multipliers print with up to 3 decimals (0.45, 0.495; SPEC 5)
+MULTIPLIER_TEXT_MAX = 1e9        # at or above it the multiplier text is "10^9 or more"
 
 
 @functools.lru_cache(maxsize=4096)
@@ -412,6 +414,15 @@ def _about(n: float) -> str:
     return fmt_num(math.floor(n / m + 0.5) * m, 0)
 
 
+def _multiplier_text(x: float) -> str:
+    """A chance-rate multiplier as printed: up to 3 decimals, trailing zeros dropped (0.45, 0.495, 1).
+
+    personal.json declares a multiplier to 2 decimals, or to 3 when 2 would round a measured value
+    outside the 0.5-2 band onto its edge (mood: 0.495, not 0.5), so the text shows which side it is on.
+    """
+    return fmt_num(x, MULTIPLIER_DP) if x < MULTIPLIER_TEXT_MAX else "10^9 or more"
+
+
 def _declared_multiplier(decl: dict, key: str, iid: object) -> float:
     x = decl.get(key)
     if not is_number(x) or x < 0:
@@ -428,7 +439,8 @@ def chance_rate(indicator: dict, cfg: dict) -> dict:
     personal.json ({caution_multiplier, flag_multiplier, text, chip, source}: measured by seeded Monte
     Carlo under the scenario's noise model) gets those multiples of the nominal rates instead, with basis
     "measured". A non-alerting indicator never raises a caution: its caution rate is 0 and its text
-    names the flag rate.
+    names the flag rate. caution_multiplier_text / flag_multiplier_text are the multipliers as the UI
+    prints them (_multiplier_text: up to 3 decimals, so a borderline 0.495 never reads 0.50).
     """
     _validate_indicator(indicator)
     _validate_cfg(cfg)
@@ -469,6 +481,7 @@ def chance_rate(indicator: dict, cfg: dict) -> dict:
     return {"indicator_id": iid, "worse": worse, "alerting": alerting, "alpha": alpha, "basis": basis,
             "nominal_caution_per_day": nominal_caution, "nominal_flag_per_day": nominal_flag,
             "caution_multiplier": cm, "flag_multiplier": fm,
+            "caution_multiplier_text": _multiplier_text(cm), "flag_multiplier_text": _multiplier_text(fm),
             "caution_per_day": caution, "flag_per_day": flag,
             "caution_every_n_days": caution_every, "flag_every_n_days": flag_every,
             "text": text, "note": note, "chip": chip, "source": source}

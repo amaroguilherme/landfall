@@ -43,7 +43,7 @@ const API: Record<string, { fn: AnyFn; params: readonly string[] }> = {
   t_quantile: { fn: tQuantile as AnyFn, params: ['p', 'df'] },
   t_critical: { fn: tCritical as AnyFn, params: ['alpha', 'df'] },
   s_level: { fn: sLevel as AnyFn, params: ['flux_pfu'] },
-  new_case: { fn: newCase as AnyFn, params: ['case_def', 'crew_id', 'lookup', 'env_id'] },
+  new_case: { fn: newCase as AnyFn, params: ['case_def', 'crew_id', 'lookup', 'env_id', 'escalation'] },
   case_reduce: { fn: caseReduce as AnyFn, params: ['state', 'event'] },
   build_ground_packet: {
     fn: buildGroundPacket as AnyFn,

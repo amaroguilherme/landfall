@@ -127,7 +127,7 @@
    "case_id": "renal_stone",
    "notes": [
     "The requirement binds countermeasures ('Countermeasures shall maintain ...').",
-    "BMD is measured by DXA before and after flight; there is no in-flight DXA, so in flight this rule is usually insufficient_data.",
+    "BMD is measured by DXA before and after flight; there is no in-flight DXA, so in flight this rule usually reports insufficient data.",
     "Tied to renal_stone because bone resorption raises urinary calcium (Vol 1 Rev C sec. 4.7 introduction)."
    ],
    "action": {
@@ -136,7 +136,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "A POL is a countermeasure goal ('Countermeasures shall maintain ...', [V1 4027]): a value below it needs attention, not immediate action. No case opens on it; in flight it is usually insufficient_data, because bone density is measured by DXA before and after flight."
+     "rationale": "A POL is a countermeasure goal ('Countermeasures shall maintain ...', [V1 4027]): a value below it needs attention, not immediate action. No case opens on it; in flight it usually reports insufficient data, because bone density is measured by DXA before and after flight."
     }
    }
   },
@@ -173,7 +173,7 @@
    "case_id": "renal_stone",
    "notes": [
     "The requirement binds countermeasures ('Countermeasures shall maintain ...').",
-    "BMD is measured by DXA before and after flight; there is no in-flight DXA, so in flight this rule is usually insufficient_data.",
+    "BMD is measured by DXA before and after flight; there is no in-flight DXA, so in flight this rule usually reports insufficient data.",
     "Tied to renal_stone because bone resorption raises urinary calcium (Vol 1 Rev C sec. 4.7 introduction)."
    ],
    "action": {
@@ -182,7 +182,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "A POL is a countermeasure goal ('Countermeasures shall maintain ...', [V1 4027]): a value below it needs attention, not immediate action. No case opens on it; in flight it is usually insufficient_data, because bone density is measured by DXA before and after flight."
+     "rationale": "A POL is a countermeasure goal ('Countermeasures shall maintain ...', [V1 4027]): a value below it needs attention, not immediate action. No case opens on it; in flight it usually reports insufficient data, because bone density is measured by DXA before and after flight."
     }
    }
   },
@@ -219,7 +219,7 @@
    "case_id": "renal_stone",
    "notes": [
     "The requirement binds countermeasures ('Countermeasures shall maintain ...').",
-    "BMD is measured by DXA before and after flight; there is no in-flight DXA, so in flight this rule is usually insufficient_data.",
+    "BMD is measured by DXA before and after flight; there is no in-flight DXA, so in flight this rule usually reports insufficient data.",
     "Tied to renal_stone because bone resorption raises urinary calcium (Vol 1 Rev C sec. 4.7 introduction)."
    ],
    "action": {
@@ -228,7 +228,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "A POL is a countermeasure goal ('Countermeasures shall maintain ...', [V1 4027]): a value below it needs attention, not immediate action. No case opens on it; in flight it is usually insufficient_data, because bone density is measured by DXA before and after flight."
+     "rationale": "A POL is a countermeasure goal ('Countermeasures shall maintain ...', [V1 4027]): a value below it needs attention, not immediate action. No case opens on it; in flight it usually reports insufficient data, because bone density is measured by DXA before and after flight."
     }
    }
   },

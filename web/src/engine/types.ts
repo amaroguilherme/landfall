@@ -263,6 +263,9 @@ export interface ChanceRate {
   nominal_flag_per_day: number
   caution_multiplier: number
   flag_multiplier: number
+  /** The multipliers as every view prints them: up to 3 decimals ("0.45", "0.495", "1"), "10^9 or more" from 1e9. */
+  caution_multiplier_text: string
+  flag_multiplier_text: string
   /** Chance cautions per crewmember-day (0 for a non-alerting indicator, which never cautions). */
   caution_per_day: number
   /** Chance reliable changes in either direction per crewmember-day. */
@@ -392,6 +395,24 @@ export interface CaseSpec {
     }
   }
   escalation: { ground_packet?: boolean; observations?: string[]; [key: string]: unknown } | null
+  /**
+   * The two escalation tiers for this crewmember (newCase with rules/meta.json `escalation`; absent in a state built
+   * before they were recorded, which uses the defaults). CM-4's cases: tier 1 is the backup medical officer.
+   */
+  escalation_tiers?: EscalationTier[]
+}
+
+/** One escalation tier of a case (spec.escalation_tiers). */
+export interface EscalationTier {
+  tier: number
+  /** 'crew_medical_officer' | 'flight_surgeon', or the backup's id ('backup_medical_officer'). */
+  id: string
+  /** The crewmember who holds the role ('CM-4'; the backup 'CM-1'), or null. */
+  crew_id: string | null
+  /** For a backup, the id of the tier it stands in for ('crew_medical_officer'), else null. */
+  instead_of: string | null
+  /** What the escalation detail calls this tier ("the Crew Medical Officer"). */
+  text: string
 }
 
 /** A log entry. `t` and `event` are the event's own fields (raw values for a rejected event). */
@@ -419,7 +440,8 @@ export interface CaseEscalation {
   reason: 'tripwire' | 'red_flag'
   /** The red-flag step answered "yes", or null for the tripwire. */
   step_id: string | null
-  tiers: Array<'crew_medical_officer' | 'flight_surgeon'>
+  /** The ids of spec.escalation_tiers: ['crew_medical_officer', 'flight_surgeon'], or ['backup_medical_officer', ...] for CM-4. */
+  tiers: string[]
 }
 
 /** A closed instance of a case, kept when the case opens again (case_reduce OPEN from a closed state). */
@@ -466,7 +488,7 @@ export interface CaseState {
 }
 
 export type CaseEvent =
-  | { type: 'OPEN'; t: number; finding: Finding }
+  | { type: 'OPEN'; t: number; finding: Finding; /** From a closed state: when every trigger went below caution (SPEC 7). */ clear_since?: number }
   | { type: 'SELECT'; t: number; countermeasure_id: string }
   | { type: 'STEP'; t: number; step_id: string; input?: unknown }
   | { type: 'DECLINE'; t: number; step_id: string; reason: string }

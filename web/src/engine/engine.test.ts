@@ -24,6 +24,7 @@ import {
   getCase,
   getEnvironment,
   getIndicator,
+  getRule,
   newCase,
   tCritical,
   thresholdRules,
@@ -254,9 +255,42 @@ describe('real rules (engine/rules/*.json)', () => {
     const lapses = (dt: number, value: number): Observation => ({ crew_id: 'CM-3', variable: 'pvt_lapses', value, unit: 'count', t: NOW + 120 + dt })
     s = caseReduce(s, { type: 'TICK', t: s.reassess_at as number, observations: [lapses(86400, 1), lapses(2 * 86400, 0)] })
     expect(s.status).toBe('resolved')
-    s = caseReduce(s, { type: 'OPEN', t: NOW + 10 * 86400, finding: { ...chance, t: NOW + 10 * 86400 } })
+    const resolved = s
+    // re-open hysteresis (SPEC 7): a new episode needs the triggers below caution for the case's reassessment time
+    const again = { type: 'OPEN' as const, t: NOW + 10 * 86400, finding: { ...chance, t: NOW + 10 * 86400 } }
+    expect(caseReduce(resolved, again).log.at(-1)!.error).toBe('invalid_event') // no clear_since
+    const flap = caseReduce(resolved, { ...again, clear_since: again.t - 3600 })
+    expect([flap.status, flap.instance, flap.log.at(-1)!.error]).toEqual(['resolved', 1, 'trigger_not_clear'])
+    s = caseReduce(resolved, { ...again, clear_since: NOW + 86400 })
     expect([s.status, s.instance, s.previous_instances.map((p) => p.status)]).toEqual(['detected', 2, ['resolved']])
-    expect(s.log[s.log.length - 1].detail).toMatch(/^opened again by sleep_midpoint_shift \(reliable_change, caution\): instance 2; instance 1 was resolved at MET /)
+    expect(s.log[s.log.length - 1].detail).toMatch(/^opened again by sleep_midpoint_shift \(reliable_change, caution\): instance 2; instance 1 was resolved at MET .*; triggers below caution from MET 413\/14:20:00$/)
+  })
+
+  it('the patient is the Crew Medical Officer: tier 1 is the backup, the Commander (meta.json escalation)', () => {
+    const meta = (RULES.meta as unknown as { escalation: unknown }).escalation
+    const def = getCase(RULES, 'renal_stone')
+    const tiers = (crew: string) => newCase(def, crew, triggerLookup(RULES), 'mars_surface', meta).spec.escalation_tiers!
+    expect(tiers('CM-4').map((t) => [t.id, t.crew_id, t.instead_of])).toEqual([
+      ['backup_medical_officer', 'CM-1', 'crew_medical_officer'],
+      ['flight_surgeon', null, null],
+    ])
+    expect(tiers('CM-2').map((t) => [t.id, t.crew_id])).toEqual([
+      ['crew_medical_officer', 'CM-4'],
+      ['flight_surgeon', null],
+    ])
+    const rf = def.procedure!.find((p) => p.red_flag)!
+    const finding = evaluateRule(getRule(RULES, 'target_urine_output_24h'), 1300, 'mars_surface', NOW)
+    for (const [crew, ids, words] of [
+      ['CM-4', ['backup_medical_officer', 'flight_surgeon'], 'tier 1, the Commander (backup for the Crew Medical Officer, who is the patient), now'],
+      ['CM-1', ['crew_medical_officer', 'flight_surgeon'], 'tier 1, the Crew Medical Officer, now'],
+    ] as const) {
+      let s = newCase(def, crew, triggerLookup(RULES), 'mars_surface', meta)
+      s = caseReduce(s, { type: 'OPEN', t: NOW, finding })
+      s = caseReduce(s, { type: 'SELECT', t: NOW + 60, countermeasure_id: def.countermeasure!.primary.id })
+      s = caseReduce(s, { type: 'STEP', t: NOW + 120, step_id: rf.id, input: { variable: 'renal_symptoms', value: true, unit: 'yes/no' } })
+      expect([s.status, s.escalation?.tiers]).toEqual(['escalated', ids])
+      expect(s.log.at(-1)!.detail).toContain(words)
+    }
   })
 
   it('comms: fixed light time at the ISS; Mars needs the Horizons table', () => {

@@ -14,7 +14,8 @@ The randomized vectors (engine/tests/vectors_random/random_<fn>.json) keep their
 frozen; --random recomputes their expectations with the current engine, migrates the arguments of
 a function whose signature changed (rci and evaluate_personal lost the reliability r and the fixed
 critical z; case states gained the required-step, escalation and packet fields, then the instance
-fields), and draws seeded inputs for a function that has no random file yet.
+fields), and draws seeded inputs for a function that has no random file yet, and for a supplement
+(SUPPLEMENTS: the Anscombe and signed-midpoint inputs of evaluate_personal) not in its file yet.
 """
 
 from __future__ import annotations
@@ -455,6 +456,14 @@ def build_vectors() -> dict[str, list[dict]]:
         measured, caution_multiplier=0.37)), cfg=cfg)
     add("chance_rate", "n_just_below_1000", indicator=dict(skin, chance_rate=dict(measured, caution_multiplier=1.0004,
                                                                                    flag_multiplier=1.0004)), cfg=cfg)
+    add("chance_rate", "borderline_multiplier_prints_three_decimals", indicator=dict(mood, chance_rate=dict(
+        measured, caution_multiplier=0.99, flag_multiplier=0.495)), cfg=cfg)
+    add("chance_rate", "multiplier_text_drops_trailing_zeros", indicator=dict(pvt, chance_rate=dict(
+        measured, caution_multiplier=1.5, flag_multiplier=2.0)), cfg=cfg)
+    add("chance_rate", "multiplier_text_rounds_to_three_decimals", indicator=dict(pvt, chance_rate=dict(
+        measured, caution_multiplier=0.45449, flag_multiplier=0.2425)), cfg=cfg)
+    add("chance_rate", "huge_multiplier_text", indicator=dict(pvt, chance_rate=dict(
+        measured, caution_multiplier=2.5e9, flag_multiplier=999999999.9994)), cfg=dict(cfg, alpha_two_tailed=1e-13))
     for name, decl in (("negative_multiplier_rejected", dict(measured, caution_multiplier=-0.1)),
                        ("nan_multiplier_rejected", dict(measured, flag_multiplier=NAN)),
                        ("string_multiplier_rejected", dict(measured, caution_multiplier="0.45")),
@@ -544,6 +553,38 @@ def build_vectors() -> dict[str, list[dict]]:
         bad_case["procedure"][0].update(patch)
         add("new_case", name, case_def=bad_case, crew_id="CM-1")
 
+    # escalation tiers from the meta.json escalation block (fixture of the same shape): tier 1 is the Crew Medical
+    # Officer, CM-4; on CM-4's own case it is the backup, the Commander (CM-1)
+    esc_fx = fx["escalation"]
+    add("new_case", "escalation_tiers_for_cm1", case_def=case_def, crew_id="CM-1", escalation=esc_fx)
+    cm4_state = add("new_case", "escalation_tiers_cmo_is_the_patient_backup_takes_tier_1", case_def=case_def,
+                    crew_id="CM-4", escalation=esc_fx)["expect"]
+    add("new_case", "escalation_null_default_tiers", case_def=case_def, crew_id="CM-4", escalation=None)
+    add("new_case", "escalation_tiers_listed_out_of_order_are_sorted", case_def=case_def, crew_id="CM-4",
+        escalation={"tiers": list(reversed(esc_fx["tiers"]))})
+    add("new_case", "escalation_tier_without_holder_has_no_backup_role", case_def=case_def, crew_id="CM-4",
+        escalation={"tiers": [{k: v for k, v in esc_fx["tiers"][0].items() if k not in ("crew_id", "backup")},
+                              esc_fx["tiers"][1]]})
+    t1, t2 = esc_fx["tiers"]
+    for name, esc in (("escalation_not_an_object_rejected", "meta"),
+                      ("escalation_false_rejected", False),
+                      ("escalation_without_tiers_rejected", {}),
+                      ("escalation_tiers_not_objects_rejected", {"tiers": ["crew_medical_officer", "flight_surgeon"]}),
+                      ("escalation_one_tier_rejected", {"tiers": [t1]}),
+                      ("escalation_three_tiers_rejected", {"tiers": [t1, t2, dict(t2, tier=3)]}),
+                      ("escalation_duplicate_tier_rejected", {"tiers": [t1, dict(t2, tier=1)]}),
+                      ("escalation_tier_number_boolean_rejected", {"tiers": [dict(t1, tier=True), t2]}),
+                      ("escalation_tier_number_string_rejected", {"tiers": [t1, dict(t2, tier="2")]}),
+                      ("escalation_tier_without_name_rejected", {"tiers": [{k: v for k, v in t1.items() if k != "name"}, t2]}),
+                      ("escalation_tier_blank_id_rejected", {"tiers": [t1, dict(t2, id=" ")]}),
+                      ("escalation_holder_empty_rejected", {"tiers": [dict(t1, crew_id=""), t2]}),
+                      ("escalation_backup_not_an_object_rejected", {"tiers": [dict(t1, backup="CM-1"), t2]}),
+                      ("escalation_backup_without_crew_id_rejected",
+                       {"tiers": [dict(t1, backup={k: v for k, v in t1["backup"].items() if k != "crew_id"}), t2]}),
+                      ("escalation_backup_is_the_holder_rejected", {"tiers": [dict(t1, backup=dict(t1["backup"], crew_id="CM-4")), t2]}),
+                      ("escalation_backup_without_holder_rejected", {"tiers": [{k: v for k, v in t1.items() if k != "crew_id"}, t2]})):
+        add("new_case", name, case_def=case_def, crew_id="CM-4", escalation=esc)
+
     # ---- case_reduce: happy path detected -> acting -> watch -> resolved ----
     finding = run("evaluate_personal", {"indicator": pvt, "baseline": pvt_base, "current": 8, "cfg": cfg,
                                         "t": NOW})["expect"]
@@ -570,8 +611,11 @@ def build_vectors() -> dict[str, list[dict]]:
     step("dismiss_after_resolved_rejected", s_, {"type": "DISMISS", "reason": "late", "t": t0 + 300 + 4 * DAY})
     # ---- case_reduce: case instances; a closed case opens again as the next instance (S4) ----
     resolved_state = s_
+    # re-open hysteresis (SPEC 7): the OPEN of a new instance carries clear_since, the MET from which every
+    # trigger has been below caution; the fixture case's reassess_after_s is 72 h
+    reopen_t = t0 + 300 + 5 * DAY
     r2 = step("reopen_after_resolved_new_instance", resolved_state,
-              {"type": "OPEN", "finding": finding, "t": t0 + 300 + 5 * DAY})
+              {"type": "OPEN", "finding": finding, "t": reopen_t, "clear_since": t0 + 300 + DAY})
     r2a = step("reopened_instance_runs_again", r2, {"type": "SELECT", "countermeasure_id": "cm_alt_1",
                                                     "t": t0 + 300 + 5 * DAY + 60})
     r2w = step("reopened_instance_outcome_arms_its_own_tripwire", r2a,
@@ -588,6 +632,21 @@ def build_vectors() -> dict[str, list[dict]]:
          {"type": "OPEN", "finding": dict(finding, severity="advisory"), "t": t0 + 300 + 5 * DAY})
     step("reopen_not_a_trigger_rejected", resolved_state,
          {"type": "OPEN", "finding": dict(finding, rule_id="mood"), "t": t0 + 300 + 5 * DAY})
+    reopen = {"type": "OPEN", "finding": finding, "t": reopen_t}
+    step("reopen_without_clear_since_rejected", resolved_state, reopen)
+    for name, cs in (("reopen_clear_since_string_rejected", "yesterday"), ("reopen_clear_since_boolean_rejected", True),
+                     ("reopen_clear_since_nan_rejected", NAN), ("reopen_clear_since_null_rejected", None)):
+        step(name, resolved_state, dict(reopen, clear_since=cs))
+    step("reopen_clear_since_after_the_open_rejected", resolved_state, dict(reopen, clear_since=reopen_t + 1))
+    step("reopen_clear_since_before_the_closed_instance_opened_rejected", resolved_state,
+         dict(reopen, clear_since=t0 - 1))
+    step("reopen_trigger_clear_for_five_minutes_not_clear", resolved_state, dict(reopen, clear_since=reopen_t - 300))
+    step("reopen_one_second_short_not_clear", resolved_state, dict(reopen, clear_since=reopen_t - 259199))
+    step("reopen_exactly_reassess_after_accepted", resolved_state, dict(reopen, clear_since=reopen_t - 259200))
+    step("reopen_fractional_clear_since_accepted", resolved_state, dict(reopen, clear_since=reopen_t - 259200.5))
+    step("reopen_clear_since_at_previous_opening_accepted", resolved_state, dict(reopen, clear_since=t0))
+    step("open_from_idle_does_not_read_clear_since", st,
+         {"type": "OPEN", "finding": finding, "t": t0, "clear_since": "not read from idle"})
     step("malformed_state_without_instance_raises", {k: v for k, v in resolved_state.items() if k != "instance"},
          {"type": "TICK", "t": t0 + 300 + 5 * DAY, "observations": []})
     step("malformed_state_instance_zero_raises", dict(resolved_state, instance=0),
@@ -607,7 +666,12 @@ def build_vectors() -> dict[str, list[dict]]:
               {"type": "TICK", "t": t0 + 300 + 3 * 43200, "observations": obs_bad})
     s_ = step("tripwire_two_of_three_escalated_at_reassess", s_,
               {"type": "TICK", "t": t0 + 300 + 3 * DAY, "observations": obs_bad})
-    step("reopen_after_escalated_new_instance", s_, {"type": "OPEN", "finding": finding, "t": t0 + 300 + 4 * DAY})
+    escalated_at = t0 + 300 + 3 * DAY
+    # the condition persists through the escalation (one reading below, then back): the escalated instance stays
+    step("reopen_after_escalated_while_trigger_persists_not_clear", s_,
+         {"type": "OPEN", "finding": finding, "t": escalated_at + 600, "clear_since": escalated_at + 300})
+    step("reopen_after_escalated_new_instance", s_,
+         {"type": "OPEN", "finding": finding, "t": t0 + 300 + 7 * DAY, "clear_since": escalated_at + 3600})
     vehicle_obs = {"crew_id": None, "variable": "pvt_lapses", "value": 7, "unit": "count", "t": t0 + 400}
     step("tick_vehicle_obs_crew_id_null_counts", watch_state,
          {"type": "TICK", "t": t0 + 500, "observations": [vehicle_obs]})
@@ -627,10 +691,16 @@ def build_vectors() -> dict[str, list[dict]]:
     step("dismiss_without_reason_rejected", opened, {"type": "DISMISS", "reason": " ", "t": t0 + 2})
     dismissed = step("dismiss_from_detected", opened, {"type": "DISMISS",
                                                        "reason": "Sensor off-wrist; repeat test normal.", "t": t0 + 2})
-    third = step("reopen_after_dismissed_new_instance", dismissed, {"type": "OPEN", "finding": finding, "t": t0 + 3})
+    step("reopen_after_dismissed_while_trigger_persists_not_clear", dismissed,
+         {"type": "OPEN", "finding": finding, "t": t0 + 3, "clear_since": t0 + 2})
+    third = step("reopen_after_dismissed_new_instance", dismissed,
+                 {"type": "OPEN", "finding": finding, "t": t0 + 3 * DAY + 3, "clear_since": t0 + 1})
     third = run("case_reduce", {"state": third, "event": {"type": "DISMISS", "reason": "Off-wrist again.",
-                                                          "t": t0 + 4}})["expect"]
-    step("third_instance_keeps_both_previous", third, {"type": "OPEN", "finding": finding, "t": t0 + 5})
+                                                          "t": t0 + 3 * DAY + 4}})["expect"]
+    step("third_instance_keeps_both_previous", third,
+         {"type": "OPEN", "finding": finding, "t": t0 + 6 * DAY + 10, "clear_since": t0 + 3 * DAY + 5})
+    step("third_instance_clear_since_before_second_opening_rejected", third,
+         {"type": "OPEN", "finding": finding, "t": t0 + 6 * DAY + 10, "clear_since": t0 + 1})
     step("tick_outside_watch_ignored", opened, {"type": "TICK", "t": t0 + 5, "observations": obs_bad})
     step("tick_unit_mismatch_rejected", watch_state,
          {"type": "TICK", "t": t0 + 300 + DAY,
@@ -696,6 +766,41 @@ def build_vectors() -> dict[str, list[dict]]:
         "event": {"type": "STEP", "step_id": "step_4", "t": t0 + 23}})["expect"],
         "event": {"type": "OUTCOME", "text": "Partial.", "t": t0 + 24}})["expect"],
          {"type": "TICK", "t": t0 + 24 + 3 * DAY, "observations": [dict(o, t=o["t"] - 56) for o in g_obs]})
+
+    # ---- case_reduce: the patient is the Crew Medical Officer: tier 1 is the backup (meta.json escalation) ----
+    c4 = run("case_reduce", {"state": cm4_state, "event": {"type": "OPEN", "finding": finding, "t": t0}})["expect"]
+    c4 = run("case_reduce", {"state": c4, "event": {"type": "SELECT", "countermeasure_id": "cm_primary",
+                                                    "t": t0 + 60}})["expect"]
+    c4 = step("cmo_patient_outcome_to_watch", c4, {"type": "OUTCOME", "text": "Light schedule followed.", "t": t0 + 300})
+    cm4_obs = [dict(o, crew_id="CM-4") for o in obs_bad]
+    step("cmo_patient_tripwire_escalates_to_the_backup", c4,
+         {"type": "TICK", "t": t0 + 300 + 3 * DAY, "observations": cm4_obs})
+    gated_cm4 = run("new_case", {"case_def": gated, "crew_id": "CM-4", "escalation": esc_fx})["expect"]
+    g4 = run("case_reduce", {"state": gated_cm4, "event": {"type": "OPEN", "finding": finding, "t": t0}})["expect"]
+    g4 = run("case_reduce", {"state": g4, "event": {"type": "SELECT", "countermeasure_id": "cm_primary",
+                                                    "t": t0 + 10}})["expect"]
+    step("cmo_patient_red_flag_yes_escalates_to_the_backup", g4,
+         {"type": "STEP", "step_id": "step_3", "t": t0 + 20,
+          "input": {"variable": "renal_symptoms", "value": True, "unit": "yes/no"}})
+    gated_cm1 = run("new_case", {"case_def": gated, "crew_id": "CM-1", "escalation": esc_fx})["expect"]
+    g1 = run("case_reduce", {"state": gated_cm1, "event": {"type": "OPEN", "finding": finding, "t": t0}})["expect"]
+    g1 = run("case_reduce", {"state": g1, "event": {"type": "SELECT", "countermeasure_id": "cm_primary",
+                                                    "t": t0 + 10}})["expect"]
+    step("crew_patient_red_flag_yes_escalates_to_the_cmo", g1,
+         {"type": "STEP", "step_id": "step_3", "t": t0 + 20,
+          "input": {"variable": "renal_symptoms", "value": True, "unit": "yes/no"}})
+    old_state = copy.deepcopy(c4)
+    del old_state["spec"]["escalation_tiers"]
+    step("state_without_recorded_tiers_escalates_with_the_default_tiers", old_state,
+         {"type": "TICK", "t": t0 + 300 + 3 * DAY, "observations": cm4_obs})
+    for name, tiers in (("malformed_escalation_tiers_not_a_list_raises", "crew_medical_officer"),
+                        ("malformed_escalation_tiers_one_tier_raises", c4["spec"]["escalation_tiers"][:1]),
+                        ("malformed_escalation_tiers_without_text_raises",
+                         [{k: v for k, v in c4["spec"]["escalation_tiers"][0].items() if k != "text"},
+                          c4["spec"]["escalation_tiers"][1]])):
+        bad_state = copy.deepcopy(c4)
+        bad_state["spec"]["escalation_tiers"] = tiers
+        step(name, bad_state, {"type": "TICK", "t": t0 + 300 + 3 * DAY, "observations": cm4_obs})
 
     # ---- build_ground_packet ----
     esc_state = s_
@@ -966,8 +1071,115 @@ def random_inputs(fn: str, n: int = 160) -> list[dict]:
     return out
 
 
+# Seeded supplements appended to a random file that already exists: drawn once, under their own names, and
+# frozen like the rest from then on (SPEC section 6). random_evaluate_personal.json was frozen before the
+# Anscombe transform and the signed sleep midpoint existed, so these exercise both paths in both languages.
+SUPPLEMENTS: dict[str, tuple[tuple[str, int], ...]] = {
+    "evaluate_personal": (("anscombe", 240), ("signed_midpoint", 80)),
+}
+
+
+def _poisson(rng: random.Random, lam: float) -> int:
+    """A Poisson count (Knuth's product method; lam is small here)."""
+    limit, k, prod = math.exp(-lam), 0, rng.random()
+    while prod > limit:
+        k += 1
+        prod *= rng.random()
+    return k
+
+
+def _cfg_for_random(rng: random.Random) -> dict:
+    cfg = {"alpha_two_tailed": rng.choice([0.001, 0.001, 0.001, 0.01, 0.05]),
+           "min_baseline_n": rng.choice([7, 7, 7, 14, 3]), "chip": "literature",
+           "source": {"kind": "literature", "citation": "random"}}
+    if rng.random() < 0.03:
+        del cfg[rng.choice(["alpha_two_tailed", "min_baseline_n", "chip", "source"])]
+    return cfg
+
+
+def _anscombe_args(rng: random.Random, k: int) -> dict:
+    """A count indicator tested on the Anscombe scale: Poisson-like baselines (zeros, small and large counts),
+    null entries and observation objects, a rise, a fall or no change, and the invalid inputs of that path."""
+    ind = {"id": f"rand_lapses_{k}", "label": "PVT-B lapses", "variable": "pvt_lapses", "unit": "count",
+           "worse": rng.choice(["increase", "increase", "increase", "decrease", "either"]),
+           "alerting": rng.random() < 0.85, "private": rng.random() < 0.1, "transform": "anscombe"}
+    u = rng.random()
+    if u < 0.04:
+        ind["transform"] = rng.choice(["log", "Anscombe", 5, ["anscombe"]])
+    elif u < 0.08:
+        ind["transform"] = None
+    lam = rng.choice([0.05, 0.3, 0.9, 1.0, 1.2, 3.0, 8.0, 25.0, 400.0])
+    v = rng.random()
+    n = rng.randint(7, 21) if v < 0.8 else rng.choice([2, 4, 6, 30, 60])
+    base: list = [_poisson(rng, lam) for _ in range(n)]
+    w = rng.random()
+    if w < 0.07:
+        base = [rng.choice([0, 1, 2])] * n                          # zero SD on the test scale too
+    elif w < 0.14:
+        base = [b + rng.choice([0.0, 0.5, 0.25]) for b in base]       # non-integer counts are allowed
+    if rng.random() < 0.15:
+        base[rng.randrange(n)] = None                                 # a missing day is skipped
+    if rng.random() < 0.12:
+        i = rng.randrange(n)
+        if base[i] is not None:
+            base[i] = {"value": base[i], "unit": "count", "t": NOW - (n - i) * DAY}
+    if rng.random() < 0.03:
+        base[rng.randrange(n)] = rng.choice([-1, -0.0001])            # a negative count: invalid_argument
+    c = rng.random()
+    if c < 0.08:
+        current = None
+    elif c < 0.13:
+        current = 0
+    elif c < 0.16:
+        current = rng.choice([-1, -0.5])                                # invalid_argument
+    elif c < 0.2:
+        current = {"value": _poisson(rng, lam * 4.0), "unit": rng.choice(["count", "count", "lapses"]),
+                   "t": NOW, "variable": rng.choice(["pvt_lapses", "pvt_lapses", "pvt_median_rt"])}
+    else:
+        current = _poisson(rng, lam * rng.choice([0.0, 0.25, 1.0, 1.0, 2.0, 4.0, 8.0, 16.0]))
+    args = {"indicator": ind, "baseline": base, "current": current, "cfg": _cfg_for_random(rng)}
+    if rng.random() < 0.7:
+        args["t"] = NOW
+    return args
+
+
+def _wrap_h(x: float) -> float:
+    """A clock shift in hours wrapped to [-12, 12), as the scenario's signed sleep midpoint shift."""
+    y = (x + 12.0) % 24.0 - 12.0
+    return round(y, 4)
+
+
+def _signed_midpoint_args(rng: random.Random, k: int) -> dict:
+    """The signed sleep midpoint shift (h, [-12, 12), worse = either): earlier and later drifts both alert."""
+    ind = {"id": f"rand_midpoint_{k}", "label": "Sleep midpoint shift", "variable": "sleep_midpoint_shift",
+           "unit": "h", "worse": "either", "alerting": True, "private": False}
+    if rng.random() < 0.05:
+        ind["worse"] = rng.choice(["increase", "decrease"])
+    mu = rng.choice([0.0, 0.0, -0.4, 0.3, 1.5, -2.0, 11.6, -11.8])
+    sd = rng.choice([0.15, 0.25, 0.5, 1.0])
+    n = rng.randint(7, 16)
+    base: list = [_wrap_h(rng.gauss(mu, sd)) for _ in range(n)]
+    if rng.random() < 0.1:
+        base[rng.randrange(n)] = None
+    shift = rng.choice([0.0, 0.5, 1.0, -1.0, 4.0, -4.0, 6.0, -6.0, 9.0, -9.0])
+    current = _wrap_h(sum(b for b in base if b is not None) / max(1, sum(b is not None for b in base)) + shift * sd)
+    if rng.random() < 0.06:
+        current = rng.choice([-12.0, 11.9999, None])
+    args = {"indicator": ind, "baseline": base, "current": current, "cfg": _cfg_for_random(rng), "t": NOW}
+    return args
+
+
+def random_supplement(fn: str, group: str, n: int) -> list[dict]:
+    rng = random.Random(f"{RANDOM_SEED}:{fn}:{group}")
+    if (fn, group) == ("evaluate_personal", "anscombe"):
+        return [_anscombe_args(rng, k) for k in range(n)]
+    if (fn, group) == ("evaluate_personal", "signed_midpoint"):
+        return [_signed_midpoint_args(rng, k) for k in range(n)]
+    raise ValueError(f"no supplement {group!r} for {fn}")  # pragma: no cover
+
+
 def build_random_vectors(random_dir: Path = RANDOM_DIR) -> dict[str, list[dict]]:
-    """Frozen inputs (migrated) with fresh expectations, plus seeded inputs for new functions."""
+    """Frozen inputs (migrated) with fresh expectations, plus seeded inputs for new functions and new supplements."""
     out: dict[str, list[dict]] = {}
     for fn in FUNCTIONS:
         p = Path(random_dir) / f"random_{fn}.json"
@@ -976,6 +1188,10 @@ def build_random_vectors(random_dir: Path = RANDOM_DIR) -> dict[str, list[dict]]
             items = [(v["name"], migrate_args(fn, v["args"])) for v in frozen]
         else:
             items = [(f"rand_{i}", a) for i, a in enumerate(random_inputs(fn))]
+        names = {name for name, _ in items}
+        for group, n in SUPPLEMENTS.get(fn, ()):
+            if not any(name.startswith(f"{group}_") for name in names):
+                items += [(f"{group}_{i}", a) for i, a in enumerate(random_supplement(fn, group, n))]
         out[fn] = [{"name": name, "fn": fn, "args": args, **run(fn, args)} for name, args in items]
     return out
 

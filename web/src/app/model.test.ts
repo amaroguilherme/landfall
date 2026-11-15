@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { RULES, consentAllows, formatMet, getEnvironment, getRule, buildGroundPacket } from './engine'
 import { aggregateForRule, chanceRateOf, durationSeconds, evaluateMission, evaluateRuleAt, partialRecord, percentOfPreMission, TRIGGER_CASE } from './evaluate'
-import { caseKey, caseSchedule, computeCases } from './caseTimeline'
+import { caseKey, caseSchedule, computeCases, tierOneFor } from './caseTimeline'
 import type { CaseEventRecord } from './caseTimeline'
 import { buildScenarioIndex, observationsFor, replayAfterNow, seriesKey, visibleObservations } from './scenarioData'
 import type { SimCrewData, SpeReplayData } from './scenarioData'
@@ -417,14 +417,13 @@ describe('case instances and single flags (SPEC 7, S4)', () => {
     expect(v.state.log.filter((l) => l.event === 'OPEN').length).toBe(2)
     expect(v.state.log.every((l) => l.error === null)).toBe(true)
   })
-  it('a dismissed case opens again on the next caution, without the first instance’s scripted actions', () => {
+  it('a dismissed case stays dismissed while its episode continues (SPEC 7 re-open hysteresis)', () => {
     const key = caseKey('CM-1', 'sleep_circadian')
     const dismiss: CaseEventRecord = { key, origin: 'user', seq: 1, event: { type: 'DISMISS', t: 404 * DAY + 7 * 3600, reason: 'Known schedule change.' } }
     const v = view(cases('mars_surface', NOW, [dismiss]), 'CM-1', 'sleep_circadian')
-    expect(v.state.previous_instances[0]).toMatchObject({ instance: 1, status: 'dismissed', dismiss_reason: 'Known schedule change.' })
-    expect(v.state.instance).toBe(2)
-    expect(Math.floor(v.state.opened_at! / DAY)).toBe(405)
-    expect(v.state.status).toBe('detected') // the episode's crew actions belonged to instance 1
+    // the midpoint shift flags on every later day of the scripted episode: never 72 h below caution, so no new instance
+    expect([v.state.status, v.state.instance, v.state.dismiss_reason]).toEqual(['dismissed', 1, 'Known schedule change.'])
+    expect(v.state.previous_instances).toEqual([])
     expect(v.state.log.every((l) => l.error === null)).toBe(true)
   })
   it('an escalation does not reopen its own case while the condition persists (a new episode must start)', () => {
@@ -475,6 +474,21 @@ describe('one packet state and one escalation wording for every view', () => {
     expect(packetDelivery(packetState({ status: 'acting', packet_queued_at: null, escalation: null, spec: { escalation: { ground_packet: true } } } as never), mars, NOW)).toMatch(
       /^Not sent yet: it is queued when the crew releases it or the case escalates/,
     )
+  })
+  it('names the patient\'s own tier 1: the Commander on the Crew Medical Officer\'s cases, as the engine records it (SPEC 2)', () => {
+    const mars = computeComms(environment('mars_surface'), NOW, { status: 'ready', snapshot: snap('horizons_mars_comms')! }, { status: 'ready', snapshot: SIM })
+    const cmo = CMO_ID as CrewId
+    for (const crew of ['CM-1', 'CM-2', 'CM-3', cmo] as CrewId[]) {
+      const t1 = tierOneFor(crew)
+      const tiers = escalationTiers(mars, NOW, t1)
+      expect(tiers.map((x) => x.tier)).toEqual([1, 2])
+      expect([tiers[0].id, tiers[0].crew, tiers[0].label, tiers[0].when]).toEqual([t1.id, t1.crewId, t1.label, 'now'])
+      expect(tiers[1]).toEqual(escalationTiers(mars, NOW)[1])
+      // the engine's own state for one of this crewmember's cases names the same tier 1
+      const v = view(cases('mars_surface', NOW), crew, 'spe_shelter')
+      expect([v.state.spec.escalation_tiers?.[0]?.id, v.state.spec.escalation_tiers?.[0]?.crew_id]).toEqual([t1.id, t1.crewId])
+    }
+    expect([tierOneFor(cmo).backup, tierOneFor(cmo).crewId, tierOneFor('CM-2').crewId]).toEqual([true, 'CM-1', cmo])
   })
 })
 

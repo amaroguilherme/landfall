@@ -87,7 +87,7 @@ export const LOCAL_DISPLAY: ReadonlyMap<string, string> = new Map([
   ['urine_volume_24h', 'Urine volume, 24 h'],
   ['fluid_intake_24h', 'Fluid intake, 24 h'],
   ['mood', 'Mood self-rating (1-5)'],
-  ['proton_flux_10mev', 'Proton flux >=10 MeV'],
+  ['proton_flux_10mev', 'Proton flux ≥10 MeV'],
   ['career_effective_dose', 'Career effective dose'],
   ['vo2max', 'VO2max'],
   ['cabin_ppco2', 'Cabin ppCO2'],

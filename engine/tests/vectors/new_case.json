@@ -109,6 +109,22 @@
       "mood"
      ]
     },
+    "escalation_tiers": [
+     {
+      "crew_id": null,
+      "id": "crew_medical_officer",
+      "instead_of": null,
+      "text": "the Crew Medical Officer",
+      "tier": 1
+     },
+     {
+      "crew_id": null,
+      "id": "flight_surgeon",
+      "instead_of": null,
+      "text": "the flight surgeon",
+      "tier": 2
+     }
+    ],
     "packet_step_ids": [],
     "red_flag_step_ids": [],
     "required_step_ids": [],
@@ -399,6 +415,22 @@
       "mood"
      ]
     },
+    "escalation_tiers": [
+     {
+      "crew_id": null,
+      "id": "crew_medical_officer",
+      "instead_of": null,
+      "text": "the Crew Medical Officer",
+      "tier": 1
+     },
+     {
+      "crew_id": null,
+      "id": "flight_surgeon",
+      "instead_of": null,
+      "text": "the flight surgeon",
+      "tier": 2
+     }
+    ],
     "packet_step_ids": [],
     "red_flag_step_ids": [],
     "required_step_ids": [],
@@ -637,6 +669,22 @@
       "mood"
      ]
     },
+    "escalation_tiers": [
+     {
+      "crew_id": null,
+      "id": "crew_medical_officer",
+      "instead_of": null,
+      "text": "the Crew Medical Officer",
+      "tier": 1
+     },
+     {
+      "crew_id": null,
+      "id": "flight_surgeon",
+      "instead_of": null,
+      "text": "the flight surgeon",
+      "tier": 2
+     }
+    ],
     "packet_step_ids": [],
     "red_flag_step_ids": [],
     "required_step_ids": [],
@@ -799,6 +847,22 @@
       "mood"
      ]
     },
+    "escalation_tiers": [
+     {
+      "crew_id": null,
+      "id": "crew_medical_officer",
+      "instead_of": null,
+      "text": "the Crew Medical Officer",
+      "tier": 1
+     },
+     {
+      "crew_id": null,
+      "id": "flight_surgeon",
+      "instead_of": null,
+      "text": "the flight surgeon",
+      "tier": 2
+     }
+    ],
     "packet_step_ids": [],
     "red_flag_step_ids": [],
     "required_step_ids": [],
@@ -961,6 +1025,22 @@
       "mood"
      ]
     },
+    "escalation_tiers": [
+     {
+      "crew_id": null,
+      "id": "crew_medical_officer",
+      "instead_of": null,
+      "text": "the Crew Medical Officer",
+      "tier": 1
+     },
+     {
+      "crew_id": null,
+      "id": "flight_surgeon",
+      "instead_of": null,
+      "text": "the flight surgeon",
+      "tier": 2
+     }
+    ],
     "packet_step_ids": [],
     "red_flag_step_ids": [],
     "required_step_ids": [],
@@ -1122,6 +1202,22 @@
       "mood"
      ]
     },
+    "escalation_tiers": [
+     {
+      "crew_id": null,
+      "id": "crew_medical_officer",
+      "instead_of": null,
+      "text": "the Crew Medical Officer",
+      "tier": 1
+     },
+     {
+      "crew_id": null,
+      "id": "flight_surgeon",
+      "instead_of": null,
+      "text": "the flight surgeon",
+      "tier": 2
+     }
+    ],
     "packet_step_ids": [],
     "red_flag_step_ids": [],
     "required_step_ids": [],
@@ -1289,6 +1385,22 @@
       "mood"
      ]
     },
+    "escalation_tiers": [
+     {
+      "crew_id": null,
+      "id": "crew_medical_officer",
+      "instead_of": null,
+      "text": "the Crew Medical Officer",
+      "tier": 1
+     },
+     {
+      "crew_id": null,
+      "id": "flight_surgeon",
+      "instead_of": null,
+      "text": "the flight surgeon",
+      "tier": 2
+     }
+    ],
     "packet_step_ids": [],
     "red_flag_step_ids": [],
     "required_step_ids": [],
@@ -1883,6 +1995,22 @@
       "mood"
      ]
     },
+    "escalation_tiers": [
+     {
+      "crew_id": null,
+      "id": "crew_medical_officer",
+      "instead_of": null,
+      "text": "the Crew Medical Officer",
+      "tier": 1
+     },
+     {
+      "crew_id": null,
+      "id": "flight_surgeon",
+      "instead_of": null,
+      "text": "the flight surgeon",
+      "tier": 2
+     }
+    ],
     "packet_step_ids": [
      "step_5"
     ],
@@ -2450,6 +2578,2558 @@
   },
   "fn": "new_case",
   "name": "input_not_an_object_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-1",
+   "escalation": {
+    "note": "fixture: the shape of rules/meta.json escalation (tier names, the holder of tier 1, its backup)",
+    "tiers": [
+     {
+      "backup": {
+       "crew_id": "CM-1",
+       "id": "backup_medical_officer",
+       "label": "Backup medical officer: the Commander (onboard)",
+       "name": "the Commander",
+       "when": "now"
+      },
+      "crew_id": "CM-4",
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": 1,
+      "when": "now"
+     },
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 2,
+      "when": "through the ground packet"
+     }
+    ]
+   }
+  },
+  "expect": {
+   "case_id": "sleep_circadian",
+   "closed_at": null,
+   "countermeasure_id": null,
+   "crew_id": "CM-1",
+   "dismiss_reason": null,
+   "escalation": null,
+   "finding": null,
+   "instance": 1,
+   "log": [],
+   "opened_at": null,
+   "outcome": null,
+   "packet_queued_at": null,
+   "previous_instances": [],
+   "reassess_at": null,
+   "schema": "landfall.case_state/1",
+   "spec": {
+    "case_id": "sleep_circadian",
+    "countermeasure_ids": [
+     "cm_primary",
+     "cm_alt_1"
+    ],
+    "env_id": null,
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "escalation_tiers": [
+     {
+      "crew_id": "CM-4",
+      "id": "crew_medical_officer",
+      "instead_of": null,
+      "text": "the Crew Medical Officer",
+      "tier": 1
+     },
+     {
+      "crew_id": null,
+      "id": "flight_surgeon",
+      "instead_of": null,
+      "text": "the flight surgeon",
+      "tier": 2
+     }
+    ],
+    "packet_step_ids": [],
+    "red_flag_step_ids": [],
+    "required_step_ids": [],
+    "step_ids": [
+     "step_1",
+     "step_2",
+     "step_3"
+    ],
+    "step_inputs": [
+     {
+      "step_id": "step_2",
+      "unit": "h",
+      "variable": "sleep_duration"
+     }
+    ],
+    "trigger_ids": [
+     "pvt_lapses",
+     "sleep_duration"
+    ],
+    "tripwire": {
+     "condition": {
+      "at_least": 2,
+      "of_last_n": 3,
+      "op": "ge",
+      "ref_id": "pvt_lapses",
+      "unit": "count",
+      "value": 4,
+      "variable": "pvt_lapses"
+     },
+     "reassess_after_s": 259200
+    }
+   },
+   "status": "idle",
+   "steps_declined": [],
+   "steps_done": [],
+   "tripwire_obs": [],
+   "tripwire_result": null,
+   "updated_at": null,
+   "watch_started_at": null
+  },
+  "fn": "new_case",
+  "name": "escalation_tiers_for_cm1"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "note": "fixture: the shape of rules/meta.json escalation (tier names, the holder of tier 1, its backup)",
+    "tiers": [
+     {
+      "backup": {
+       "crew_id": "CM-1",
+       "id": "backup_medical_officer",
+       "label": "Backup medical officer: the Commander (onboard)",
+       "name": "the Commander",
+       "when": "now"
+      },
+      "crew_id": "CM-4",
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": 1,
+      "when": "now"
+     },
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 2,
+      "when": "through the ground packet"
+     }
+    ]
+   }
+  },
+  "expect": {
+   "case_id": "sleep_circadian",
+   "closed_at": null,
+   "countermeasure_id": null,
+   "crew_id": "CM-4",
+   "dismiss_reason": null,
+   "escalation": null,
+   "finding": null,
+   "instance": 1,
+   "log": [],
+   "opened_at": null,
+   "outcome": null,
+   "packet_queued_at": null,
+   "previous_instances": [],
+   "reassess_at": null,
+   "schema": "landfall.case_state/1",
+   "spec": {
+    "case_id": "sleep_circadian",
+    "countermeasure_ids": [
+     "cm_primary",
+     "cm_alt_1"
+    ],
+    "env_id": null,
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "escalation_tiers": [
+     {
+      "crew_id": "CM-1",
+      "id": "backup_medical_officer",
+      "instead_of": "crew_medical_officer",
+      "text": "the Commander (backup for the Crew Medical Officer, who is the patient)",
+      "tier": 1
+     },
+     {
+      "crew_id": null,
+      "id": "flight_surgeon",
+      "instead_of": null,
+      "text": "the flight surgeon",
+      "tier": 2
+     }
+    ],
+    "packet_step_ids": [],
+    "red_flag_step_ids": [],
+    "required_step_ids": [],
+    "step_ids": [
+     "step_1",
+     "step_2",
+     "step_3"
+    ],
+    "step_inputs": [
+     {
+      "step_id": "step_2",
+      "unit": "h",
+      "variable": "sleep_duration"
+     }
+    ],
+    "trigger_ids": [
+     "pvt_lapses",
+     "sleep_duration"
+    ],
+    "tripwire": {
+     "condition": {
+      "at_least": 2,
+      "of_last_n": 3,
+      "op": "ge",
+      "ref_id": "pvt_lapses",
+      "unit": "count",
+      "value": 4,
+      "variable": "pvt_lapses"
+     },
+     "reassess_after_s": 259200
+    }
+   },
+   "status": "idle",
+   "steps_declined": [],
+   "steps_done": [],
+   "tripwire_obs": [],
+   "tripwire_result": null,
+   "updated_at": null,
+   "watch_started_at": null
+  },
+  "fn": "new_case",
+  "name": "escalation_tiers_cmo_is_the_patient_backup_takes_tier_1"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": null
+  },
+  "expect": {
+   "case_id": "sleep_circadian",
+   "closed_at": null,
+   "countermeasure_id": null,
+   "crew_id": "CM-4",
+   "dismiss_reason": null,
+   "escalation": null,
+   "finding": null,
+   "instance": 1,
+   "log": [],
+   "opened_at": null,
+   "outcome": null,
+   "packet_queued_at": null,
+   "previous_instances": [],
+   "reassess_at": null,
+   "schema": "landfall.case_state/1",
+   "spec": {
+    "case_id": "sleep_circadian",
+    "countermeasure_ids": [
+     "cm_primary",
+     "cm_alt_1"
+    ],
+    "env_id": null,
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "escalation_tiers": [
+     {
+      "crew_id": null,
+      "id": "crew_medical_officer",
+      "instead_of": null,
+      "text": "the Crew Medical Officer",
+      "tier": 1
+     },
+     {
+      "crew_id": null,
+      "id": "flight_surgeon",
+      "instead_of": null,
+      "text": "the flight surgeon",
+      "tier": 2
+     }
+    ],
+    "packet_step_ids": [],
+    "red_flag_step_ids": [],
+    "required_step_ids": [],
+    "step_ids": [
+     "step_1",
+     "step_2",
+     "step_3"
+    ],
+    "step_inputs": [
+     {
+      "step_id": "step_2",
+      "unit": "h",
+      "variable": "sleep_duration"
+     }
+    ],
+    "trigger_ids": [
+     "pvt_lapses",
+     "sleep_duration"
+    ],
+    "tripwire": {
+     "condition": {
+      "at_least": 2,
+      "of_last_n": 3,
+      "op": "ge",
+      "ref_id": "pvt_lapses",
+      "unit": "count",
+      "value": 4,
+      "variable": "pvt_lapses"
+     },
+     "reassess_after_s": 259200
+    }
+   },
+   "status": "idle",
+   "steps_declined": [],
+   "steps_done": [],
+   "tripwire_obs": [],
+   "tripwire_result": null,
+   "updated_at": null,
+   "watch_started_at": null
+  },
+  "fn": "new_case",
+  "name": "escalation_null_default_tiers"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 2,
+      "when": "through the ground packet"
+     },
+     {
+      "backup": {
+       "crew_id": "CM-1",
+       "id": "backup_medical_officer",
+       "label": "Backup medical officer: the Commander (onboard)",
+       "name": "the Commander",
+       "when": "now"
+      },
+      "crew_id": "CM-4",
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": 1,
+      "when": "now"
+     }
+    ]
+   }
+  },
+  "expect": {
+   "case_id": "sleep_circadian",
+   "closed_at": null,
+   "countermeasure_id": null,
+   "crew_id": "CM-4",
+   "dismiss_reason": null,
+   "escalation": null,
+   "finding": null,
+   "instance": 1,
+   "log": [],
+   "opened_at": null,
+   "outcome": null,
+   "packet_queued_at": null,
+   "previous_instances": [],
+   "reassess_at": null,
+   "schema": "landfall.case_state/1",
+   "spec": {
+    "case_id": "sleep_circadian",
+    "countermeasure_ids": [
+     "cm_primary",
+     "cm_alt_1"
+    ],
+    "env_id": null,
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "escalation_tiers": [
+     {
+      "crew_id": "CM-1",
+      "id": "backup_medical_officer",
+      "instead_of": "crew_medical_officer",
+      "text": "the Commander (backup for the Crew Medical Officer, who is the patient)",
+      "tier": 1
+     },
+     {
+      "crew_id": null,
+      "id": "flight_surgeon",
+      "instead_of": null,
+      "text": "the flight surgeon",
+      "tier": 2
+     }
+    ],
+    "packet_step_ids": [],
+    "red_flag_step_ids": [],
+    "required_step_ids": [],
+    "step_ids": [
+     "step_1",
+     "step_2",
+     "step_3"
+    ],
+    "step_inputs": [
+     {
+      "step_id": "step_2",
+      "unit": "h",
+      "variable": "sleep_duration"
+     }
+    ],
+    "trigger_ids": [
+     "pvt_lapses",
+     "sleep_duration"
+    ],
+    "tripwire": {
+     "condition": {
+      "at_least": 2,
+      "of_last_n": 3,
+      "op": "ge",
+      "ref_id": "pvt_lapses",
+      "unit": "count",
+      "value": 4,
+      "variable": "pvt_lapses"
+     },
+     "reassess_after_s": 259200
+    }
+   },
+   "status": "idle",
+   "steps_declined": [],
+   "steps_done": [],
+   "tripwire_obs": [],
+   "tripwire_result": null,
+   "updated_at": null,
+   "watch_started_at": null
+  },
+  "fn": "new_case",
+  "name": "escalation_tiers_listed_out_of_order_are_sorted"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     {
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": 1,
+      "when": "now"
+     },
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 2,
+      "when": "through the ground packet"
+     }
+    ]
+   }
+  },
+  "expect": {
+   "case_id": "sleep_circadian",
+   "closed_at": null,
+   "countermeasure_id": null,
+   "crew_id": "CM-4",
+   "dismiss_reason": null,
+   "escalation": null,
+   "finding": null,
+   "instance": 1,
+   "log": [],
+   "opened_at": null,
+   "outcome": null,
+   "packet_queued_at": null,
+   "previous_instances": [],
+   "reassess_at": null,
+   "schema": "landfall.case_state/1",
+   "spec": {
+    "case_id": "sleep_circadian",
+    "countermeasure_ids": [
+     "cm_primary",
+     "cm_alt_1"
+    ],
+    "env_id": null,
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "escalation_tiers": [
+     {
+      "crew_id": null,
+      "id": "crew_medical_officer",
+      "instead_of": null,
+      "text": "the Crew Medical Officer",
+      "tier": 1
+     },
+     {
+      "crew_id": null,
+      "id": "flight_surgeon",
+      "instead_of": null,
+      "text": "the flight surgeon",
+      "tier": 2
+     }
+    ],
+    "packet_step_ids": [],
+    "red_flag_step_ids": [],
+    "required_step_ids": [],
+    "step_ids": [
+     "step_1",
+     "step_2",
+     "step_3"
+    ],
+    "step_inputs": [
+     {
+      "step_id": "step_2",
+      "unit": "h",
+      "variable": "sleep_duration"
+     }
+    ],
+    "trigger_ids": [
+     "pvt_lapses",
+     "sleep_duration"
+    ],
+    "tripwire": {
+     "condition": {
+      "at_least": 2,
+      "of_last_n": 3,
+      "op": "ge",
+      "ref_id": "pvt_lapses",
+      "unit": "count",
+      "value": 4,
+      "variable": "pvt_lapses"
+     },
+     "reassess_after_s": 259200
+    }
+   },
+   "status": "idle",
+   "steps_declined": [],
+   "steps_done": [],
+   "tripwire_obs": [],
+   "tripwire_result": null,
+   "updated_at": null,
+   "watch_started_at": null
+  },
+  "fn": "new_case",
+  "name": "escalation_tier_without_holder_has_no_backup_role"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": "meta"
+  },
+  "fn": "new_case",
+  "name": "escalation_not_an_object_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": false
+  },
+  "fn": "new_case",
+  "name": "escalation_false_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {}
+  },
+  "fn": "new_case",
+  "name": "escalation_without_tiers_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     "crew_medical_officer",
+     "flight_surgeon"
+    ]
+   }
+  },
+  "fn": "new_case",
+  "name": "escalation_tiers_not_objects_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     {
+      "backup": {
+       "crew_id": "CM-1",
+       "id": "backup_medical_officer",
+       "label": "Backup medical officer: the Commander (onboard)",
+       "name": "the Commander",
+       "when": "now"
+      },
+      "crew_id": "CM-4",
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": 1,
+      "when": "now"
+     }
+    ]
+   }
+  },
+  "fn": "new_case",
+  "name": "escalation_one_tier_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     {
+      "backup": {
+       "crew_id": "CM-1",
+       "id": "backup_medical_officer",
+       "label": "Backup medical officer: the Commander (onboard)",
+       "name": "the Commander",
+       "when": "now"
+      },
+      "crew_id": "CM-4",
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": 1,
+      "when": "now"
+     },
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 2,
+      "when": "through the ground packet"
+     },
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 3,
+      "when": "through the ground packet"
+     }
+    ]
+   }
+  },
+  "fn": "new_case",
+  "name": "escalation_three_tiers_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     {
+      "backup": {
+       "crew_id": "CM-1",
+       "id": "backup_medical_officer",
+       "label": "Backup medical officer: the Commander (onboard)",
+       "name": "the Commander",
+       "when": "now"
+      },
+      "crew_id": "CM-4",
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": 1,
+      "when": "now"
+     },
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 1,
+      "when": "through the ground packet"
+     }
+    ]
+   }
+  },
+  "fn": "new_case",
+  "name": "escalation_duplicate_tier_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     {
+      "backup": {
+       "crew_id": "CM-1",
+       "id": "backup_medical_officer",
+       "label": "Backup medical officer: the Commander (onboard)",
+       "name": "the Commander",
+       "when": "now"
+      },
+      "crew_id": "CM-4",
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": true,
+      "when": "now"
+     },
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 2,
+      "when": "through the ground packet"
+     }
+    ]
+   }
+  },
+  "fn": "new_case",
+  "name": "escalation_tier_number_boolean_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     {
+      "backup": {
+       "crew_id": "CM-1",
+       "id": "backup_medical_officer",
+       "label": "Backup medical officer: the Commander (onboard)",
+       "name": "the Commander",
+       "when": "now"
+      },
+      "crew_id": "CM-4",
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": 1,
+      "when": "now"
+     },
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": "2",
+      "when": "through the ground packet"
+     }
+    ]
+   }
+  },
+  "fn": "new_case",
+  "name": "escalation_tier_number_string_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     {
+      "backup": {
+       "crew_id": "CM-1",
+       "id": "backup_medical_officer",
+       "label": "Backup medical officer: the Commander (onboard)",
+       "name": "the Commander",
+       "when": "now"
+      },
+      "crew_id": "CM-4",
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "tier": 1,
+      "when": "now"
+     },
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 2,
+      "when": "through the ground packet"
+     }
+    ]
+   }
+  },
+  "fn": "new_case",
+  "name": "escalation_tier_without_name_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     {
+      "backup": {
+       "crew_id": "CM-1",
+       "id": "backup_medical_officer",
+       "label": "Backup medical officer: the Commander (onboard)",
+       "name": "the Commander",
+       "when": "now"
+      },
+      "crew_id": "CM-4",
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": 1,
+      "when": "now"
+     },
+     {
+      "id": " ",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 2,
+      "when": "through the ground packet"
+     }
+    ]
+   }
+  },
+  "fn": "new_case",
+  "name": "escalation_tier_blank_id_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     {
+      "backup": {
+       "crew_id": "CM-1",
+       "id": "backup_medical_officer",
+       "label": "Backup medical officer: the Commander (onboard)",
+       "name": "the Commander",
+       "when": "now"
+      },
+      "crew_id": "",
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": 1,
+      "when": "now"
+     },
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 2,
+      "when": "through the ground packet"
+     }
+    ]
+   }
+  },
+  "fn": "new_case",
+  "name": "escalation_holder_empty_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     {
+      "backup": "CM-1",
+      "crew_id": "CM-4",
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": 1,
+      "when": "now"
+     },
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 2,
+      "when": "through the ground packet"
+     }
+    ]
+   }
+  },
+  "fn": "new_case",
+  "name": "escalation_backup_not_an_object_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     {
+      "backup": {
+       "id": "backup_medical_officer",
+       "label": "Backup medical officer: the Commander (onboard)",
+       "name": "the Commander",
+       "when": "now"
+      },
+      "crew_id": "CM-4",
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": 1,
+      "when": "now"
+     },
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 2,
+      "when": "through the ground packet"
+     }
+    ]
+   }
+  },
+  "fn": "new_case",
+  "name": "escalation_backup_without_crew_id_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     {
+      "backup": {
+       "crew_id": "CM-4",
+       "id": "backup_medical_officer",
+       "label": "Backup medical officer: the Commander (onboard)",
+       "name": "the Commander",
+       "when": "now"
+      },
+      "crew_id": "CM-4",
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": 1,
+      "when": "now"
+     },
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 2,
+      "when": "through the ground packet"
+     }
+    ]
+   }
+  },
+  "fn": "new_case",
+  "name": "escalation_backup_is_the_holder_rejected",
+  "raises": "invalid_case"
+ },
+ {
+  "args": {
+   "case_def": {
+    "countermeasure": {
+     "alternatives": [
+      {
+       "id": "cm_alt_1",
+       "title": "fixture alternative"
+      }
+     ],
+     "primary": {
+      "id": "cm_primary",
+      "title": "fixture primary"
+     }
+    },
+    "escalation": {
+     "ground_packet": true,
+     "observations": [
+      "pvt_lapses",
+      "sleep_duration",
+      "resting_hr",
+      "skin_temp",
+      "mood"
+     ]
+    },
+    "id": "sleep_circadian",
+    "one_line": "fixture",
+    "procedure": [
+     {
+      "id": "step_1",
+      "text": "fixture step 1"
+     },
+     {
+      "id": "step_2",
+      "input": {
+       "source": "band",
+       "unit": "h",
+       "variable": "sleep_duration"
+      },
+      "text": "fixture step 2"
+     },
+     {
+      "id": "step_3",
+      "text": "fixture step 3"
+     }
+    ],
+    "title": "Sleep / circadian (fixture)",
+    "triggers": [
+     {
+      "indicator_id": "pvt_lapses",
+      "kind": "personal"
+     },
+     {
+      "indicator_id": "sleep_duration",
+      "kind": "personal"
+     }
+    ],
+    "tripwire": {
+     "chip": "design choice",
+     "condition": {
+      "at_least": 2,
+      "indicator_id": "pvt_lapses",
+      "of_last_n": 3,
+      "op": "ge",
+      "unit": "count",
+      "value": 4
+     },
+     "reassess_after_s": 259200,
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture"
+     },
+     "text": "fixture"
+    }
+   },
+   "crew_id": "CM-4",
+   "escalation": {
+    "tiers": [
+     {
+      "backup": {
+       "crew_id": "CM-1",
+       "id": "backup_medical_officer",
+       "label": "Backup medical officer: the Commander (onboard)",
+       "name": "the Commander",
+       "when": "now"
+      },
+      "id": "crew_medical_officer",
+      "label": "Crew Medical Officer (onboard)",
+      "name": "the Crew Medical Officer",
+      "tier": 1,
+      "when": "now"
+     },
+     {
+      "id": "flight_surgeon",
+      "label": "Flight surgeon (ground)",
+      "name": "the flight surgeon",
+      "tier": 2,
+      "when": "through the ground packet"
+     }
+    ]
+   }
+  },
+  "fn": "new_case",
+  "name": "escalation_backup_without_holder_rejected",
   "raises": "invalid_case"
  }
 ]

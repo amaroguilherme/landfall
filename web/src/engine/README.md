@@ -21,7 +21,7 @@ chanceRate(getIndicator(RULES, 'sleep_midpoint_shift'), RULES.personal!.rci).tex
 ## Proof
 
 - `conformance.test.ts` loads **every** file in `engine/tests/vectors/*.json` (`node:fs` + `import.meta.url`).
-  Today that is 752 vectors in 17 files. Arguments written `{"$float": "NaN" | "Infinity" | "-Infinity"}` are
+  Today that is 801 vectors in 17 files. Arguments written `{"$float": "NaN" | "Infinity" | "-Infinity"}` are
   decoded, at any depth, before the call (SPEC section 6). For each vector the test checks four things:
   - the TS result deep-equals `expect` (numbers within 1e-9, relative above magnitude 1, absolute below), or the
     error `code` equals `raises`;
@@ -31,8 +31,9 @@ chanceRate(getIndicator(RULES, 'sleep_midpoint_shift'), RULES.personal!.rci).tex
   - a second run gives the same answer.
 
   The test also fails when a vector file has no TS mapping or a vector uses an argument name the mapping does not know.
-- The same test also replays `engine/tests/vectors_random/random_<fn>.json`: 5,339 seeded random vectors (all 17
-  functions: valid and invalid inputs, case_reduce event sequences, FHIR packets). They sit outside `vectors/`
+- The same test also replays `engine/tests/vectors_random/random_<fn>.json`: 5,659 seeded random vectors (all 17
+  functions: valid and invalid inputs, case_reduce event sequences, FHIR packets; `random_evaluate_personal.json` adds 240
+  Anscombe-scale and 80 signed-midpoint inputs, `SUPPLEMENTS` in `engine/vectors.py`). They sit outside `vectors/`
   because `python -m engine.vectors --check` reports any extra file there. Their inputs are frozen, and their
   generator is committed: `uv run python -m engine.vectors --random` recomputes the expectations with the current
   engine (and `--check` covers them). The directory is optional.
@@ -109,7 +110,7 @@ the same snake_case keys, so a value can pass between the two languages unchange
 | `rci.METHOD`, `FALSE_ALARM_ASSUMES`, `TRANSFORMS`, `ANSCOMBE_OFFSET` | `RCI_METHOD`, `FALSE_ALARM_ASSUMES`, `TRANSFORMS`, `ANSCOMBE_OFFSET` |
 | `tdist.t_cdf(t, df)`, `t_quantile(p, df)`, `t_critical(alpha, df)` | `tCdf(t, df)`, `tQuantile(p, df)`, `tCritical(alpha, df)` |
 | `math.lgamma` (C library) | `lgamma` in `tdist.ts` (CPython's `m_lgamma`, with `fma`) |
-| `cases.new_case(case_def, crew_id, lookup=None, env_id=None)` | `newCase(caseDef, crewId, lookup = null, envId = null)` |
+| `cases.new_case(case_def, crew_id, lookup=None, env_id=None, escalation=None)` | `newCase(caseDef, crewId, lookup = null, envId = null, escalation = null)` |
 | `cases.case_reduce(state, event)` | `caseReduce(state, event)` |
 | `cases.STATES`, `OPEN_STATES`, `TERMINAL_STATES`, `EVENTS`, `OPENING_SEVERITIES`, `ESCALATION_TIERS`, `STEP_FLAGS`, `OP_WORDS` | same names |
 | `packet.build_ground_packet(case_state, observations, consent, env_id, t, mission_epoch)` | `buildGroundPacket(caseState, observations, consent, envId, t, missionEpoch)` |
@@ -225,3 +226,21 @@ shapes differ from the shim in six ways, and the compiler flags each one:
 `node-fs.d.ts` declares only the two `node:fs` functions that the tests use. It exists because the app
 tsconfig loads only `vite/client` types, and adding `@types/node` to the browser program would retype globals
 such as `setTimeout` for every module.
+
+### Re-open hysteresis, escalation tier 1, multiplier text (lane polish, 2026-11-14)
+
+- **Re-open hysteresis (SPEC 5 and 7).** `caseReduce` OPEN from a closed state (`resolved`, `escalated`, `dismissed`) needs
+  `clear_since`, the MET from which every trigger of the case has been below caution: not a finite number, later than `t`, or
+  before the closed instance's `opened_at` is `invalid_event`; `t - clear_since < spec.tripwire.reassess_after_s` is the new
+  rejection `trigger_not_clear`. From `idle` it is not read. `src/app/caseTimeline.ts` `nextReopening` measures it (each
+  trigger reading holds until the next one) and sends it, so the timeline never sends an OPEN the engine refuses.
+- **Escalation tier 1 for the patient (SPEC 2 and 5).** `newCase(..., escalation)` takes rules/meta.json `escalation` and
+  records `spec.escalation_tiers: [{tier, id, crew_id, instead_of, text}]`. For the Crew Medical Officer's own cases (CM-4)
+  tier 1 is `backup_medical_officer`, the Commander (CM-1): `state.escalation.tiers` and the log text say so ("escalated:
+  tier 1, the Commander (backup for the Crew Medical Officer, who is the patient), now; ..."). Without the argument, or for a
+  state built before the field existed, the default tiers apply (the vectors cover both). `caseTimeline.ts` passes the meta
+  block, and every `CaseView` carries `tier1` (`tierOneFor(crewId)`: id, label, name, crewId, backup, a crew-facing line and the
+  backup's basis, which quotes [V2 7045]).
+- **Multiplier text (SPEC 5).** `chanceRate` returns `caution_multiplier_text` / `flag_multiplier_text` (`fmtNum(x, 3)`: "0.45",
+  "0.495", "1"; "10^9 or more" from 1e9). Print these, never `<Num digits={2}>` of the number: mood's borderline 0.495 would
+  read 0.50, inside the 0.5-2 band it is outside of.

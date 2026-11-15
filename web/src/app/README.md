@@ -30,8 +30,8 @@ import { aggregateForRule, evaluateRuleAt, evaluatePersonalAt, partialRecord, pe
 import { packetState, packetDelivery, escalationTiers, autonomyText, CMO_ID } from '../../app/packet'
 import { useOfflineReady } from '../../app/offline'
 import { observationsFor, visibleObservations } from '../../app/scenarioData'
-import { CASE_DEFS, CASE_IDS, caseKey } from '../../app/caseTimeline'
-import type { CaseView, ChanceNote, InstanceView } from '../../app/caseTimeline'
+import { CASE_DEFS, CASE_IDS, caseKey, tierOneFor, stateTierOne } from '../../app/caseTimeline'
+import type { CaseView, ChanceNote, InstanceView, TierOne } from '../../app/caseTimeline'
 import { useSnapshot, useManifest, freshnessOf, formatUtc } from '../../app/data'
 import { useComms, formatCommsLightTime, formatCountdown, formatEarliestReply, metToUtc, windowModelNote } from '../../app/comms'
 import { RULES, getRule, getCase, getIndicator, getEnvironment, formatMet, fmtNum, sLevel, expectedFalseAlarms } from '../../app/engine'
@@ -162,7 +162,8 @@ resetScenario()              // drop user events, runtime observations, Noon Sig
 CaseView = { key: 'CM-1:spe_shelter', crewId, caseId, def: CaseDef, state: CaseState, logOrigins: ('auto'|'scenario'|'user'|'tick')[],
              opening: {t, finding, trigger} | null   /* instance 1's opening over all the data, even after the clock */,
              instances: InstanceView[]               /* every instance up to the clock, oldest first: {instance, status, opened_at, closed_at, opening, chance} */,
-             chance: ChanceNote | null }             /* the current instance is a single Tier B flag: {indicatorId, label, day, rate: ChanceRate, text: 'Possibly chance: about 1 in N days ...'} */
+             chance: ChanceNote | null,             /* the current instance is a single Tier B flag: {indicatorId, label, day, rate: ChanceRate, text: 'Possibly chance: about 1 in N days ...'} */
+             tier1: TierOne }                        /* who takes tier 1 if it escalates: {id, label, name, crewId, backup, line, chip, source, citations} */
 scripted: Observation[]      // the seeded crew's answers as observations (renal red-flag "no" = 0, unit yes/no); the ground packet includes them
 CaseState (engine) = { status, instance /* 1, 2, ... */, previous_instances[] {instance, status, opened_at, closed_at, finding, outcome, escalation,
              packet_queued_at, dismiss_reason}, spec {step_ids, required_step_ids, red_flag_step_ids, packet_step_ids, step_inputs, tripwire, escalation},
@@ -175,11 +176,18 @@ CaseState (engine) = { status, instance /* 1, 2, ... */, previous_instances[] {i
   the data), the **seeded simulated crew actions**, **user events**, and **synthesized tripwire TICKs** (tripwire observations of the
   crewmember + vehicle sensors; one TICK exactly at `reassess_at`). `logOrigins[i]` labels `state.log[i]`. A rejected event stays in
   `state.log` with `error` set (engine behaviour): show it.
-- **Instances (SPEC 7).** One state follows one case for one crewmember. The fold sends OPEN at the first trigger finding at caution or
-  above (instance 1); while an instance is open, later findings open nothing. After it closes (`resolved`, `escalated`, `dismissed`), the
-  next trigger finding at caution or above observed after `closed_at` opens the next instance; after `escalated`, only one that follows a
-  finding of that trigger below caution (a new episode). The log runs on across instances. Scripted crew actions carry the instance
-  they were written for and are skipped for any other instance or a closed case.
+- **Instances and re-open hysteresis (SPEC 7).** One state follows one case for one crewmember. The fold sends OPEN at the first trigger
+  finding at caution or above (instance 1); while an instance is open, later findings open nothing. After it closes (`resolved`, `escalated`,
+  `dismissed`), the next instance opens only at a trigger finding at caution or above, observed after `closed_at`, that ends a period of at
+  least the case's `reassess_after_s` (6 h shelter, 72 h renal and sleep) with every trigger below caution (each reading holds until the
+  next, so a gap after a caution is not clear). Its OPEN carries `clear_since` and the engine checks it (`trigger_not_clear` otherwise). So an escalated
+  or dismissed case stays that instance while its condition persists (on the replay the escalated shelter case no longer reopens at
+  414/05:55; instance 2 opens at 415/14:55 after 31 h 45 min below S3). The log runs on across instances. Scripted crew actions carry the
+  instance they were written for and are skipped for any other instance or a closed case.
+- **Tier 1 for the patient.** `CaseView.tier1` (`tierOneFor(crewId)` in `caseTimeline.ts`, from meta.json `escalation`): the Crew Medical
+  Officer (CM-4) for CM-1..CM-3; for CM-4's own cases the backup, the Commander (CM-1), with a crew-facing `line` and the backup's basis
+  (`chip`, `source`, `citations`: [V2 7045] verbatim). The engine's escalation log and `state.escalation.tiers` say the same
+  (`backup_medical_officer`). Print `view.tier1` wherever tier 1 is named.
 - **Possibly chance (SPEC 7).** An instance opened by a Tier B finding that, up to the clock (or its close), has had no caution of its
   triggers on another day or from another indicator is a single flag: `view.chance` holds the engine's `chanceRate(...).text` of the
   opening indicator. Show it near Detect and in lists; the tripwire, judged on the readings after the outcome, resolves the case.
@@ -206,10 +214,12 @@ CaseState (engine) = { status, instance /* 1, 2, ... */, previous_instances[] {i
   release step, e.g. SPE p6, or escalation). **The hero, the case page and Downlink must all use it**, so one packet is never shown
   in two states. `packetDelivery(state, comms, t)` is the one sentence on when it reaches the ground ("Sent when the link resumes, in
   11 d 06 h" / "Sent at once: the link is up ..." / for Prepared, what queues it). Write `Ground packet: <label>. <delivery>.`
-- `escalationTiers(comms, t)` gives the two tiers of meta.json `escalation` with their timing for this link: tier 1, the Crew Medical
-  Officer (`crew: CMO_ID`, "CM-4"), now; tier 2, the flight surgeon, through the ground packet, at once at AOS or queued until the link
-  resumes. `autonomyText(comms)` is meta.json `escalation.autonomy` for the link (AOS: the ground has the case within the round trip
-  and the crew follows Mission Control; LOS: the crew acts onboard with the CMO).
+- `escalationTiers(comms, t, tier1?)` gives the two tiers of meta.json `escalation` with their timing for this link: tier 1, the Crew
+  Medical Officer (`crew: CMO_ID`, "CM-4"), now; tier 2, the flight surgeon, through the ground packet, at once at AOS or queued until the
+  link resumes. **Pass the case's `view.tier1`** (or `tierOneFor(crewId)`) for a crewmember's case: on CM-4's own cases tier 1 is then the
+  backup, the Commander (CM-1), as the engine records it; without it tier 1 is always the Crew Medical Officer. `autonomyText(comms)` is
+  meta.json `escalation.autonomy` for the link (AOS: the ground has the case within the round trip and the crew follows Mission Control;
+  LOS: the crew acts onboard with the CMO).
 - The renal case's `escalation.flight_surgeon_note` (D12, the only place a medication is named) is shown on Downlink only.
 
 ### Hero timing (the honest "LANDFALL answered in N ms")

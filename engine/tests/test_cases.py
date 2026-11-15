@@ -177,7 +177,8 @@ def test_a_closed_case_opens_again_as_a_new_instance():
     resolved = case_reduce(w, {"type": "TICK", "t": ra, "observations": [obs(1, ra - 20), obs(2, ra - 10)]})
     assert resolved["status"] == "resolved" and resolved["closed_at"] == ra
     second = dict(FINDING, rule_id="sleep_duration", value=3.9, unit="h")
-    r = case_reduce(resolved, {"type": "OPEN", "finding": second, "t": ra + DAY})
+    # the triggers have been below caution since the day after the opening (re-open hysteresis, SPEC 7)
+    r = case_reduce(resolved, {"type": "OPEN", "finding": second, "t": ra + DAY, "clear_since": T0 + DAY})
     assert (r["status"], r["instance"], r["opened_at"], r["finding"]["rule_id"]) == \
         ("detected", 2, ra + DAY, "sleep_duration")
     for key, empty in (("countermeasure_id", None), ("steps_done", []), ("steps_declined", []), ("outcome", None),
@@ -192,6 +193,7 @@ def test_a_closed_case_opens_again_as_a_new_instance():
     assert r["log"][:-1] == resolved["log"]
     assert r["log"][-1]["detail"].startswith("opened again by sleep_duration (reliable_change, caution): instance 2; "
                                              "instance 1 was resolved at MET ")
+    assert r["log"][-1]["detail"].endswith("; triggers below caution from MET 413/14:20:00")
     # the new instance runs like the first one
     a = case_reduce(r, {"type": "SELECT", "countermeasure_id": "cm_primary", "t": ra + DAY + 60})
     assert a["status"] == "acting" and a["instance"] == 2
@@ -206,19 +208,21 @@ def test_a_closed_case_opens_again_as_a_new_instance():
         out = case_reduce(state, event)
         assert out["log"][-1]["error"] == code and {k: v for k, v in out.items() if k != "log"} == \
             {k: v for k, v in state.items() if k != "log"}, code
-    # escalated and dismissed instances open again too (a later, separate episode needs its own guidance)
+    # escalated and dismissed instances open again too (a later, separate episode needs its own guidance),
+    # once the triggers have been clear for the case's reassessment time (72 h for this fixture)
     esc = drive(to_watch(), [{"type": "TICK", "t": ra, "observations": [obs(6, ra - 20), obs(7, ra - 10)]}])
     assert esc["status"] == "escalated"
-    again = case_reduce(esc, {"type": "OPEN", "finding": FINDING, "t": ra + 5})
+    again = case_reduce(esc, {"type": "OPEN", "finding": FINDING, "t": ra + 3 * DAY + 5, "clear_since": ra + 5})
     assert again["instance"] == 2 and again["previous_instances"][0]["escalation"]["reason"] == "tripwire"
     assert again["previous_instances"][0]["packet_queued_at"] == ra and again["packet_queued_at"] is None
     dis = case_reduce(case_reduce(fresh, {"type": "OPEN", "finding": FINDING, "t": T0}),
                       {"type": "DISMISS", "reason": "Band off-wrist.", "t": T0 + 5})
-    third = drive(dis, [{"type": "OPEN", "finding": FINDING, "t": T0 + 6},
-                        {"type": "DISMISS", "reason": "Off-wrist again.", "t": T0 + 7},
-                        {"type": "OPEN", "finding": FINDING, "t": T0 + 8}])
+    third = drive(dis, [{"type": "OPEN", "finding": FINDING, "t": T0 + 3 * DAY + 6, "clear_since": T0 + 6},
+                        {"type": "DISMISS", "reason": "Off-wrist again.", "t": T0 + 3 * DAY + 7},
+                        {"type": "OPEN", "finding": FINDING, "t": T0 + 6 * DAY + 8, "clear_since": T0 + 3 * DAY + 8}])
     assert third["instance"] == 3 and [p["dismiss_reason"] for p in third["previous_instances"]] == \
         ["Band off-wrist.", "Off-wrist again."]
+    assert all(e["error"] is None for e in third["log"])
     # a state without the instance fields is not a case state
     for key in ("instance", "previous_instances"):
         with pytest.raises(EngineError) as e:
@@ -435,3 +439,96 @@ def test_old_states_without_the_new_fields_are_malformed():
         with pytest.raises(EngineError) as e:
             case_reduce(bad, {"type": "TICK", "t": T0, "observations": []})
         assert e.value.code == "invalid_argument", key
+
+
+def test_reopen_hysteresis_needs_the_triggers_clear_for_the_reassessment_time():
+    """SPEC 7: a closed instance opens again only once its triggers have been below caution for at least the
+    case's reassess_after_s, measured from the OPEN's clear_since. A condition that persists through an
+    escalation (or a dismissal) keeps that instance; a flapping reading opens nothing."""
+    w = to_watch()
+    ra = w["reassess_at"]
+    esc = case_reduce(w, {"type": "TICK", "t": ra, "observations": [obs(6, ra - 20), obs(7, ra - 10)]})
+    need = esc["spec"]["tripwire"]["reassess_after_s"]
+    assert esc["status"] == "escalated" and need == 259200
+    t = ra + 600
+    for event, code in (({"type": "OPEN", "finding": FINDING, "t": t}, "invalid_event"),              # no clear_since
+                        ({"type": "OPEN", "finding": FINDING, "t": t, "clear_since": "now"}, "invalid_event"),
+                        ({"type": "OPEN", "finding": FINDING, "t": t, "clear_since": True}, "invalid_event"),
+                        ({"type": "OPEN", "finding": FINDING, "t": t, "clear_since": float("inf")}, "invalid_event"),
+                        ({"type": "OPEN", "finding": FINDING, "t": t, "clear_since": t + 1}, "invalid_event"),
+                        ({"type": "OPEN", "finding": FINDING, "t": t, "clear_since": T0 - 1}, "invalid_event"),
+                        ({"type": "OPEN", "finding": FINDING, "t": t, "clear_since": t - 300}, "trigger_not_clear"),
+                        ({"type": "OPEN", "finding": FINDING, "t": t + need - 1, "clear_since": t}, "trigger_not_clear")):
+        out = case_reduce(esc, event)
+        assert out["log"][-1]["error"] == code, event
+        assert {k: v for k, v in out.items() if k != "log"} == {k: v for k, v in esc.items() if k != "log"}, event
+    flap = case_reduce(esc, {"type": "OPEN", "finding": FINDING, "t": t, "clear_since": t - 300})["log"][-1]["detail"]
+    assert flap == ("triggers below caution for 0/00:05:00 since MET 415/14:30:00; a new instance needs 3/00:00:00 "
+                    "(the case's reassessment time), so instance 1 stays escalated")
+    ok = case_reduce(esc, {"type": "OPEN", "finding": FINDING, "t": t + need, "clear_since": t})
+    assert (ok["status"], ok["instance"], ok["log"][-1]["error"]) == ("detected", 2, None)
+    assert ok["log"][-1]["detail"].endswith("instance 1 was escalated at MET 415/14:25:00; triggers below caution "
+                                            "from MET 415/14:35:00")
+    # from idle nothing is read: the first instance needs no clear period
+    first = case_reduce(new_case(CASE, "CM-1"), {"type": "OPEN", "finding": FINDING, "t": T0, "clear_since": "x"})
+    assert (first["status"], first["instance"]) == ("detected", 1)
+
+
+ESCALATION = FIX["escalation"]
+
+
+def test_the_crew_medical_officer_as_patient_escalates_to_the_backup():
+    """D4 + lead item 7: when the patient is the Crew Medical Officer, tier 1 is the backup (the Commander) in the
+    state, the escalation record and the log text; every other crewmember escalates to the CMO."""
+    cm1 = new_case(CASE, "CM-1", escalation=ESCALATION)["spec"]["escalation_tiers"]
+    assert [(x["id"], x["crew_id"], x["instead_of"]) for x in cm1] == [
+        ("crew_medical_officer", "CM-4", None), ("flight_surgeon", None, None)]
+    cm4 = new_case(CASE, "CM-4", escalation=ESCALATION)["spec"]["escalation_tiers"]
+    assert [(x["id"], x["crew_id"], x["instead_of"]) for x in cm4] == [
+        ("backup_medical_officer", "CM-1", "crew_medical_officer"), ("flight_surgeon", None, None)]
+    assert cm4[0]["text"] == "the Commander (backup for the Crew Medical Officer, who is the patient)"
+    # without the meta block: the default tiers, as before
+    assert [x["id"] for x in new_case(CASE, "CM-4")["spec"]["escalation_tiers"]] == ["crew_medical_officer",
+                                                                                      "flight_surgeon"]
+    for crew, tiers, words in (("CM-4", ["backup_medical_officer", "flight_surgeon"],
+                                "escalated: tier 1, the Commander (backup for the Crew Medical Officer, who is the "
+                                "patient), now; tier 2, the flight surgeon"),
+                               ("CM-2", ["crew_medical_officer", "flight_surgeon"],
+                                "escalated: tier 1, the Crew Medical Officer, now; tier 2, the flight surgeon")):
+        s = drive(new_case(GATED, crew, escalation=ESCALATION),
+                  [{"type": "OPEN", "finding": FINDING, "t": T0},
+                   {"type": "SELECT", "countermeasure_id": "cm_primary", "t": T0 + 60},
+                   {"type": "STEP", "step_id": "step_3", "t": T0 + 90,
+                    "input": {"variable": "renal_symptoms", "value": True, "unit": "yes/no"}}])
+        assert s["status"] == "escalated" and s["escalation"]["tiers"] == tiers, crew
+        assert words in s["log"][-1]["detail"], crew
+        w = drive(new_case(CASE, crew, escalation=ESCALATION),
+                  [{"type": "OPEN", "finding": FINDING, "t": T0},
+                   {"type": "SELECT", "countermeasure_id": "cm_primary", "t": T0 + 60},
+                   {"type": "OUTCOME", "text": "Light schedule shifted.", "t": T0 + 300}])
+        ra = w["reassess_at"]
+        e = case_reduce(w, {"type": "TICK", "t": ra, "observations": [obs(6, ra - 20, crew), obs(7, ra - 10, crew)]})
+        assert e["escalation"]["tiers"] == tiers and words in e["log"][-1]["detail"], crew
+    for bad in ("meta", {}, {"tiers": ESCALATION["tiers"][:1]},
+                {"tiers": [dict(ESCALATION["tiers"][0], backup=dict(ESCALATION["tiers"][0]["backup"], crew_id="CM-4")),
+                           ESCALATION["tiers"][1]]}):
+        with pytest.raises(EngineError) as exc:
+            new_case(CASE, "CM-4", escalation=bad)
+        assert exc.value.code == "invalid_case", bad
+
+
+def test_real_meta_escalation_names_the_commander_for_the_cmo_s_own_cases():
+    """The real rules: meta.json escalation names CM-4 as the Crew Medical Officer and the Commander as backup."""
+    from engine import load_rules, trigger_lookup
+
+    rules = load_rules()
+    meta = rules["meta"]["escalation"]
+    for case in rules["cases"]["cases"]:
+        for crew in ("CM-1", "CM-2", "CM-3", "CM-4"):
+            st = new_case(case, crew, trigger_lookup(rules), "mars_surface", meta)
+            t1 = st["spec"]["escalation_tiers"][0]
+            if crew == "CM-4":
+                assert (t1["id"], t1["crew_id"], t1["instead_of"]) == ("backup_medical_officer", "CM-1",
+                                                                       "crew_medical_officer"), case["id"]
+            else:
+                assert (t1["id"], t1["crew_id"]) == ("crew_medical_officer", "CM-4"), (case["id"], crew)

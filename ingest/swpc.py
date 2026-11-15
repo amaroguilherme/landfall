@@ -55,8 +55,13 @@ US_GOV_LICENSE = ("U.S. Government work ({who}); not subject to copyright in the
 NOAA_S_THRESHOLDS_PFU: tuple[tuple[int, float], ...] = (
     (5, 1e5), (4, 1e4), (3, 1e3), (2, 1e2), (1, 10.0))
 
-ENERGY_10 = ">=10 MeV"
+ENERGY_10 = ">=10 MeV"     # SWPC's own channel key in the JSON feed (data, kept as published)
 ENERGY_100 = ">=100 MeV"
+# Display text LANDFALL writes uses the sign, never ASCII ">=" (the channel keys above stay as SWPC prints them,
+# and NOAA's own wording is quoted as printed).
+ENERGY_10_LABEL = "≥10 MeV"
+LIVE_TITLE = "GOES ≥10 MeV proton flux and current NOAA S level (build-time freeze)"
+S_RULE_TEXT = "S level = highest level whose threshold is met (flux ≥ threshold); below 10 pfu = no S storm"
 
 
 # ---------------------------------------------------------------- pure helpers
@@ -485,7 +490,7 @@ def build_s_scale(ctx: RunContext) -> tuple[dict, list[dict]]:
     if sorted(parsed) != sorted(NOAA_S_THRESHOLDS_PFU):
         raise ValueError(f"NOAA S thresholds changed on the page: {parsed} != {NOAA_S_THRESHOLDS_PFU}")
     caveats = [
-        "Thresholds are NOAA's operational definition: >=10 MeV integral proton flux, 5-minute averages, "
+        "Thresholds are NOAA's operational definition: ≥10 MeV integral proton flux, 5-minute averages, "
         "pfu = particles cm^-2 s^-1 sr^-1. LANDFALL triggers on this scale and does not project its own mSv.",
         "NOAA's 'Biological' text is written for astronauts on EVA and for high-latitude aircraft crews; it is "
         "not a NASA crew-health limit and carries no NASA requirement ID. S1 reads 'None.' and S2 mentions only "
@@ -517,16 +522,16 @@ def build_s_scale(ctx: RunContext) -> tuple[dict, list[dict]]:
         if hdr and ">=" not in hdr and "≥" not in hdr:
             caveats.append(f"Operator wording differs: the PDF column header reads '{hdr}', the HTML page reads "
                            "'Flux level of >= 10 MeV particles', and SWPC's GOES proton data use '>=10 MeV'. "
-                           "LANDFALL applies each threshold as met-or-exceeded (>=), consistent with the SESC "
+                           "LANDFALL applies each threshold as met-or-exceeded (≥), consistent with the SESC "
                            "event rule ('greater than or equal to 10 pfu').")
     except Exception as exc:  # noqa: BLE001 - the HTML alone still carries thresholds + texts
         caveats.append(f"Official scales PDF could not be parsed this run ({type(exc).__name__}); "
                        "the PDF units/averaging footnotes are absent from this snapshot.")
     printed_date = (pdf_info or {}).get("printed_date")
     data = {
-        "energy": ENERGY_10, "unit": "pfu",
+        "energy": ENERGY_10_LABEL, "unit": "pfu",
         "unit_definition": "particles cm^-2 s^-1 sr^-1",
-        "rule": "S level = highest level whose threshold is met (flux >= threshold); below 10 pfu = no S storm",
+        "rule": S_RULE_TEXT,
         "levels": levels,
         "pdf_footnotes": pdf_info["footnotes"] if pdf_info else None,
         "pdf_column_header": (pdf_info or {}).get("column_header"),
@@ -585,7 +590,7 @@ def build_live(ctx: RunContext) -> dict:
     caveats = [
         "This file is a build-time freeze of a live product (5-minute cadence). On the static judged site it "
         "will normally be shown as STALE ([V2 10020]); only a fresh build or the optional API makes it current.",
-        "Current S level = NOAA S-scale applied to the latest single 5-minute >=10 MeV average. NOAA's own "
+        "Current S level = NOAA S-scale applied to the latest single 5-minute ≥10 MeV average. NOAA's own "
         "reported S level (noaa-scales.json) is kept alongside as an independent cross-check.",
         ("GOES 'primary' is a role, not a satellite: SWPC reassigns it (per instrument-sources.json the proton "
          f"primary is GOES-{prim} since {prim_since}). Every point carries its satellite; switches are listed."
@@ -637,7 +642,7 @@ def build_live(ctx: RunContext) -> dict:
     }
     return make_snapshot(
         id="swpc_protons_live", adapter=ADAPTER_ID,
-        title="GOES >=10 MeV proton flux and current NOAA S level (build-time freeze)",
+        title=LIVE_TITLE,
         source={"publisher": "NOAA Space Weather Prediction Center (SWPC)",
                 "name": "GOES primary integral proton flux (integral-protons-6-hour.json, -7-day.json)",
                 "url": "https://www.swpc.noaa.gov/products/goes-proton-flux",
@@ -693,14 +698,14 @@ def build_replay(ctx: RunContext, spe_events: list[dict] | None, spe_notes: dict
         "that produces today's data; NOAA states no cross-normalisation has been attempted across GOES detectors.",
         "Values are the archive's own numbers, unrounded, at native 5-minute cadence (no downsampling); the "
         f"documented missing value -99999 is null ({sum(v is None for _, v in p10)} of {len(p10)} points in the window).",
-        "Event onset/peak/end are computed here with the SESC rule (first of 3 consecutive points >= 10 pfu; end = "
-        f"last point >= 10 pfu; missing points skipped). {noaa_txt}; this file gives onset {ev['start']} and peak "
+        "Event onset/peak/end are computed here with the SESC rule (first of 3 consecutive points ≥ 10 pfu; end = "
+        f"last point ≥ 10 pfu; missing points skipped). {noaa_txt}; this file gives onset {ev['start']} and peak "
         f"{ev['max_pfu']:,.0f} pfu at {ev['max_time']}. Whether NCEI time tags mark the start or the end of each "
         "5-minute average is not stated in the file header.",
         "NOAA's list has a single SESC event for this period (start and maximum only, no end time). In this file the "
-        f">10 MeV flux stays >= 10 pfu without a break from {ev['start']} to {ev['unbroken_ge_10pfu_until']}, so the "
+        f">10 MeV flux stays ≥ 10 pfu without a break from {ev['start']} to {ev['unbroken_ge_10pfu_until']}, so the "
         "later re-intensifications (see daily maxima) fall inside that one event, as the SESC definition allows; it "
-        f"then hovers near 10 pfu until the last >= 10 pfu sample at {ev['end_last_ge_10pfu']}.",
+        f"then hovers near 10 pfu until the last ≥ 10 pfu sample at {ev['end_last_ge_10pfu']}.",
         "The LANDFALL plan cites NASA-STD-3001 Vol 1 Rev C [V1 4031], which uses the sum of the October 1989 events "
         "as the reference SPE (< 250 mSv). That requirement text was not re-read by this adapter, and this file is "
         "a flux time series, not a dose: no mSv is derived from it.",
@@ -708,7 +713,8 @@ def build_replay(ctx: RunContext, spe_events: list[dict] | None, spe_notes: dict
     ref100 = (spe_notes or {}).get("oct1989_ge100mev_peak_pfu_per_note")
     if ref100 and pk100:
         caveats.append(
-            f"The >=100 MeV series (p7_flux_ic) peaks at {pk100[1]:g} pfu at {to_iso_z(pk100[0])} in this file, "
+            # NCEI's own header for this column reads "> 100 MeV" (the >10 MeV channel above keeps its "> 10 MeV")
+            f"The >100 MeV series (p7_flux_ic) peaks at {pk100[1]:g} pfu at {to_iso_z(pk100[0])} in this file, "
             f"while a footnote on NOAA's SPE-list page gives {ref100:g} pfu as the >100 MeV level of 1989 October "
             f"(NOAA's figure is {100 * (ref100 - pk100[1]) / pk100[1]:.0f}% above this file's peak). Neither source "
             "explains the difference; both numbers are kept and no correction is applied.")

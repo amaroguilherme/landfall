@@ -63,6 +63,10 @@ export const ANSCOMBE_OFFSET = 0.375
 export const ANSCOMBE_SCALE_TEXT = '2√(x + 3/8)'
 /** "about 1 in N days" is printed below this; above it, "fewer than 1 in 10^12". */
 export const CHANCE_TEXT_MAX_DAYS = 1e12
+/** Chance-rate multipliers print with up to 3 decimals (0.45, 0.495; SPEC 5). */
+export const MULTIPLIER_DP = 3
+/** At or above it the multiplier text is "10^9 or more". */
+export const MULTIPLIER_TEXT_MAX = 1e9
 
 // tCritical is pure; memoized because every Tier B evaluation asks for the same few values
 // (Python: functools.lru_cache on rci._critical).
@@ -462,6 +466,15 @@ function about(n: number): string {
   return fmtNum(Math.floor(n / m + 0.5) * m, 0)
 }
 
+/**
+ * A chance-rate multiplier as printed: up to 3 decimals, trailing zeros dropped (0.45, 0.495, 1). personal.json
+ * declares a multiplier to 2 decimals, or to 3 when 2 would round a measured value outside the 0.5-2 band onto its
+ * edge (mood: 0.495, not 0.5), so the text shows which side it is on.
+ */
+function multiplierText(x: number): string {
+  return x < MULTIPLIER_TEXT_MAX ? fmtNum(x, MULTIPLIER_DP) : '10^9 or more'
+}
+
 function declaredMultiplier(decl: Record<string, unknown>, key: string, iid: string): number {
   const x = pyGet(decl, key)
   if (!isNumber(x) || (x as number) < 0) {
@@ -531,6 +544,8 @@ export function chanceRate(indicator: Indicator, cfg: RciConfig): ChanceRate {
     nominal_flag_per_day: nominalFlag,
     caution_multiplier: cm,
     flag_multiplier: fm,
+    caution_multiplier_text: multiplierText(cm),
+    flag_multiplier_text: multiplierText(fm),
     caution_per_day: caution,
     flag_per_day: flag,
     caution_every_n_days: cautionEvery,

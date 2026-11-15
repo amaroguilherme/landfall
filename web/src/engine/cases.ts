@@ -13,8 +13,11 @@
 //
 // Escalation has two tiers (state.escalation.tiers): the onboard Crew Medical Officer now, and the
 // flight surgeon through the ground packet, which is Queued at escalation (state.packet_queued_at)
-// and leaves with the next link. A "releases_packet" step queues it too (crew release); before that
-// the packet of an open case is Prepared (held on board). The reducer does not know the link.
+// and leaves with the next link. newCase(..., escalation) reads the tiers from rules/meta.json
+// `escalation`: when the patient holds tier 1's role (the Crew Medical Officer's own case), tier 1 is that
+// tier's backup (the Commander), recorded in spec.escalation_tiers. A "releases_packet" step queues the
+// packet too (crew release); before that the packet of an open case is Prepared (held on board). The
+// reducer does not know the link.
 //
 // Tripwire timing: observations are collected throughout watch, but the tripwire is only judged at
 // t >= reassess_at, matching the case texts ("Reassess at T+72 h; if ... still ..., escalate").
@@ -28,8 +31,11 @@
 // Instances: one state follows one case for one crewmember through every episode. OPEN from idle opens
 // instance 1. Once an instance is closed (resolved, escalated or dismissed), a new OPEN opens the next
 // instance: the closed one is summarized in previous_instances, every per-instance field is reset, and
-// instance counts up. An open instance (detected, acting, watch) is never opened twice. When the timeline
-// sends that OPEN is SPEC section 7's rule, not the reducer's.
+// instance counts up. An open instance (detected, acting, watch) is never opened twice. Re-open
+// hysteresis: that OPEN carries clear_since, the MET from which every trigger of the case has been below
+// caution, and opens the next instance only after the triggers have been clear for at least the case's
+// reassess_after_s (trigger_not_clear otherwise). When the timeline sends that OPEN, and how it measures
+// clear_since, is SPEC section 7's rule.
 
 import { EngineError } from './errors'
 import { fmtNum, formatMet, isNumber } from './fmt'
@@ -43,6 +49,7 @@ import type {
   CaseSpec,
   CaseState,
   CaseStatus,
+  EscalationTier,
   Op,
   PreviousInstance,
   TriggerLookup,
@@ -59,9 +66,66 @@ export const ESCALATION_TIERS = ['crew_medical_officer', 'flight_surgeon'] as co
 export const STEP_FLAGS = ['required', 'red_flag', 'releases_packet'] as const
 const YES_NO_UNIT = 'yes/no'
 export const OP_WORDS: Readonly<Record<Op, string>> = { lt: 'below', le: 'at or below', gt: 'above', ge: 'at or above' }
-const ESCALATED_TEXT =
-  'escalated: tier 1, the Crew Medical Officer, now; tier 2, the flight surgeon, ' +
-  'through the ground packet, queued and sent when a link exists'
+/** What the escalation detail calls each default tier (newCase without the meta.json escalation block). */
+const DEFAULT_TIER_TEXT: Readonly<Record<(typeof ESCALATION_TIERS)[number], string>> = {
+  crew_medical_officer: 'the Crew Medical Officer',
+  flight_surgeon: 'the flight surgeon',
+}
+
+function defaultTiers(): EscalationTier[] {
+  return ESCALATION_TIERS.map((id, i) => ({ tier: i + 1, id, crew_id: null, instead_of: null, text: DEFAULT_TIER_TEXT[id] }))
+}
+
+/**
+ * The two escalation tiers for this crewmember's case (SPEC section 5 newCase). `escalation` is rules/meta.json
+ * `escalation` (or null: the default tiers). Its tiers are tier 1 and tier 2, each {tier, id, name, crew_id?, backup?};
+ * `crew_id` names the crewmember who holds the role (tier 1: the Crew Medical Officer). When the patient holds it and
+ * the tier has a `backup` ({id, name, crew_id}, another crewmember), that tier is the backup instead.
+ */
+function escalationTiers(cid: string, escalation: unknown, crewId: string): EscalationTier[] {
+  if (escalation === null || escalation === undefined) return defaultTiers()
+  const bad = (why: string) => new EngineError('invalid_case', `case ${cid}: escalation ${why}`)
+  const tiers = isObj(escalation) ? pyGet(escalation, 'tiers') : null
+  if (!Array.isArray(tiers) || !tiers.every((t) => isObj(t))) throw bad('must be an object whose tiers are a list of objects')
+  const defs = tiers as JsonObject[]
+  for (const t of defs) if (!isInt(pyGet(t, 'tier'))) throw bad('tier numbers must be integers')
+  const nums = defs.map((t) => t.tier as number).sort((a, b) => a - b)
+  if (!(nums.length === 2 && nums[0] === 1 && nums[1] === 2)) throw bad('needs exactly tier 1 and tier 2')
+  const out: EscalationTier[] = []
+  for (const t of [...defs].sort((a, b) => (a.tier as number) - (b.tier as number))) {
+    const n = t.tier as number
+    const id = pyGet(t, 'id')
+    const name = pyGet(t, 'name')
+    if (!(isNonemptyStr(id) && isNonemptyStr(name))) throw bad(`tier ${n} needs a non-empty id and name`)
+    const holder = pyGet(t, 'crew_id')
+    if (holder !== null && !isNonemptyStr(holder)) throw bad(`tier ${n} crew_id must be a non-empty string or null`)
+    const backup = pyGet(t, 'backup')
+    if (backup !== null) {
+      if (!(isObj(backup) && isNonemptyStr(pyGet(backup, 'id')) && isNonemptyStr(pyGet(backup, 'name')) && isNonemptyStr(pyGet(backup, 'crew_id')))) {
+        throw bad(`tier ${n} backup needs a non-empty id, name and crew_id`)
+      }
+      if (holder === null || pyEq(backup.crew_id, holder)) throw bad(`tier ${n} backup needs a holder (crew_id) and must be another crewmember`)
+    }
+    if (backup !== null && pyEq(holder, crewId)) {
+      // the patient holds this role: the backup takes it (rules/meta.json escalation, design choice)
+      const b = backup as JsonObject
+      out.push({ tier: n, id: b.id as string, crew_id: b.crew_id as string, instead_of: id, text: `${b.name as string} (backup for ${name}, who is the patient)` })
+    } else {
+      out.push({ tier: n, id, crew_id: holder as string | null, instead_of: null, text: name })
+    }
+  }
+  return out
+}
+
+/** The escalation tiers of a state (spec.escalation_tiers, or the default tiers for an older state). */
+function tiersOf(spec: CaseSpec): EscalationTier[] {
+  return has(spec as unknown as JsonObject, 'escalation_tiers') ? (spec.escalation_tiers as EscalationTier[]) : defaultTiers()
+}
+
+function escalatedText(spec: CaseSpec): string {
+  const [t1, t2] = tiersOf(spec)
+  return `escalated: tier 1, ${t1.text}, now; tier 2, ${t2.text}, through the ground packet, queued and sent when a link exists`
+}
 
 function list(x: unknown, what: string): unknown[] {
   // Python iterates `x or []`; a truthy non-list would crash it (or iterate dict keys / chars)
@@ -165,13 +229,16 @@ function procedureSpec(cid: string, procedure: unknown[]): ProcedureSpec {
  * `envId` (a non-empty string or null) selects the condition's by_env override for that environment;
  * the state records it as spec.env_id and the effective reference as spec.tripwire.condition.ref_id.
  * Procedure steps may carry required, red_flag and releases_packet (booleans); a red-flag step must be
- * required and take a yes/no input (SPEC 3.4).
+ * required and take a yes/no input (SPEC 3.4). `escalation` (optional) is rules/meta.json `escalation`:
+ * spec.escalation_tiers then names tier 1 for this crewmember (the backup when the patient is the Crew
+ * Medical Officer); without it, the default tiers.
  */
 export function newCase(
   caseDef: CaseDef,
   crewId: string,
   lookup: TriggerLookup | null = null,
   envId: string | null = null,
+  escalation: unknown = null,
 ): CaseState {
   if (!isObj(caseDef) || typeof pyGet(caseDef, 'id') !== 'string') {
     throw new EngineError('invalid_case', 'case definition must be an object with a string id')
@@ -233,6 +300,7 @@ export function newCase(
     throw new EngineError('invalid_case', `case ${cid}: need integers 1 <= at_least <= of_last_n`)
   }
   const esc = pyGet(def, 'escalation')
+  const tiers = escalationTiers(cid, escalation, crewId)
   const spec: CaseSpec = {
     case_id: cid,
     env_id: env as string | null,
@@ -256,6 +324,7 @@ export function newCase(
       },
     },
     escalation: isObj(esc) ? clone(esc) : null,
+    escalation_tiers: tiers,
   }
   return {
     schema: 'landfall.case_state/1',
@@ -350,6 +419,15 @@ function validateState(state: unknown): asserts state is CaseState {
   ) {
     throw malformed('instance, required-step, escalation or packet fields')
   }
+  if (has(sp, 'escalation_tiers')) {
+    // absent in a state built before the tiers were recorded: the default tiers apply
+    const tiers = sp.escalation_tiers
+    const tiersOk =
+      Array.isArray(tiers) &&
+      tiers.length === 2 &&
+      tiers.every((t) => isObj(t) && isNonemptyStr(pyGet(t, 'id')) && isNonemptyStr(pyGet(t, 'text')))
+    if (!tiersOk) throw malformed('escalation tiers')
+  }
   // TS only: the fields the reducer reads further down. Python has no such check and fails later
   // with KeyError / TypeError on these states; here they are the same contract violation.
   const spec = state.spec as unknown as JsonObject
@@ -416,7 +494,7 @@ export function caseReduce(state: CaseState, event: CaseEvent): CaseState {
   const spec = s.spec
   const nSteps = spec.step_ids.length
   const escalate = (reason: 'tripwire' | 'red_flag', stepId: unknown): void => {
-    s.escalation = { t: t as number, reason, step_id: stepId as string | null, tiers: [...ESCALATION_TIERS] }
+    s.escalation = { t: t as number, reason, step_id: stepId as string | null, tiers: tiersOf(spec).map((tier) => tier.id) }
     if (s.packet_queued_at === null) s.packet_queued_at = t as number
     s.closed_at = t as number
   }
@@ -441,6 +519,28 @@ export function caseReduce(state: CaseState, event: CaseEvent): CaseState {
     const opened = `by ${pyStr(ruleId)} (${pyStr(pyGet(f, 'status'))}, ${pyStr(sev)})`
     let detail = `opened ${opened}`
     if (frm !== 'idle') {
+      // re-open hysteresis (SPEC 7): a new episode needs the triggers below caution for at least the case's
+      // reassessment time, from clear_since up to this OPEN
+      const cs = pyGet(ev, 'clear_since')
+      if (!isNumber(cs)) {
+        return reject('invalid_event', 'OPEN of a new instance needs clear_since, the MET from which every trigger of the case has been below caution')
+      }
+      if (cs > t) return reject('invalid_event', `clear_since MET ${formatMet(cs)} is after the OPEN at MET ${formatMet(t)}`)
+      const openedAt = s.opened_at as unknown
+      if (isNumber(openedAt) && cs < openedAt) {
+        return reject(
+          'invalid_event',
+          `clear_since MET ${formatMet(cs)} is before instance ${pyStr(s.instance)} opened at MET ${formatMet(openedAt)}, when its trigger was at caution or above`,
+        )
+      }
+      const need = spec.tripwire.reassess_after_s
+      if (t - cs < need) {
+        return reject(
+          'trigger_not_clear',
+          `triggers below caution for ${formatMet(t - cs)} since MET ${formatMet(cs)}; a new instance needs ${formatMet(need)} ` +
+            `(the case's reassessment time), so instance ${pyStr(s.instance)} stays ${frm}`,
+        )
+      }
       // a new instance (episode) of a closed case: summarize the closed one, reset the per-instance fields
       const so = s as unknown as JsonObject
       const prev: JsonObject = { instance: s.instance, status: frm }
@@ -450,7 +550,7 @@ export function caseReduce(state: CaseState, event: CaseEvent): CaseState {
       s.instance = (prev.instance as number) + 1
       const closed = prev.closed_at
       const when = isNumber(closed) ? ` at MET ${formatMet(closed)}` : ''
-      detail = `opened again ${opened}: instance ${s.instance}; instance ${pyStr(prev.instance)} was ${frm}${when}`
+      detail = `opened again ${opened}: instance ${s.instance}; instance ${pyStr(prev.instance)} was ${frm}${when}; triggers below caution from MET ${formatMet(cs)}`
     }
     s.opened_at = t
     s.finding = clone(f) as unknown as CaseState['finding']
@@ -504,7 +604,7 @@ export function caseReduce(state: CaseState, event: CaseEvent): CaseState {
     s.steps_done.push({ step_id: stepId as string, t, input: clone(inp) })
     if (red && answer === true) {
       escalate('red_flag', stepId)
-      return accept('escalated', `step ${pyStr(stepId)} answered yes, a red flag; ${ESCALATED_TEXT}`)
+      return accept('escalated', `step ${pyStr(stepId)} answered yes, a red flag; ${escalatedText(spec)}`)
     }
     let note = red ? ', answered no' : ''
     if (pyIn(stepId, spec.packet_step_ids) && s.packet_queued_at === null) {
@@ -583,7 +683,7 @@ export function caseReduce(state: CaseState, event: CaseEvent): CaseState {
     if (res.tripped) {
       s.tripwire_result = res
       escalate('tripwire', null)
-      return accept('escalated', `reassessed: ${desc}; ${ESCALATED_TEXT}`)
+      return accept('escalated', `reassessed: ${desc}; ${escalatedText(spec)}`)
     }
     const remaining = cond.of_last_n - res.considered
     if (res.hits + remaining < cond.at_least) {

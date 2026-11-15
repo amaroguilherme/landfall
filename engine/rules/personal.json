@@ -26,14 +26,14 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "Stricter than the conventional 0.05 because LANDFALL tests many indicators every day. With the single-case t-test this is the actual chance rate per indicator-day under normal, independent day-to-day noise (half of it for a change in the worse direction), and the expected rate is printed next to every personal finding: the nominal one, or, for an indicator whose measured rate under the scenario's noise model is not within 0.5-2 times it, the measured one (chance_rate)."
+     "rationale": "Stricter than the conventional 0.05 because LANDFALL tests many indicators every day. With the single-case t-test this is the actual chance rate per indicator-day under normal, independent day-to-day noise (half of it for a change in the worse direction), and the expected rate is printed next to every personal finding: the nominal one, or, for an indicator whose measured rate under the scenario's noise model is not within 0.5-2 times it, the measured one, which that indicator declares."
     }
    },
    "min_baseline_n": {
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "Seven baseline days is the fewest we accept for a sample SD; below that the finding is insufficient_data."
+     "rationale": "Seven baseline days is the fewest we accept for a sample SD; with fewer, the finding reports insufficient data."
     }
    },
    "baseline_window_days": {
@@ -44,7 +44,7 @@
     }
    }
   },
-  "caveat": "The chance rate is exactly alpha (0.001 two-tailed, 0.0005 for a change in the worse direction) per indicator-day only if day-to-day noise is normal and independent, and real data are neither. In seeded simulations with no real change (engine/tests/test_rci.py), laid out like the scenario (a fixed 14-day baseline, then each of the 31 days after it tested against it), lag-1 autocorrelation of 0.5 between days gave about 1.4 times alpha on the first day after the baseline, about 4 times from a week on, and about 3.7 times averaged over the 31 days. At 0.9 it gave about 2.5 times on the first day and about 67 times on average, because 14 strongly autocorrelated days under-sample the crewmember's usual range. Skewed counts tested as raw counts (Poisson with mean 1, like PVT-B lapses) gave about 5 times alpha, and every one of those chance flags was a rise, so the chance-caution rate was about 10 times the printed one; LANDFALL therefore tests counts on the Anscombe scale (an indicator's transform), where PVT-B lapses flag about half as often as printed instead. Crawford et al. 2006 likewise saw this test's rate reach 9.96% against a nominal 5% with skewed, heavy-tailed samples. The rate of every indicator under the scenario's own noise model is measured, not assumed (engine/tests/test_chance_rates.py; sim_crew data.self_check.chance_rates): an indicator whose measured rate is not within 0.5 to 2 times the printed one declares it in chance_rate, and LANDFALL prints that instead. That noise model has no autocorrelation; real days do, so for real data read the printed rate as a lower bound.",
+  "caveat": "The chance rate is exactly alpha (0.001 two-tailed, 0.0005 for a change in the worse direction) per indicator-day only if day-to-day noise is normal and independent, and real data are neither. In seeded simulations with no real change, laid out like the scenario (a fixed 14-day baseline, then each of the 31 days after it tested against it), lag-1 autocorrelation of 0.5 between days gave about 1.4 times alpha on the first day after the baseline, about 4 times from a week on, and about 3.7 times averaged over the 31 days. At 0.9 it gave about 2.5 times on the first day and about 67 times on average, because 14 strongly autocorrelated days under-sample the crewmember's usual range. Skewed counts tested as raw counts (Poisson with mean 1, like PVT-B lapses) gave about 5 times alpha, and every one of those chance flags was a rise, so the chance-caution rate was about 10 times the printed one; LANDFALL therefore tests counts on the Anscombe scale (an indicator's transform), where PVT-B lapses flag about half as often as printed instead. Crawford et al. 2006 likewise saw this test's rate reach 9.96% against a nominal 5% with skewed, heavy-tailed samples. The rate of every indicator under the scenario's own noise model is measured, not assumed, and published with the simulated scenario data: an indicator whose measured rate is not within 0.5 to 2 times the nominal one declares its measured rate, and LANDFALL prints that instead. That noise model has no autocorrelation; real days do, so for real data read every printed rate, nominal or measured, as a lower bound.",
   "caveat_basis": {
    "text": "Monte Carlo study of Crawford & Howell's test with non-normal control samples: leptokurtosis alone inflated the Type I error only modestly; leptokurtosis with skew gave actual rates as high as 9.96% against a specified 5% at small sample sizes (abstract).",
    "chip": "literature",
@@ -54,9 +54,9 @@
     "url": "https://pubmed.ncbi.nlm.nih.gov/16046228/"
    }
   },
-  "change_note": "An earlier version applied Jacobson & Truax's arithmetic (S_diff = SD x sqrt(2) x sqrt(1 - r), critical 3.29) to the crewmember's own baseline SD. An audit showed that this shrinks the denominator: with a 14-day baseline and r = 0.8 the chance-flag rate was about 6.6% per indicator-day, not the 0.1% printed. Tier B now uses Crawford & Howell's test, whose chance rate is alpha. A later audit, after the scenario's day-to-day noise was made realistic, found two indicators far above the printed rate: the absolute sleep midpoint shift (a folded, in-sample-centred variable; about 12.7 times the printed caution rate) and raw PVT-B lapse counts (about 10 times). The midpoint is now a signed shift tested in both directions, and counts are tested on the Anscombe scale.",
+  "change_note": "An earlier version applied Jacobson & Truax's arithmetic (a standard error of the difference of SD x sqrt(2) x sqrt(1 - r), critical 3.29) to the crewmember's own baseline SD. An audit showed that this shrinks the denominator: with a 14-day baseline and r = 0.8 the chance-flag rate was about 6.6% per indicator-day, not the 0.1% printed. Tier B now uses Crawford & Howell's test, whose chance rate is alpha. A later audit, after the scenario's day-to-day noise was made realistic, found two indicators far above the printed rate: the absolute sleep midpoint shift (a folded, in-sample-centred variable; about 12.7 times the printed caution rate) and raw PVT-B lapse counts (about 10 times). The midpoint is now a signed shift tested in both directions, and counts are tested on the Anscombe scale.",
   "detectable_change": {
-   "text": "The smallest one-day change Tier B can flag is the band's half-width, critical x baseline SD x sqrt(1 + 1/n) (min_detectable_change in the engine; every Tier B finding carries it as rci.mdc). With a full 14-day baseline that is 4.37 baseline SDs; at the 7-day minimum, 6.37. A real change smaller than that is never flagged, however much it matters: Tier B's sensitivity is set by the crewmember's own day-to-day noise. For an indicator with a transform (PVT-B lapses) the SDs are on the transformed scale, and the band is printed mapped back to the indicator's unit (finding.band).",
+   "text": "The smallest one-day change Tier B can flag is the band's half-width, critical x baseline SD x sqrt(1 + 1/n), and every Tier B finding reports it. With a full 14-day baseline that is 4.37 baseline SDs; at the 7-day minimum, 6.37. A real change smaller than that is never flagged, however much it matters: Tier B's sensitivity is set by the crewmember's own day-to-day noise. For an indicator with a transform (PVT-B lapses) the SDs are on the transformed scale, and the band is printed mapped back to the indicator's own unit.",
    "chip": "derived",
    "source": {
     "kind": "derived",
@@ -65,8 +65,15 @@
      "rci.baseline_window_days",
      "rci.min_baseline_n"
     ],
-    "arithmetic": "t_critical(0.001, 13) x sqrt(1 + 1/14) = 4.221 x 1.035 = 4.37; t_critical(0.001, 6) x sqrt(1 + 1/7) = 5.959 x 1.069 = 6.37"
+    "arithmetic": "critical t (two-tailed alpha 0.001, df 13) x sqrt(1 + 1/14) = 4.221 x 1.035 = 4.37; critical t (df 6) x sqrt(1 + 1/7) = 5.959 x 1.069 = 6.37"
    }
+  },
+  "impl_notes": {
+   "note": "Implementation pointers for maintainers; never displayed (UI copy lives in the fields above).",
+   "caveat": "Autocorrelation and skew simulations: engine/tests/test_rci.py. Per-indicator chance rates: engine/tests/test_chance_rates.py replays sim_crew.json data.self_check.chance_rates (ingest/_sim_model.py chance_rates); a declaration is personal.json indicators[].chance_rate.",
+   "detectable_change": "Engine: min_detectable_change(sd, n, alpha); every Tier B finding carries it as rci.mdc, and the raw-scale band as finding.band (for a transform, mapped back from the test scale).",
+   "two_sided": "expected_false_alarms(k, days, alpha, k_either) counts both tails of a worse = either indicator (glucose, sleep_midpoint_shift); chance_rate() uses alpha, not alpha/2, as its nominal caution rate.",
+   "min_baseline_n": "rci.min_baseline_n; below it rci() reports status insufficient_data (reason baseline_too_short)."
   }
  },
  "indicators": [
@@ -109,13 +116,13 @@
      "kind": "literature",
      "citation": "Anscombe FJ. The transformation of Poisson, binomial and negative-binomial data. Biometrika 1948;35(3-4):246-254. doi:10.1093/biomet/35.3-4.246",
      "url": "https://doi.org/10.1093/biomet/35.3-4.246",
-     "note": "Bibliographic record checked against Crossref (DOI 10.1093/biomet/35.3-4.246) on 2026-11-14. 2√(x + 3/8) is the form of the transform that gives a variance close to 1 for large means; at a mean near 1 count the transformed variance is lower, which is why its measured chance rate is reported (chance_rate)."
+     "note": "Bibliographic record checked against Crossref (DOI 10.1093/biomet/35.3-4.246) on 2026-11-14. 2√(x + 3/8) is the form of the transform that gives a variance close to 1 for large means; at a mean near 1 count the transformed variance is lower, which is why its measured chance rate is reported."
     }
    },
    "chance_rate": {
     "caution_multiplier": 0.45,
     "flag_multiplier": 0.24,
-    "text": "Measured, not assumed: with no real change under the scenario's noise model (one Poisson count per test, mean 0.9-1.2 lapses), a seeded Monte Carlo laid out like the scenario (620,000 tests: a fixed 14-day baseline, then 31 days each tested against it) on the Anscombe scale raised a caution 0.45 times as often as the printed alpha/2 (0.34-0.52 across the four crewmembers) and a flag in either direction 0.24 times as often as alpha. A count near zero can never fall reliably, and the transform slightly over-corrects so small a count. For PVT-B lapses the printed rate is an upper bound under that model.",
+    "text": "Measured, not assumed: with no real change under the scenario's noise model (one Poisson count per test, mean 0.9-1.2 lapses), a seeded Monte Carlo laid out like the scenario (620,000 tests: a fixed 14-day baseline, then 31 days each tested against it) on the Anscombe scale raised a caution 0.45 times as often as the printed alpha/2 (0.34-0.52 across the four crewmembers) and a flag in either direction 0.24 times as often as alpha. A count near zero can never fall reliably, and the transform slightly over-corrects so small a count, so under that model lapses flag less often than the nominal rate, and LANDFALL prints this measured rate instead. The model's days are independent; real days are not, so for real data read this rate as a lower bound, like every printed rate.",
     "chip": "derived",
     "source": {
      "kind": "derived",
@@ -124,9 +131,10 @@
       "rci.alpha_two_tailed",
       "rci.baseline_window_days"
      ],
-     "arithmetic": "caution multiplier = 141 worse-direction reliable changes / 620,000 tests / 0.0005 = 0.45; flag multiplier = 150 reliable changes in either direction / 620,000 tests / 0.001 = 0.24 (seeded Monte Carlo with ingest/_sim_model.py's noise model, 5,000 simulated 45-day records per crewmember)",
-     "note": "Replayed through the engine itself by engine/tests/test_chance_rates.py, which requires these values; the same study, for every indicator, is published in sim_crew data.self_check.chance_rates."
-    }
+     "arithmetic": "caution multiplier = 141 worse-direction reliable changes / 620,000 tests / 0.0005 = 0.45; flag multiplier = 150 reliable changes in either direction / 620,000 tests / 0.001 = 0.24 (seeded Monte Carlo with the scenario generator's noise model, 5,000 simulated 45-day records per crewmember)",
+     "note": "The engine's own tests replay this study and require these values; the same study, for every indicator, is published with the simulated scenario data."
+    },
+    "impl_note": "Replayed through the engine by engine/tests/test_chance_rates.py, which requires these values; the same study, for every indicator, is sim_crew.json data.self_check.chance_rates (ingest/_sim_model.py chance_rates)."
    }
   },
   {
@@ -219,7 +227,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "A signed shift from a fixed reference keeps the day-to-day noise of the midpoint itself: subtracting the baseline median moves every value by the same amount, so the single-case test sees the midpoint's own spread and its chance rate is the printed one. An earlier version tested the absolute shift, which folds the noise at zero and centres it on the baseline's own median; with no real change it raised a chance caution about 12 times as often as printed (seeded Monte Carlo under the scenario's noise model). As for glucose, worse is either: an earlier or a later midpoint is a drift, and the chance-caution rate of a two-sided indicator is alpha, not alpha/2 (expected_false_alarms, k_either)."
+     "rationale": "A signed shift from a fixed reference keeps the day-to-day noise of the midpoint itself: subtracting the baseline median moves every value by the same amount, so the single-case test sees the midpoint's own spread and its chance rate is the printed one. An earlier version tested the absolute shift, which folds the noise at zero and centres it on the baseline's own median; with no real change it raised a chance caution about 12 times as often as printed (seeded Monte Carlo under the scenario's noise model). As for glucose, worse is either: an earlier or a later midpoint is a drift, and the chance-caution rate of a two-sided indicator is alpha, not alpha/2, and LANDFALL's false-alarm arithmetic counts it that way."
     }
    },
    "case_id": "sleep_circadian"
@@ -433,7 +441,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "The challenge names blood pressure. The band has no blood-pressure sensor, so the cuff of the vehicle medical kit and manual entry are the hand-off boundary. Tier B compares each reading only with the crewmember's own baseline and needs at least 7 baseline readings (rci.min_baseline_n). Worse is an increase; a reliable drop is shown and does not alert."
+     "rationale": "The challenge names blood pressure. The band has no blood-pressure sensor, so the cuff of the vehicle medical kit and manual entry are the hand-off boundary. Tier B compares each reading only with the crewmember's own baseline and needs at least 7 baseline readings, the method's minimum. Worse is an increase; a reliable drop is shown and does not alert."
     }
    },
    "limit_note": {
@@ -478,7 +486,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "The challenge names blood pressure. The band has no blood-pressure sensor, so the cuff of the vehicle medical kit and manual entry are the hand-off boundary. Tier B compares each reading only with the crewmember's own baseline and needs at least 7 baseline readings (rci.min_baseline_n). Worse is an increase; a reliable drop is shown and does not alert."
+     "rationale": "The challenge names blood pressure. The band has no blood-pressure sensor, so the cuff of the vehicle medical kit and manual entry are the hand-off boundary. Tier B compares each reading only with the crewmember's own baseline and needs at least 7 baseline readings, the method's minimum. Worse is an increase; a reliable drop is shown and does not alert."
     }
    },
    "limit_note": {
@@ -523,7 +531,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "The challenge names blood sugar. The band has no glucose sensor, so the glucometer of the vehicle medical kit and manual entry are the hand-off boundary. Tier B compares each reading only with the crewmember's own baseline and needs at least 7 baseline readings (rci.min_baseline_n). A reading can move too low or too high, so worse is either: a reliable change in either direction raises a caution, which doubles this indicator's chance-caution rate (expected_false_alarms, k_either)."
+     "rationale": "The challenge names blood sugar. The band has no glucose sensor, so the glucometer of the vehicle medical kit and manual entry are the hand-off boundary. Tier B compares each reading only with the crewmember's own baseline and needs at least 7 baseline readings, the method's minimum. A reading can move too low or too high, so worse is either: a reliable change in either direction raises a caution, which doubles this indicator's chance-caution rate, and LANDFALL's false-alarm arithmetic counts it that way."
     }
    },
    "limit_note": {
@@ -589,8 +597,8 @@
    "case_id": null,
    "chance_rate": {
     "caution_multiplier": 0.99,
-    "flag_multiplier": 0.5,
-    "text": "Measured, not assumed: with no real change under the scenario's noise model (a 1-5 score, mostly 3 or 4), a seeded Monte Carlo laid out like the scenario (620,000 tests) showed a reliable drop 0.99 times as often as the nominal alpha/2 and never a reliable rise, so reliable changes in either direction came 0.5 times as often as alpha. Mood never alerts: this is how often a chance change is shown, never alarmed.",
+    "flag_multiplier": 0.495,
+    "text": "Measured, not assumed: with no real change under the scenario's noise model (a 1-5 score, mostly 3 or 4), a seeded Monte Carlo laid out like the scenario (620,000 tests) showed a reliable drop 0.99 times as often as the nominal alpha/2 and never a reliable rise, so reliable changes in either direction came 0.495 times as often as alpha, just below the 0.5-2 band. Mood never alerts: this is how often a chance change is shown, never alarmed.",
     "chip": "derived",
     "source": {
      "kind": "derived",
@@ -599,9 +607,10 @@
       "rci.alpha_two_tailed",
       "rci.baseline_window_days"
      ],
-     "arithmetic": "caution multiplier = 307 reliable drops / 620,000 tests / 0.0005 = 0.99; flag multiplier = 307 reliable changes in either direction / 620,000 tests / 0.001 = 0.5 (seeded Monte Carlo with ingest/_sim_model.py's noise model, 5,000 simulated 45-day records per crewmember; 3 of the 20,000 baselines had SD 0 and could not flag)",
-     "note": "Replayed through the engine itself by engine/tests/test_chance_rates.py, which requires these values; the same study, for every indicator, is published in sim_crew data.self_check.chance_rates."
-    }
+     "arithmetic": "caution multiplier = 307 reliable drops / 620,000 tests / 0.0005 = 0.99; flag multiplier = 307 reliable changes in either direction / 620,000 tests / 0.001 = 0.495 (seeded Monte Carlo with the scenario generator's noise model, 5,000 simulated 45-day records per crewmember; 3 of the 20,000 baselines had SD 0 and could not flag)",
+     "note": "The engine's own tests replay this study and require these values; the same study, for every indicator, is published with the simulated scenario data."
+    },
+    "impl_note": "Replayed through the engine by engine/tests/test_chance_rates.py, which requires these values; the same study, for every indicator, is sim_crew.json data.self_check.chance_rates (ingest/_sim_model.py chance_rates)."
    }
   }
  ]

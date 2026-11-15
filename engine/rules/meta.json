@@ -403,12 +403,41 @@
     "tier": 1,
     "id": "crew_medical_officer",
     "label": "Crew Medical Officer (onboard)",
-    "when": "now"
+    "name": "the Crew Medical Officer",
+    "crew_id": "CM-4",
+    "when": "now",
+    "backup": {
+     "id": "backup_medical_officer",
+     "label": "Backup medical officer: the Commander (onboard)",
+     "name": "the Commander",
+     "role": "Commander",
+     "crew_id": "CM-1",
+     "when": "now",
+     "applies": "when the patient is the Crew Medical Officer",
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "When the Crew Medical Officer (CM-4) is the patient, tier 1 cannot be the patient, so LANDFALL names the Commander (CM-1), who leads the crew, as the backup medical officer. NASA-STD-3001 plans for a physician crewmember being the patient: [V2 7045] requires medical equipment to be usable by non-physician crewmembers 'in the event that a physician crewmember is not present or is the one who requires medical treatment'. LANDFALL's Crew Medical Officer is not a physician, so this applies the same logic to that role; naming the Commander as the backup is LANDFALL's choice, not a NASA assignment."
+     },
+     "citations": [
+      {
+       "kind": "nasa_standard",
+       "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+       "url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf",
+       "snapshot": "std_vol2_requirements",
+       "requirement_id": "V2 7045",
+       "section": "7.5.2",
+       "page": 132,
+       "verbatim": "in the event that a physician crewmember is not present or is the one who requires medical treatment"
+      }
+     ]
+    }
    },
    {
     "tier": 2,
     "id": "flight_surgeon",
     "label": "Flight surgeon (ground)",
+    "name": "the flight surgeon",
     "when": "through the ground packet, with the next link: at once when the link is up (AOS), when it resumes during loss of signal or solar conjunction"
    }
   ],
@@ -453,7 +482,7 @@
   {
    "id": "queued",
    "label": "Queued",
-   "when": "after crew release (a procedure step marked releases_packet) or escalation (state.packet_queued_at): it is sent when a link exists, at once at AOS, when the link resumes during loss of signal or solar conjunction"
+   "when": "after crew release (a procedure step that releases the packet) or escalation: it is sent when a link exists, at once at AOS, when the link resumes during loss of signal or solar conjunction"
   }
  ],
  "body_region_rule": "A case's body_regions are its hazard footprint, the organs the hazard can reach, drawn as a hatched outline. Only a measured finding for the selected crewmember fills an organ. VO2max is a fitness tag (EVA assignment), not a heart or lung finding."

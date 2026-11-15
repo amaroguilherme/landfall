@@ -37,10 +37,12 @@
    "basis": "nominal",
    "caution_every_n_days": 2000.0,
    "caution_multiplier": 1.0,
+   "caution_multiplier_text": "1",
    "caution_per_day": 0.0005,
    "chip": "literature",
    "flag_every_n_days": 1000.0,
    "flag_multiplier": 1.0,
+   "flag_multiplier_text": "1",
    "flag_per_day": 0.001,
    "indicator_id": "pvt_lapses",
    "nominal_caution_per_day": 0.0005,
@@ -85,10 +87,12 @@
    "basis": "nominal",
    "caution_every_n_days": 2000.0,
    "caution_multiplier": 1.0,
+   "caution_multiplier_text": "1",
    "caution_per_day": 0.0005,
    "chip": "literature",
    "flag_every_n_days": 1000.0,
    "flag_multiplier": 1.0,
+   "flag_multiplier_text": "1",
    "flag_per_day": 0.001,
    "indicator_id": "sleep_duration",
    "nominal_caution_per_day": 0.0005,
@@ -133,10 +137,12 @@
    "basis": "nominal",
    "caution_every_n_days": 1000.0,
    "caution_multiplier": 1.0,
+   "caution_multiplier_text": "1",
    "caution_per_day": 0.001,
    "chip": "literature",
    "flag_every_n_days": 1000.0,
    "flag_multiplier": 1.0,
+   "flag_multiplier_text": "1",
    "flag_per_day": 0.001,
    "indicator_id": "skin_temp",
    "nominal_caution_per_day": 0.001,
@@ -181,10 +187,12 @@
    "basis": "nominal",
    "caution_every_n_days": null,
    "caution_multiplier": 1.0,
+   "caution_multiplier_text": "1",
    "caution_per_day": 0.0,
    "chip": "literature",
    "flag_every_n_days": 1000.0,
    "flag_multiplier": 1.0,
+   "flag_multiplier_text": "1",
    "flag_per_day": 0.001,
    "indicator_id": "mood",
    "nominal_caution_per_day": 0.0005,
@@ -229,10 +237,12 @@
    "basis": "nominal",
    "caution_every_n_days": 1000.0,
    "caution_multiplier": 1.0,
+   "caution_multiplier_text": "1",
    "caution_per_day": 0.001,
    "chip": "literature",
    "flag_every_n_days": 1000.0,
    "flag_multiplier": 1.0,
+   "flag_multiplier_text": "1",
    "flag_per_day": 0.001,
    "indicator_id": "sleep_midpoint_shift",
    "nominal_caution_per_day": 0.001,
@@ -300,10 +310,12 @@
    "basis": "measured",
    "caution_every_n_days": 4444.444444444444,
    "caution_multiplier": 0.45,
+   "caution_multiplier_text": "0.45",
    "caution_per_day": 0.00022500000000000002,
    "chip": "derived",
    "flag_every_n_days": 4166.666666666667,
    "flag_multiplier": 0.24,
+   "flag_multiplier_text": "0.24",
    "flag_per_day": 0.00024,
    "indicator_id": "pvt_lapses",
    "nominal_caution_per_day": 0.0005,
@@ -364,10 +376,12 @@
    "basis": "measured",
    "caution_every_n_days": null,
    "caution_multiplier": 0.99,
+   "caution_multiplier_text": "0.99",
    "caution_per_day": 0.0,
    "chip": "derived",
    "flag_every_n_days": 2000.0,
    "flag_multiplier": 0.5,
+   "flag_multiplier_text": "0.5",
    "flag_per_day": 0.0005,
    "indicator_id": "mood",
    "nominal_caution_per_day": 0.0005,
@@ -428,10 +442,12 @@
    "basis": "measured",
    "caution_every_n_days": 625.0,
    "caution_multiplier": 1.6,
+   "caution_multiplier_text": "1.6",
    "caution_per_day": 0.0016,
    "chip": "derived",
    "flag_every_n_days": 625.0,
    "flag_multiplier": 1.6,
+   "flag_multiplier_text": "1.6",
    "flag_per_day": 0.0016,
    "indicator_id": "skin_temp",
    "nominal_caution_per_day": 0.001,
@@ -501,10 +517,12 @@
    "basis": "measured",
    "caution_every_n_days": null,
    "caution_multiplier": 0,
+   "caution_multiplier_text": "0",
    "caution_per_day": 0.0,
    "chip": "derived",
    "flag_every_n_days": null,
    "flag_multiplier": 0,
+   "flag_multiplier_text": "0",
    "flag_per_day": 0.0,
    "indicator_id": "pvt_lapses",
    "nominal_caution_per_day": 0.0005,
@@ -565,10 +583,12 @@
    "basis": "measured",
    "caution_every_n_days": null,
    "caution_multiplier": 0.45,
+   "caution_multiplier_text": "0.45",
    "caution_per_day": 0.0,
    "chip": "derived",
    "flag_every_n_days": null,
    "flag_multiplier": 0,
+   "flag_multiplier_text": "0",
    "flag_per_day": 0.0,
    "indicator_id": "mood",
    "nominal_caution_per_day": 0.0005,
@@ -638,10 +658,12 @@
    "basis": "measured",
    "caution_every_n_days": 666.6666666666666,
    "caution_multiplier": 3,
+   "caution_multiplier_text": "3",
    "caution_per_day": 0.0015,
    "chip": "derived",
    "flag_every_n_days": 500.0,
    "flag_multiplier": 2,
+   "flag_multiplier_text": "2",
    "flag_per_day": 0.002,
    "indicator_id": "pvt_lapses",
    "nominal_caution_per_day": 0.0005,
@@ -710,10 +732,12 @@
    "basis": "measured",
    "caution_every_n_days": 4444.444444444444,
    "caution_multiplier": 0.45,
+   "caution_multiplier_text": "0.45",
    "caution_per_day": 0.00022500000000000002,
    "chip": "derived",
    "flag_every_n_days": 4166.666666666667,
    "flag_multiplier": 0.24,
+   "flag_multiplier_text": "0.24",
    "flag_per_day": 0.00024,
    "indicator_id": "pvt_lapses",
    "nominal_caution_per_day": 0.0005,
@@ -770,10 +794,12 @@
    "basis": "nominal",
    "caution_every_n_days": 40.0,
    "caution_multiplier": 1.0,
+   "caution_multiplier_text": "1",
    "caution_per_day": 0.025,
    "chip": "literature",
    "flag_every_n_days": 20.0,
    "flag_multiplier": 1.0,
+   "flag_multiplier_text": "1",
    "flag_per_day": 0.05,
    "indicator_id": "pvt_lapses",
    "nominal_caution_per_day": 0.025,
@@ -818,10 +844,12 @@
    "basis": "nominal",
    "caution_every_n_days": 3.3333333333333335,
    "caution_multiplier": 1.0,
+   "caution_multiplier_text": "1",
    "caution_per_day": 0.3,
    "chip": "literature",
    "flag_every_n_days": 3.3333333333333335,
    "flag_multiplier": 1.0,
+   "flag_multiplier_text": "1",
    "flag_per_day": 0.3,
    "indicator_id": "skin_temp",
    "nominal_caution_per_day": 0.3,
@@ -875,10 +903,12 @@
    "basis": "nominal",
    "caution_every_n_days": 20000000000000.0,
    "caution_multiplier": 1.0,
+   "caution_multiplier_text": "1",
    "caution_per_day": 5e-14,
    "chip": "literature",
    "flag_every_n_days": 10000000000000.0,
    "flag_multiplier": 1.0,
+   "flag_multiplier_text": "1",
    "flag_per_day": 1e-13,
    "indicator_id": "pvt_lapses",
    "nominal_caution_per_day": 5e-14,
@@ -945,10 +975,12 @@
    "basis": "measured",
    "caution_every_n_days": 5405.405405405406,
    "caution_multiplier": 0.37,
+   "caution_multiplier_text": "0.37",
    "caution_per_day": 0.000185,
    "chip": "derived",
    "flag_every_n_days": 4166.666666666667,
    "flag_multiplier": 0.24,
+   "flag_multiplier_text": "0.24",
    "flag_per_day": 0.00024,
    "indicator_id": "pvt_lapses",
    "nominal_caution_per_day": 0.0005,
@@ -1009,10 +1041,12 @@
    "basis": "measured",
    "caution_every_n_days": 999.6001599360255,
    "caution_multiplier": 1.0004,
+   "caution_multiplier_text": "1",
    "caution_per_day": 0.0010004,
    "chip": "derived",
    "flag_every_n_days": 999.6001599360255,
    "flag_multiplier": 1.0004,
+   "flag_multiplier_text": "1",
    "flag_per_day": 0.0010004,
    "indicator_id": "skin_temp",
    "nominal_caution_per_day": 0.001,
@@ -1030,6 +1064,297 @@
   },
   "fn": "chance_rate",
   "name": "n_just_below_1000"
+ },
+ {
+  "args": {
+   "cfg": {
+    "alpha_two_tailed": 0.001,
+    "baseline_window_days": 14,
+    "chip": "literature",
+    "min_baseline_n": 7,
+    "source": {
+     "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
+     "kind": "literature"
+    }
+   },
+   "indicator": {
+    "alerting": false,
+    "case_id": null,
+    "chance_rate": {
+     "caution_multiplier": 0.99,
+     "chip": "derived",
+     "flag_multiplier": 0.495,
+     "source": {
+      "arithmetic": "fixture",
+      "from": [
+       "pvt_lapses"
+      ],
+      "kind": "derived"
+     },
+     "text": "fixture: measured by Monte Carlo"
+    },
+    "id": "mood",
+    "label": "Mood",
+    "private": true,
+    "unit": "score_1_5",
+    "variable": "mood",
+    "worse": "decrease"
+   }
+  },
+  "expect": {
+   "alerting": false,
+   "alpha": 0.001,
+   "basis": "measured",
+   "caution_every_n_days": null,
+   "caution_multiplier": 0.99,
+   "caution_multiplier_text": "0.99",
+   "caution_per_day": 0.0,
+   "chip": "derived",
+   "flag_every_n_days": 2020.2020202020203,
+   "flag_multiplier": 0.495,
+   "flag_multiplier_text": "0.495",
+   "flag_per_day": 0.000495,
+   "indicator_id": "mood",
+   "nominal_caution_per_day": 0.0005,
+   "nominal_flag_per_day": 0.001,
+   "note": "fixture: measured by Monte Carlo",
+   "source": {
+    "arithmetic": "fixture",
+    "from": [
+     "pvt_lapses"
+    ],
+    "kind": "derived"
+   },
+   "text": "never alerts; about 1 in 2000 days per crewmember would show a reliable change like this with no real change",
+   "worse": "decrease"
+  },
+  "fn": "chance_rate",
+  "name": "borderline_multiplier_prints_three_decimals"
+ },
+ {
+  "args": {
+   "cfg": {
+    "alpha_two_tailed": 0.001,
+    "baseline_window_days": 14,
+    "chip": "literature",
+    "min_baseline_n": 7,
+    "source": {
+     "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
+     "kind": "literature"
+    }
+   },
+   "indicator": {
+    "alerting": true,
+    "case_id": "sleep_circadian",
+    "chance_rate": {
+     "caution_multiplier": 1.5,
+     "chip": "derived",
+     "flag_multiplier": 2.0,
+     "source": {
+      "arithmetic": "fixture",
+      "from": [
+       "pvt_lapses"
+      ],
+      "kind": "derived"
+     },
+     "text": "fixture: measured by Monte Carlo"
+    },
+    "id": "pvt_lapses",
+    "label": "PVT-B lapses",
+    "private": false,
+    "reliability_r": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: ignored by the engine"
+     },
+     "used_by_engine": false,
+     "value": null
+    },
+    "unit": "count",
+    "variable": "pvt_lapses",
+    "worse": "increase"
+   }
+  },
+  "expect": {
+   "alerting": true,
+   "alpha": 0.001,
+   "basis": "measured",
+   "caution_every_n_days": 1333.3333333333333,
+   "caution_multiplier": 1.5,
+   "caution_multiplier_text": "1.5",
+   "caution_per_day": 0.00075,
+   "chip": "derived",
+   "flag_every_n_days": 500.0,
+   "flag_multiplier": 2.0,
+   "flag_multiplier_text": "2",
+   "flag_per_day": 0.002,
+   "indicator_id": "pvt_lapses",
+   "nominal_caution_per_day": 0.0005,
+   "nominal_flag_per_day": 0.001,
+   "note": "fixture: measured by Monte Carlo",
+   "source": {
+    "arithmetic": "fixture",
+    "from": [
+     "pvt_lapses"
+    ],
+    "kind": "derived"
+   },
+   "text": "about 1 in 1300 days per crewmember would flag like this with no real change",
+   "worse": "increase"
+  },
+  "fn": "chance_rate",
+  "name": "multiplier_text_drops_trailing_zeros"
+ },
+ {
+  "args": {
+   "cfg": {
+    "alpha_two_tailed": 0.001,
+    "baseline_window_days": 14,
+    "chip": "literature",
+    "min_baseline_n": 7,
+    "source": {
+     "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
+     "kind": "literature"
+    }
+   },
+   "indicator": {
+    "alerting": true,
+    "case_id": "sleep_circadian",
+    "chance_rate": {
+     "caution_multiplier": 0.45449,
+     "chip": "derived",
+     "flag_multiplier": 0.2425,
+     "source": {
+      "arithmetic": "fixture",
+      "from": [
+       "pvt_lapses"
+      ],
+      "kind": "derived"
+     },
+     "text": "fixture: measured by Monte Carlo"
+    },
+    "id": "pvt_lapses",
+    "label": "PVT-B lapses",
+    "private": false,
+    "reliability_r": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: ignored by the engine"
+     },
+     "used_by_engine": false,
+     "value": null
+    },
+    "unit": "count",
+    "variable": "pvt_lapses",
+    "worse": "increase"
+   }
+  },
+  "expect": {
+   "alerting": true,
+   "alpha": 0.001,
+   "basis": "measured",
+   "caution_every_n_days": 4400.536865497591,
+   "caution_multiplier": 0.45449,
+   "caution_multiplier_text": "0.454",
+   "caution_per_day": 0.000227245,
+   "chip": "derived",
+   "flag_every_n_days": 4123.711340206186,
+   "flag_multiplier": 0.2425,
+   "flag_multiplier_text": "0.243",
+   "flag_per_day": 0.00024249999999999999,
+   "indicator_id": "pvt_lapses",
+   "nominal_caution_per_day": 0.0005,
+   "nominal_flag_per_day": 0.001,
+   "note": "fixture: measured by Monte Carlo",
+   "source": {
+    "arithmetic": "fixture",
+    "from": [
+     "pvt_lapses"
+    ],
+    "kind": "derived"
+   },
+   "text": "about 1 in 4400 days per crewmember would flag like this with no real change",
+   "worse": "increase"
+  },
+  "fn": "chance_rate",
+  "name": "multiplier_text_rounds_to_three_decimals"
+ },
+ {
+  "args": {
+   "cfg": {
+    "alpha_two_tailed": 1e-13,
+    "baseline_window_days": 14,
+    "chip": "literature",
+    "min_baseline_n": 7,
+    "source": {
+     "citation": "Crawford JR, Howell DC. Clin Neuropsychol 1998;12(4):482-486. doi:10.1076/clin.12.4.482.7241",
+     "kind": "literature"
+    }
+   },
+   "indicator": {
+    "alerting": true,
+    "case_id": "sleep_circadian",
+    "chance_rate": {
+     "caution_multiplier": 2500000000.0,
+     "chip": "derived",
+     "flag_multiplier": 999999999.9994,
+     "source": {
+      "arithmetic": "fixture",
+      "from": [
+       "pvt_lapses"
+      ],
+      "kind": "derived"
+     },
+     "text": "fixture: measured by Monte Carlo"
+    },
+    "id": "pvt_lapses",
+    "label": "PVT-B lapses",
+    "private": false,
+    "reliability_r": {
+     "chip": "design choice",
+     "source": {
+      "kind": "design_choice",
+      "rationale": "fixture: ignored by the engine"
+     },
+     "used_by_engine": false,
+     "value": null
+    },
+    "unit": "count",
+    "variable": "pvt_lapses",
+    "worse": "increase"
+   }
+  },
+  "expect": {
+   "alerting": true,
+   "alpha": 1e-13,
+   "basis": "measured",
+   "caution_every_n_days": 8000.0,
+   "caution_multiplier": 2500000000.0,
+   "caution_multiplier_text": "10^9 or more",
+   "caution_per_day": 0.000125,
+   "chip": "derived",
+   "flag_every_n_days": 10000.000000005999,
+   "flag_multiplier": 999999999.9994,
+   "flag_multiplier_text": "999999999.999",
+   "flag_per_day": 9.999999999994001e-05,
+   "indicator_id": "pvt_lapses",
+   "nominal_caution_per_day": 5e-14,
+   "nominal_flag_per_day": 1e-13,
+   "note": "fixture: measured by Monte Carlo",
+   "source": {
+    "arithmetic": "fixture",
+    "from": [
+     "pvt_lapses"
+    ],
+    "kind": "derived"
+   },
+   "text": "about 1 in 8000 days per crewmember would flag like this with no real change",
+   "worse": "increase"
+  },
+  "fn": "chance_rate",
+  "name": "huge_multiplier_text"
  },
  {
   "args": {

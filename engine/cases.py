@@ -13,7 +13,10 @@ needs its value. A "red_flag" step is a required yes/no question: a "yes" escala
 once.
 
 Escalation has two tiers (state.escalation.tiers): tier 1, the onboard Crew Medical Officer, now;
-tier 2, the flight surgeon on the ground, through the ground packet. The reducer does not know the
+tier 2, the flight surgeon on the ground, through the ground packet. new_case(..., escalation) reads
+the tiers from rules/meta.json `escalation`: when the patient holds tier 1's role (the Crew Medical
+Officer is the crewmember of the case), tier 1 is that tier's backup (the Commander), recorded in
+spec.escalation_tiers. The reducer does not know the
 link: the packet is Queued at escalation (state.packet_queued_at) and leaves with the next link,
 at once when the link is up (AOS), when it resumes during loss of signal or conjunction
 (comms_eta). A step marked "releases_packet" queues the packet too (crew release); before that the
@@ -32,10 +35,16 @@ Instances: one state follows one case for one crewmember through every episode. 
 opens instance 1. Once an instance is closed (resolved, escalated or dismissed), a new OPEN opens
 the next instance: the closed one is summarized in previous_instances, every per-instance field
 is reset, and instance counts up. An open instance (detected, acting, watch) is never opened twice.
-When the timeline sends that OPEN is SPEC section 7's rule, not the reducer's.
+Re-open hysteresis: that OPEN carries clear_since, the MET from which every trigger of the case has
+been below caution, and opens the next instance only when the triggers have been clear for at least
+the case's reassess_after_s (trigger_not_clear otherwise). A condition that persists through an
+escalation therefore keeps the escalated instance as the case's current one, and a flapping reading
+does not open a new episode. When the timeline sends that OPEN, and how it measures clear_since, is
+SPEC section 7's rule.
 
 State (JSON):
-    {"schema": "landfall.case_state/1", "case_id", "crew_id", "status", "spec": {...},
+    {"schema": "landfall.case_state/1", "case_id", "crew_id", "status",
+     "spec": {..., "escalation_tiers": [{tier, id, crew_id, instead_of, text}]},
      "instance": 1.., "previous_instances": [{instance, status, opened_at, closed_at, finding,
      outcome, escalation, packet_queued_at, dismiss_reason}],
      "opened_at", "finding", "countermeasure_id", "steps_done": [{step_id, t, input}],
@@ -60,6 +69,8 @@ EVENTS = ("OPEN", "SELECT", "STEP", "DECLINE", "OUTCOME", "TICK", "DISMISS")
 OPENING_SEVERITIES = ("caution", "warning", "emergency")
 # tier 1 is told now, onboard; tier 2 gets the ground packet with the next link
 ESCALATION_TIERS = ("crew_medical_officer", "flight_surgeon")
+# what the escalation detail calls each default tier (new_case without the meta.json escalation block)
+DEFAULT_TIER_TEXT = {"crew_medical_officer": "the Crew Medical Officer", "flight_surgeon": "the flight surgeon"}
 STEP_FLAGS = ("required", "red_flag", "releases_packet")
 YES_NO_UNIT = "yes/no"
 OP_WORDS = {"lt": "below", "le": "at or below", "gt": "above", "ge": "at or above"}
@@ -126,7 +137,61 @@ def _procedure_spec(cid: str, procedure: list) -> dict:
             "packet_step_ids": packet_steps, "step_inputs": inputs}
 
 
-def new_case(case_def: dict, crew_id: str, lookup: dict | None = None, env_id: str | None = None) -> dict:
+def _default_tiers() -> list:
+    return [{"tier": i + 1, "id": tid, "crew_id": None, "instead_of": None, "text": DEFAULT_TIER_TEXT[tid]}
+            for i, tid in enumerate(ESCALATION_TIERS)]
+
+
+def _escalation_tiers(cid: str, escalation: object, crew_id: str) -> list:
+    """The two escalation tiers for this crewmember's case (SPEC section 5 new_case).
+
+    escalation is rules/meta.json `escalation` (or None: the default tiers). Its `tiers` are tier 1 and
+    tier 2, each {tier, id, name, crew_id?, backup?}; `crew_id` names the crewmember who holds the role
+    (tier 1: the Crew Medical Officer). When the patient holds it and the tier has a `backup`
+    ({id, name, crew_id}, another crewmember), that tier is the backup instead.
+    """
+    if escalation is None:
+        return _default_tiers()
+
+    def bad(why: str) -> EngineError:
+        return EngineError("invalid_case", f"case {cid}: escalation {why}")
+
+    tiers = escalation.get("tiers") if isinstance(escalation, dict) else None
+    if not isinstance(tiers, list) or not all(isinstance(t, dict) for t in tiers):
+        raise bad("must be an object whose tiers are a list of objects")
+    nums = []
+    for t in tiers:
+        n = t.get("tier")
+        if not (isinstance(n, int) and not isinstance(n, bool)):
+            raise bad("tier numbers must be integers")
+        nums.append(n)
+    if sorted(nums) != [1, 2]:
+        raise bad("needs exactly tier 1 and tier 2")
+    out = []
+    for t in sorted(tiers, key=lambda x: x["tier"]):
+        if not (_nonempty_str(t.get("id")) and _nonempty_str(t.get("name"))):
+            raise bad(f"tier {t['tier']} needs a non-empty id and name")
+        holder = t.get("crew_id")
+        if holder is not None and not _nonempty_str(holder):
+            raise bad(f"tier {t['tier']} crew_id must be a non-empty string or null")
+        backup = t.get("backup")
+        if backup is not None:
+            if not (isinstance(backup, dict) and _nonempty_str(backup.get("id"))
+                    and _nonempty_str(backup.get("name")) and _nonempty_str(backup.get("crew_id"))):
+                raise bad(f"tier {t['tier']} backup needs a non-empty id, name and crew_id")
+            if holder is None or backup["crew_id"] == holder:
+                raise bad(f"tier {t['tier']} backup needs a holder (crew_id) and must be another crewmember")
+        if backup is not None and holder == crew_id:
+            # the patient holds this role: the backup takes it (rules/meta.json escalation, design choice)
+            out.append({"tier": t["tier"], "id": backup["id"], "crew_id": backup["crew_id"], "instead_of": t["id"],
+                        "text": f"{backup['name']} (backup for {t['name']}, who is the patient)"})
+        else:
+            out.append({"tier": t["tier"], "id": t["id"], "crew_id": holder, "instead_of": None, "text": t["name"]})
+    return out
+
+
+def new_case(case_def: dict, crew_id: str, lookup: dict | None = None, env_id: str | None = None,
+             escalation: dict | None = None) -> dict:
     """Build the pre-OPEN ("idle") state for one case and one crewmember.
 
     lookup maps a rule or indicator id -> {"variable", "unit"} (see loader.trigger_lookup). It
@@ -137,6 +202,9 @@ def new_case(case_def: dict, crew_id: str, lookup: dict | None = None, env_id: s
     spec.env_id. Procedure steps may carry "required", "red_flag" and "releases_packet" (booleans);
     a red-flag step must be required and take a yes/no input (SPEC 3.4). The state starts at instance 1
     with no previous_instances (a closed case opens again as the next instance: case_reduce OPEN).
+    escalation (optional) is rules/meta.json `escalation`: spec.escalation_tiers then names tier 1 for
+    this crewmember (the backup when the patient is the Crew Medical Officer); without it, the default
+    tiers.
     """
     if not isinstance(case_def, dict) or not isinstance(case_def.get("id"), str):
         raise EngineError("invalid_case", "case definition must be an object with a string id")
@@ -180,6 +248,7 @@ def new_case(case_def: dict, crew_id: str, lookup: dict | None = None, env_id: s
             and not isinstance(k, bool) and 1 <= k <= n):
         raise EngineError("invalid_case", f"case {cid}: need integers 1 <= at_least <= of_last_n")
     esc = case_def.get("escalation")
+    tiers = _escalation_tiers(cid, escalation, crew_id)
     spec = {
         "case_id": cid,
         "env_id": env_id,
@@ -195,6 +264,7 @@ def new_case(case_def: dict, crew_id: str, lookup: dict | None = None, env_id: s
                                    "variable": var, "op": cond["op"], "value": cond["value"],
                                    "unit": unit, "of_last_n": n, "at_least": k}},
         "escalation": copy.deepcopy(esc) if isinstance(esc, dict) else None,
+        "escalation_tiers": tiers,
     }
     return {
         "schema": "landfall.case_state/1", "case_id": cid, "crew_id": crew_id, "status": "idle",
@@ -244,8 +314,25 @@ def _validate_state(state: object) -> None:
               and isinstance(spec.get("packet_step_ids"), list) and isinstance(spec.get("step_inputs"), list)
               and all(isinstance(x, dict) for x in spec["step_inputs"])
               and all(isinstance(d, dict) for d in state["steps_declined"]))
+    if ok and "escalation_tiers" in spec:
+        # absent in a state built before the tiers were recorded: the default tiers apply
+        tiers = spec["escalation_tiers"]
+        ok = (isinstance(tiers, list) and len(tiers) == 2
+              and all(isinstance(t, dict) and _nonempty_str(t.get("id")) and _nonempty_str(t.get("text"))
+                      for t in tiers))
     if not ok:
         raise EngineError("invalid_argument", "state must be a case state built by new_case / case_reduce")
+
+
+def _tiers_of(spec: dict) -> list:
+    """The escalation tiers of a state (spec.escalation_tiers, or the default tiers for an older state)."""
+    return spec["escalation_tiers"] if "escalation_tiers" in spec else _default_tiers()
+
+
+def _escalated_text(spec: dict) -> str:
+    t1, t2 = _tiers_of(spec)
+    return (f"escalated: tier 1, {t1['text']}, now; tier 2, {t2['text']}, "
+            "through the ground packet, queued and sent when a link exists")
 
 
 def _step_input(spec: dict, step_id: object) -> dict | None:
@@ -292,7 +379,8 @@ def case_reduce(state: dict, event: dict) -> dict:
         return s
 
     def escalate(reason: str, step_id: object) -> None:
-        s["escalation"] = {"t": t, "reason": reason, "step_id": step_id, "tiers": list(ESCALATION_TIERS)}
+        s["escalation"] = {"t": t, "reason": reason, "step_id": step_id,
+                           "tiers": [tier["id"] for tier in _tiers_of(spec)]}
         if s["packet_queued_at"] is None:
             s["packet_queued_at"] = t
         s["closed_at"] = t
@@ -326,6 +414,25 @@ def case_reduce(state: dict, event: dict) -> dict:
         if frm == "idle":
             detail = f"opened {opened}"
         else:
+            # re-open hysteresis (SPEC 7): a new episode needs the triggers below caution for at least
+            # the case's reassessment time, from clear_since up to this OPEN
+            cs = ev.get("clear_since")
+            if not is_number(cs):
+                return reject("invalid_event", "OPEN of a new instance needs clear_since, the MET from which "
+                                               "every trigger of the case has been below caution")
+            if cs > t:
+                return reject("invalid_event", f"clear_since MET {format_met(cs)} is after the OPEN at MET "
+                                               f"{format_met(t)}")
+            if is_number(s.get("opened_at")) and cs < s["opened_at"]:
+                return reject("invalid_event", f"clear_since MET {format_met(cs)} is before instance "
+                                               f"{s['instance']} opened at MET {format_met(s['opened_at'])}, "
+                                               "when its trigger was at caution or above")
+            need = spec["tripwire"]["reassess_after_s"]
+            if t - cs < need:
+                return reject("trigger_not_clear", f"triggers below caution for {format_met(t - cs)} since MET "
+                                                   f"{format_met(cs)}; a new instance needs {format_met(need)} "
+                                                   f"(the case's reassessment time), so instance "
+                                                   f"{s['instance']} stays {frm}")
             # a new instance (episode) of a closed case: summarize the closed one, reset the per-instance fields
             prev = {"instance": s["instance"], "status": frm}
             for key in PREVIOUS_INSTANCE_KEYS:
@@ -336,7 +443,7 @@ def case_reduce(state: dict, event: dict) -> dict:
             s["instance"] = prev["instance"] + 1
             when = f" at MET {format_met(prev['closed_at'])}" if is_number(prev["closed_at"]) else ""
             detail = (f"opened again {opened}: instance {s['instance']}; instance {prev['instance']} "
-                      f"was {frm}{when}")
+                      f"was {frm}{when}; triggers below caution from MET {format_met(cs)}")
         s["opened_at"] = t
         s["finding"] = copy.deepcopy(f)
         return accept("detected", detail)
@@ -387,7 +494,7 @@ def case_reduce(state: dict, event: dict) -> dict:
         s["steps_done"].append({"step_id": step_id, "t": t, "input": copy.deepcopy(inp)})
         if red and answer:
             escalate("red_flag", step_id)
-            return accept("escalated", f"step {step_id} answered yes, a red flag; {ESCALATED_TEXT}")
+            return accept("escalated", f"step {step_id} answered yes, a red flag; {_escalated_text(spec)}")
         note = ", answered no" if red else ""
         if step_id in spec["packet_step_ids"] and s["packet_queued_at"] is None:
             s["packet_queued_at"] = t
@@ -461,7 +568,7 @@ def case_reduce(state: dict, event: dict) -> dict:
         if ev_res["tripped"]:
             s["tripwire_result"] = ev_res
             escalate("tripwire", None)
-            return accept("escalated", f"reassessed: {desc}; {ESCALATED_TEXT}")
+            return accept("escalated", f"reassessed: {desc}; {_escalated_text(spec)}")
         remaining = cond["of_last_n"] - ev_res["considered"]
         if ev_res["hits"] + remaining < cond["at_least"]:
             s["tripwire_result"] = ev_res

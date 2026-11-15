@@ -12,7 +12,8 @@ non-alerting indicator, the worse-direction change that would be a caution) and 
 direction), and divides each rate by the nominal one: alpha / 2 (alpha for "either") and alpha. It requires:
   - the counts equal the generator's own study, published in sim_crew data.self_check.chance_rates;
   - an indicator that declares no chance_rate is within CHANCE_BAND (0.5-2 times) of nominal on both rates;
-  - an indicator outside that band declares its measured multipliers in personal.json (2 decimals), so
+  - an indicator outside that band declares its measured multipliers in personal.json (2 decimals, or 3 for a
+    borderline value whose 2-decimal rounding would sit on a band edge it is not on: mood's 0.495), so
     chance_rate() prints the measured rate next to its band instead of a nominal one that is false for it.
 """
 
@@ -36,6 +37,13 @@ INDICATORS = PERSONAL["indicators"]
 N_BASE = model.N_BASELINE_DAYS
 N_DAYS = N_BASE + (model.LAST_DAY - model.BASELINE_LAST)
 LO, HI = model.CHANCE_BAND
+
+
+def declared(x: float) -> float:
+    """How personal.json declares a measured multiplier: 2 decimals, or 3 when 2 would round a value off a band
+    edge onto it (0.49516 -> 0.495, never 0.5, which would read as inside the 0.5-2 band)."""
+    two = round(x, 2)
+    return round(x, 3) if two in (LO, HI) and round(x, 3) != two else two
 
 
 def _engine_study(ind: dict) -> dict:
@@ -124,8 +132,8 @@ def test_nominal_rate_holds_or_the_measured_one_is_declared(study):
             assert within, f"{ind['id']}: measured {cm:.2f}x / {fm:.2f}x nominal; declare chance_rate in personal.json"
         else:
             assert not within, f"{ind['id']}: measured within the band; drop its chance_rate declaration"
-            assert (decl["caution_multiplier"], decl["flag_multiplier"]) == (round(cm, 2), round(fm, 2)), \
-                (ind["id"], decl, round(cm, 2), round(fm, 2))
+            assert (decl["caution_multiplier"], decl["flag_multiplier"]) == (declared(cm), declared(fm)), \
+                (ind["id"], decl, declared(cm), declared(fm))
             assert decl["chip"] == "derived" and "Monte Carlo" in decl["source"]["arithmetic"], ind["id"]
             tests = f"{mine['tests']:,} tests"
             assert tests in decl["text"] and tests in decl["source"]["arithmetic"], ind["id"]
@@ -164,3 +172,21 @@ def test_chance_rate_prints_the_declared_or_the_nominal_rate():
     # the CM-3 chance opening of the demo (sleep midpoint shift, both directions alert): about 1 in 1000 days
     mid = chance_rate(next(i for i in INDICATORS if i["id"] == "sleep_midpoint_shift"), CFG)
     assert mid["text"] == "about 1 in 1000 days per crewmember would flag like this with no real change"
+
+
+def test_borderline_multipliers_print_three_decimals(study):
+    """Lead item 5: mood's flag multiplier is 0.4952 measured; 2 decimals would print 0.50, inside the band it is
+    outside of. It is declared as 0.495 and chance_rate() prints it as "0.495"; the others print as declared."""
+    assert declared(0.49516) == 0.495 and declared(0.4548) == 0.45 and declared(2.004) == 2.004 and declared(1.0) == 1.0
+    mood = next(i for i in INDICATORS if i["id"] == "mood")
+    fm = study["mood"]["flag_multiplier"]
+    assert fm < LO and round(fm, 2) == LO                       # the borderline case itself
+    assert mood["chance_rate"]["flag_multiplier"] == 0.495
+    r = chance_rate(mood, CFG)
+    assert (r["caution_multiplier_text"], r["flag_multiplier_text"]) == ("0.99", "0.495")
+    lap = chance_rate(next(i for i in INDICATORS if i["id"] == "pvt_lapses"), CFG)
+    assert (lap["caution_multiplier_text"], lap["flag_multiplier_text"]) == ("0.45", "0.24")
+    nominal = chance_rate(next(i for i in INDICATORS if i["id"] == "glucose"), CFG)
+    assert (nominal["caution_multiplier_text"], nominal["flag_multiplier_text"]) == ("1", "1")
+    assert "0.495 times as often as alpha" in mood["chance_rate"]["text"]
+    assert "= 0.495 (" in mood["chance_rate"]["source"]["arithmetic"]

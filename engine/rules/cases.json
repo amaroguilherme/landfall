@@ -137,7 +137,7 @@
     },
     {
      "id": "r4",
-     "text": "Ask now: any pain in the side or back (flank), blood in the urine, pain or burning when passing urine, fever or chills, nausea or vomiting, or being unable to pass urine? If any answer is yes, tell your Crew Medical Officer now: the case escalates, and the ground packet is queued for the flight surgeon.",
+     "text": "Ask now: any pain in the side or back (flank), blood in the urine, pain or burning when passing urine, fever or chills, nausea or vomiting, or being unable to pass urine? If any answer is yes, tell your Crew Medical Officer now (if that is you, the Commander): the case escalates, and the ground packet is queued for the flight surgeon.",
      "required": true,
      "red_flag": true,
      "input": {
@@ -179,7 +179,7 @@
      "of_last_n": 3,
      "at_least": 2
     },
-    "text": "Reassess at T+72 h; if 24-h urine output is still below 1,500 mL on 2 of the last 3 days, escalate: tell the Crew Medical Officer now, and the ground packet is queued for the flight surgeon.",
+    "text": "Reassess at T+72 h; if 24-h urine output is still below 1,500 mL on 2 of the last 3 days, escalate: tell the Crew Medical Officer now (if that is you, the Commander), and the ground packet is queued for the flight surgeon.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -421,7 +421,7 @@
      "of_last_n": 3,
      "at_least": 2
     },
-    "text": "Reassess at T+72 h; if PVT-B lapses are still 4 or more on at least 2 of the last 3 tests, escalate: tell the Crew Medical Officer now, and the ground packet is queued for the flight surgeon.",
+    "text": "Reassess at T+72 h; if PVT-B lapses are still 4 or more on at least 2 of the last 3 tests, escalate: tell the Crew Medical Officer now (if that is you, the Commander), and the ground packet is queued for the flight surgeon.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -651,7 +651,7 @@
       }
      }
     },
-    "text": "Reassess at T+6 h; if the ≥10 MeV flux is still at or above S3 on 2 of the last 3 readings, escalate: stay sheltered, tell the Crew Medical Officer and keep logging; the ground packet is queued for the flight surgeon.",
+    "text": "Reassess at T+6 h; if the ≥10 MeV flux is still at or above S3 on 2 of the last 3 readings, escalate: stay sheltered, tell the Crew Medical Officer (if that is you, the Commander) and keep logging; the ground packet is queued for the flight surgeon.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",

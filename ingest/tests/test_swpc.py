@@ -364,10 +364,50 @@ def test_frozen_replay_is_real_oct_1989_s4():
     assert "680 pfu" in cav and "531 pfu" in cav               # NOAA's >100 MeV figure vs this file
 
 
+@pytest.mark.skipif("swpc_s_scale" not in FILES, reason="no S-scale snapshot")
+def test_s_scale_display_text_uses_the_sign_and_quotes_noaa_as_printed():
+    """Provenance prints the S-scale energy and rule: LANDFALL's own text uses the sign; NOAA's wording stays quoted."""
+    snap = json.loads(FILES["swpc_s_scale"].read_text())
+    d = snap["data"]
+    assert d["energy"] == "≥10 MeV" and "flux ≥ threshold" in d["rule"] and ">=" not in d["rule"]
+    assert snap["caveats"][0].startswith("Thresholds are NOAA's operational definition: ≥10 MeV integral proton flux")
+    op = next(c for c in snap["caveats"] if c.startswith("Operator wording differs"))
+    assert "'Flux level of >= 10 MeV particles'" in op and "met-or-exceeded (≥)" in op
+
+
+@pytest.mark.parametrize("sid", ["swpc_protons_live", "swpc_s_scale", "swpc_spe_list", "swpc_spe_replay",
+                                 "swpc_sep_events"])
+def test_frozen_titles_and_caveats_keep_ascii_ge_only_in_quotes(sid):
+    """Titles and caveats print on the Data page: LANDFALL's own words use the sign (≥); only a source's wording,
+    quoted as printed ('Flux level of >= 10 MeV particles', SWPC's '>=10 MeV'), keeps ASCII >=."""
+    if sid not in FILES:
+        pytest.skip(f"no {sid} snapshot")
+    snap = json.loads(FILES[sid].read_text())
+    for text in [snap["title"], *snap["caveats"]]:
+        # drop single-quoted source wording; an apostrophe inside a word (NOAA's) opens no quote
+        unquoted = re.sub(r"(?<![A-Za-z])'[^']*'(?![A-Za-z])", "''", text)
+        assert ">=" not in unquoted, text
+    if sid == "swpc_spe_replay":
+        # NCEI's header names the channels "> 10 MeV" and "> 100 MeV": the caveats keep that notation
+        assert "The >100 MeV series (p7_flux_ic)" in " ".join(snap["caveats"])
+
+
+def test_live_display_text_uses_the_sign():
+    """The title and LANDFALL's own caveat on the Data page print the sign; SWPC's channel key stays as published."""
+    from ingest.swpc import ENERGY_10, LIVE_TITLE
+
+    assert LIVE_TITLE == "GOES ≥10 MeV proton flux and current NOAA S level (build-time freeze)"
+    assert ">=" not in LIVE_TITLE and ENERGY_10 == ">=10 MeV"
+
+
 @pytest.mark.skipif("swpc_protons_live" not in FILES, reason="no live snapshot")
 def test_frozen_live_current_level_consistent():
-    d = json.loads(FILES["swpc_protons_live"].read_text())["data"]
-    assert d["energy"] == ">=10 MeV" and d["unit"] == "pfu"
+    snap = json.loads(FILES["swpc_protons_live"].read_text())
+    d = snap["data"]
+    assert d["energy"] == ">=10 MeV" and d["unit"] == "pfu"      # SWPC's channel key, as published
+    assert snap["title"] == "GOES ≥10 MeV proton flux and current NOAA S level (build-time freeze)"
+    assert any(c.startswith("Current S level = NOAA S-scale applied to the latest single 5-minute ≥10 MeV average")
+               for c in snap["caveats"])
     assert d["current"]["s_level"] == s_level(d["current"]["flux_pfu"])
     assert d["series_6h"]["step_s"] == 300
 

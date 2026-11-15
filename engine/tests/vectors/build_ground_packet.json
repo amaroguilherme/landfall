@@ -165,6 +165,22 @@
        "mood"
       ]
      },
+     "escalation_tiers": [
+      {
+       "crew_id": null,
+       "id": "crew_medical_officer",
+       "instead_of": null,
+       "text": "the Crew Medical Officer",
+       "tier": 1
+      },
+      {
+       "crew_id": null,
+       "id": "flight_surgeon",
+       "instead_of": null,
+       "text": "the flight surgeon",
+       "tier": 2
+      }
+     ],
      "packet_step_ids": [],
      "red_flag_step_ids": [],
      "required_step_ids": [],
@@ -647,6 +663,22 @@
        "mood"
       ]
      },
+     "escalation_tiers": [
+      {
+       "crew_id": null,
+       "id": "crew_medical_officer",
+       "instead_of": null,
+       "text": "the Crew Medical Officer",
+       "tier": 1
+      },
+      {
+       "crew_id": null,
+       "id": "flight_surgeon",
+       "instead_of": null,
+       "text": "the flight surgeon",
+       "tier": 2
+      }
+     ],
      "packet_step_ids": [],
      "red_flag_step_ids": [],
      "required_step_ids": [],
@@ -1131,6 +1163,22 @@
        "mood"
       ]
      },
+     "escalation_tiers": [
+      {
+       "crew_id": null,
+       "id": "crew_medical_officer",
+       "instead_of": null,
+       "text": "the Crew Medical Officer",
+       "tier": 1
+      },
+      {
+       "crew_id": null,
+       "id": "flight_surgeon",
+       "instead_of": null,
+       "text": "the flight surgeon",
+       "tier": 2
+      }
+     ],
      "packet_step_ids": [],
      "red_flag_step_ids": [],
      "required_step_ids": [],
@@ -1659,6 +1707,22 @@
        "mood"
       ]
      },
+     "escalation_tiers": [
+      {
+       "crew_id": null,
+       "id": "crew_medical_officer",
+       "instead_of": null,
+       "text": "the Crew Medical Officer",
+       "tier": 1
+      },
+      {
+       "crew_id": null,
+       "id": "flight_surgeon",
+       "instead_of": null,
+       "text": "the flight surgeon",
+       "tier": 2
+      }
+     ],
      "packet_step_ids": [],
      "red_flag_step_ids": [],
      "required_step_ids": [],
@@ -2084,6 +2148,22 @@
        "mood"
       ]
      },
+     "escalation_tiers": [
+      {
+       "crew_id": null,
+       "id": "crew_medical_officer",
+       "instead_of": null,
+       "text": "the Crew Medical Officer",
+       "tier": 1
+      },
+      {
+       "crew_id": null,
+       "id": "flight_surgeon",
+       "instead_of": null,
+       "text": "the flight surgeon",
+       "tier": 2
+      }
+     ],
      "packet_step_ids": [],
      "red_flag_step_ids": [],
      "required_step_ids": [],
@@ -2568,6 +2648,22 @@
        "mood"
       ]
      },
+     "escalation_tiers": [
+      {
+       "crew_id": null,
+       "id": "crew_medical_officer",
+       "instead_of": null,
+       "text": "the Crew Medical Officer",
+       "tier": 1
+      },
+      {
+       "crew_id": null,
+       "id": "flight_surgeon",
+       "instead_of": null,
+       "text": "the flight surgeon",
+       "tier": 2
+      }
+     ],
      "packet_step_ids": [],
      "red_flag_step_ids": [],
      "required_step_ids": [],
@@ -2828,6 +2924,22 @@
        "mood"
       ]
      },
+     "escalation_tiers": [
+      {
+       "crew_id": null,
+       "id": "crew_medical_officer",
+       "instead_of": null,
+       "text": "the Crew Medical Officer",
+       "tier": 1
+      },
+      {
+       "crew_id": null,
+       "id": "flight_surgeon",
+       "instead_of": null,
+       "text": "the flight surgeon",
+       "tier": 2
+      }
+     ],
      "packet_step_ids": [],
      "red_flag_step_ids": [],
      "required_step_ids": [],
@@ -3088,6 +3200,22 @@
        "mood"
       ]
      },
+     "escalation_tiers": [
+      {
+       "crew_id": null,
+       "id": "crew_medical_officer",
+       "instead_of": null,
+       "text": "the Crew Medical Officer",
+       "tier": 1
+      },
+      {
+       "crew_id": null,
+       "id": "flight_surgeon",
+       "instead_of": null,
+       "text": "the flight surgeon",
+       "tier": 2
+      }
+     ],
      "packet_step_ids": [],
      "red_flag_step_ids": [],
      "required_step_ids": [],
@@ -3394,6 +3522,22 @@
        "dose_bfo"
       ]
      },
+     "escalation_tiers": [
+      {
+       "crew_id": null,
+       "id": "crew_medical_officer",
+       "instead_of": null,
+       "text": "the Crew Medical Officer",
+       "tier": 1
+      },
+      {
+       "crew_id": null,
+       "id": "flight_surgeon",
+       "instead_of": null,
+       "text": "the flight surgeon",
+       "tier": 2
+      }
+     ],
      "packet_step_ids": [],
      "red_flag_step_ids": [],
      "required_step_ids": [],
@@ -3811,6 +3955,22 @@
        "dose_bfo"
       ]
      },
+     "escalation_tiers": [
+      {
+       "crew_id": null,
+       "id": "crew_medical_officer",
+       "instead_of": null,
+       "text": "the Crew Medical Officer",
+       "tier": 1
+      },
+      {
+       "crew_id": null,
+       "id": "flight_surgeon",
+       "instead_of": null,
+       "text": "the flight surgeon",
+       "tier": 2
+      }
+     ],
      "packet_step_ids": [],
      "red_flag_step_ids": [],
      "required_step_ids": [],
@@ -4066,6 +4226,22 @@
        "pvt_lapses"
       ]
      },
+     "escalation_tiers": [
+      {
+       "crew_id": null,
+       "id": "crew_medical_officer",
+       "instead_of": null,
+       "text": "the Crew Medical Officer",
+       "tier": 1
+      },
+      {
+       "crew_id": null,
+       "id": "flight_surgeon",
+       "instead_of": null,
+       "text": "the flight surgeon",
+       "tier": 2
+      }
+     ],
      "packet_step_ids": [],
      "red_flag_step_ids": [],
      "required_step_ids": [],
@@ -4185,11 +4361,11 @@
        "coding": [
         {
          "code": "proton_flux_10mev",
-         "display": "Proton flux >=10 MeV",
+         "display": "Proton flux ≥10 MeV",
          "system": "https://landfall.dev/fhir/CodeSystem/landfall"
         }
        ],
-       "text": "Proton flux >=10 MeV"
+       "text": "Proton flux ≥10 MeV"
       },
       "effectiveDateTime": "2036-02-17T14:21:40Z",
       "id": "CM-1-proton-flux-10mev-35648500",

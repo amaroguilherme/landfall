@@ -9,6 +9,7 @@ import { CASE_DEFS } from '../../app/caseTimeline'
 import { fmtNum } from '../../app/engine'
 import { RENAL_SYMPTOMS, SYMPTOMS } from '../noon-sight/record'
 import type { SymptomId } from '../noon-sight/record'
+import { PERSONAL } from './rules'
 
 // ---- snapshot shapes (only what this section reads) -----------------------------------------------
 
@@ -84,7 +85,9 @@ export const CATEGORY_DEFS: Record<CoverageCategory, { label: string; short: str
   case: {
     label: 'Watched by a case',
     short: 'case',
-    definition: 'A guided case watches it: every day it tests the condition’s indicators against the crewmember’s own baseline, and it opens on a reliable change in the worse direction.',
+    // Not "a reliable change in the worse direction": the signed sleep midpoint alerts both ways, the others on one side.
+    definition:
+      'A guided case tests the condition’s indicators every day against the crewmember’s own band, one day at a time, and opens when one day’s value falls outside it on a side that indicator alerts on. Watched is not detected: a change that stays inside the band does not open it, however long it lasts.',
   },
   asked_daily: {
     label: 'Asked daily',
@@ -128,6 +131,15 @@ export interface CoverageEntry {
   note?: string
 }
 
+/** personal.json rci.min_baseline_n, the fewest baseline days Tier B accepts: read from the rules, never typed here. */
+const MIN_BASELINE_N: number | null = PERSONAL?.rci.min_baseline_n ?? null
+
+/**
+ * Why space-adaptation insomnia is asked, not watched: it comes in the first days of flight, before Tier B has the
+ * in-mission baseline days it needs (the scenario's baseline is in-mission; no pre-flight baseline is used).
+ */
+export const SAS_INSOMNIA_NOTE = `SAS: space adaptation syndrome. During adaptation the crewmember may not yet have the ${MIN_BASELINE_N ?? 'minimum number of'} in-mission baseline days Tier B needs; a pre-flight baseline would be needed and is not used here.`
+
 /** Table E.2-1, condition (verbatim) -> category. Exactly the 48 printed rows; the test checks both ways. */
 export const IMM_COVERAGE: Readonly<Record<string, CoverageEntry>> = {
   'Late Insomnia': { category: 'case', caseId: 'sleep_circadian', symptoms: ['trouble_sleeping'] },
@@ -146,7 +158,7 @@ export const IMM_COVERAGE: Readonly<Record<string, CoverageEntry>> = {
     via: 'crew report',
     note: 'Not counted under the flank-pain question: that question is a renal-stone red flag, and space-adaptation back pain is kept apart from it.',
   },
-  'Insomnia (SAS)': { category: 'case', caseId: 'sleep_circadian', symptoms: ['trouble_sleeping'] },
+  'Insomnia (SAS)': { category: 'asked_daily', symptoms: ['trouble_sleeping'], note: SAS_INSOMNIA_NOTE },
   'Shoulder Sprain/Strain': { category: 'not_measurable', via: 'CMO exam' },
   'CO2 Headache': { category: 'asked_daily', symptoms: ['headache'], ruleId: 'pel_cabin_ppco2_1h' },
   'Headache (SAS)': { category: 'asked_daily', symptoms: ['headache'] },
@@ -249,7 +261,7 @@ export function coverageSummary(rows: CoverageRow[]): CoverageSummary {
   return { total, rows: rows.length, unmapped, byCategory, ordered: CATEGORY_ORDER.map((c) => byCategory[c]) }
 }
 
-/** A share as a percentage with one decimal, by the engine's fmt_num (half away from zero): "16.3%". */
+/** A share as a percentage with one decimal, by the engine's fmt_num (half away from zero): "13.6%". */
 export function fmtShare(share: number): string {
   return `${fmtNum(share * 100, 1)}%`
 }
@@ -271,13 +283,14 @@ export function mostLikely(rows: CoverageRow[]): CoverageRow | null {
 
 /**
  * The one-line headline, from the data: "Late insomnia is the most likely in-mission condition in NASA’s
- * sample IMM output (13.85 per mission): the sleep case watches it." Null unless a case watches that row.
+ * sample IMM output (13.85 per mission): the sleep case watches its indicators (watched is not detected)."
+ * Null unless a case watches that row.
  */
 export function headline(rows: CoverageRow[]): string | null {
   const top = mostLikely(rows)
   const caseId = top?.entry?.category === 'case' ? top.entry.caseId : undefined
   if (!top || !caseId || !CASE_SHORT[caseId]) return null
-  return `${sentenceCase(top.condition)} is the most likely in-mission condition in NASA’s sample IMM output (${top.likelihood.text}): the ${CASE_SHORT[caseId]} case watches it.`
+  return `${sentenceCase(top.condition)} is the most likely in-mission condition in NASA’s sample IMM output (${top.likelihood.text}): the ${CASE_SHORT[caseId]} case watches its indicators (watched is not detected).`
 }
 
 export function symptomLabels(ids: readonly SymptomId[] | undefined): string[] {
@@ -299,7 +312,7 @@ export function casesWithoutRows(rows: CoverageRow[], caseIds: readonly string[]
 export function abstractOf(s: CoverageSummary | null): string {
   if (!s) return 'NASA’s sample IMM output (Vol 1 Appendix E), scored condition by condition: what a case watches, what the daily check asks, what is not measurable here.'
   const b = s.byCategory
-  return `Weighted by likelihood, ${fmtShare(b.case.share)} of NASA’s sample IMM output is watched by a case and ${fmtShare(b.asked_daily.share)} is asked about daily (${fmtShare(b.asked_symptom.share)} more by a symptom only); ${fmtShare(b.not_measurable.share)} is not measurable here.`
+  return `Weighted by likelihood, ${fmtShare(b.case.share)} of NASA’s sample IMM output is watched by a case and ${fmtShare(b.asked_daily.share)} is asked about daily (${fmtShare(b.asked_symptom.share)} more by a symptom only); ${fmtShare(b.not_measurable.share)} is not measurable here. Watched or asked does not mean detected.`
 }
 
 /** "HRR risk 81" and its link, from the basis of the renal case's red-flag step (cases.json r4). */

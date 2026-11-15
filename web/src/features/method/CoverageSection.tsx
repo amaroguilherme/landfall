@@ -1,13 +1,19 @@
 // Section: LANDFALL's coverage of NASA's sample IMM output (NASA-STD-3001 Vol 1 Rev C, Appendix E, Table E.2-1).
 // Every likelihood, their sum and the shares come from the frozen snapshot std_vol1_requirements (data.tables
 // "Table E.2-1", data.appendix_e), and NASA's words are quoted from it verbatim. Which category each condition
-// falls in is LANDFALL's design choice (immCoverage.ts). Nothing here is fetched from another site.
-import { useState } from 'react'
+// falls in is LANDFALL's design choice (immCoverage.ts). What Tier B actually flags in the scenario comes from
+// the engine, through the same computation as section 3 (TierBEvidence.tsx). Nothing here is fetched from another site.
+import { useMemo, useState } from 'react'
 import { CASE_DEFS } from '../../app/caseTimeline'
 import { useSnapshot } from '../../app/data'
+import type { LoadStatus } from '../../app/data'
 import { fmtNum } from '../../app/engine'
+import type { MissionEvaluation } from '../../app/evaluate'
 import { Link } from '../../app/location'
-import { Chip, EmptyState, Expander, FreshnessChip, Num, ReqId } from '../../ui'
+import { useEvaluation } from '../../app/model'
+import { CREW } from '../../app/vocab'
+import { Chip, EmptyState, Expander, FreshnessChip, Num, ReqId, SimulatedMarker } from '../../ui'
+import type { EpisodeDetection, SignalDetection } from './episodes'
 import { FoldPanel } from './fold'
 import {
   CASE_SHORT,
@@ -30,7 +36,9 @@ import {
 import type { AppendixE, CategoryTotal, CoverageCategory, CoverageEntry, CoverageRow, CoverageSummary, ImmTable } from './immCoverage'
 import { sentencesContaining } from './rules'
 import type { MetaFile, PersonalFile, ThresholdsFile, Vol1Data } from './rules'
+import { secNum } from './sections'
 import { MissingNote, RichText, Verbatim } from './shared'
+import { tierBCatch, useEpisodeDetection } from './TierBEvidence'
 import './coverage.css'
 
 type Vol1WithAppendixE = Vol1Data & { tables?: unknown; appendix_e?: unknown }
@@ -42,11 +50,52 @@ const DOC = 'NASA-STD-3001 Vol 1 Rev C'
 const V1_3003_CLAUSE =
   'to monitor physiological and psychosocial well-being and enable delivery of in-mission preventive health care, based on epidemiological evidence-based probabilistic risk assessment (PRA)'
 
+/** personal.json indicator ids of the sleep case's shortened sleep and of its signed midpoint shift. */
+const SLEEP_DURATION = 'sleep_duration'
+const SLEEP_MIDPOINT = 'sleep_midpoint_shift'
+
+/** What "watched" amounts to on the shipped scenario, from the engine (section 3's computation and bands). */
+export interface WatchedEvidence {
+  /** Tier B flags `caught` of the `signals` alerting signals the scenario scripts (TierBEvidence's tierBCatch). */
+  caught: number
+  signals: number
+  /** The sleep case's scripted episode: the signal Tier B flags first (it opens the case), and the alerting signals it never flags. */
+  sleep: { crewId: string; opener: SignalDetection | null; missed: SignalDetection[] } | null
+  /** Each crewmember's lower sleep-duration band edge (the band section 3 prints), or null without an evaluation. */
+  sleepFloors: { crewId: string; low: number | null }[] | null
+}
+
+export function watchedEvidence(episodes: readonly EpisodeDetection[], evaluation: MissionEvaluation | null): WatchedEvidence {
+  const { caught, signals } = tierBCatch(episodes)
+  const ep = episodes.find((e) => e.caseId === 'sleep_circadian') ?? null
+  const alerting = ep ? ep.signals.filter((s) => s.tierB?.alerting) : []
+  const flagged = alerting.filter((s) => (s.tierB?.days.length ?? 0) > 0)
+  const first = (s: SignalDetection) => Math.min(...(s.tierB?.days ?? []))
+  const opener = flagged.length ? flagged.reduce((a, b) => (first(b) < first(a) ? b : a)) : null
+  return {
+    caught,
+    signals: signals.length,
+    sleep: ep ? { crewId: ep.crewId, opener, missed: alerting.filter((s) => !(s.tierB?.days.length ?? 0)) } : null,
+    sleepFloors: evaluation
+      ? CREW.map((c) => ({
+          crewId: c.id,
+          low: evaluation.crew[c.id]?.tierB.find((p) => p.indicator.id === SLEEP_DURATION)?.finding.band?.low ?? null,
+        }))
+      : null,
+  }
+}
+
 export function CoverageSection({ meta, personal, thresholds }: { meta: MetaFile; personal: PersonalFile; thresholds: ThresholdsFile }) {
   const v1 = useSnapshot<Vol1WithAppendixE>(SNAP)
   const table = immTable(v1.data)
   const rows = table ? coverageRows(table) : null
   const summary = rows ? coverageSummary(rows) : null
+  const detection = useEpisodeDetection()
+  const { evaluation } = useEvaluation()
+  const watched = useMemo(
+    () => (detection.data && !detection.data.error ? watchedEvidence(detection.data.episodes, evaluation) : null),
+    [detection.data, evaluation],
+  )
   return (
     <FoldPanel
       s="coverage"
@@ -77,7 +126,15 @@ export function CoverageSection({ meta, personal, thresholds }: { meta: MetaFile
           <ReqId id="V2 10020" /> requires an indication when data is missing.
         </MissingNote>
       ) : (
-        <CoverageBody table={table} rows={rows} summary={summary} v1={v1.data} ctx={{ meta, personal, thresholds }} />
+        <CoverageBody
+          table={table}
+          rows={rows}
+          summary={summary}
+          v1={v1.data}
+          ctx={{ meta, personal, thresholds }}
+          watched={watched}
+          watchedStatus={detection.data?.error ? 'error' : detection.status}
+        />
       )}
     </FoldPanel>
   )
@@ -89,7 +146,90 @@ export interface Ctx {
   thresholds: ThresholdsFile
 }
 
-export function CoverageBody({ table, rows, summary, v1, ctx }: { table: ImmTable; rows: CoverageRow[]; summary: CoverageSummary; v1: Vol1WithAppendixE | null; ctx: Ctx }) {
+/** "sleep duration (actigraphy), PVT-B lapses or PVT-B median reaction time" */
+function orWords(items: string[]): string {
+  return items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}`
+}
+
+/** The honesty block next to "Asked is not detected": what Tier B flags of the scenario's scripted signals. */
+function WatchedBlock({ watched, status }: { watched: WatchedEvidence | null | undefined; status: LoadStatus | undefined }) {
+  const tiers = <Num value={secNum('tiers')} />
+  const sleep = watched?.sleep ?? null
+  const opener = sleep?.opener ?? null
+  const shortMissed = !!sleep?.missed.some((s) => s.tierB?.indicatorId === SLEEP_DURATION)
+  const floors = watched?.sleepFloors?.filter((f) => f.low !== null) ?? []
+  return (
+    <div className="lf-m-aside lf-cov-watched">
+      <h3 className="lf-m-h4">
+        Watched is not detected
+        {watched ? (
+          <>
+            {' '}
+            <SimulatedMarker variant="inline" />
+          </>
+        ) : null}
+      </h3>
+      {watched ? (
+        <>
+          <p>
+            On this simulator’s noise Tier B flags <Num value={watched.caught} /> of the <Num value={watched.signals} /> alerting signals the scenario
+            scripts (section {tiers})
+            {sleep && opener ? (
+              <>
+                ; <span className="lf-mono">{sleep.crewId}</span>’s sleep case opened on{' '}
+                {opener.tierB?.indicatorId === SLEEP_MIDPOINT ? <>the scripted schedule shift ({midSentence(opener.label)})</> : midSentence(opener.label)}
+                {shortMissed ? ', not on the shortened sleep' : null}
+              </>
+            ) : null}
+            .
+            {sleep && sleep.missed.length ? <> Tier B flags none of the scripted days of {orWords(sleep.missed.map((s) => midSentence(s.label)))}.</> : null}
+          </p>
+          {floors.length ? (
+            <p className="lf-m-small">
+              The sleep-duration band flags a night only below about{' '}
+              {floors.map((f, i) => (
+                <span key={f.crewId}>
+                  {i === 0 ? '' : i === floors.length - 1 ? ' and ' : ', '}
+                  <Num value={f.low} digits={1} unit="h" />
+                  {f.low! > 0 ? null : ' (no night can be that short)'} for <span className="lf-mono">{f.crewId}</span>
+                </span>
+              ))}
+              : the lower edge of each crewmember’s own band (section {tiers}). A watched row counts what a case tests, not what it would catch.
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <p>
+          {status === 'loading' ? (
+            'Reading the scenario to count what Tier B flags…'
+          ) : (
+            <>The scenario is not available in this build, so what Tier B flags of its scripted signals cannot be counted here (section {tiers}).</>
+          )}{' '}
+          A guided case watching a condition does not mean it would detect it.
+        </p>
+      )}
+    </div>
+  )
+}
+
+export function CoverageBody({
+  table,
+  rows,
+  summary,
+  v1,
+  ctx,
+  watched,
+  watchedStatus,
+}: {
+  table: ImmTable
+  rows: CoverageRow[]
+  summary: CoverageSummary
+  v1: Vol1WithAppendixE | null
+  ctx: Ctx
+  /** What Tier B flags in the scenario (null while loading or when the scenario is missing). */
+  watched?: WatchedEvidence | null
+  watchedStatus?: LoadStatus
+}) {
   const appx = appendixE(v1)
   const lead = headline(rows)
   const r3003 = v1?.requirements.find((r) => r.id === 'V1 3003')
@@ -155,6 +295,8 @@ export function CoverageBody({ table, rows, summary, v1, ctx }: { table: ImmTabl
           . They rest on other NASA and NOAA sources, listed on <Link to="/provenance">Provenance</Link>.
         </p>
       ) : null}
+
+      <WatchedBlock watched={watched} status={watchedStatus} />
 
       <div className="lf-m-aside">
         <h3 className="lf-m-h4">Asked is not detected</h3>
@@ -391,8 +533,14 @@ function Detail({ entry, ctx }: { entry: CoverageEntry; ctx: Ctx }) {
     const watches = entry.caseId ? caseWatches(entry.caseId, ctx.personal) : []
     return (
       <>
-        The {(entry.caseId && CASE_SHORT[entry.caseId]) ?? entry.caseId} case (“{def?.title ?? entry.caseId}”) watches {listWords(watches)}{' '}
-        against the crewmember’s own baseline.
+        The {(entry.caseId && CASE_SHORT[entry.caseId]) ?? entry.caseId} case (“{def?.title ?? entry.caseId}”) tests {listWords(watches)}{' '}
+        against the crewmember’s own band (watched is not detected).
+        {entry.note ? (
+          <>
+            {' '}
+            <RichText text={entry.note} />
+          </>
+        ) : null}
         {entry.symptoms?.length ? (
           <>
             {' '}
@@ -406,7 +554,13 @@ function Detail({ entry, ctx }: { entry: CoverageEntry; ctx: Ctx }) {
     return (
       <>
         Known from: <strong>{entry.via}</strong>
-        {entry.via ? <> ({VIA_DEFS[entry.via]})</> : null}.{entry.note ? <> {entry.note}</> : null}
+        {entry.via ? <> ({VIA_DEFS[entry.via]})</> : null}.
+        {entry.note ? (
+          <>
+            {' '}
+            <RichText text={entry.note} />
+          </>
+        ) : null}
       </>
     )
   }
@@ -425,7 +579,12 @@ function Detail({ entry, ctx }: { entry: CoverageEntry; ctx: Ctx }) {
               ? ' One of them is also a red-flag question of the renal case.'
               : ' Some of them are also red-flag questions of the renal case.'}
       {entry.ruleId ? <RuleNote ruleId={entry.ruleId} thresholds={ctx.thresholds} /> : null}
-      {entry.note ? <> {entry.note}</> : null}
+      {entry.note ? (
+        <>
+          {' '}
+          <RichText text={entry.note} />
+        </>
+      ) : null}
     </>
   )
 }
@@ -545,7 +704,9 @@ function E22Block({ appx, rows, ctx }: { appx: AppendixE; rows: CoverageRow[]; c
             <tbody>
               {starred.map((r) => {
                 const imm = (E22_TO_IMM[r.condition] ?? []).map((n) => byName.get(n)).filter((x): x is CoverageRow => !!x)
-                const first = imm.find((x) => x.entry)?.entry ?? null
+                // One status per category: the matching Table E.2-1 rows may sit in different ones (Late Insomnia is watched by
+                // the sleep case, Insomnia (SAS) only asked).
+                const groups = CATEGORY_ORDER.map((cat) => imm.filter((x) => x.entry?.category === cat)).filter((g) => g.length > 0)
                 return (
                   <tr key={r.condition}>
                     <th scope="row">{r.text_verbatim}</th>
@@ -553,14 +714,14 @@ function E22Block({ appx, rows, ctx }: { appx: AppendixE; rows: CoverageRow[]; c
                       <span className="lf-mono">p. {r.pdf_page_number}</span>
                     </td>
                     <td className="lf-m-stack-wide">
-                      {first ? (
-                        <>
-                          <CategoryTag category={first.category} /> <Detail entry={first} ctx={ctx} />{' '}
-                          <span className="lf-m-small">(Table E.2-1: {imm.map((x) => x.condition).join(', ')})</span>
-                        </>
-                      ) : (
-                        'No Table E.2-1 row matches it.'
-                      )}
+                      {groups.length
+                        ? groups.map((g) => (
+                            <div key={g[0].condition} className="lf-cov-group">
+                              <CategoryTag category={g[0].entry!.category} /> <Detail entry={g[0].entry!} ctx={ctx} />{' '}
+                              <span className="lf-m-small">(Table E.2-1: {g.map((x) => x.condition).join(', ')})</span>
+                            </div>
+                          ))
+                        : 'No Table E.2-1 row matches it.'}
                     </td>
                   </tr>
                 )

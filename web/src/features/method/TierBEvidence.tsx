@@ -1,18 +1,23 @@
 // Tier B honesty, computed on the shipped scenario by the engine:
 // 1. the smallest one-day change each personal band can flag (critical x SD x sqrt(1 + 1/n)), per
 //    indicator and crewmember, next to the basis of the simulator's day-to-day noise;
-// 2. which scenario events Tier B detects and which only Tier A catches.
+// 2. which scenario events Tier B detects and which only Tier A catches. Its "Tier B flags n of the m
+//    alerting signals the scenario scripts" is exported (tierBCatch, useEpisodeDetection), so the coverage
+//    and limitations sections print the same n and m.
 import { useMemo } from 'react'
 import { CASE_DEFS } from '../../app/caseTimeline'
 import { useSnapshot } from '../../app/data'
+import type { LoadStatus } from '../../app/data'
 import { chanceRateOf, testScaleWords, transformFormula } from '../../app/evaluate'
 import { useMission } from '../../app/mission'
 import { useEvaluation, useScenario } from '../../app/model'
+import type { ScenarioIndex } from '../../app/scenarioData'
 import { CREW } from '../../app/vocab'
 import type { EnvId } from '../../app/vocab'
 import { Chip, Num, SeverityIcon, SimulatedMarker } from '../../ui'
 import type { Severity } from '../../app/vocab'
 import { dayRanges, detectEpisodes, noiseEntry, onlyTierA } from './episodes'
+import type { EpisodeDetection, OnlyTierA, SignalDetection } from './episodes'
 import { PERSONAL } from './rules'
 import { measuredMultiplier } from './stats'
 import type { PersonalFile } from './rules'
@@ -250,24 +255,59 @@ function ClassWord({ severity }: { severity: string }) {
   )
 }
 
-export function EpisodeTable() {
+/** What Tier B catches of the scenario's scripted signals: only alerting ones count (a private or non-alerting indicator never alerts). */
+export interface TierBCatch {
+  /** The alerting signals the scenario scripts, episode by episode (m). */
+  signals: SignalDetection[]
+  /** How many of them Tier B flags on at least one day (n). */
+  caught: number
+}
+
+/** "Tier B flags n of the m alerting signals the scenario scripts", from the engine's detection on the shipped data. */
+export function tierBCatch(episodes: readonly EpisodeDetection[]): TierBCatch {
+  const signals = episodes.flatMap((e) => e.signals.filter((s) => s.tierB?.alerting))
+  return { signals, caught: signals.filter((s) => (s.tierB?.days.length ?? 0) > 0).length }
+}
+
+export interface EpisodeDetectionData {
+  episodes: EpisodeDetection[]
+  others: OnlyTierA[]
+  error: string | null
+}
+
+// One computation per (scenario, environment): the detection table, the coverage section and the limitations
+// section all read it, and each would otherwise run the engine over every scripted day again.
+let detectionCache: { index: ScenarioIndex; sim: unknown; envId: EnvId; data: EpisodeDetectionData } | null = null
+
+function detectionFor(index: ScenarioIndex, sim: unknown, envId: EnvId): EpisodeDetectionData {
+  const c = detectionCache
+  if (c && c.index === index && c.sim === sim && c.envId === envId) return c.data
+  let data: EpisodeDetectionData
+  try {
+    data = { episodes: detectEpisodes(index, sim, envId), others: onlyTierA(index, sim, envId), error: null }
+  } catch (e) {
+    data = { episodes: [], others: [], error: (e as Error).message }
+  }
+  detectionCache = { index, sim, envId, data }
+  return data
+}
+
+/** The scenario's episodes as the engine detects them (null until the scenario is ready), for the store's environment. */
+export function useEpisodeDetection(): { status: LoadStatus; sim: unknown; data: EpisodeDetectionData | null } {
   const scenario = useScenario()
   const { state } = useMission()
   const envId = state.envId as EnvId
   const index = scenario.index
   const sim = scenario.sim.data
-  const data = useMemo(() => {
-    if (!index || !sim) return null
-    try {
-      return { episodes: detectEpisodes(index, sim, envId), others: onlyTierA(index, sim, envId), error: null }
-    } catch (e) {
-      return { episodes: [], others: [], error: (e as Error).message }
-    }
-  }, [index, sim, envId])
-  if (!data) return <p className="lf-m-small">{scenario.status === 'loading' ? 'Reading the scenario…' : 'The scenario is not available in this build.'}</p>
+  const data = useMemo(() => (index && sim ? detectionFor(index, sim, envId) : null), [index, sim, envId])
+  return { status: scenario.status, sim, data }
+}
+
+export function EpisodeTable() {
+  const { status, sim, data } = useEpisodeDetection()
+  if (!data) return <p className="lf-m-small">{status === 'loading' ? 'Reading the scenario…' : 'The scenario is not available in this build.'}</p>
   if (data.error) return <p className="lf-m-small">The detection table could not be computed: {data.error}</p>
-  const signals = data.episodes.flatMap((e) => e.signals.filter((s) => s.tierB?.alerting))
-  const caughtB = signals.filter((s) => (s.tierB?.days.length ?? 0) > 0).length
+  const { signals, caught: caughtB } = tierBCatch(data.episodes)
   return (
     <div className="lf-m-detect">
       <div className="lf-m-tablewrap">
@@ -378,7 +418,7 @@ function ChanceFlags({ sim }: { sim: unknown }) {
     <div className="lf-m-small">
       <p>
         With no scripted change, Tier B also flags {flags.length === 1 ? 'one day' : <><Num value={flags.length} /> days</>} at the project seed, a
-        consequence of real-size noise (the seed is fixed and never re-drawn to hide them):
+        consequence of the simulator’s noise (the seed is fixed and never re-drawn to hide them):
       </p>
       <ul className="lf-m-notes">
         {flags.map((f) => {
@@ -389,7 +429,7 @@ function ChanceFlags({ sim }: { sim: unknown }) {
               {!f.alerting
                 ? 'a non-alerting indicator: shown, never an alert, and it opens nothing.'
                 : opened
-                  ? `it opens ${f.crew_id}’s ${CASE_TITLE.get(opened.case_id) ?? opened.case_id} case${opened.single_flag ? ', which LANDFALL labels “possibly chance” (a single flag) with the indicator’s own chance rate; the crew re-measures and the tripwire settles it' : ''}.`
+                  ? `it opens ${f.crew_id}’s ${CASE_TITLE.get(opened.case_id) ?? opened.case_id} case${opened.single_flag ? ', which LANDFALL labels “possibly chance” (a single flag) with the indicator’s own chance rate: a re-measure checks it, and the case’s tripwire then judges the readings that follow' : ''}.`
                   : 'a caution with no case of its own: it shows its one-line action.'}
             </li>
           )

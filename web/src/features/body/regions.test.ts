@@ -109,7 +109,7 @@ describe.skipIf(!THRESHOLD_RULES)('region -> thresholds.json rules', () => {
       expect(rule.category).toBe('FFD')
       expect(isFitnessRule(rule)).toBe(true)
       expect(rule.max_severity).toBe('caution')
-      expect(rule.action?.label).toBe('EVA assignment not cleared')
+      expect(rule.action?.label).toBe('EVA fitness floor not met')
     }
     expect(RULES.filter(isFitnessRule).every((r) => r.variable === 'vo2max')).toBe(true)
   })
@@ -322,7 +322,7 @@ describe.skipIf(!SIM_DATA)('the body map on the frozen scenario (D6)', () => {
     const mars = evalAt('mars_surface').crew['CM-2']
     const tag = fitnessTag(mars, 'mars_surface')!
     expect(tag.state).toBe('not_cleared')
-    expect(tag.label).toBe('EVA assignment not cleared')
+    expect(tag.label).toBe('EVA fitness floor not met')
     expect(tag.rule.id).toBe('ffd_vo2max_surface_eva')
     expect(tag.finding.severity).toBe('caution')
     expect(tag.input.value).toBe(35.1)

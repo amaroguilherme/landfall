@@ -26,6 +26,8 @@ export function SeveritySection({ meta }: { meta: MetaFile }) {
   const sm = meta.severity_mapping
   const rows = [...sm.rows].sort((a, b) => ORDER.indexOf(a.severity ?? a.severity_max ?? 'nominal') - ORDER.indexOf(b.severity ?? b.severity_max ?? 'nominal'))
   const prioritize = v2.data?.requirements.find((r) => normReqId(r.id) === 'V2 10175')
+  // [V2 10114] asks for visual and audio annunciation; LANDFALL's alerts are visual only (declared below, quoted from the frozen text).
+  const annunciate = v2.data?.requirements.find((r) => normReqId(r.id) === 'V2 10114')
   const noEmergency = meta.refusals.find((r) => r.id === 'no_emergency_alarm')
   const table = alertTable(v2.data)
   return (
@@ -47,7 +49,10 @@ export function SeveritySection({ meta }: { meta: MetaFile }) {
       </p>
       {classes.length ? (
         <table className="lf-m-table lf-m-blocks">
-          <caption className="lf-m-caption">{table?.caption ?? 'Table 10.3-1'} (definitions verbatim; auditory column omitted)</caption>
+          <caption className="lf-m-caption">
+            {table?.caption ?? 'Table 10.3-1'} (definitions verbatim; auditory column omitted: LANDFALL’s alerts are visual only, see “Known display
+            gaps” below)
+          </caption>
           <thead>
             <tr>
               <th scope="col">Alert type</th>
@@ -138,6 +143,39 @@ export function SeveritySection({ meta }: { meta: MetaFile }) {
           </strong>
         </p>
       ) : null}
+      <div className="lf-m-aside">
+        <h3 className="lf-m-h4">Known display gaps</h3>
+        <p>
+          <ReqId id="V2 10114" /> asks for visual and audio annunciation of Emergency, Warning and Caution; LANDFALL’s alerts are visual only, and
+          the vehicle’s caution and warning system provides the sound. LANDFALL plays none, so on its own a LANDFALL Warning or Caution is seen, not
+          heard. <Chip kind="design choice" />
+        </p>
+        {annunciate ? (
+          <Verbatim
+            lead={<ReqId id="V2 10114" />}
+            text={annunciate.text}
+            cite={
+              <>
+                NASA-STD-3001 Vol 2 Rev {v2.data?.document.revision}, section {annunciate.section}
+                {annunciate.title ? <>, “{annunciate.title}”</> : null}
+                {annunciate.pdf_page ? (
+                  <>
+                    , PDF page <span className="lf-mono">{annunciate.pdf_page}</span>
+                  </>
+                ) : null}
+              </>
+            }
+          />
+        ) : v2.status === 'loading' ? (
+          <p className="lf-m-small">
+            Reading <ReqId id="V2 10114" /> from the frozen snapshot…
+          </p>
+        ) : (
+          <MissingNote>
+            <ReqId id="V2 10114" /> is not in snapshot <code>std_vol2_requirements.json</code>, so its text cannot be quoted here.
+          </MissingNote>
+        )}
+      </div>
     </FoldPanel>
   )
 }

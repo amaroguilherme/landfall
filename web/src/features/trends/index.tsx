@@ -36,6 +36,7 @@ import {
   StaleIcon,
   formatNumber,
 } from '../../ui'
+import { sharedReadingSource } from '../cases/procedure'
 import { TimeChart, envelope, severityToken, shapeFor } from './chart'
 import type { HLineSpec, LineSpec, MarkSpec, RegionSpec, VLineSpec } from './chart'
 import {
@@ -67,7 +68,7 @@ const STATUS_WORDS: Record<string, string> = {
 
 const fmt = (v: number, digits?: number) => formatNumber(v, digits)
 
-/** An action's text without its own label in front ("EVA assignment not cleared: this ..." -> "This ..."). */
+/** An action's text without its own label in front ("EVA fitness floor not met: this ..." -> "This ..."). */
 function actionSentence(action: { label: string; text: string }): string {
   const rest = action.text.startsWith(`${action.label}: `) ? action.text.slice(action.label.length + 2) : action.text
   return rest ? rest[0].toUpperCase() + rest.slice(1) : action.text
@@ -772,6 +773,7 @@ function RuleSeriesCard({
   t,
   shared,
   hourly,
+  envId,
 }: {
   title: string
   trend: SeriesTrend
@@ -779,6 +781,8 @@ function RuleSeriesCard({
   t: number
   shared?: boolean
   hourly?: boolean
+  /** Names the source of a crew-wide series (the Mars-orbit monitor at Mars, a vehicle sensor for cabin ppCO2). */
+  envId?: EnvId
 }) {
   const parts = useMemo(() => {
     const p = dailyChart(trend, null, index, t, hourly ? (q) => toDay(q.t) : undefined)
@@ -789,7 +793,7 @@ function RuleSeriesCard({
   const digits = digitsFor(trend.unit, values)
   const yFormat = useMemo(() => (v: number) => fmt(v, digits), [digits])
   const last = trend.points[trend.points.length - 1]
-  // Findings without a deep case carry a one-line action (D11): the VO2max floor reads "EVA assignment not cleared".
+  // Findings without a deep case carry a one-line action (D11): the VO2max floor reads "EVA fitness floor not met".
   const actions = trend.rules
     .map((r) => ({ rule: r, f: trend.ruleNow.get(r.id) }))
     .filter((x) => x.f && x.rule.action && (x.f.status === 'outside' || x.f.status === 'approaching'))
@@ -801,7 +805,7 @@ function RuleSeriesCard({
             <span className="lf-tr-kind" data-kind="historical">
               HISTORICAL · {hourly ? '1-H MEANS' : 'PERIODIC TEST'}
             </span>{' '}
-            {shared ? 'vehicle sensor, shared by the crew' : 'this crewmember'}
+            {shared ? `${sharedReadingSource(trend.variable, envId)}, shared by the crew` : 'this crewmember'}
           </p>
           <h3 className="lf-tr-card-title">{title}</h3>
         </div>
@@ -1093,7 +1097,7 @@ export default function Trends({ query }: FeatureProps) {
         </h2>
         <div className="lf-tr-grid">
           {vo2 ? <RuleSeriesCard title="VO2max (periodic fitness test): the EVA fitness tag" trend={vo2} index={index} t={t} /> : null}
-          {co2 ? <RuleSeriesCard title="Cabin ppCO2, 1-hour mean" trend={co2} index={index} t={t} shared hourly /> : null}
+          {co2 ? <RuleSeriesCard title="Cabin ppCO2, 1-hour mean" trend={co2} index={index} t={t} shared hourly envId={envId as EnvId} /> : null}
         </div>
       </section>
 

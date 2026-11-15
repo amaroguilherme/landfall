@@ -129,6 +129,55 @@ describe('no NASA or NOAA number is typed into the Method TSX', () => {
   }
 })
 
+describe('watched is not detected: no wording that overstates what Tier B sees or how real the noise is', () => {
+  // The Method TSX plus the two other views that print the "possibly chance" note (the body map's case card, the hero's list).
+  const sources = {
+    ...import.meta.glob<string>('./*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }),
+    ...import.meta.glob<string>(['../body/RegionPanel.tsx', '../now/Secondary.tsx'], { query: '?raw', import: 'default', eager: true }),
+  }
+  // Written with character classes so a grep for the phrases over the sources finds none, this file included.
+  const banned = /[Rr]eal-size|settle[s] it|show[s] cleanly/
+  it('found the sources to check', () => {
+    expect(Object.keys(sources).some((k) => k.endsWith('/RegionPanel.tsx'))).toBe(true)
+    expect(Object.keys(sources).some((k) => k.endsWith('/Secondary.tsx'))).toBe(true)
+    expect(Object.keys(sources).some((k) => k.endsWith('/TierBEvidence.tsx'))).toBe(true)
+  })
+  for (const [file, raw] of Object.entries(sources)) {
+    if (file.endsWith('.test.ts')) continue // this file names the phrases it bans
+    it(`${file} says a re-measure checks a single flag (it does not settle it), and calls the noise the simulator's`, () => {
+      expect(raw).not.toMatch(banned)
+    })
+  }
+  it('the single-flag note reads the same on the Method page, the body map and the hero', () => {
+    const long = 'a re-measure checks it, and the case’s tripwire then judges the readings that follow'
+    for (const f of ['/TiersSection.tsx', '/TierBEvidence.tsx', '/RegionPanel.tsx']) {
+      const raw = Object.entries(sources).find(([k]) => k.endsWith(f))![1].replace(/\s+/g, ' ')
+      expect(raw, f).toContain(long)
+    }
+    expect(Object.entries(sources).find(([k]) => k.endsWith('/Secondary.tsx'))![1]).toContain('A single flag: a re-measure checks it.')
+  })
+})
+
+describe('known display gaps: [V2 10114] asks for sound, LANDFALL is visual only', () => {
+  interface V2Req { id: string; text: string; rationale: string | null }
+  const v2 = Object.values(
+    import.meta.glob<{ data: { requirements: V2Req[] } }>('../../../public/data/std_vol2_requirements.json', { eager: true, import: 'default' }),
+  )[0]
+  const severity = Object.values(import.meta.glob<string>('./SeveritySection.tsx', { query: '?raw', import: 'default', eager: true }))[0]
+  it('the frozen requirement asks for visual and audio annunciation of emergency, warning and caution', () => {
+    const r = v2.data.requirements.find((x) => normReqId(x.id) === 'V2 10114')!
+    expect(r.text).toContain('The system shall provide distinct visual and audio annunciations to the human operators for emergency, warning, and caution events')
+    expect(r.rationale).toContain('dual coding, e.g., be seen and heard')
+  })
+  it('the severity section declares the gap and quotes the requirement from the snapshot, not from a typed copy', () => {
+    expect(severity).toContain('Known display gaps')
+    expect(severity).toContain('LANDFALL’s alerts are visual only')
+    expect(severity).toMatch(/normReqId\(r\.id\) === 'V2 10114'/)
+    expect(severity).toContain('text={annunciate.text}')
+    expect(severity).not.toContain('distinct visual and audio annunciations') // never retyped
+  })
+})
+
 describe('the measured multipliers of the Tier B evidence table (SPEC 3.3: 0.495 never prints 0.50)', () => {
   interface Mc { tests: number; flags: number; worse_direction_flags: number; nominal_caution_rate: number; nominal_flag_rate: number; caution_multiplier: number; flag_multiplier: number; within_band: boolean }
   const sim = Object.values(import.meta.glob<{ data: { self_check: { chance_rates: { band: [number, number]; per_indicator: Record<string, Mc> } } } }>('../../../public/data/sim_crew.json', { eager: true, import: 'default' }))[0]

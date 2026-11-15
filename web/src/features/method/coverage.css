@@ -2,7 +2,9 @@
    The four fills are an ordinal grey ramp, light = more done with a condition. Checked with the dataviz
    palette validator (--ordinal --mode dark) against the panel surface --lf-surface-1 (#1e1e23): lightness
    monotone, adjacent steps at least 0.06 apart, the dark end at 2.50:1. Greys only, because in this app red,
-   yellow and blue mean Warning, Caution and Advisory, and cyan means missing data (Appendix F). */
+   yellow and blue mean Warning, Caution and Advisory, and cyan means missing data (Appendix F).
+   Each share printed inside a part clears Appendix F F.5.10 f (6:1): #17171b on #ececee 15.15:1, on #c0c0c4
+   9.86:1, on #9c9ca2 6.55:1 (the third step was #909096, 5.63:1); #ffffff on #5c5c62 6.64:1. */
 .lf-cov-figure { margin: var(--lf-space-2) 0 var(--lf-space-1); }
 .lf-cov-cap { margin: 0 0 var(--lf-space-1); max-width: 80ch; font-size: var(--lf-text-sm); color: var(--lf-text-2); }
 .lf-cov-chips { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.25em 0.4em; }
@@ -33,7 +35,7 @@
 
 .lf-cov-block[data-cat='case'], .lf-cov-swatch[data-cat='case'] { background: #ececee; color: #17171b; }
 .lf-cov-block[data-cat='asked_daily'], .lf-cov-swatch[data-cat='asked_daily'] { background: #c0c0c4; color: #17171b; }
-.lf-cov-block[data-cat='asked_symptom'], .lf-cov-swatch[data-cat='asked_symptom'] { background: #909096; color: #17171b; }
+.lf-cov-block[data-cat='asked_symptom'], .lf-cov-swatch[data-cat='asked_symptom'] { background: #9c9ca2; color: #17171b; }
 .lf-cov-block[data-cat='not_measurable'], .lf-cov-swatch[data-cat='not_measurable'] { background: #5c5c62; color: #ffffff; }
 
 .lf-cov-swatch {
@@ -83,6 +85,8 @@
 .lf-cov-total .lf-num,
 .lf-cov-rank { font-weight: 500; }
 .lf-cov-lead { color: var(--lf-text); }
+/* A Table E.2-2 row whose Table E.2-1 rows sit in two categories: one status block each. */
+.lf-cov-group + .lf-cov-group { margin-top: 0.5em; }
 
 /* Phones: "4.37 per mission" would squeeze the condition names, so "per mission" goes under the number. */
 @media (max-width: 600px) {

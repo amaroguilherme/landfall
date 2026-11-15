@@ -6,7 +6,7 @@
 //     look nominal: a region whose findings all lack data is `no_data`, not green;
 //   - a case's body_regions are its HAZARD FOOTPRINT: an open case outlines those regions (hatched,
 //     the procedure colour), it never fills them with a severity;
-//   - VO2max is a whole-body FITNESS TAG ("EVA assignment not cleared"), never an organ finding.
+//   - VO2max is a whole-body FITNESS TAG ("EVA fitness floor not met"), never an organ finding.
 import type { Finding, PersonalFinding, Rule } from '../../app/engine'
 import type { CaseView } from '../../app/caseTimeline'
 import { partialRecord } from '../../app/evaluate'
@@ -221,7 +221,7 @@ export interface FitnessTag {
   rule: Rule
   finding: Finding
   input: Aggregate
-  /** Crew-facing label: the rule's action label when the floor is not met ("EVA assignment not cleared"). */
+  /** Crew-facing label: the rule's action label when the floor is not met ("EVA fitness floor not met"). */
   label: string
   /** The one-line action (thresholds.json action.text) when not cleared, else null. */
   action: string | null
@@ -245,7 +245,7 @@ export function fitnessTag(crew: CrewEvaluation | null, envId: string): FitnessT
   return { state, rule: worst.rule, finding: f, input: worst.input, label, action: state === 'not_cleared' && action ? actionSentence(action) : null }
 }
 
-/** An action's text without its own label in front ("EVA assignment not cleared: this ..." -> "This ..."). */
+/** An action's text without its own label in front ("EVA fitness floor not met: this ..." -> "This ..."). */
 export function actionSentence(action: { label: string; text: string }): string {
   const rest = action.text.replace(new RegExp(`^${escapeRe(action.label)}:\\s*`), '')
   return rest ? rest[0].toUpperCase() + rest.slice(1) : action.text

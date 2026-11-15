@@ -8,6 +8,7 @@ import { FoldPanel } from './fold'
 import type { OsdrCmpData, PersonalFile, ThresholdsFile, Vol1Data, Vol2Data } from './rules'
 import { secNum } from './sections'
 import { noiseEntry } from './episodes'
+import { tierBCatch, useEpisodeDetection } from './TierBEvidence'
 
 interface SimCalibration {
   variables?: Record<string, { calibration?: Array<{ item: string; value: string; chip: string }> }>
@@ -35,6 +36,9 @@ export function LimitationsSection({ personal, thresholds }: { personal: Persona
   // related case for context (the organ-dose and bone-density rules do) without opening it.
   const noCase = (thresholds.rules as ActionRule[]).filter((r) => r.tier === 'A' && r.role === 'alert' && r.action)
   const noCaseLabels = [...new Set(noCase.map((r) => r.action?.label ?? r.label))]
+  // Section 3's own count of what Tier B flags of the scenario's scripted alerting signals (the same computation).
+  const detection = useEpisodeDetection()
+  const caught = detection.data && !detection.data.error ? tierBCatch(detection.data.episodes) : null
   return (
     <FoldPanel
       s="limitations"
@@ -56,8 +60,18 @@ export function LimitationsSection({ personal, thresholds }: { personal: Persona
                 </>
               ) : null}
               . Real within-person scatter may be larger: that would not change the chance rate, but it would raise the smallest change Tier B
-              can flag and could hide episodes the demo shows cleanly (section <Num value={secNum('tiers')} /> prints that smallest change and
-              what each tier catches).
+              can flag
+              {caught ? (
+                <>
+                  ; on the simulator’s own noise Tier B already flags only <Num value={caught.caught} /> of the <Num value={caught.signals.length} />{' '}
+                  scripted alerting signals (section <Num value={secNum('tiers')} />).
+                </>
+              ) : (
+                <>
+                  {' '}
+                  (section <Num value={secNum('tiers')} /> prints that smallest change and what each tier catches).
+                </>
+              )}
             </>
           ) : (
             <>

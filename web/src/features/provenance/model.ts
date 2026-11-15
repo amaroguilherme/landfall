@@ -64,6 +64,8 @@ export interface ThresholdRule extends Sourced {
   case_id?: string | null
   body_region?: string
   notes?: string[]
+  /** Other requirements the rule quotes for context (thresholds.json `citations`: [V1 6006], [V2 6165]). */
+  citations?: RuleSource[]
 }
 
 export interface NamedConstant extends Sourced {
@@ -382,6 +384,9 @@ function buildRows(): ProvRow[] {
     if (rule.derived_from_rule) facts.push({ label: 'Reuses rule', text: rule.derived_from_rule })
     if (rule.action?.text) facts.push({ label: 'Action', text: rule.action.text, chip: rule.action.chip, source: rule.action.source })
     if (rule.action_id) facts.push({ label: 'Action id', text: rule.action_id })
+    // A requirement the rule quotes for context prints its sentence verbatim (the rules' own text, checked against the
+    // frozen standard by test_other_nasa_citations_appear_verbatim), not only its entry in the requirement index.
+    for (const c of rule.citations ?? []) if (c.kind === 'nasa_standard' && c.verbatim) facts.push({ label: 'Also cited', text: '', source: c })
     push({
       id: rule.id,
       aliases: [],

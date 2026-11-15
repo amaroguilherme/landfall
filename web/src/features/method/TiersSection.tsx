@@ -297,7 +297,8 @@ function ScalesAndRates({ personal }: { personal: PersonalFile }) {
             that would be false for {declared.length === 1 ? 'it' : 'them'}.
           </>
         ) : null}{' '}
-        A case opened by a single flag of one indicator on one day says “possibly chance”, with that indicator’s own rate, and a re-measure settles it.
+        A case opened by a single flag of one indicator on one day says “possibly chance”, with that indicator’s own rate: a re-measure checks it,
+        and the case’s tripwire then judges the readings that follow.
       </p>
       <ChanceRateTable personal={personal} />
       {declared.map((i) =>

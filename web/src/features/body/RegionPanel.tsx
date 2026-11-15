@@ -808,8 +808,7 @@ function CaseCard({ c, view }: { c: CaseDef; view: CaseView | null }) {
       ) : null}
       {open && view?.chance ? (
         <p className="lf-body-fine">
-          <strong>{view.chance.text}.</strong> A single flag: a re-measure settles it, and the case resolves when the next readings keep its tripwire
-          clear.
+          <strong>{view.chance.text}.</strong> A single flag: a re-measure checks it, and the case’s tripwire then judges the readings that follow.
         </p>
       ) : !open ? (
         <p className="lf-body-fine">Opens when any of its triggers reaches Caution. None has for this crewmember now.</p>

@@ -29,7 +29,9 @@ Requirement text is extracted verbatim with a ToUnicode-aware PDF parser and che
 - NASA Office of the Chief Health and Medical Officer. *NASA-STD-3001, NASA Spaceflight Human-System
   Standard, Volume 1: Crew Health, Revision C.* Approved 2023-09-15.
   https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf
-  (SHA-256 `e65882af9c9a9861b520268f739baadba08f6225feb14489ff7c46442de26ce9`).
+  (SHA-256 `e65882af9c9a9861b520268f739baadba08f6225feb14489ff7c46442de26ce9`). Table 4.8-3, the design-reference
+  SPE environment proton energy spectrum ("Sum of the October 1989 Events", PDF p. 42, 100 energy/fluence pairs), is
+  read from the same PDF for the consistency check on `#/radiation`.
 - NASA Office of the Chief Health and Medical Officer. *NASA-STD-3001, Volume 2: Human Factors,
   Habitability, and Environmental Health, Revision F.* Approved 2026-07-14 (supersedes Revision E, 2025-05-01).
   https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf
@@ -47,6 +49,20 @@ Requirement text is extracted verbatim with a ToUnicode-aware PDF parser and che
   Center. NTRS 20160005080. https://ntrs.nasa.gov/citations/20160005080
 - NASA Exploration Medical Capability. *Medical System Concept of Operations for Mars Exploration
   Mission-11.* NTRS 20200001715. https://ntrs.nasa.gov/citations/20200001715
+- Campbell C. *Shuttle/ISS EMU Failure History and the Impact on Advanced EMU Portable Life Support System (PLSS)
+  Design.* ICES-2015-327 (JSC-CN-33547), 45th International Conference on Environmental Systems, Bellevue, WA,
+  12-16 July 2015. NTRS 20150009506, https://ntrs.nasa.gov/citations/20150009506 (read 2026-11-15). Cited for the
+  EMU and Advanced EMU caution and warning systems' "the use as a monitoring system not a control system".
+- NASA Johnson Space Center. *Houston We Have a Podcast*, episode 83, *How to Plan a Spacewalk* (guests Tara Jochim
+  and Art Thomason), 15 March 2019. https://www.nasa.gov/podcasts/houston-we-have-a-podcast/how-to-plan-a-spacewalk/
+  (read 2026-11-15; the older address https://www.nasa.gov/johnson/HWHAP/how-to-plan-a-spacewalk redirects there).
+  Cited for the spacewalker's cuff checklist. A NASA page, not a requirement.
+- NASA Johnson Space Center. *Human Integration Design Processes (HIDP).* NASA/TP-2014-218556, 2014.
+  NTRS 20140009559, https://ntrs.nasa.gov/citations/20140009559. Section 4.3.2 and Figure 4.3.2-1, the Bedford
+  scale (PDF p. 46), used by the usability protocol, `docs/USABILITY_TEST.md`.
+- NASA Office of the Chief Health and Medical Officer. *Cognitive Workload Assessment Methods.* NASA-STD-3001
+  Technical Brief OCHMO-TB-032 Rev C. https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-032-cognitive-workload.pdf
+  (read 2026-11-15). Used by the usability protocol, `docs/USABILITY_TEST.md`.
 
 ## The navigation anchor
 
@@ -97,7 +113,14 @@ Requirement text is extracted verbatim with a ToUnicode-aware PDF parser and che
 ## Ephemerides and space weather
 
 - JPL Horizons On-Line Ephemeris System, NASA Jet Propulsion Laboratory. https://ssd.jpl.nasa.gov/horizons/
+- NASA Jet Propulsion Laboratory. *Sun in the Way Will Affect Mars Missions in April* (news release, 20 March 2013).
+  https://www.jpl.nasa.gov/news/sun-in-the-way-will-affect-mars-missions-in-april/ (the source of the 2013 command
+  moratoria; `#/radiation` quotes "Curiosity's controllers plan to suspend commanding from April 4 to May 1." beside
+  sol 242). The page refused the build's client, so the quote was read by hand in its HTML on 2026-11-14; it was
+  re-read in the live page on 2026-11-15.
 - NOAA Space Weather Prediction Center. *NOAA Space Weather Scales.* https://www.swpc.noaa.gov/noaa-scales-explanation
+- NASA GSFC Space Physics Data Facility. CDAWeb HAPI dataset STB_L1_HET (STEREO-B HET), parameter Proton_Flux.
+  https://cdaweb.gsfc.nasa.gov/hapi · dataset notes https://cdaweb.gsfc.nasa.gov/misc/NotesS.html#STB_L1_HET
 
 ## Space radiation literature
 
@@ -107,15 +130,41 @@ Requirement text is extracted verbatim with a ToUnicode-aware PDF parser and che
   Table 1 numbers that `#/radiation` replays on the MSL RAD record are quoted from the preprint, arXiv:2502.02469v1,
   https://arxiv.org/html/2502.02469v1, and re-checked word for word at every build by `ingest/rad_events.py` (the
   preprint prints the last author as "Löffner"); the journal version was not compared.
+- Hassler DM, Zeitlin C, Wimmer-Schweingruber RF, Ehresmann B, Rafkin S, Eigenbrode JL, et al. Mars' surface radiation
+  environment measured with the Mars Science Laboratory's Curiosity rover. *Science* 2014;343(6169):1244797.
+  doi:10.1126/science.1244797. Quoted in short fragments, re-checked at every build, from the PDF at
+  https://www.scienceintheclassroom.org/sites/default/files/research-papers/1244797.full_.pdf (SHA-256
+  `1cd81ff354e883bff449fcffad39448baf8bed0a34799572a1639ec15631145d`); its figures are not reproduced.
 - Golightly MJ, Hardy AC, Atwell W, Hardy K. Description, analysis and impact of major solar activity during recent
   U.S. Shuttle missions. *Adv Space Res* 1992;12(2-3):335-8. doi:10.1016/0273-1177(92)90125-H. PMID 11537026
   (abstract sentences quoted from the PubMed record and re-checked at every build by `ingest/history.py`).
 
+## Model
+
+- MinishLab. *potion-base-8M* (model card, MIT), revision bf8b056651a2c21b8d2565580b8569da283cab23,
+  https://huggingface.co/minishlab/potion-base-8M. Used outside the decision path: at build time by `tools/nearest`,
+  and in the browser, as an 8-bit copy, by the search on `#/method?s=find`. Its model card asks:
+
+Please cite the [Model2Vec repository](https://github.com/MinishLab/model2vec) if you use this model in your work.
+```bibtex
+@software{minishlab2024model2vec,
+  author       = {Stephan Tulkens and {van Dongen}, Thomas},
+  title        = {Model2Vec: Fast State-of-the-Art Static Embeddings},
+  year         = {2024},
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.17270888},
+  url          = {https://github.com/MinishLab/model2vec},
+  license      = {MIT}
+}
+```
+
 ## Use of AI
 
 LANDFALL was built by team Isaac Clarke (Guilherme Amaro, project lead; Ayra Castilho, tester) with Claude Code (Anthropic) as a coding assistant. Claude Code
-wrote code, ran the build-time data ingestion and verification, and drafted documentation. No AI model
-runs in the product's decision path.
+wrote code, ran the build-time data ingestion and verification, and drafted documentation. No AI is in the
+product's decision path. One small open model, potion-base-8M (above), is used outside it: at build time it ranked
+NASA-STD-3001 requirements near each searched negative, and in the browser it ranks the 57 frozen requirements for
+the search on `#/method?s=find`. It generates no text, decides nothing and reads no crew data.
 
 ## Generated from the shipped data
 

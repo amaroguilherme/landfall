@@ -98,6 +98,13 @@ export interface OsdrPick {
   why: string
 }
 
+/** Plain names of the Inspiration4 panels: crew-facing text names the panel, never its snapshot id. */
+export const OSDR_PANEL_NAME: Record<OsdrPick['snapshot'], string> = {
+  osdr_cbc: 'Inspiration4 complete blood count (OSD-569)',
+  osdr_cmp: 'Inspiration4 metabolic panel (OSD-575)',
+  osdr_cytokines: 'Inspiration4 serum cytokines (OSD-575)',
+}
+
 export interface RegionDef {
   id: RegionId
   /** Plain-English name. */
@@ -465,6 +472,23 @@ export function windowWords(window: { kind: string; duration?: string | null } |
     default:
       return window.kind
   }
+}
+
+/** A snake_case data field name inside running text ("body_regions", "packet_queued_at"). */
+const FIELD_NAME = /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g
+
+/**
+ * Crew-facing text never prints a data field name. Rules text written for maintainers can name one
+ * (meta.json body_region_rule: "A case's body_regions are its hazard footprint ..."); on the page it
+ * reads as plain words ("A case's body regions are ...").
+ */
+export function plainWords(text: string): string {
+  return text.replace(FIELD_NAME, (name) => name.replace(/_/g, ' '))
+}
+
+/** The data field names a crew-facing text would print ([] when it prints none). */
+export function fieldNamesIn(text: string): string[] {
+  return text.match(FIELD_NAME) ?? []
 }
 
 /** Sentences of `text` (split on ". ") that contain any anchor, case-insensitive; [] when none. */

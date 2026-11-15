@@ -1,6 +1,7 @@
 // Section 3 of the hero: the other open cases (renal in WATCH with its tripwire countdown, sleep
-// ACTING; an opening the simulator did not script is labelled as a chance flag, from sim_crew's own
-// self_check), a 4-crew status strip (worst annunciated severity per crewmember, icon + text) and the
+// ACTING; an instance opened by a single Tier B flag carries the engine's "Possibly chance: about 1 in N
+// days ..." note (CaseView.chance, SPEC 7), and an opening the simulator did not script is also labelled
+// as a chance flag, from sim_crew's own self_check), a 4-crew status strip (worst annunciated severity per crewmember, icon + text) and the
 // environment. Everything is read from useCases / useEvaluation / useComms output.
 import type { CaseView } from '../../app/caseTimeline'
 import type { CommsStatus } from '../../app/comms'
@@ -117,6 +118,12 @@ export function OtherCases({
                 <CaseStatusTag status={v.state.status} />
               </div>
               <p className="now-open-line">{caseLine(v)}</p>
+              {v.chance ? (
+                // SPEC 7 / S4: the engine's own label for an instance opened by a single Tier B flag (N from chanceRate)
+                <p className="now-open-chance now-open-possibly">
+                  <strong>{v.chance.text}.</strong> A single flag: a re-measure settles it.
+                </p>
+              ) : null}
               {unscriptedNote(v, unscripted)}
             </li>
           ))}

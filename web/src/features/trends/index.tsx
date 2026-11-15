@@ -8,8 +8,9 @@
 // reader sees which scripted episodes Tier B can catch and which only Tier A does.
 import { useEffect, useMemo, useState } from 'react'
 import type { FeatureProps } from '../../app/router'
-import { RULES, expectedFalseAlarms, minDetectableChange } from '../../app/engine'
-import type { PersonalFinding, Rule } from '../../app/engine'
+import { FALSE_ALARM_ASSUMES, RULES, minDetectableChange } from '../../app/engine'
+import type { Indicator, PersonalFinding, Rule } from '../../app/engine'
+import { chanceDiffers, chanceRateOf, chanceTotals, prettyOps, testScaleWords, transformFormula } from '../../app/evaluate'
 import type { PersonalEvaluation } from '../../app/evaluate'
 import { useMission } from '../../app/mission'
 import { useCrewEvaluation, useEvaluation, useScenario } from '../../app/model'
@@ -38,14 +39,13 @@ import {
 import { TimeChart, envelope, severityToken, shapeFor } from './chart'
 import type { HLineSpec, LineSpec, MarkSpec, RegionSpec, VLineSpec } from './chart'
 import {
-  alertingEitherCount,
-  alertingIndicatorCount,
   buildIndicatorTrend,
   buildRuleSeries,
   cadenceOf,
   chartedIndicators,
   dayRangeText,
   displayBand,
+  isSigned,
   runsOf,
   scenarioNote,
   toDay,
@@ -138,39 +138,89 @@ function CrewPicker({ crewId, onPick }: { crewId: CrewId; onPick: (c: CrewId) =>
   )
 }
 
-// ---- false-alarm statement (the engine's expected_false_alarms, in plain words) -------------------
+// ---- chance flags: the sum of each indicator's own rate (the engine's chanceRate), in plain words ------
 
-function FalseAlarms({ k, kEither, days, crewSize }: { k: number; kEither: number; days: number; crewSize: number }) {
+function FalseAlarms({ days, crewSize }: { days: number; crewSize: number }) {
   const cfg = (RULES.personal?.rci ?? {}) as Record<string, unknown>
   const alpha = typeof cfg.alpha_two_tailed === 'number' ? cfg.alpha_two_tailed : null
   const caveat = typeof cfg.caveat === 'string' ? cfg.caveat : null
-  if (alpha === null || k <= 0 || days <= 0) {
+  const totals = useMemo(() => chanceTotals(), [])
+  if (alpha === null || totals.k <= 0 || days <= 0) {
     return (
       <p className="lf-tr-fa-text">
-        <StaleIcon size={14} /> The expected false-alarm rate is not available: the personal rules give no alpha.
+        <StaleIcon size={14} /> The expected chance rate is not available: the personal rules give no alpha.
       </p>
     )
   }
-  // Flags (either direction) and cautions (the worse direction; both for the k_either indicators that
-  // alert both ways) come from the engine's expected_false_alarms: no rate is derived here.
-  const one = expectedFalseAlarms(k, days, alpha, kEither)
-  const crew = expectedFalseAlarms(k * crewSize, days, alpha, kEither * crewSize)
+  // Each indicator flags at its own rate (measured where personal.json declares one, else the test's nominal rate);
+  // the totals are the engine's per-indicator rates added up, never one rate assumed for all of them.
+  const perDay = totals.caution_per_day
+  const flagsPerDay = totals.flag_per_day
   return (
     <div className="lf-tr-fa-text">
       <p>
-        <strong>What a flag costs in false alarms.</strong> Each of the <Num value={k} /> alerting personal indicators is tested once a
-        day against this crewmember’s own band, at a two-tailed alpha of <Num value={alpha} />. By chance alone, for one crewmember
-        that gives <strong>{one.text}</strong> (<Num value={one.expected} digits={2} /> expected over the <Num value={days} /> days since
-        the baseline); for the crew of <Num value={crewSize} />, <strong>{crew.text}</strong>. Cautions are rarer, per crewmember:{' '}
-        <strong>{one.caution_text}</strong>.
+        <strong>What a flag costs in false alarms.</strong> Each of the <Num value={totals.k} /> alerting personal indicators is tested at each
+        new reading against this crewmember’s own band (daily; in this scenario the cuff and fingerstick readings come twice a week after the
+        baseline), at a two-tailed alpha of <Num value={alpha} />, and each card prints how often that indicator flags by chance alone. Added up as
+        if every indicator were read daily, for one crewmember: about one chance caution every{' '}
+        <strong>
+          <Num value={totals.caution_every_n_days} digits={0} unit="days" />
+        </strong>{' '}
+        (<Num value={perDay * days} digits={2} /> expected over the <Num value={days} /> days since the baseline at that cadence; the twice-weekly
+        readings make it fewer) and one chance reliable change
+        in either direction every <Num value={totals.flag_every_n_days} digits={0} unit="days" />; for the crew of <Num value={crewSize} />,
+        one chance caution every <Num value={totals.caution_every_n_days !== null ? totals.caution_every_n_days / crewSize : null} digits={0} unit="days" />.
+        {totals.measured.length ? (
+          <>
+            {' '}
+            {totals.measured
+              .filter((r) => r.alerting)
+              .map((r) => indicatorLabel(r.indicator_id))
+              .join(', ')}{' '}
+            {totals.measured.filter((r) => r.alerting).length === 1 ? 'counts' : 'count'} at its measured rate, not the nominal one.
+          </>
+        ) : null}
+      </p>
+      <p className="lf-tr-muted">
+        Flags in either direction per crewmember-day: <Num value={flagsPerDay} digits={4} />; cautions: <Num value={perDay} digits={4} /> (the sum of
+        each indicator’s own rate).
       </p>
       <Expander summary="Why the printed rate is a lower bound">
         <p className="lf-tr-muted">
-          The rate assumes {one.assumes} (engine <code>expected_false_alarms</code>).
+          The nominal rates assume {FALSE_ALARM_ASSUMES}. The measured ones assume the scenario’s own noise model.
           {caveat ? ` ${caveat}` : ''}
         </p>
       </Expander>
     </div>
+  )
+}
+
+/** An indicator's label from personal.json (its id as a last resort). */
+function indicatorLabel(id: string): string {
+  return (RULES.personal?.indicators ?? []).find((i) => i.id === id)?.label ?? id
+}
+
+/** The indicator's own chance rate (engine chanceRate), with the measured multiplier where it differs from nominal. */
+function ChanceNote({ indicator }: { indicator: Indicator }) {
+  const r = chanceRateOf(indicator)
+  if (!r) return null
+  const differs = chanceDiffers(r)
+  return (
+    <span className="lf-tr-chance">
+      Chance alone: {r.text}
+      {differs ? (
+        <>
+          {' '}
+          <strong>
+            (measured: <Num value={r.alerting ? r.caution_multiplier : r.flag_multiplier} digits={2} />× the nominal rate)
+          </strong>{' '}
+          <Chip kind={r.chip} />
+        </>
+      ) : (
+        <> (the test’s nominal rate)</>
+      )}
+      .
+    </span>
   )
 }
 
@@ -337,7 +387,7 @@ function FlagSummary({ trend, note, alerting }: { trend: SeriesTrend; note?: Sce
     const tail = entered
       ? ' Your own entry this session.'
       : chance
-        ? ' No change was scripted then: a chance flag from realistic day-to-day noise (see the false-alarm rate above).'
+        ? ' No change was scripted then: a chance flag from realistic day-to-day noise (see this indicator’s chance rate above).'
         : ''
     items.push({ key: `w${r.from}`, severity: sevWorse, text: `${what} on ${dayRangeText(r)} (${r.n} value${r.n > 1 ? 's' : ''}).${tail}` })
   }
@@ -404,8 +454,8 @@ function RuleChips({ trend }: { trend: SeriesTrend }) {
   )
 }
 
-/** The band and its minimum detectable change (D10), in words. */
-function BandLine({ band, shown, unit, digits, note }: { band: PersonalBand; shown: DisplayBand; unit: string; digits: number; note: ScenarioNote }) {
+/** The band and its minimum detectable change (D10), in words; for a transformed indicator both scales. */
+function BandLine({ band, shown, unit, digits, note, indicator }: { band: PersonalBand; shown: DisplayBand; unit: string; digits: number; note: ScenarioNote; indicator: Indicator }) {
   const mdc = band.mdc
   const n = band.n
   let atModel: number | null = null
@@ -417,6 +467,59 @@ function BandLine({ band, shown, unit, digits, note }: { band: PersonalBand; sho
     }
   }
   const md = mdc !== null ? changeDigits(mdc, unit) : digits
+  const formula = transformFormula(band.transform)
+  const u = unit === 'count' ? undefined : unit
+  // "lapses" for PVT-B lapses: the noun of a count, from its label.
+  const noun = unit === 'count' ? ((indicator.label ?? '').split(' ').pop()?.toLowerCase() ?? null) : null
+  if (formula) {
+    // On the test scale the band is symmetric: testMean +/- critical x scale. Mapped back to the unit it is not.
+    const bd = Math.max(digits, 2)
+    return (
+      <span className="lf-tr-band">
+        <span>
+          Band {band.lo < 0 ? 'up to ' : <><Num value={band.lo} digits={bd} />–</>}
+          <Num value={band.hi} unit={u} digits={bd} />
+          {noun ? ` ${noun}` : null}
+          {band.lo < 0 ? <span className="lf-tr-muted"> (no fall can be flagged)</span> : null}, around a baseline mean of <Num value={band.mean} digits={bd} />
+        </span>
+        <span className="lf-tr-mdc">
+          {(testScaleWords(indicator) ?? '').replace(/^./, (c) => c.toUpperCase())}: mean <Num value={band.testMean} digits={3} /> ±{' '}
+          {band.critical !== null && band.scale !== null ? (
+            <>
+              <Num value={band.critical} digits={2} /> × <Num value={band.scale} digits={3} />
+            </>
+          ) : (
+            <Num value={mdc} digits={3} />
+          )}
+          , each edge mapped back as (y/2)² − 3/8 <Chip kind={indicator.transform_basis?.chip ?? 'literature'} />
+          {indicator.transform_basis?.source ? (
+            <>
+              {' '}
+              <Citation source={indicator.transform_basis.source as never} />
+            </>
+          ) : null}
+        </span>
+        <span className="lf-tr-mdc">
+          Smallest change it can flag: <strong>a rise to above <Num value={band.hi} unit={u} digits={bd} /></strong> (+
+          <Num value={band.hi - band.mean} digits={bd} /> from the mean)
+          {band.lo < 0 ? '; no fall can be flagged' : <>, or a fall below <Num value={band.lo} digits={bd} /></>} <Chip kind="derived" />
+          {atModel !== null ? (
+            <>
+              {' '}
+              · ±<Num value={atModel} digits={3} /> on the Anscombe scale at the simulator’s noise SD (<Num value={note.modelSd} digits={3} /> on that scale)
+              {note.modelSdChip ? (
+                <>
+                  {' '}
+                  <Chip kind={note.modelSdChip} />
+                </>
+              ) : null}
+            </>
+          ) : null}
+        </span>
+        <ChanceNote indicator={indicator} />
+      </span>
+    )
+  }
   return (
     <span className="lf-tr-band">
       <span>
@@ -447,6 +550,7 @@ function BandLine({ band, shown, unit, digits, note }: { band: PersonalBand; sho
           ) : null}
         </span>
       ) : null}
+      <ChanceNote indicator={indicator} />
     </span>
   )
 }
@@ -545,7 +649,8 @@ function IndicatorCard({
 }) {
   const ind = trend.indicator
   const band = trend.band
-  const shown = useMemo(() => (band ? displayBand(band, ind.unit) : null), [band, ind.unit])
+  const signed = useMemo(() => isSigned(ind, trend.points.map((p) => p.value)), [ind, trend.points])
+  const shown = useMemo(() => (band ? displayBand(band, ind.unit, signed) : null), [band, ind.unit, signed])
   const parts = useMemo(() => dailyChart(trend, shown, index, t), [trend, shown, index, t])
   const note = useMemo(() => scenarioNote(simData, crewId, ind.id, ind.variable), [simData, crewId, ind.id, ind.variable])
   const values = trend.points.map((p) => p.value)
@@ -558,7 +663,8 @@ function IndicatorCard({
   const yFormat = useMemo(() => (v: number) => fmt(v, digits), [digits])
   const flaggedNow = f?.status === 'reliable_change' && SEVERITY_RANK[sev] >= SEVERITY_RANK.caution
   const cadence = cadenceWords(trend)
-  const summary = `${ind.label ?? ind.id} for ${crewId}: ${trend.points.length} values up to MET day ${dayLabel(observationDay(t))}${shown ? `; personal band ${fmt(shown.lo, digits)} to ${fmt(shown.hi, digits)} ${ind.unit}` : ''}${band?.mdc != null ? `; smallest change it can flag ${fmt(band.mdc, changeDigits(band.mdc, ind.unit))} ${ind.unit}` : ''}; ${trend.points.filter((p) => p.flag === 'worse').length} values flagged in the worse direction.`
+  const bandDigits = band?.transform ? Math.max(digits, 2) : digits
+  const summary = `${ind.label ?? ind.id} for ${crewId}: ${trend.points.length} values up to MET day ${dayLabel(observationDay(t))}${shown ? `; personal band ${fmt(shown.lo, bandDigits)} to ${fmt(shown.hi, bandDigits)} ${ind.unit}` : ''}${band?.mdc != null && !band.transform ? `; smallest change it can flag ${fmt(band.mdc, changeDigits(band.mdc, ind.unit))} ${ind.unit}` : ''}${band?.transform ? `; tested on the Anscombe scale` : ''}; ${trend.points.filter((p) => p.flag === 'worse').length} values flagged in the worse direction.`
   return (
     <article className="lf-tr-card" data-severity={f && f.status === 'reliable_change' ? sev : undefined} aria-labelledby={`tr-${ind.id}`}>
       <header className="lf-tr-card-head">
@@ -577,7 +683,7 @@ function IndicatorCard({
       </header>
       <p className="lf-tr-meta">
         <span>
-          Latest <Num value={cur?.value ?? null} unit={ind.unit} digits={digits} arrow={f?.status === 'reliable_change' ? arrow : undefined} severity={sev} />
+          Latest <Num value={cur?.value ?? null} unit={ind.unit === 'count' ? undefined : ind.unit} digits={digits} arrow={f?.status === 'reliable_change' ? arrow : undefined} severity={sev} />
           {cur ? (
             <>
               {' '}
@@ -586,7 +692,7 @@ function IndicatorCard({
           ) : null}
         </span>
         {band && shown ? (
-          <BandLine band={band} shown={shown} unit={ind.unit} digits={digits} note={note} />
+          <BandLine band={band} shown={shown} unit={ind.unit} digits={digits} note={note} indicator={ind} />
         ) : (
           <span className="lf-tr-nodata">
             <StaleIcon size={13} />{' '}
@@ -645,7 +751,7 @@ function IndicatorCard({
       <EpisodeNote note={note} trend={trend} crewId={crewId} />
       {f ? (
         <Expander summary="Why this verdict">
-          <p>{f.why}</p>
+          <p>{prettyOps(f.why)}</p>
           <p className="lf-tr-muted">
             <a href={`#/provenance?id=${encodeURIComponent(ind.id)}`}>Provenance of this indicator</a> ·{' '}
             <a href="#/method?s=tiers">How the personal band is computed (Method)</a>
@@ -808,7 +914,8 @@ function HeartRate({ index, runtime, crewId, t }: { index: ScenarioIndex; runtim
       }
     >
       <SimulatedMarker variant="banner">
-        Band optical pulse sensor (PPG), 1-min means, MET day {dayLabel(t / 86_400)} from 00:00 to the scenario clock.
+        Pulse rate from the band’s optical pulse sensor (PPG), 1-min means, MET day {dayLabel(t / 86_400)} from 00:00 to the
+        scenario clock.
       </SimulatedMarker>
       <p className="lf-tr-meta">
         <span>
@@ -890,7 +997,7 @@ export default function Trends({ query }: FeatureProps) {
       <>
         <h1>Trends</h1>
         <EmptyState kind={st === 'error' ? 'error' : st === 'missing' ? 'missing' : 'loading'} title={st === 'loading' ? 'Reading the frozen scenario' : 'The scenario could not be read'}>
-          <p>{scenario.error ?? 'The simulated scenario (sim_crew.json) is loading from this build.'}</p>
+          <p>{scenario.error ?? 'The simulated scenario is loading from this build.'}</p>
         </EmptyState>
       </>
     )
@@ -909,7 +1016,7 @@ export default function Trends({ query }: FeatureProps) {
         their own baseline (days {index.baselineDays[0]}–{index.baselineDays[1]}). Limits apply for <strong>{env.label}</strong>. A flag
         is the engine’s verdict for that day, not a diagnosis.
       </p>
-      <SimulatedMarker variant="banner">Every crew value on this page is simulated (seeded generator, sim_crew.json); limits and statistics are real.</SimulatedMarker>
+      <SimulatedMarker variant="banner">Every crew value on this page is simulated (a seeded generator); limits and statistics are real.</SimulatedMarker>
       <CrewPicker crewId={crewId} onPick={setCrew} />
       {evalError ? (
         <p className="lf-tr-nodata lf-tr-banner" role="status">
@@ -921,7 +1028,7 @@ export default function Trends({ query }: FeatureProps) {
       <Panel title="How to read a personal band" eyebrow="Tier B · own baseline" className="lf-tr-fa">
         <div className="lf-tr-legend-row">
           <span>
-            <Glyph shape="band" token="--lf-text-2" /> personal band (baseline mean ± critical × scale, from the engine)
+            <Glyph shape="band" token="--lf-text-2" /> personal band (baseline mean ± critical × scale on the test scale, from the engine, drawn in the indicator’s unit)
           </span>
           <span>
             <SeverityIcon severity="caution" size={14} /> reliable change, worse direction (caution)
@@ -946,10 +1053,12 @@ export default function Trends({ query }: FeatureProps) {
           <p className="lf-tr-fa-text">
             <strong>What a band can see.</strong> {rci.detectable_change.text} <Chip kind={rci.detectable_change.chip} /> Each card prints
             that figure for this crewmember, and the same at the simulator’s noise SD (literature where a value was found, otherwise a design
-            choice, as its chip says). A band edge below zero for a quantity that cannot be negative is drawn at 0.
+            choice, as its chip says), next to how often that indicator flags by chance alone. PVT-B lapses, a count, are tested on the Anscombe
+            scale and their band is mapped back to lapses; the sleep midpoint shift is signed (earlier is negative) and either direction alerts. A
+            band edge below zero for a quantity that cannot be negative is drawn at 0.
           </p>
         ) : null}
-        <FalseAlarms k={alertingIndicatorCount()} kEither={alertingEitherCount()} days={days} crewSize={CREW_IDS.length} />
+        <FalseAlarms days={days} crewSize={CREW_IDS.length} />
         <p className="lf-tr-muted">
           Method and its basis: <Citation source={rci?.source} />. See <a href="#/method?s=tiers">Method</a> for the derivation.
         </p>

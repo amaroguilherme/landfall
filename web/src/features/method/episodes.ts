@@ -134,3 +134,25 @@ export function dayRanges(days: readonly number[]): string {
   }
   return parts.join(', ')
 }
+
+/** One calibration entry of a simulated variable (sim_crew data.variables[v].calibration). */
+export interface Calibration {
+  item: string
+  value: string
+  chip: string
+}
+
+/**
+ * The simulator's day-to-day noise entry for a variable, as sim_crew records it: the calibration item that names a
+ * day-to-day, night-to-night or within-person SD or CV, else a value that gives one (or Poisson counts, for a count).
+ * Comparison entries (a free-living value shown for context) are not the noise the simulator drew.
+ */
+export function noiseEntry(sim: { variables?: Record<string, { calibration?: Calibration[] }> } | null | undefined, variable: string): Calibration | null {
+  const cal = (sim?.variables?.[variable]?.calibration ?? []).filter((c) => !/comparison/i.test(c.item))
+  return (
+    cal.find((c) => /(day-to-day|night-to-night|within-person)\b.*\b(SD|CV)\b/i.test(c.item)) ??
+    cal.find((c) => /\b(SD|CV)\b/.test(c.item)) ??
+    cal.find((c) => /\b(SD|CV)\b|Poisson/.test(c.value)) ??
+    null
+  )
+}

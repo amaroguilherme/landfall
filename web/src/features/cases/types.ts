@@ -159,6 +159,11 @@ export interface UnscriptedOpening {
   t: number
   /** MET day the scripted episode starts, or null when nothing is scripted for this crewmember. */
   scripted_opening_day: number | null
+  /** The critical value the flag crossed, the case instance it opened, and whether it was a single flag (one indicator, one day). */
+  critical?: number
+  instance?: number
+  single_flag?: boolean
+  run_days?: [number, number]
 }
 
 export interface SimSelfCheck {

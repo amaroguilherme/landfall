@@ -367,3 +367,26 @@
 .lfc-action-text { margin: 0.3em 0; color: var(--lf-text); font-size: var(--lf-text-sm); max-width: 80ch; }
 .lfc-action-all { margin: 0; padding-left: 1.1em; display: grid; gap: 0.25em; font-size: var(--lf-text-sm); }
 .lfc-list + .lf-panel { margin-top: var(--lf-space-3); }
+
+/* ---- "Possibly chance" (SPEC 7): a single Tier B flag. A product note, not a simulation marker (no hatching)
+   and never an alert colour: dotted neutral border, like other context. ---- */
+.lfc-possibly { margin-top: var(--lf-space-1-5); padding: var(--lf-space-1-5); border: 1px dotted var(--lf-text-2); border-radius: var(--lf-radius); background: var(--lf-surface-1); }
+.lfc-possibly p { margin: 0 0 0.3em; font-size: var(--lf-text-sm); max-width: 80ch; }
+.lfc-possibly-tag {
+  display: inline-block;
+  padding: 0 0.35em;
+  border: 1px dotted var(--lf-text-2);
+  color: var(--lf-text);
+  font: 500 0.625rem/1.5 var(--lf-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.lfc-crew-item { display: grid; gap: 0.25em; align-content: start; max-width: 100%; }
+.lfc-crew-chance { margin: 0; max-width: 44ch; font-size: var(--lf-text-xs); color: var(--lf-text-2); }
+.lfc-block { display: block; }
+.lfc-chance-line { color: var(--lf-text-2); }
+.lfc-scale { color: var(--lf-text-2); }
+.lfc-trip-chance { margin: var(--lf-space-1) 0; }
+.lfc-instances { margin: var(--lf-space-1) 0 0; padding-left: 1.1em; display: grid; gap: 0.3em; font-size: var(--lf-text-sm); color: var(--lf-text-2); }
+.lfc-instances li { max-width: 80ch; }

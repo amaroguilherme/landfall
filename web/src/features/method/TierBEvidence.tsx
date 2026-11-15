@@ -3,14 +3,17 @@
 //    indicator and crewmember, next to the basis of the simulator's day-to-day noise;
 // 2. which scenario events Tier B detects and which only Tier A catches.
 import { useMemo } from 'react'
+import { CASE_DEFS } from '../../app/caseTimeline'
 import { useSnapshot } from '../../app/data'
+import { chanceRateOf, testScaleWords, transformFormula } from '../../app/evaluate'
 import { useMission } from '../../app/mission'
 import { useEvaluation, useScenario } from '../../app/model'
 import { CREW } from '../../app/vocab'
 import type { EnvId } from '../../app/vocab'
 import { Chip, Num, SeverityIcon, SimulatedMarker } from '../../ui'
 import type { Severity } from '../../app/vocab'
-import { dayRanges, detectEpisodes, onlyTierA } from './episodes'
+import { dayRanges, detectEpisodes, noiseEntry, onlyTierA } from './episodes'
+import { PERSONAL } from './rules'
 import type { PersonalFile } from './rules'
 
 interface Calibration {
@@ -20,12 +23,6 @@ interface Calibration {
 }
 interface SimVariables {
   variables?: Record<string, { calibration?: Calibration[] }>
-}
-
-/** The simulator's day-to-day noise entry for a variable (an SD), as sim_crew records it. */
-function noiseEntry(sim: SimVariables | null, variable: string): Calibration | null {
-  const cal = sim?.variables?.[variable]?.calibration ?? []
-  return cal.find((c) => /\bSD\b/.test(c.item)) ?? cal.find((c) => /\bSD\b/.test(c.value)) ?? null
 }
 
 /** Display digits by magnitude: whole numbers from 100 up, one decimal from 1, two below. */
@@ -76,11 +73,28 @@ export function MdcTable({ personal }: { personal: PersonalFile }) {
                 <tr key={ind.id}>
                   <th scope="row">
                     {ind.label} <span className="lf-m-small">({ind.unit})</span>
+                    {testScaleWords(ind) ? (
+                      <span className="lf-m-small lf-block">
+                        Anscombe scale {transformFormula(ind.transform)}: the band’s upper edge in {ind.unit === 'count' ? 'counts' : ind.unit}; ± and SD on that scale
+                      </span>
+                    ) : null}
                   </th>
                   {CREW.map((c) => {
                     const f = evaluation.crew[c.id]?.tierB.find((p) => p.indicator.id === ind.id)?.finding
                     const mdc = f ? mdcOf(f) : null
                     const sd = f?.rci?.sd ?? null
+                    // A transformed indicator (PVT-B lapses on the Anscombe scale): rci.mdc and rci.sd are on that scale, so the
+                    // cell prints the band mapped back to the unit (finding.band), and the test-scale figures beside it.
+                    if (f?.rci?.transform && f.band) {
+                      return (
+                        <td key={c.id} className="num" data-label={c.id}>
+                          ≤ <Num value={f.band.high} digits={2} />
+                          <span className="lf-m-small lf-m-sd">
+                            ±<Num value={mdc} digits={2} />, SD <Num value={sd} digits={2} />
+                          </span>
+                        </td>
+                      )
+                    }
                     return (
                       <td key={c.id} className="num" data-label={c.id}>
                         <Num value={mdc} digits={mdc !== null ? digitsFor(mdc) : undefined} />
@@ -107,6 +121,117 @@ export function MdcTable({ personal }: { personal: PersonalFile }) {
           </tbody>
         </table>
       </div>
+    </div>
+  )
+}
+
+interface McEntry {
+  tests?: number
+  worse_direction_flags?: number
+  flags?: number
+  caution_multiplier?: number
+  flag_multiplier?: number
+  within_band?: boolean
+  zero_sd_baselines?: number
+}
+interface ChanceRatesCheck {
+  method?: string
+  band?: [number, number]
+  per_indicator?: Record<string, McEntry>
+}
+
+/**
+ * S3, measured not assumed: for every indicator, the seeded Monte Carlo of the scenario's own noise model (sim_crew
+ * data.self_check.chance_rates, replayed through the engine by the Python suite), next to the rate LANDFALL prints
+ * (the engine's chanceRate: nominal, or the measured multipliers personal.json declares where the measured rate is
+ * outside the band).
+ */
+export function ChanceRateTable({ personal }: { personal: PersonalFile }) {
+  const sim = useSnapshot<{ self_check?: { chance_rates?: ChanceRatesCheck } }>('sim_crew')
+  const check = sim.data?.self_check?.chance_rates ?? null
+  const band = check?.band ?? null
+  return (
+    <div className="lf-m-mdc">
+      <div className="lf-m-tablewrap">
+        <table className="lf-m-table lf-m-blocks lf-m-chance-table">
+          <caption className="lf-m-caption">
+            How often each indicator flags with no real change: measured under the scenario’s noise model, and the rate LANDFALL prints
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Indicator</th>
+              <th scope="col" className="num">
+                Tests
+              </th>
+              <th scope="col" className="num">
+                Cautions, × nominal
+              </th>
+              <th scope="col" className="num">
+                Flags, × nominal
+              </th>
+              <th scope="col">Printed rate (engine)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {personal.indicators.map((ind) => {
+              const mc = check?.per_indicator?.[ind.id] ?? null
+              const r = chanceRateOf(ind.id)
+              const outside = mc?.within_band === false
+              return (
+                <tr key={ind.id} data-outside={outside || undefined}>
+                  <th scope="row">
+                    {ind.label}
+                    <span className="lf-m-small lf-block">
+                      {ind.alerting ? (ind.worse === 'either' ? 'alerts both ways' : `alerts on ${ind.worse === 'increase' ? 'a rise' : 'a fall'}`) : 'never alerts'}
+                      {testScaleWords(ind) ? ` · ${testScaleWords(ind)}` : ''}
+                    </span>
+                  </th>
+                  <td className="num" data-label="Tests">
+                    <Num value={mc?.tests ?? null} />
+                  </td>
+                  <td className="num" data-label="Cautions, × nominal">
+                    {ind.alerting ? <Num value={mc?.caution_multiplier ?? null} digits={2} /> : <span className="lf-m-small">never alerts</span>}
+                  </td>
+                  <td className="num" data-label="Flags, × nominal">
+                    <Num value={mc?.flag_multiplier ?? null} digits={2} />
+                  </td>
+                  <td data-label="Printed rate (engine)">
+                    {r ? (
+                      <>
+                        {r.text}{' '}
+                        {r.basis === 'measured' ? (
+                          <>
+                            <strong>measured</strong> <Chip kind={r.chip} />
+                          </>
+                        ) : (
+                          <span className="lf-m-small">nominal</span>
+                        )}
+                      </>
+                    ) : (
+                      <Num value={null} />
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      {check ? (
+        <p className="lf-m-small">
+          {(check.method ?? '').replace(/^./, (c) => c.toUpperCase())}
+          {band ? (
+            <>
+              {' '}
+              An indicator whose measured rate falls outside <Num value={band[0]} digits={1} />× to <Num value={band[1]} digits={1} />× the nominal one
+              declares the measured multipliers in personal.json, and LANDFALL prints that rate next to its band instead of the nominal one.
+            </>
+          ) : null}{' '}
+          <Chip kind="derived" />
+        </p>
+      ) : (
+        <p className="lf-m-small">{sim.status === 'loading' ? 'Reading the simulator’s own check…' : 'The simulator’s chance-rate check is not in this build.'}</p>
+      )}
     </div>
   )
 }
@@ -213,6 +338,61 @@ export function EpisodeTable() {
         event and the fitness shortfall reach only Tier A. Read it with the noise column above: the simulator’s day-to-day scatter decides
         how far an episode sits from the band, so a detection here is evidence about the method on this data, not about real crews.
       </p>
+      <ChanceFlags sim={sim} />
     </div>
   )
 }
+
+interface ChanceFlag {
+  crew_id: string
+  indicator_id: string
+  day: number
+  alerting: boolean
+  case_id: string | null
+}
+interface CaseOpening {
+  crew_id: string
+  case_id: string
+  day: number
+  opened_by: string
+  scripted: boolean
+  single_flag: boolean
+}
+
+/**
+ * The chance flags of the project seed, from the generator's own report (self_check.tier_b.chance_flags and
+ * case_openings): the seed is never re-drawn to hide them (SPEC 7), so the page lists each one and what it does.
+ */
+function ChanceFlags({ sim }: { sim: unknown }) {
+  const sc = (sim as { self_check?: { tier_b?: { chance_flags?: ChanceFlag[] }; case_openings?: CaseOpening[] } } | null)?.self_check
+  const flags = sc?.tier_b?.chance_flags ?? []
+  const openings = sc?.case_openings ?? []
+  if (!flags.length) return <p className="lf-m-small">With no scripted change, Tier B flags nothing else at the project seed.</p>
+  const label = (id: string) => PERSONAL_LABEL.get(id) ?? id
+  return (
+    <div className="lf-m-small">
+      <p>
+        With no scripted change, Tier B also flags {flags.length === 1 ? 'one day' : <><Num value={flags.length} /> days</>} at the project seed, a
+        consequence of real-size noise (the seed is fixed and never re-drawn to hide them):
+      </p>
+      <ul className="lf-m-notes">
+        {flags.map((f) => {
+          const opened = openings.find((o) => o.crew_id === f.crew_id && o.day === f.day && o.opened_by === f.indicator_id && !o.scripted)
+          return (
+            <li key={`${f.crew_id}-${f.indicator_id}-${f.day}`}>
+              {f.crew_id}, {label(f.indicator_id)}, MET day <Num value={f.day} />:{' '}
+              {!f.alerting
+                ? 'a non-alerting indicator: shown, never an alert, and it opens nothing.'
+                : opened
+                  ? `it opens ${f.crew_id}’s ${CASE_TITLE.get(opened.case_id) ?? opened.case_id} case${opened.single_flag ? ', which LANDFALL labels “possibly chance” (a single flag) with the indicator’s own chance rate; the crew re-measures and the tripwire settles it' : ''}.`
+                  : 'a caution with no case of its own: it shows its one-line action.'}
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
+const PERSONAL_LABEL: ReadonlyMap<string, string> = new Map((PERSONAL?.indicators ?? []).map((i) => [i.id, i.label]))
+const CASE_TITLE: ReadonlyMap<string, string> = new Map(CASE_DEFS.map((c) => [c.id, String(c.title ?? c.id).replace(/^./, (x) => x.toLowerCase())]))

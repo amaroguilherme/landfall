@@ -21,7 +21,7 @@ import { SimulatedMarker } from '../../ui'
 import './body.css'
 import { BodyFigure } from './Figure'
 import { FitnessTagCard, RegionPanel, RegionStateBadge } from './RegionPanel'
-import { REGIONS, casesForRegion, isRegionId, regionDef } from './regions'
+import { REGIONS, casesForRegion, isRegionId, plainWords, regionDef } from './regions'
 import type { RegionId } from './regions'
 import { BODY_REGION_RULE, CASES, THRESHOLD_RULES } from './rules'
 import type { CaseDef } from './rules'
@@ -124,8 +124,8 @@ export default function BodyMap({ query }: FeatureProps) {
         </SimulatedMarker>
         {unavailable ? (
           <p className="lf-body-fine lf-region-shim" role="status">
-            The mission evaluation is unavailable ({evaluation.error ?? 'sim_crew.json is not in this build'}), so every region shows as
-            insufficient data instead of guessing.
+            The mission evaluation is unavailable ({evaluation.error ?? 'the simulated crew data is not in this build'}), so every region
+            shows as insufficient data instead of guessing.
           </p>
         ) : null}
       </header>
@@ -183,7 +183,7 @@ export default function BodyMap({ query }: FeatureProps) {
             <p className="lf-body-fine lf-fig-rule">
               Fill = this crewmember’s own measured findings for that part of the body. A hatched outline marks the organs an open
               case’s hazard can reach; it is not a measurement of them.
-              {BODY_REGION_RULE ? <span className="sr-only"> Rule: {BODY_REGION_RULE}</span> : null}
+              {BODY_REGION_RULE ? <span className="sr-only"> Rule: {plainWords(BODY_REGION_RULE)}</span> : null}
             </p>
             {fitness ? <FitnessTagCard tag={fitness} crewLabel={crew.id} envLabel={env.label} /> : null}
           </div>

@@ -1,7 +1,8 @@
 // Section 3: Tier A (a number someone publishes) vs Tier B (reliable change against the
 // crewmember's own baseline: the single-case t-test of Crawford & Howell 1998). Every parameter
 // comes from engine/rules/personal.json, and every critical value and chance rate shown is computed
-// by the engine (tCritical, expectedFalseAlarms, through the facade).
+// by the engine (tCritical, chanceRate per indicator, expectedFalseAlarms for the nominal comparison,
+// through the facade). S1-S3: counts on the Anscombe scale, the signed midpoint shift, measured rates.
 import { useId, useState } from 'react'
 import { BASELINE_FIRST_DAY, BASELINE_LAST_DAY, SIM_LAST_DAY } from '../../app/scenario'
 import { CREW } from '../../app/vocab'
@@ -9,9 +10,10 @@ import { Chip, Citation, Expander, Num, SeverityBadge } from '../../ui'
 import { FoldPanel } from './fold'
 import type { MetaFile, PersonalFile, ThresholdsFile } from './rules'
 import type { CriticalRow } from './stats'
-import { SD_INTERVAL_LEVEL, chanceRates, countsEither, criticalRow, round1, sdInterval95, unlimitedRow } from './stats'
+import { SD_INTERVAL_LEVEL, chanceRates, criticalRow, round1, sdInterval95, unlimitedRow } from './stats'
 import { RichText, Verbatim } from './shared'
-import { EpisodeTable, MdcTable } from './TierBEvidence'
+import { ChanceRateTable, EpisodeTable, MdcTable } from './TierBEvidence'
+import { chanceTotals, personalIndicators, testScaleWords } from '../../app/evaluate'
 
 const PARAM_LABEL: Record<string, string> = {
   alpha_two_tailed: 'α, two-tailed',
@@ -128,11 +130,19 @@ function CriticalTable({ rows }: { rows: CriticalRow[] }) {
   )
 }
 
+/**
+ * Expected chance findings: the SUM of each alerting indicator's own rate (the engine's chanceRate: nominal, or measured
+ * where personal.json declares it), times the days. The engine's expected_false_alarms, every indicator at exactly its
+ * nominal rate, is printed beside it for comparison, never instead of it.
+ */
 function ChanceCalc({ personal }: { personal: PersonalFile }) {
   const { rci, indicators } = personal
   const alerting = indicators.filter((i) => i.alerting)
   const quiet = indicators.filter((i) => !i.alerting)
   const either = alerting.filter((i) => i.worse === 'either')
+  const ids = new Set(alerting.map((i) => i.id))
+  const totals = chanceTotals(personalIndicators().filter((i) => ids.has(i.id)))
+  const measured = totals.measured.filter((r) => r.alerting)
   const k = alerting.length
   const alpha = rci.alpha_two_tailed
   const defaultDays = SIM_LAST_DAY - BASELINE_LAST_DAY
@@ -140,21 +150,21 @@ function ChanceCalc({ personal }: { personal: PersonalFile }) {
   const [crewRaw, setCrewRaw] = useState(String(CREW.length))
   const days = clampInt(daysRaw, 1, 100_000)
   const crew = clampInt(crewRaw, 1, 50)
-  const one = days !== null ? chanceRates(k, days, alpha, either.length) : null
-  const all = days !== null && crew !== null ? chanceRates(k * crew, days, alpha, either.length * crew) : null
-  // Does the engine count the both-direction indicators in its caution figures?
-  const eitherCounted = countsEither(one)
+  const cautions = days !== null ? totals.caution_per_day * days : null
+  const flags = days !== null ? totals.flag_per_day * days : null
+  const nominal = days !== null ? chanceRates(k, days, alpha, either.length) : null
+  const label = (id: string) => indicators.find((i) => i.id === id)?.label ?? id
   const idDays = useId()
   const idCrew = useId()
   return (
     <div className="lf-m-calc">
       <h3 className="lf-m-h4">Expected chance findings</h3>
       <p>
-        If nothing about a crewmember changes and the day-to-day noise is normal and independent, the test still flags
-        each alerting indicator on a fraction α of days by chance, and half of those flags are in the worse direction, the
-        only ones that raise a{' '}
-        <SeverityBadge severity="caution" size="sm" />. <Num value={k} /> of the <Num value={indicators.length} /> indicators
-        can alert; {quiet.map((i) => i.label).join(', ')} never do.
+        If nothing about a crewmember changes, each alerting indicator still flags on some days by chance, and only a change in its worse direction
+        raises a <SeverityBadge severity="caution" size="sm" />. Each indicator has its own rate, from the engine: the test’s nominal one (α/2 for
+        a change in the worse direction; α for an indicator that alerts both ways) or, where personal.json declares it, the rate measured under the
+        scenario’s noise model. <Num value={k} /> of the <Num value={indicators.length} /> indicators can alert; {quiet.map((i) => i.label).join(', ')}{' '}
+        never do.
       </p>
       <div className="lf-m-calc-inputs">
         <label htmlFor={idDays}>
@@ -184,54 +194,117 @@ function ChanceCalc({ personal }: { personal: PersonalFile }) {
         <p className="lf-m-small">
           Default: the scenario’s days after its baseline (MET days <Num value={BASELINE_LAST_DAY + 1} />–
           <Num value={SIM_LAST_DAY} />; baseline <Num value={BASELINE_FIRST_DAY} />–<Num value={BASELINE_LAST_DAY} />) and its{' '}
-          <Num value={CREW.length} /> crewmembers.
+          <Num value={CREW.length} /> crewmembers. The sums count every indicator as read once a day; in the scenario the cuff and fingerstick
+          readings come twice a week after the baseline, so their share there is smaller.
         </p>
       </div>
       <div className="lf-m-calc-out" aria-live="polite">
         <p className="lf-mono lf-m-eqline">
-          flags: k × days × α = <Num value={k} /> × <Num value={days} /> × <Num value={alpha} /> ={' '}
-          <Num value={one?.expected ?? null} digits={3} />
-          <span className="lf-m-eqnote"> per crewmember, either direction</span>
+          cautions: Σ (each indicator’s own chance-caution rate per day) × days = <Num value={totals.caution_per_day} digits={5} /> ×{' '}
+          <Num value={days} /> = <Num value={cautions} digits={3} />
+          <span className="lf-m-eqnote"> per crewmember</span>
         </p>
-        {eitherCounted && either.length > 0 ? (
-          <p className="lf-mono lf-m-eqline">
-            cautions: (k − e) × days × α / 2 + e × days × α = <Num value={one?.expected_cautions ?? null} digits={3} />
-            <span className="lf-m-eqnote">
-              {' '}
-              per crewmember; e = <Num value={either.length} /> {either.length === 1 ? 'indicator alerts' : 'indicators alert'} in both directions
-            </span>
+        <p className="lf-mono lf-m-eqline">
+          flags, either direction: Σ (each indicator’s own rate) × days = <Num value={totals.flag_per_day} digits={5} /> × <Num value={days} /> ={' '}
+          <Num value={flags} digits={3} />
+          <span className="lf-m-eqnote"> per crewmember</span>
+        </p>
+        <p>
+          Per crewmember: about one chance caution every <Num value={totals.caution_every_n_days} digits={0} unit="days" /> and one chance flag every{' '}
+          <Num value={totals.flag_every_n_days} digits={0} unit="days" />. For <Num value={crew} /> crewmembers:{' '}
+          <Num value={cautions !== null && crew !== null ? cautions * crew : null} digits={3} /> chance cautions and{' '}
+          <Num value={flags !== null && crew !== null ? flags * crew : null} digits={3} /> chance flags expected, about one caution every{' '}
+          <Num value={totals.caution_every_n_days !== null && crew !== null ? round1(totals.caution_every_n_days / crew) : null} unit="days" />.
+        </p>
+        {measured.length ? (
+          <p className="lf-m-small">
+            {measured.map((r) => label(r.indicator_id)).join(', ')} {measured.length === 1 ? 'counts' : 'count'} at {measured.length === 1 ? 'its' : 'their'}{' '}
+            measured rate (
+            {measured.map((r, i) => (
+              <span key={r.indicator_id}>
+                {i ? '; ' : ''}
+                {measured.length > 1 ? `${label(r.indicator_id)} ` : ''}
+                <Num value={r.caution_multiplier} digits={2} />× the nominal caution rate
+              </span>
+            ))}
+            ), not the nominal one. If every indicator flagged at exactly its nominal rate (the engine’s expected_false_alarms, which assumes{' '}
+            {nominal?.assumes ?? 'independent, normal noise'}), the cautions would be <Num value={nominal?.expected_cautions ?? null} digits={3} />.
           </p>
         ) : (
-          <p className="lf-mono lf-m-eqline">
-            cautions: k × days × α / 2 = <Num value={one?.expected_cautions ?? null} digits={3} />
-            <span className="lf-m-eqnote"> per crewmember, worse direction only</span>
+          <p className="lf-m-small">
+            Every alerting indicator counts at its nominal rate here (the engine’s expected_false_alarms gives the same{' '}
+            <Num value={nominal?.expected_cautions ?? null} digits={3} />), which assumes {nominal?.assumes ?? 'independent, normal noise'}.
           </p>
         )}
-        {one ? (
-          <ul className="lf-m-notes">
-            <li>Per crewmember: {one.text}.</li>
-            <li>Per crewmember: {one.caution_text}.</li>
-          </ul>
-        ) : null}
-        <p>
-          For <Num value={crew} /> crewmembers: <Num value={all?.expected ?? null} digits={3} /> chance flags and{' '}
-          <Num value={all?.expected_cautions ?? null} digits={3} /> chance cautions expected, about one flag every{' '}
-          <Num value={all?.every_n_days != null ? round1(all.every_n_days) : null} unit="days" /> and one caution every{' '}
-          <Num value={all?.caution_every_n_days != null ? round1(all.caution_every_n_days) : null} unit="days" />.
-        </p>
-        <p className="lf-m-small">
-          Computed by the engine (expected_false_alarms), which assumes {one?.assumes ?? 'independent, normal noise'}.
-        </p>
         {either.length > 0 ? (
           <p className="lf-m-small">
-            {either.map((i) => i.label).join(', ')} can raise a caution in either direction, so for{' '}
-            {either.length === 1 ? 'it' : 'them'} every chance flag is a caution
-            {eitherCounted
-              ? ', and the caution figures above count that.'
-              : '. The engine in this build counts every indicator as one-sided, so the caution figures above are too low.'}
+            {either.map((i) => i.label).join(' and ')} can raise a caution in either direction, so for {either.length === 1 ? 'it' : 'them'} every chance
+            flag is a caution, and the sums above count that.
           </p>
         ) : null}
       </div>
+    </div>
+  )
+}
+
+/**
+ * S1-S3, read from personal.json and the engine: counts tested on a variance-stabilizing scale, a signed shift tested in
+ * both directions, and every indicator's chance rate measured under the scenario's noise model, printed where it differs.
+ */
+function ScalesAndRates({ personal }: { personal: PersonalFile }) {
+  const transformed = personal.indicators.filter((i) => i.transform)
+  const signed = personal.indicators.filter((i) => /^signed\b/i.test(i.definition?.text ?? ''))
+  const either = personal.indicators.filter((i) => i.alerting && i.worse === 'either')
+  const declared = personal.indicators.filter((i) => i.chance_rate)
+  return (
+    <div className="lf-m-aside">
+      <h3 className="lf-m-h4">Counts, a signed shift, and chance rates measured rather than assumed</h3>
+      <p>
+        The printed chance rate of the test is exact only for normal, independent day-to-day noise. Skewed data break it, so LANDFALL changes how
+        it tests them, not the number it prints:
+      </p>
+      <ul className="lf-m-notes">
+        {transformed.map((i) => (
+          <li key={i.id}>
+            <strong>
+              {i.label}: {testScaleWords(i)}.
+            </strong>{' '}
+            {i.transform_basis?.text ? <RichText text={i.transform_basis.text} /> : null}{' '}
+            {i.transform_basis?.source ? <Citation source={i.transform_basis.source} /> : null} {i.transform_basis?.chip ? <Chip kind={i.transform_basis.chip} /> : null}
+          </li>
+        ))}
+        {signed.map((i) => (
+          <li key={i.id}>
+            <strong>{i.label}: a signed shift, and either direction alerts.</strong> {i.definition ? <RichText text={i.definition.text.replace(/^./, (c) => c.toUpperCase())} /> : null}.{' '}
+            {i.definition?.source?.rationale ? <RichText text={i.definition.source.rationale} /> : null} {i.definition?.chip ? <Chip kind={i.definition.chip} /> : null}
+          </li>
+        ))}
+      </ul>
+      {either.length ? (
+        <p className="lf-m-small">
+          {either.map((i) => i.label).join(' and ')} alert in both directions, so each of their chance flags is a caution: their chance-caution rate is α,
+          not α/2.
+        </p>
+      ) : null}
+      <p>
+        Then the realized rate of every indicator is measured, not assumed: a seeded Monte Carlo of the scenario’s own noise model, laid out like
+        the scenario (a fixed baseline, then each later day tested against it), replayed through the engine itself by the reference engine’s tests.
+        {declared.length ? (
+          <>
+            {' '}
+            {declared.map((i) => i.label).join(' and ')} fall outside the band around the nominal rate, so personal.json declares {declared.length === 1 ? 'its' : 'their'}{' '}
+            measured multipliers, and every view prints {declared.length === 1 ? 'that rate' : 'those rates'} next to the band, never a single global rate
+            that would be false for {declared.length === 1 ? 'it' : 'them'}.
+          </>
+        ) : null}{' '}
+        A case opened by a single flag of one indicator on one day says “possibly chance”, with that indicator’s own rate, and a re-measure settles it.
+      </p>
+      <ChanceRateTable personal={personal} />
+      {declared.map((i) =>
+        i.chance_rate?.text ? (
+          <Verbatim key={i.id} lead={`From personal.json, ${i.label}:`} text={i.chance_rate.text} cite={<Chip kind={i.chance_rate.chip} />} />
+        ) : null,
+      )}
     </div>
   )
 }
@@ -348,6 +421,8 @@ export function TiersSection({ meta, personal, thresholds }: { meta: MetaFile; p
         <EpisodeTable />
       </div>
 
+      <ScalesAndRates personal={personal} />
+
       {rci.lineage ? (
         <div className="lf-m-aside">
           <h3 className="lf-m-h4">Where the idea comes from</h3>
@@ -448,9 +523,10 @@ export function TiersSection({ meta, personal, thresholds }: { meta: MetaFile; p
           <h3 className="lf-m-h4">What changed, and why</h3>
           <Verbatim lead="From personal.json:" text={rci.change_note} />
           <p className="lf-m-small">
-            So the rate printed above is now the rate the arithmetic implies under its stated assumptions, and this page no
-            longer needs a separate, higher “derived estimate” beside a nominal one. The engine’s tests replay the earlier
-            arithmetic and reproduce the audit’s figure (<code>engine/tests/test_rci.py</code>).
+            So each rate printed is either the rate the arithmetic implies under its stated assumptions or, for an indicator whose
+            realized rate under the scenario’s noise model is far from it, the measured one, next to that indicator’s band. The
+            engine’s tests replay the earlier arithmetic and reproduce the audits’ figures (<code>engine/tests/test_rci.py</code>,{' '}
+            <code>engine/tests/test_chance_rates.py</code>).
           </p>
         </div>
       ) : null}

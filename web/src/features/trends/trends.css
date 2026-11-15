@@ -89,3 +89,4 @@
 .lf-tr-action .lf-sev { margin-right: 0.35em; }
 .lf-tr-episodes { list-style: none; margin: var(--lf-space-1) 0 0; padding: 8px 10px; border: 1px dashed var(--lf-border-strong); border-radius: var(--lf-radius); font-size: var(--lf-text-sm); color: var(--lf-text-2); display: grid; gap: 0.35em; }
 .lf-tr-episodes strong { color: var(--lf-text); font-weight: 600; }
+.lf-tr-chance { display: block; color: var(--lf-text-2); font-size: var(--lf-text-sm); }

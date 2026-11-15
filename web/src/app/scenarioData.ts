@@ -30,8 +30,8 @@ export interface SimSeries {
   provenance?: string
   label?: string
   v: Array<number | null>
-  /** Replay continuation after "now" (never an observation at "now"). */
-  after_now?: { start_t: number; step_s: number; n?: number; v: Array<number | null> }
+  /** Replay continuation after "now" (never an observation at "now"); its own provenance wins over the series'. */
+  after_now?: { start_t: number; step_s: number; n?: number; provenance?: string; v: Array<number | null> }
 }
 
 export interface SimCrewData {
@@ -41,7 +41,8 @@ export interface SimCrewData {
   crew: Array<{ crew_id: string; role?: string; series: Record<string, SimSeries>; intraday?: Record<string, SimSeries> }>
   vehicle: { series: Record<string, SimSeries> }
   spe_day?: { met_day?: number; shape?: { mapping?: { replay_utc_at_met_0412_000000?: string; replay_utc_of_first_s3_sample?: string } } }
-  episodes?: Array<{ id: string; case_id: string; crew_id: string; summary?: string }>
+  /** Scripted episodes; `scripted_values[variable][MET day]` are the values the scenario changes (their days are the episode's days). */
+  episodes?: Array<{ id: string; case_id: string; crew_id: string; summary?: string; scripted_values?: Record<string, Record<string, number>> }>
   ffd_demo?: { crew_id: string; variable: string; value: number; unit: string; t: number }
 }
 
@@ -77,6 +78,15 @@ export interface ScenarioIndex {
 
 const SOURCES: readonly ObservationSource[] = ['band', 'manual', 'vehicle', 'lab', 'app', 'replay']
 const asSource = (s: string): ObservationSource => ((SOURCES as readonly string[]).includes(s) ? (s as ObservationSource) : 'vehicle')
+
+/**
+ * Provenance of a series' observations (sim_crew observation_format.expand): "the series' own
+ * 'provenance' when it has one (vehicle proton_flux_10mev: 'replay', before and after 'now'), else
+ * 'simulated'". The proton flux before "now" is the same real GOES-7 replay as after it.
+ */
+export function seriesProvenance(s: Pick<SimSeries, 'provenance'>, fallback = 'simulated'): string {
+  return typeof s.provenance === 'string' && s.provenance ? s.provenance : fallback
+}
 
 /** True when a series documents t as its window START (shift each sample to its window end). */
 export function stampsWindowStart(s: SimSeries): boolean {
@@ -149,12 +159,12 @@ export function buildScenarioIndex(sim: SimCrewData, replay: SpeReplayData | nul
   const series = new Map<SeriesKey, Observation[]>()
   for (const member of sim.crew) {
     if (!(CREW_IDS as readonly string[]).includes(member.crew_id)) continue
-    for (const [variable, s] of Object.entries(member.series)) push(series, expandSeries(s, member.crew_id, variable, s.provenance ?? 'simulated'))
-    for (const [variable, s] of Object.entries(member.intraday ?? {})) push(series, expandSeries(s, member.crew_id, variable, s.provenance ?? 'simulated'))
+    for (const [variable, s] of Object.entries(member.series)) push(series, expandSeries(s, member.crew_id, variable, seriesProvenance(s)))
+    for (const [variable, s] of Object.entries(member.intraday ?? {})) push(series, expandSeries(s, member.crew_id, variable, seriesProvenance(s)))
   }
-  // sim_crew observation_format.expand: "provenance: the series' own 'provenance' when it has one".
+  // Vehicle series too: the proton flux before "now" is tagged 'replay' (its series says so), never 'simulated'.
   for (const [variable, s] of Object.entries(sim.vehicle?.series ?? {})) {
-    push(series, expandSeries(s, null, variable, s.provenance ?? 'simulated'))
+    push(series, expandSeries(s, null, variable, seriesProvenance(s)))
   }
   // After "now": the real replay snapshot; if it is not in this build, sim_crew's own copy of it.
   let after = replayAfterNow(sim, replay)
@@ -162,7 +172,8 @@ export function buildScenarioIndex(sim: SimCrewData, replay: SpeReplayData | nul
   if (!after.length) {
     const s = sim.vehicle?.series?.proton_flux_10mev
     if (s?.after_now) {
-      after = expandSeries({ unit: s.unit, source: 'replay', start_t: s.after_now.start_t, step_s: s.after_now.step_s, v: s.after_now.v }, null, 'proton_flux_10mev', s.provenance ?? 'replay')
+      const prov = seriesProvenance(s.after_now, seriesProvenance(s, 'replay'))
+      after = expandSeries({ unit: s.unit, source: 'replay', start_t: s.after_now.start_t, step_s: s.after_now.step_s, v: s.after_now.v }, null, 'proton_flux_10mev', prov)
       replaySnap = after.length ? 'sim_crew' : null
     }
   }
@@ -213,6 +224,18 @@ export function observationsFor(
   const extra = runtime.filter((o) => o.variable === variable && (o.crew_id === null || o.crew_id === undefined || o.crew_id === crewId))
   if (!extra.length && (!own.length || !vehicle.length)) return own.length ? own : vehicle
   return [...own, ...vehicle, ...extra].sort((a, b) => a.t - b.t)
+}
+
+/** The MET days a scenario episode changes (the union of the day keys of its scripted values), sorted. */
+export function episodeDays(ep: { scripted_values?: Record<string, Record<string, number>> } | null | undefined): number[] {
+  const days = new Set<number>()
+  for (const byDay of Object.values(ep?.scripted_values ?? {})) {
+    for (const d of Object.keys(byDay ?? {})) {
+      const n = Number(d)
+      if (Number.isInteger(n)) days.add(n)
+    }
+  }
+  return [...days].sort((a, b) => a - b)
 }
 
 /** MET day an observation belongs to: the day its measurement window ENDED (a midnight stamp closes the previous day). */

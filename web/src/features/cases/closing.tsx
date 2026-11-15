@@ -78,6 +78,19 @@ export function TripwirePanel({
         {OP_WORDS[cond.op]} <Num value={cond.value} unit={qty(cond.unit)} />, judged <span className="lf-num">{formatSpan(s.spec.tripwire.reassess_after_s)}</span> after the outcome
         {ref ? <span className="lfc-fine"> (watched here: {ref})</span> : null}.
       </p>
+      {view.chance && (isOpen(s.status) || s.status === 'resolved') ? (
+        <p className="lfc-trip-chance lfc-fine">
+          <span className="lfc-possibly-tag">possibly chance</span> A single flag: a re-measure resolves it.{' '}
+          {s.status === 'resolved'
+            ? 'The readings after the outcome kept this tripwire clear, so the case resolved'
+            : s.status === 'watch'
+              ? 'The outcome is logged; this tripwire now judges the readings after it and resolves the case when they stay clear'
+              : 'Re-measure, then log the outcome; this tripwire then judges the readings after it and resolves the case when they stay clear'}{' '}
+          (it escalates only if at least <Num value={cond.at_least} /> of the last <Num value={cond.of_last_n} /> readings of {midSentence(cond.variable)} are{' '}
+          {OP_WORDS[cond.op]} <Num value={cond.value} unit={qty(cond.unit)} />
+          ). A later episode opens a new instance of the case.
+        </p>
+      ) : null}
       {tw?.source ? (
         <Expander summary="Basis of these numbers">
           <SourceBlock source={tw.source} compact />
@@ -219,7 +232,8 @@ export function ClosePanel({ c, def, view, onDismiss }: { c: ActCtx; def: CaseDe
     <Panel title="7. Resolve or escalate" eyebrow="Close" id="case-close">
       {s.status === 'resolved' ? (
         <p className="lfc-done">
-          <SeverityBadge severity="nominal" label="Resolved" /> at <MetTime t={s.closed_at ?? c.t} label />. The tripwire stayed clear.
+          <SeverityBadge severity="nominal" label="Resolved" /> at <MetTime t={s.closed_at ?? c.t} label />. The tripwire stayed clear. If a trigger
+          reaches caution again after this, the case opens again as a new instance.
         </p>
       ) : s.status === 'dismissed' ? (
         <p className="lfc-done">

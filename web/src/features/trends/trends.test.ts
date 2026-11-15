@@ -13,6 +13,7 @@ import {
   cadenceOf,
   chartedIndicators,
   displayBand,
+  isSigned,
   personalBand,
   runsOf,
   scenarioNote,
@@ -66,6 +67,19 @@ describe('personalBand (from the engine finding only)', () => {
     expect(personalBand({ limit: null, rci: { mean: null } } as unknown as PersonalFinding)).toBeNull()
     expect(personalBand(null)).toBeNull()
   })
+  it('draws the engine’s raw-scale band for a transformed count (S2), not rci.mean ± rci.mdc', () => {
+    const f = {
+      limit: 7.9875,
+      baseline_mean: 0.7857,
+      band: { low: -0.375, high: 7.9875 },
+      rci: { transform: 'anscombe', mean: 1.9852, critical: 4.2208, s_diff: 0.8999, n: 14, mdc: 3.7984 },
+    } as unknown as PersonalFinding
+    const b = personalBand(f)!
+    expect([b.lo, b.hi, b.mean]).toEqual([-0.375, 7.9875, 0.7857])
+    expect(b.transform).toBe('anscombe')
+    expect(b.testMean).toBe(1.9852)
+    expect(b.mdc).toBe(3.7984) // on the Anscombe scale
+  })
 })
 
 describe('runsOf', () => {
@@ -80,14 +94,27 @@ describe('runsOf', () => {
 })
 
 describe('displayBand (drawn band) and cadence', () => {
-  const band = (mean: number, half: number) => ({ mean, lo: mean - half, hi: mean + half, critical: 4.221, scale: half / 4.221, n: 14, mdc: half })
+  const band = (mean: number, half: number) => ({ mean, lo: mean - half, hi: mean + half, critical: 4.221, scale: half / 4.221, n: 14, mdc: half, transform: null, testMean: mean })
   it('clamps a lower edge below zero at 0 for counts and other non-negative quantities, and says why', () => {
     expect(displayBand(band(0.79, 4.26), 'count')).toEqual({ lo: 0, hi: 0.79 + 4.26, clamped: true, note: 'lower edge drawn at 0: counts, approximate' })
-    const mid = displayBand(band(0.31, 1.39), 'h')
-    expect(mid.lo).toBe(0)
-    expect(mid.note).toMatch(/never negative/)
+    const dur = displayBand(band(0.31, 1.39), 'h')
+    expect(dur.lo).toBe(0)
+    expect(dur.note).toMatch(/never negative/)
     expect(displayBand(band(6.19, 5.89), 'h')).toMatchObject({ clamped: false, note: null })
     expect(displayBand(band(0.2, 1), '°C')).toMatchObject({ clamped: false })
+  })
+  it('keeps the negative edge of a signed indicator, and says a transformed count cannot fall reliably', () => {
+    expect(displayBand(band(-0.02, 1.96), 'h', true)).toMatchObject({ lo: -0.02 - 1.96, clamped: false, note: null })
+    const lapses = { ...band(0.79, 0), lo: -0.375, hi: 7.99, transform: 'anscombe' as const, testMean: 1.99 }
+    expect(displayBand(lapses, 'count')).toEqual({ lo: 0, hi: 7.99, clamped: true, note: 'lower edge below zero: no fall can be flagged' })
+  })
+  it('knows which indicators are signed: temperatures, the signed midpoint shift (S1), any negative value', () => {
+    const ind = (id: string) => chartedIndicators().charted.find((i) => i.id === id)!
+    expect(isSigned(ind('sleep_midpoint_shift'))).toBe(true)
+    expect(isSigned(ind('skin_temp'))).toBe(true)
+    expect(isSigned(ind('sleep_duration'))).toBe(false)
+    expect(isSigned(ind('pvt_lapses'))).toBe(false)
+    expect(isSigned(ind('sleep_duration'), [5, -1])).toBe(true)
   })
   it('reads the cadence after the baseline from the points themselves', () => {
     const pt = (day: number, baseline = false) => ({ t: day * 86_400, day, value: 1, provenance: 'simulated', baseline, finding: null, flag: null, tierA: [] })
@@ -186,9 +213,23 @@ describe('scenario (frozen sim_crew): Trends agrees with the generator’s own r
     expect(last(iss).tierA).toEqual([])
     expect([...mars.ruleNow.values()].map((f) => f.status).sort()).toEqual(['not_applicable', 'outside'])
   })
-  it('counts glucose as the one indicator that alerts both ways (k_either)', () => {
+  it('counts glucose and the signed sleep midpoint as the indicators that alert both ways (k_either, S1)', () => {
     expect(alertingIndicatorCount()).toBe(11)
-    expect(alertingEitherCount()).toBe(1)
+    expect(alertingEitherCount()).toBe(2)
+    expect(chartedIndicators().charted.filter((i) => i.worse === 'either').map((i) => i.id).sort()).toEqual(['glucose', 'sleep_midpoint_shift'])
+  })
+  it('draws every band in the indicator’s own unit, equal to the generator’s (lapses: the Anscombe band mapped back)', () => {
+    for (const crewId of CREW) {
+      for (const row of sc.tier_b.per_crew[crewId].indicators as unknown as Array<{ indicator_id: string; band?: { low: number; high: number }; raw_baseline_mean?: number; baseline_mean: number; transform?: string | null }>) {
+        const ind = chartedIndicators().charted.find((i) => i.id === row.indicator_id)
+        if (!ind || !row.band) continue
+        const tr = buildIndicatorTrend(ind, index, [], crewId, 'mars_surface', t)
+        expect(tr.band?.lo, `${crewId} ${ind.id} low`).toBeCloseTo(row.band.low, 3)
+        expect(tr.band?.hi, `${crewId} ${ind.id} high`).toBeCloseTo(row.band.high, 3)
+        expect(tr.band?.mean, `${crewId} ${ind.id} mean`).toBeCloseTo(row.raw_baseline_mean ?? row.baseline_mean, 3)
+        expect(tr.band?.transform ?? null).toBe(row.transform ?? null)
+      }
+    }
   })
   it('reads the twice-a-week cadence of the manual readings', () => {
     const bp = chartedIndicators().charted.find((i) => i.variable === 'bp_systolic')!

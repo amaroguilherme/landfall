@@ -8,11 +8,12 @@
 // LANDFALL runs three deep cases; other findings show their limit and one action (D11), listed on #/case.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { RULES, getIndicator, getRule } from '../../app/engine'
-import type { CaseState, Finding, FindingAction } from '../../app/engine'
+import type { CaseState, Finding, FindingAction, Indicator } from '../../app/engine'
 import { CASE_DEFS } from '../../app/caseTimeline'
 import type { CaseView } from '../../app/caseTimeline'
 import { useComms } from '../../app/comms'
 import { useSnapshot } from '../../app/data'
+import { chanceDiffers, chanceRateOf, testScaleWords } from '../../app/evaluate'
 import type { CrewEvaluation, MissionEvaluation, PersonalEvaluation, RuleEvaluation } from '../../app/evaluate'
 import { metClock, useMetClock, useMission } from '../../app/mission'
 import { useCases, useEvaluation, useScenario } from '../../app/model'
@@ -52,7 +53,7 @@ import {
 import type { Stage, StdData } from './model'
 import { RenalPanel, RuleRow, SleepPanel, SpePanel } from './panels'
 import { jumpTo, openingNote, rejectionWords } from './helpers'
-import { EventLog, KindChip, MdcText, PersonalBadge, PersonalWhy, RefsProvider, RuleWhy, SourceBlock } from './parts'
+import { BandRange, ChanceLine, ChanceNoteBlock, EventLog, KindChip, MdcText, PersonalBadge, PersonalWhy, RefsProvider, RuleWhy, SourceBlock, TestScale } from './parts'
 import type { CaseRefs } from './parts'
 import { OutcomePanel, ProcedurePanel } from './procedure'
 import type { ActCtx, OutcomeDraft, StepInput } from './procedure'
@@ -130,7 +131,6 @@ export default function Cases({ params, query }: FeatureProps) {
 // =============================================================================================
 
 function CaseList({ views, storeCrew }: { views: CaseView[]; storeCrew: CrewId }) {
-  const sim = useSnapshot<SimWithCheck>('sim_crew')
   const { evaluation } = useEvaluation()
   const defs = sortByUrgency(CASE_DEFS as unknown as CaseDefFull[], views)
   return (
@@ -146,7 +146,11 @@ function CaseList({ views, storeCrew }: { views: CaseView[]; storeCrew: CrewId }
         </p>
         <SimulatedMarker variant="banner">Crew values and crew actions are simulated. The rules, limits and NASA/NOAA text are real.</SimulatedMarker>
       </header>
-      <p className="lfc-fine">Most urgent first: a warning before a caution, then a case still waiting for its start, then crew-wide cases.</p>
+      <p className="lfc-fine">
+        Most urgent first: a warning before a caution, then a case still waiting for its start, then crew-wide cases. A case opened by a single
+        personal flag (one indicator, one day) says <span className="lfc-possibly-tag">possibly chance</span>, with how often that indicator flags
+        with no real change; a re-measure settles it. A case that closed opens again as a new instance when a new episode starts.
+      </p>
       <ul className="lfc-list">
         {defs.map((def) => {
           const mine = CREW_IDS.map((c) => views.find((v) => v.caseId === def.id && v.crewId === c)!).filter(Boolean)
@@ -169,23 +173,22 @@ function CaseList({ views, storeCrew }: { views: CaseView[]; storeCrew: CrewId }
                   </a>
                 </p>
                 <ul className="lfc-crew-row" aria-label={`${def.title}: status per crewmember`}>
-                  {mine.map((v) => {
-                    const chance = chanceOpening(sim.data?.self_check, v.crewId, v.caseId, v.state.opened_at)
-                    return (
-                      <li key={v.key}>
-                        <a href={`#/case/${def.id}?crew=${v.crewId}`} className="lfc-crew-link">
-                          <span className="lf-mono">{v.crewId}</span>
-                          <CaseStatusBadge view={v} size="sm" />
-                          {v.state.opened_at !== null ? (
-                            <span className="lfc-fine">
-                              opened <MetTime t={v.state.opened_at} />
-                            </span>
-                          ) : null}
-                          {chance ? <span className="lfc-chance-tag">chance flag</span> : null}
-                        </a>
-                      </li>
-                    )
-                  })}
+                  {mine.map((v) => (
+                    <li key={v.key} className="lfc-crew-item">
+                      <a href={`#/case/${def.id}?crew=${v.crewId}`} className="lfc-crew-link">
+                        <span className="lf-mono">{v.crewId}</span>
+                        <CaseStatusBadge view={v} size="sm" />
+                        {v.state.opened_at !== null ? (
+                          <span className="lfc-fine">
+                            {v.state.instance > 1 ? 'opened again' : 'opened'} <MetTime t={v.state.opened_at} />
+                            {v.state.instance > 1 ? <> (instance <Num value={v.state.instance} />)</> : null}
+                          </span>
+                        ) : null}
+                        {v.chance ? <span className="lfc-possibly-tag">possibly chance</span> : null}
+                      </a>
+                      {v.chance ? <p className="lfc-crew-chance">{v.chance.text}.</p> : null}
+                    </li>
+                  ))}
                 </ul>
               </article>
             </li>
@@ -277,6 +280,11 @@ function FindingsWithoutCase({ evaluation }: { evaluation: MissionEvaluation | n
                 {x.personal && typeof x.personal.finding.rci?.mdc === 'number' ? (
                   <>
                     Smallest change this band can flag: <MdcText finding={x.personal.finding} />.{' '}
+                  </>
+                ) : null}
+                {x.personal && chanceDiffersFor(x.personal.indicator) ? (
+                  <>
+                    <ChanceLine indicator={x.personal.indicator} />{' '}
                   </>
                 ) : null}
                 <a href={`#/provenance?id=${encodeURIComponent(x.sourceId)}`}>Limit, source and provenance</a> ·{' '}
@@ -541,6 +549,48 @@ function LoopStepper({ stages }: { stages: Stage[] }) {
 // 1. Detect
 // =============================================================================================
 
+/** True when the engine's chance rate of this indicator is measured and differs from the nominal one (S3). */
+const chanceDiffersFor = (ind: Indicator): boolean => {
+  const r = chanceRateOf(ind)
+  return !!r && chanceDiffers(r)
+}
+
+const CLOSED_WORD: Record<string, string> = { resolved: 'resolved', escalated: 'escalated', dismissed: 'dismissed' }
+
+/** The closed instances of this case for this crewmember, oldest first (engine previous_instances). */
+function EarlierInstances({ view }: { view: CaseView }) {
+  const s = view.state
+  return (
+    <>
+      <h3 className="lfc-h3">Earlier instances of this case for {view.crewId}</h3>
+      <p className="lfc-fine">
+        A case that closed opens again as a new instance when a new episode starts (a trigger reaches caution after the close). The event log below
+        runs on across instances.
+      </p>
+      <ol className="lfc-instances">
+        {s.previous_instances.map((p) => {
+          const info = view.instances.find((i) => i.instance === p.instance)
+          return (
+            <li key={p.instance}>
+              Instance <Num value={p.instance} />: opened {p.opened_at !== null ? <MetTime t={p.opened_at} label /> : '—'}
+              {p.finding ? <> by {refLabel(p.finding.rule_id)}</> : null}, {CLOSED_WORD[p.status] ?? p.status}{' '}
+              {p.closed_at !== null ? <MetTime t={p.closed_at} label /> : null}
+              {p.outcome?.text ? <> · outcome: “{p.outcome.text}”</> : null}
+              {p.dismiss_reason ? <> · reason: “{p.dismiss_reason}”</> : null}
+              {info?.chance ? (
+                <>
+                  {' '}
+                  · <span className="lfc-possibly-tag">possibly chance</span> a single flag
+                </>
+              ) : null}
+            </li>
+          )
+        })}
+      </ol>
+    </>
+  )
+}
+
 function DetectPanel({
   view,
   crewEval,
@@ -573,7 +623,14 @@ function DetectPanel({
       {opening ? (
         <div className="lfc-opening">
           <p>
-            Opened <MetTime t={s.opened_at ?? 0} label />: <strong>{openingRule?.label ?? openingInd?.label ?? refLabel(opening.rule_id)}</strong> read{' '}
+            {s.instance > 1 ? 'Opened again' : 'Opened'} <MetTime t={s.opened_at ?? 0} label />
+            {s.instance > 1 ? (
+              <>
+                {' '}
+                (instance <Num value={s.instance} />)
+              </>
+            ) : null}
+            : <strong>{openingRule?.label ?? openingInd?.label ?? refLabel(opening.rule_id)}</strong> read{' '}
             <Num value={opening.value} unit={unit} arrow={opening.limit !== null && opening.value !== null ? (opening.value > opening.limit ? 'up' : 'down') : undefined} severity={opening.severity as Severity} />
             {opening.tier === 'B' ? (
               <>
@@ -588,17 +645,23 @@ function DetectPanel({
             )}{' '}
             <CategoryBadge category={opening.category} /> <Chip kind={opening.chip} /> <FindingBadge finding={opening} />
           </p>
-          {openingRule ? <RuleWhy rule={openingRule} finding={opening} /> : null}
-          {openingInd && index && evaluation ? (
-            <PersonalWhy indicator={openingInd} finding={opening as never} baselineDays={index.baselineDays} alertingIndicators={evaluation.tierBAlertingIndicators} />
+          {openingInd ? (
+            <p className="lfc-fine">
+              <TestScale indicator={openingInd} compact />
+              {testScaleWords(openingInd) ? '. ' : null}
+              <ChanceLine indicator={openingInd} />
+            </p>
           ) : null}
+          {openingRule ? <RuleWhy rule={openingRule} finding={opening} /> : null}
+          {openingInd && index ? <PersonalWhy indicator={openingInd} finding={opening as never} baselineDays={index.baselineDays} /> : null}
+          {view.chance ? <ChanceNoteBlock note={view.chance} closed={!isOpen(s.status)} /> : null}
           {chance ? (
             <div className="lfc-chance" role="note">
               <p className="lfc-k">
                 <span className="lfc-chance-tag">chance flag</span> Simulated data
               </p>
               <p>
-                The simulator’s own check records this opening as a chance flag, not a scripted episode:{' '}
+                The simulator’s own check confirms it: this opening is a chance flag, not a scripted episode;{' '}
                 {chance.scripted_opening_day !== null ? (
                   <>
                     the scripted change for {view.crewId} starts on MET day <Num value={chance.scripted_opening_day} />, and this reading on MET day{' '}
@@ -607,11 +670,12 @@ function DetectPanel({
                 ) : (
                   <>nothing is scripted for {view.crewId} in this case</>
                 )}
-                . Realistic day-to-day noise makes such flags; the test’s expected chance rate is under “Why this fired”, and the case is handled like any
-                other.
+                . Real-size day-to-day noise makes such flags. A mission has no such answer key, which is why LANDFALL itself labels a single flag as
+                possibly chance and lets a re-measure settle it.
               </p>
             </div>
           ) : null}
+          {s.previous_instances.length ? <EarlierInstances view={view} /> : null}
         </div>
       ) : (
         <p>
@@ -637,7 +701,7 @@ function DetectPanel({
                 <span className="lfc-row-label">{personal.indicator.label ?? personal.indicator.id}</span>
                 <span className="lfc-row-val">
                   <Num value={personal.finding.value} unit={personal.indicator.unit === 'count' ? undefined : personal.indicator.unit} />{' '}
-                  <span className="lfc-vs">band edge</span> <Num value={personal.finding.limit} unit={personal.indicator.unit === 'count' ? undefined : personal.indicator.unit} digits={2} />
+                  <span className="lfc-vs">band</span> <BandRange finding={personal.finding} />
                   {typeof personal.finding.rci?.mdc === 'number' ? (
                     <>
                       {' '}
@@ -647,7 +711,14 @@ function DetectPanel({
                 </span>
                 <PersonalBadge finding={personal.finding} />
               </div>
-              <PersonalWhy indicator={personal.indicator} finding={personal.finding} baselineDays={index.baselineDays} alertingIndicators={evaluation.tierBAlertingIndicators} />
+              {testScaleWords(personal.indicator) || chanceDiffersFor(personal.indicator) ? (
+                <p className="lfc-fine">
+                  <TestScale indicator={personal.indicator} compact />
+                  {testScaleWords(personal.indicator) ? '. ' : null}
+                  {chanceDiffersFor(personal.indicator) ? <ChanceLine indicator={personal.indicator} /> : null}
+                </p>
+              ) : null}
+              <PersonalWhy indicator={personal.indicator} finding={personal.finding} baselineDays={index.baselineDays} />
             </li>
           ) : (
             <li key={tr.rule_id ?? tr.indicator_id} className="lfc-row">

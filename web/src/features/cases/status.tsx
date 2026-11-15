@@ -112,15 +112,34 @@ interface NowProps {
   outcome: OutcomeDraft
 }
 
-function openedLine(view: CaseView, def: CaseDefFull, chance: UnscriptedOpening | null) {
+function openedLine(view: CaseView, def: CaseDefFull, sim: UnscriptedOpening | null) {
   const s = view.state
   if (s.opened_at === null) return null
   const trig = refLabel(s.finding?.rule_id)
+  const prev = s.previous_instances.length ? s.previous_instances[s.previous_instances.length - 1] : null
   return (
     <p className="lfc-fine lfc-now-opened">
-      Opened <MetTime t={s.opened_at} label /> by {trig || 'a trigger of this case'}
-      {chance ? <> · a chance flag of realistic day-to-day noise, not a scripted episode (see Detect)</> : null}.
-      {def.triggers?.some((x) => x.kind === 'ops') ? ' Crew-wide: the same reading opens it for every crewmember.' : ''}
+      {s.instance > 1 ? 'Opened again' : 'Opened'} <MetTime t={s.opened_at} label /> by {trig || 'a trigger of this case'}
+      {s.instance > 1 && prev ? (
+        <>
+          , as instance <Num value={s.instance} />: instance <Num value={prev.instance} /> was {prev.status}
+          {prev.closed_at !== null ? (
+            <>
+              {' '}
+              at <MetTime t={prev.closed_at} label />
+            </>
+          ) : null}
+        </>
+      ) : null}
+      .{def.triggers?.some((x) => x.kind === 'ops') ? ' Crew-wide: the same reading opens it for every crewmember.' : ''}
+      {view.chance ? (
+        <>
+          {' '}
+          <span className="lfc-possibly-tag">possibly chance</span> {view.chance.rate.text} (see Detect).
+        </>
+      ) : sim ? (
+        <> The simulator records this opening as a chance flag of real-size day-to-day noise, not a scripted episode (see Detect).</>
+      ) : null}
     </p>
   )
 }
@@ -272,16 +291,24 @@ export function NowCard({ view, def, c, onSelect, startCount, shared, allCrew, s
     case 'resolved':
       title = 'Resolved: the tripwire stayed clear'
       body = (
-        <p id="lfc-verdict-banner" tabIndex={-1} className="lfc-verdict">
-          Judged at <MetTime t={s.closed_at ?? c.t} label />
-          {s.tripwire_result ? (
-            <>
-              : <Num value={s.tripwire_result.hits} /> of the last <Num value={s.tripwire_result.considered} /> readings met the condition (it escalates at{' '}
-              <Num value={s.tripwire_result.at_least} />)
-            </>
-          ) : null}
-          . Keep logging as usual.
-        </p>
+        <>
+          <p id="lfc-verdict-banner" tabIndex={-1} className="lfc-verdict">
+            Judged at <MetTime t={s.closed_at ?? c.t} label />
+            {s.tripwire_result ? (
+              <>
+                : <Num value={s.tripwire_result.hits} /> of the last <Num value={s.tripwire_result.considered} /> readings met the condition (it escalates at{' '}
+                <Num value={s.tripwire_result.at_least} />)
+              </>
+            ) : null}
+            . Keep logging as usual.
+          </p>
+          <p className="lfc-fine">
+            {view.chance
+              ? `It opened on a single flag (${view.chance.text.charAt(0).toLowerCase()}${view.chance.text.slice(1)}); the re-measured readings settled it. `
+              : null}
+            If a trigger reaches caution again, the case opens again as a new instance.
+          </p>
+        </>
       )
       break
     case 'dismissed':

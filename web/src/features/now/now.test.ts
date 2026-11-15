@@ -3,8 +3,9 @@
 import { describe, expect, it } from 'vitest'
 import { RULES, getCase, getRule, sLevel, thresholdRules } from '../../app/engine'
 import type { CaseView } from '../../app/caseTimeline'
+import { computeCases } from '../../app/caseTimeline'
 import type { Snapshot } from '../../app/data'
-import { evaluateOps } from '../../app/evaluate'
+import { chanceRateOf, evaluateOps } from '../../app/evaluate'
 import type { AlertItem } from '../../app/mission'
 import { buildScenarioIndex, observationsFor } from '../../app/scenarioData'
 import type { SimCrewData, SpeReplayData } from '../../app/scenarioData'
@@ -177,6 +178,27 @@ describe('the simulator\'s own report on unscripted openings', () => {
     }
     expect(unscriptedOpenings(null)).toEqual([])
     expect(unscriptedOpenings({ self_check: { unscripted_case_openings: [{ crew_id: 'CM-1' }] } })).toEqual([])
+  })
+})
+
+// This one reads Tier B at the project seed (never re-drawn, SPEC 7): the generator's own chance openings.
+describe('possibly chance on the hero (SPEC 7, lead decision S4)', () => {
+  it("labels every other open case opened by a single Tier B flag with the engine's own chance text", () => {
+    const views = computeCases({ index: INDEX, runtime: [], envId: 'mars_surface', t: NOW, userEvents: [] })
+    const others = otherOpenCases(views, SPE_CASE_ID)
+    const single = others.filter((v) => v.chance)
+    // at the project seed the generator reports a chance opening that is still a single flag at now (CM-3's sleep case)
+    const reported = unscriptedOpenings(SIM.data).filter((u) => others.some((v) => v.crewId === u.crew_id && v.caseId === u.case_id))
+    expect(reported.length).toBeGreaterThan(0)
+    for (const u of reported) expect(single.some((v) => v.crewId === u.crew_id && v.caseId === u.case_id), `${u.crew_id} ${u.case_id}`).toBe(true)
+    for (const v of single) {
+      const rate = chanceRateOf(v.chance!.indicatorId)!
+      expect(v.chance!.text).toBe(`Possibly chance: ${rate.text}`)
+      expect(v.chance!.text).toMatch(/^Possibly chance: about 1 in \d+ days per crewmember would flag like this with no real change$/)
+    }
+    // the hero's list prints that note (the engine's N), not only the simulator's own answer key
+    const secondary = Object.entries(sources).find(([k]) => k.endsWith('/Secondary.tsx'))![1]
+    expect(secondary).toContain('{v.chance.text}')
   })
 })
 

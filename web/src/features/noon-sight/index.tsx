@@ -13,6 +13,8 @@ import type { LoadStatus, Snapshot } from '../../app/data'
 import { useComms } from '../../app/comms'
 import { metClock, useMetNow, useMission } from '../../app/mission'
 import { useCases } from '../../app/model'
+import { RULES, getIndicator } from '../../app/engine'
+import { testScaleWords } from '../../app/evaluate'
 import { crewMember } from '../../app/vocab'
 import type { ChipKind, CrewId, Observation } from '../../app/vocab'
 import { BASELINE_FIRST_DAY, BASELINE_LAST_DAY, SIM_FIRST_DAY } from '../../app/scenario'
@@ -917,6 +919,7 @@ function PvtResult({
             <span className="lf-num">{baselineDays[1]}</span>, simulated): <Num value={lapsesBase.mean} digits={1} /> lapses,{' '}
             <Num value={medianBase.mean} digits={0} unit="ms" /> median. <a href="#/trends">Trends</a> and the{' '}
             <a href="#/case/sleep_circadian">sleep case</a> compare today with it.
+            {LAPSES_SCALE ? ` Lapses are ${LAPSES_SCALE}, a transform that evens out count noise (Anscombe 1948).` : null}
           </p>
         </>
       ) : null}
@@ -929,6 +932,15 @@ function PvtResult({
     </>
   )
 }
+
+/** "counts, tested on the Anscombe scale 2√(x + 3/8)" when personal.json declares that transform for PVT-B lapses (S2), else null. */
+const LAPSES_SCALE: string | null = (() => {
+  try {
+    return testScaleWords(getIndicator(RULES, 'pvt_lapses'))
+  } catch {
+    return null
+  }
+})()
 
 function fmtHm(h: number): string {
   const total = Math.round(h * 60)
@@ -985,7 +997,7 @@ function SleepFromBand({
           </Stat>
         ) : null}
         <Stat label="Midpoint shift from your baseline">
-          <Num value={night.midpointShiftH} digits={2} unit="h" />
+          <Num value={night.midpointShiftH} digits={2} unit="h" signed />
         </Stat>
         <Stat label="Your baseline">
           <Num value={base.mean} digits={2} unit="h" />
@@ -993,8 +1005,9 @@ function SleepFromBand({
       </dl>
       <p className="ns-small ns-muted">
         Actigraphy estimates sleep from wrist movement; it does not measure sleep stages (that needs EEG research hardware).
-        Midpoint shift: how far last night’s sleep midpoint was, earlier or later, from the median midpoint of your baseline
-        nights; it is never negative. Baseline: MET days <span className="lf-num">{baselineDays[0]}</span>–
+        Midpoint shift: how far last night’s sleep midpoint was from the median midpoint of your baseline nights, in hours, signed:
+        positive is later, negative is earlier. A reliable shift either way raises a caution. Baseline: MET days{' '}
+        <span className="lf-num">{baselineDays[0]}</span>–
         <span className="lf-num">{baselineDays[1]}</span>.
       </p>
       <FreshnessChip meta={snapshot} status={status} id="sim_crew" />

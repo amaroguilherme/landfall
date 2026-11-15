@@ -15,15 +15,21 @@ import type { CrewId, EnvId, Observation, Severity } from '../../app/vocab'
 const DAY_S = 86_400
 
 export interface PersonalBand {
+  /** Baseline mean in the indicator's own unit (the engine's finding.baseline_mean). */
   mean: number
+  /** Band edges in the indicator's own unit (the engine's finding.band: the test's band mapped back). */
   lo: number
   hi: number
-  /** Critical value and scale the engine reported, when its finding names them (else null). */
+  /** Critical value and scale (s_diff) the engine reported, on the test scale (else null). */
   critical: number | null
   scale: number | null
   n: number | null
-  /** The engine's minimum detectable change (rci.mdc = critical x s_diff): the band's half-width (D10). */
+  /** The engine's minimum detectable change (rci.mdc = critical x s_diff): the band's half-width ON THE TEST SCALE (D10). */
   mdc: number | null
+  /** The test scale: null for the raw value, "anscombe" for a count tested as 2 * sqrt(x + 3/8) (S2). */
+  transform: 'anscombe' | null
+  /** The baseline mean on the test scale (rci.mean; equal to `mean` without a transform). */
+  testMean: number | null
 }
 
 function num(x: unknown): number | null {
@@ -42,29 +48,48 @@ export function statsBlock(f: PersonalFinding | Finding | null | undefined): Rec
 }
 
 /**
- * Personal band = baseline mean +/- critical x scale, read from the engine's finding: `limit` is the
- * band edge on the worse side (SPEC 5), so the band is symmetric about the mean the engine used.
- * Falls back to critical x scale when the finding has no limit. null when the engine could not
- * test (insufficient data).
+ * The personal band, read from the engine's finding: `band` {low, high} and `baseline_mean` are in the indicator's
+ * own unit (for a count tested on the Anscombe scale the band is mapped back, so it is not symmetric about the
+ * mean), while critical, s_diff and mdc are on the test scale. A finding without `band` (an older engine) falls
+ * back to a band symmetric about rci.mean through the worse-side `limit`, or critical x scale. null when the
+ * engine could not test (insufficient data).
  */
 export function personalBand(f: PersonalFinding | null | undefined): PersonalBand | null {
   const s = statsBlock(f)
   if (!f || !s) return null
-  const mean = num(s.mean)
-  if (mean === null) return null
   const critical = num(s.critical_t) ?? num(s.critical_z) ?? num(s.critical) ?? null
   const scale = num(s.s_diff) ?? num(s.se) ?? num(s.s) ?? num(s.scale) ?? null
   const n = num(s.n)
+  const transform = s.transform === 'anscombe' ? 'anscombe' : null
+  const testMean = num(s.mean)
+  const band = (f as Partial<PersonalFinding>).band
+  if (band && num(band.low) !== null && num(band.high) !== null) {
+    const mean = num((f as Partial<PersonalFinding>).baseline_mean) ?? testMean
+    if (mean === null) return null
+    return { mean, lo: band.low, hi: band.high, critical, scale, n, mdc: num(s.mdc), transform, testMean }
+  }
+  if (testMean === null) return null
   let half: number | null = null
   const limit = num(f.limit)
-  if (limit !== null) half = Math.abs(limit - mean)
+  if (limit !== null) half = Math.abs(limit - testMean)
   else if (critical !== null && scale !== null) half = critical * scale
   if (half === null) return null
-  return { mean, lo: mean - half, hi: mean + half, critical, scale, n, mdc: num(s.mdc) }
+  return { mean: testMean, lo: testMean - half, hi: testMean + half, critical, scale, n, mdc: num(s.mdc), transform, testMean }
 }
 
-/** Units of quantities that can be negative (a temperature); every other charted indicator cannot. */
+/** Units of quantities that can be negative (a temperature); every other charted indicator cannot, unless it is signed. */
 const SIGNED_UNITS: ReadonlySet<string> = new Set(['°C', 'degC', 'Cel'])
+
+/**
+ * Whether an indicator's values can be negative: a temperature, an indicator personal.json defines as signed
+ * (the sleep midpoint shift, S1: "signed shift ... positive is later, negative is earlier"), or one with a
+ * negative value in its series.
+ */
+export function isSigned(ind: Pick<Indicator, 'unit' | 'definition'>, values: readonly number[] = []): boolean {
+  if (SIGNED_UNITS.has(ind.unit)) return true
+  if (/^signed\b/i.test(ind.definition?.text ?? '')) return true
+  return values.some((v) => v < 0)
+}
 
 export interface DisplayBand {
   lo: number
@@ -76,12 +101,15 @@ export interface DisplayBand {
 }
 
 /**
- * The band as drawn: the engine's band, with a lower edge below zero clamped at 0 for a quantity that
- * cannot be negative (counts, durations, an absolute shift ...). The normal-theory band is only an
- * approximation for such data, and the page says so; the verdicts are the engine's, unchanged.
+ * The band as drawn: the engine's band, with a lower edge below zero clamped at 0 for a quantity that cannot be
+ * negative. For a count tested on the Anscombe scale the mapped-back edge is exact and below zero means no fall
+ * can be flagged; for a raw normal-theory band it is only an approximation for such data, and the page says so.
+ * The verdicts are the engine's, unchanged. A signed indicator (a temperature, the signed midpoint shift) keeps
+ * its negative edge.
  */
-export function displayBand(band: PersonalBand, unit: string): DisplayBand {
-  if (band.lo >= 0 || SIGNED_UNITS.has(unit)) return { lo: band.lo, hi: band.hi, clamped: false, note: null }
+export function displayBand(band: PersonalBand, unit: string, signed = SIGNED_UNITS.has(unit)): DisplayBand {
+  if (band.lo >= 0 || signed) return { lo: band.lo, hi: band.hi, clamped: false, note: null }
+  if (band.transform) return { lo: 0, hi: band.hi, clamped: true, note: 'lower edge below zero: no fall can be flagged' }
   return {
     lo: 0,
     hi: band.hi,

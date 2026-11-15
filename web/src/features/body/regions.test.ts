@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Finding, Rule } from '../../app/engine'
 import { caseSchedule, computeCases } from '../../app/caseTimeline'
+import type { CaseView } from '../../app/caseTimeline'
 import { evaluateMission } from '../../app/evaluate'
 import type { CrewEvaluation } from '../../app/evaluate'
 import { buildScenarioIndex } from '../../app/scenarioData'
@@ -15,12 +16,15 @@ import { bandFor, outsideRange } from './RefChart'
 import type { OsdrAnalyte, OsdrData, OsdrTimepoint } from './RefChart'
 import {
   FITNESS_VARIABLES,
+  OSDR_PANEL_NAME,
   REGIONS,
   REGION_IDS,
   casesForRegion,
+  fieldNamesIn,
   isFitnessRule,
   isRegionId,
   opWords,
+  plainWords,
   regionDef,
   regionsForCase,
   ruleApplies,
@@ -33,6 +37,7 @@ import { BODY_REGION_RULE, CASES, HAZARDS_META, META_BODY_REGIONS, PACKET_STATES
 import type { CaseDef } from './rules'
 import {
   FOOTPRINT_STATUSES,
+  caseViewFor,
   defaultRegion,
   fitnessTag,
   footprintFor,
@@ -391,6 +396,77 @@ describe('plain-language helpers', () => {
     expect(windowWords({ kind: 'rolling_mean', duration: 'PT1H' })).toBe('1-hour average')
     expect(windowWords({ kind: 'career' })).toBe('career total')
     expect(windowWords({ kind: 'ratio_to_baseline' })).toMatch(/pre-mission/)
+  })
+  it('turns a data field name inside running text into plain words, and leaves plain text alone', () => {
+    expect(fieldNamesIn("A case's body_regions are its hazard footprint.")).toEqual(['body_regions'])
+    expect(plainWords("A case's body_regions are its hazard footprint.")).toBe("A case's body regions are its hazard footprint.")
+    expect(plainWords('VO2max is a fitness tag (EVA assignment), not a heart or lung finding.')).toBe(
+      'VO2max is a fitness tag (EVA assignment), not a heart or lung finding.',
+    )
+    expect(fieldNamesIn('Table 4.8-1 (Lens, 30-day), MET 412/14:20:00, ≥10 MeV')).toEqual([])
+  })
+})
+
+describe('crew-facing text of the body map prints no data field names', () => {
+  it.skipIf(!BODY_REGION_RULE)('quotes the meta.json body-region rule in plain words', () => {
+    const shown = plainWords(BODY_REGION_RULE!)
+    expect(fieldNamesIn(shown)).toEqual([])
+    expect(shown).toMatch(/hatched outline/)
+    expect(shown).toMatch(/VO2max is a fitness tag/)
+  })
+  it("words every region's own texts without a field name or a file name", () => {
+    for (const r of REGIONS) {
+      const texts = [
+        r.label,
+        r.aka ?? '',
+        r.short,
+        r.does,
+        r.osdrNote ?? '',
+        ...Object.values(r.ruleNotes ?? {}),
+        ...r.measures.flatMap((m) => [m.label, m.via]),
+        ...r.osdr.map((p) => p.why),
+      ]
+      for (const t of texts) {
+        expect(fieldNamesIn(t), `${r.id}: ${t}`).toEqual([])
+        expect(t, `${r.id}: ${t}`).not.toMatch(/\.json\b/)
+      }
+    }
+  })
+  it('names every Inspiration4 panel it plots, never by its snapshot id', () => {
+    for (const p of REGIONS.flatMap((r) => r.osdr)) {
+      const name = OSDR_PANEL_NAME[p.snapshot]
+      expect(name, p.snapshot).toMatch(/^Inspiration4 /)
+      expect(fieldNamesIn(name), p.snapshot).toEqual([])
+    }
+  })
+})
+
+describe('one line per case, even when a case opens again as a new instance', () => {
+  const view = (caseId: string, status: string, openedAt: number | null, crewId = 'CM-1') =>
+    ({
+      key: `${crewId}:${caseId}`,
+      crewId,
+      caseId,
+      def: { id: caseId, title: `Case ${caseId}`, body_regions: ['brain'] },
+      state: { status, opened_at: openedAt },
+      logOrigins: [],
+      opening: null,
+    }) as unknown as CaseView
+  it('shows the open instance, else the most recently opened one', () => {
+    const first = view('sleep_circadian', 'resolved', 100)
+    const again = view('sleep_circadian', 'acting', 500)
+    expect(caseViewFor([first, again], 'sleep_circadian')).toBe(again)
+    expect(caseViewFor([again, first], 'sleep_circadian')).toBe(again)
+    const later = view('sleep_circadian', 'dismissed', 900)
+    expect(caseViewFor([first, later], 'sleep_circadian')).toBe(later)
+    expect(caseViewFor([first], 'renal_stone')).toBeNull()
+    expect(caseViewFor([view('renal_stone', 'idle', null)], 'renal_stone')?.state.status).toBe('idle')
+  })
+  it('outlines a reopened case once, with the state of its open instance', () => {
+    const views = [view('sleep_circadian', 'resolved', 100), view('sleep_circadian', 'watch', 500), view('sleep_circadian', 'watch', 500, 'CM-3')]
+    expect(footprintFor('brain', views, 'CM-1')).toEqual([{ caseId: 'sleep_circadian', title: 'Case sleep_circadian', status: 'watch' }])
+    expect(footprintFor('brain', [view('sleep_circadian', 'resolved', 100)], 'CM-1')).toEqual([])
+    expect(footprintFor('kidneys', views, 'CM-1')).toEqual([])
   })
 })
 

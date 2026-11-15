@@ -25,11 +25,13 @@ import { Link, navigate, useRoute } from '../../app/location'   // NOT from rout
 import { useMission, useMetNow, useMetMinute, useMetClock, alertFromFinding, isShared, selectObservations } from '../../app/mission'
 import { useScenario, useEvaluation, useCrewEvaluation, useCases, useGroundPacket,
          markHeroReady, useMarkHeroReady, useHeroTiming } from '../../app/model'
-import { aggregateForRule, evaluateRuleAt, evaluatePersonalAt, partialRecord, percentOfPreMission, TRIGGER_CASE } from '../../app/evaluate'
+import { aggregateForRule, evaluateRuleAt, evaluatePersonalAt, partialRecord, percentOfPreMission, TRIGGER_CASE,
+         chanceRateOf, chanceDiffers, chanceTotals, transformOf, transformFormula, testScaleWords } from '../../app/evaluate'
 import { packetState, packetDelivery, escalationTiers, autonomyText, CMO_ID } from '../../app/packet'
 import { useOfflineReady } from '../../app/offline'
 import { observationsFor, visibleObservations } from '../../app/scenarioData'
 import { CASE_DEFS, CASE_IDS, caseKey } from '../../app/caseTimeline'
+import type { CaseView, ChanceNote, InstanceView } from '../../app/caseTimeline'
 import { useSnapshot, useManifest, freshnessOf, formatUtc } from '../../app/data'
 import { useComms, formatCommsLightTime, formatCountdown, formatEarliestReply, metToUtc, windowModelNote } from '../../app/comms'
 import { RULES, getRule, getCase, getIndicator, getEnvironment, formatMet, fmtNum, sLevel, expectedFalseAlarms } from '../../app/engine'
@@ -60,8 +62,17 @@ shared vectors; see `src/engine/README.md`). The shim is deleted. `ENGINE_IS_SHI
   `useCases` below (they pass the comms table, the mission epoch and the trigger lookup the engine needs).
 - `RULES` holds the five rules files. Validate env ids with `getEnvironment(RULES, id)` (the engine is silent on typos;
   `environment(id)` in `scenario.ts` already does it and throws on an unknown id).
-- Another workflow is switching the Tier B statistic inside `src/engine` (Crawford & Howell). Read Tier B results from the
-  `PersonalFinding` the hooks give you (`status`, `severity`, `limit`, `margin`, `why`, `rci`); do not recompute the statistic.
+- Tier B (Crawford & Howell single-case test; S1-S3 of 2026-11-14): read results from the `PersonalFinding` the hooks give you; never
+  recompute the statistic. **Draw and print `finding.band` `{low, high}` and `finding.baseline_mean`**: they are in the indicator's own
+  unit. The `rci` block is on the TEST scale named by `rci.transform` (PVT-B lapses: `"anscombe"`, 2√(x + 3/8)), so `rci.mean ± rci.mdc`
+  is not a band in lapses. For an untransformed indicator the two agree exactly. `sleep_midpoint_shift` is signed (h, earlier is negative)
+  and alerts both ways (`worse: "either"`, like glucose).
+- Chance rates are per indicator: `chanceRateOf(indicator | id)` is the engine's `chanceRate` (memoized): `text` is the line printed after
+  "Possibly chance: ", and `basis: 'measured'` (with `caution_multiplier` / `flag_multiplier`) where personal.json declares a measured
+  rate (PVT-B lapses, mood). Print it next to a band where it differs (`chanceDiffers(r)`); a total over indicators is
+  `chanceTotals(indicators)`, the sum of their own rates. `expectedFalseAlarms` is the nominal arithmetic only: never print it as the rate
+  of an indicator whose measured rate differs. `testScaleWords(ind)` gives "counts, tested on the Anscombe scale 2√(x + 3/8)" (cite
+  `ind.transform_basis.source`, Anscombe 1948).
 
 ## Mission model: `src/app/model.tsx` (+ pure `scenarioData.ts`, `evaluate.ts`, `caseTimeline.ts`)
 
@@ -148,24 +159,40 @@ dispatch(caseId, event, crewId?)  // event = {type:'SELECT', countermeasure_id} 
                                   //         (+ optional t; default the clock). OUTCOME is refused (required_steps_pending) until every
                                   //         required step is done or declined; a red-flag STEP answered yes escalates at once.
 resetScenario()              // drop user events, runtime observations, Noon Sights, logbook, acks; clock back to now
-CaseView = { key: 'CM-1:spe_shelter', crewId, caseId, def: CaseDef, state: CaseState, logOrigins: ('auto'|'scenario'|'user'|'tick')[], opening: {t, finding, trigger} | null }
+CaseView = { key: 'CM-1:spe_shelter', crewId, caseId, def: CaseDef, state: CaseState, logOrigins: ('auto'|'scenario'|'user'|'tick')[],
+             opening: {t, finding, trigger} | null   /* instance 1's opening over all the data, even after the clock */,
+             instances: InstanceView[]               /* every instance up to the clock, oldest first: {instance, status, opened_at, closed_at, opening, chance} */,
+             chance: ChanceNote | null }             /* the current instance is a single Tier B flag: {indicatorId, label, day, rate: ChanceRate, text: 'Possibly chance: about 1 in N days ...'} */
 scripted: Observation[]      // the seeded crew's answers as observations (renal red-flag "no" = 0, unit yes/no); the ground packet includes them
-CaseState (engine) = { status, spec {step_ids, required_step_ids, red_flag_step_ids, packet_step_ids, step_inputs, tripwire, escalation},
+CaseState (engine) = { status, instance /* 1, 2, ... */, previous_instances[] {instance, status, opened_at, closed_at, finding, outcome, escalation,
+             packet_queued_at, dismiss_reason}, spec {step_ids, required_step_ids, red_flag_step_ids, packet_step_ids, step_inputs, tripwire, escalation},
              opened_at, finding, countermeasure_id, steps_done[], steps_declined[] {step_id, t, reason}, outcome, watch_started_at, reassess_at,
              tripwire_obs[], tripwire_result, escalation {t, reason: 'tripwire'|'red_flag', step_id, tiers} | null,
              packet_queued_at /* null = Prepared, set = Queued */, closed_at, dismiss_reason, updated_at, log[] }
 ```
 
-- Each state is a fold of the engine's `caseReduce`: **auto OPEN** (a trigger's first finding at caution or above, found by the
-  engine from the data), the **seeded simulated crew actions**, **user events**, and **synthesized tripwire TICKs** (tripwire
-  observations of the crewmember + vehicle sensors; one TICK exactly at `reassess_at`). `logOrigins[i]` labels `state.log[i]`.
-  A rejected event stays in `state.log` with `error` set (engine behaviour): show it.
+- Each state is a fold of the engine's `caseReduce`: **auto OPEN** (a trigger's finding at caution or above, found by the engine from
+  the data), the **seeded simulated crew actions**, **user events**, and **synthesized tripwire TICKs** (tripwire observations of the
+  crewmember + vehicle sensors; one TICK exactly at `reassess_at`). `logOrigins[i]` labels `state.log[i]`. A rejected event stays in
+  `state.log` with `error` set (engine behaviour): show it.
+- **Instances (SPEC 7).** One state follows one case for one crewmember. The fold sends OPEN at the first trigger finding at caution or
+  above (instance 1); while an instance is open, later findings open nothing. After it closes (`resolved`, `escalated`, `dismissed`), the
+  next trigger finding at caution or above observed after `closed_at` opens the next instance; after `escalated`, only one that follows a
+  finding of that trigger below caution (a new episode). The log runs on across instances. Scripted crew actions carry the instance
+  they were written for and are skipped for any other instance or a closed case.
+- **Possibly chance (SPEC 7).** An instance opened by a Tier B finding that, up to the clock (or its close), has had no caution of its
+  triggers on another day or from another indicator is a single flag: `view.chance` holds the engine's `chanceRate(...).text` of the
+  opening indicator. Show it near Detect and in lists; the tripwire, judged on the readings after the outcome, resolves the case.
 - Scenario timeline (Mars, now): `CM-3:renal_stone` opened 399/00:00:00 by `target_urine_output_24h`, hydration selected,
   steps r1 r3, the required red-flag question r4 answered "no" (SPEC 7), r5, outcome 410/08:00 -> **watch**, tripwire armed,
-  `reassess_at` 413/08:00 (resolves later: output recovered). `CM-1:sleep_circadian` opens by the sleep midpoint shift on the day
-  the simulator's Tier B flags it (a chance flag on day 383 on the current data, before the scripted shift), light countermeasure
-  selected, steps s1-s3 -> **acting**. `CM-3:sleep_circadian` opens by a chance flag (no episode scripted) -> **detected**. Both are
-  listed in `sim_crew` `data.self_check.unscripted_case_openings`, and the hero labels them as chance flags.
+  `reassess_at` 413/08:00 (resolves later: output recovered). `CM-1:sleep_circadian` opens (instance 1) on the first day of the
+  scripted schedule shift, by the sleep midpoint shift (`sim_crew` `data.self_check.case_openings`; the day comes from the data, never a
+  hand-typed day), light countermeasure selected, steps s1-s3 -> **acting**; flags on every later day, so it is not a single flag.
+  `CM-3:sleep_circadian` opens on a single chance flag of the sleep midpoint shift (no episode scripted; `unscripted_case_openings`) ->
+  "Possibly chance: about 1 in 1000 days per crewmember would flag like this with no real change"; the simulated crew re-measures (s1,
+  s2) and, the next three days back inside the band, logs an outcome at 08:00 on the third -> **watch**, `reassess_at` after now; the
+  demo jump resolves it on the re-measured PVT-B readings. A scripted episode's actions go to the instance its data opens (each episode
+  once); a sleep-case flag on a day no episode covers gets the re-measure script; nothing is scripted at or after now.
   `*:spe_shelter` opened **412/14:15:00** for all four crewmembers by `ops_onboard_proton_s3` (Mars; `ops_noaa_s3`
   elsewhere) -> **detected** (Warning): the crew acts in the demo. An OUTCOME needs the shelter confirmations p2 and p3 done or
   declined; after it, the T+6 h tripwire is judged on the replay (still S3: `escalated` = stay sheltered, both tiers).

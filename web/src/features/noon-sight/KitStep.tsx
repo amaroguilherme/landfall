@@ -24,15 +24,16 @@ function indicator(id: KitVariable): Indicator | null {
   }
 }
 
-/** The crewmember's own band for each kit indicator: the engine's baseline mean +/- its minimum detectable change. */
+/**
+ * The crewmember's own band for each kit indicator: the engine's finding.band, in the indicator's own unit (the
+ * baseline mean -/+ its minimum detectable change on the test scale, mapped back; the kit readings have no transform).
+ */
 export function useKitBands(crewId: CrewId): Record<KitVariable, Band | null> {
   const crew = useCrewEvaluation(crewId)
   const out = { bp_systolic: null, bp_diastolic: null, glucose: null } as Record<KitVariable, Band | null>
   for (const v of KIT_VARIABLES) {
-    const f = crew?.tierB.find((e) => e.indicator.id === v)?.finding
-    const mean = f?.rci?.mean
-    const mdc = f?.rci?.mdc
-    if (typeof mean === 'number' && typeof mdc === 'number' && Number.isFinite(mean) && Number.isFinite(mdc)) out[v] = { lo: mean - mdc, hi: mean + mdc }
+    const b = crew?.tierB.find((e) => e.indicator.id === v)?.finding.band
+    if (b && Number.isFinite(b.low) && Number.isFinite(b.high)) out[v] = { lo: b.low, hi: b.high }
   }
   return out
 }

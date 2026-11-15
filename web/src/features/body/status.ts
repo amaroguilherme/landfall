@@ -179,11 +179,38 @@ function bodyRegionsOf(def: unknown): string[] {
   return Array.isArray(r) ? r.filter((x): x is string => typeof x === 'string') : []
 }
 
-/** The open cases of one crewmember whose hazard footprint covers a region. */
+const openedAt = (v: CaseView): number => v.state.opened_at ?? v.opening?.t ?? Number.NEGATIVE_INFINITY
+
+/**
+ * The view to show for one case among a crewmember's views: an open (or escalated) instance first,
+ * then the most recently opened one. A case can open again after it resolves (a new episode is a new
+ * instance), so one crewmember can have several views of the same case; the page shows one line each.
+ */
+export function caseViewFor(views: readonly CaseView[], caseId: string): CaseView | null {
+  let best: CaseView | null = null
+  for (const v of views) {
+    if (v.caseId !== caseId) continue
+    if (best === null) {
+      best = v
+      continue
+    }
+    const open = FOOTPRINT_STATUSES.has(v.state.status)
+    const bestOpen = FOOTPRINT_STATUSES.has(best.state.status)
+    if (open !== bestOpen ? open : openedAt(v) >= openedAt(best)) best = v
+  }
+  return best
+}
+
+/** The open cases of one crewmember whose hazard footprint covers a region (one entry per case). */
 export function footprintFor(regionId: RegionId, views: readonly CaseView[], crewId: string): FootprintCase[] {
-  return views
-    .filter((v) => v.crewId === crewId && FOOTPRINT_STATUSES.has(v.state.status) && bodyRegionsOf(v.def).includes(regionId))
-    .map((v) => ({ caseId: v.caseId, title: typeof v.def.title === 'string' ? v.def.title : v.caseId, status: v.state.status }))
+  const own = views.filter((v) => v.crewId === crewId)
+  const out: FootprintCase[] = []
+  for (const caseId of new Set(own.map((v) => v.caseId))) {
+    const v = caseViewFor(own, caseId)
+    if (!v || !FOOTPRINT_STATUSES.has(v.state.status) || !bodyRegionsOf(v.def).includes(regionId)) continue
+    out.push({ caseId: v.caseId, title: typeof v.def.title === 'string' ? v.def.title : v.caseId, status: v.state.status })
+  }
+  return out
 }
 
 export type FitnessState = 'not_cleared' | 'cleared' | 'no_data'

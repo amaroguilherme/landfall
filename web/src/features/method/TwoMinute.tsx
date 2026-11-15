@@ -46,6 +46,8 @@ export function TwoMinute({
   const ids = (principle?.requirement_ids ?? []).map(normReqId)
   const rci = personal?.rci
   const full = rci ? criticalRow(rci.alpha_two_tailed, rci.baseline_window_days) : null
+  const transformed = (personal?.indicators ?? []).filter((i) => i.transform)
+  const signed = (personal?.indicators ?? []).filter((i) => /^signed\b/i.test(i.definition?.text ?? ''))
   const aAlert = thresholds?.rules.filter((r) => r.tier === 'A' && r.role === 'alert').length ?? null
   const snapshots = m.status === 'ready' ? m.entries.length : null
   const refusals = (meta?.refusals ?? []).filter((r) => r.id !== 'no_llm_in_decision_path').map((r) => headline(r.text))
@@ -92,8 +94,12 @@ export function TwoMinute({
           crewmember’s <Num value={rci?.baseline_window_days ?? null} />-day baseline, two-tailed α{' '}
           <Num value={rci?.alpha_two_tailed ?? null} />: a day is flagged beyond |t| <Num value={full?.critical ?? null} digits={3} />, that
           is beyond <Num value={full?.bandSd ?? null} digits={2} /> baseline SDs, the smallest one-day change it can see. A personal change is
-          a caution at most. <See s="tiers" /> prints that smallest change for each indicator and crewmember, and which scenario events only
-          Tier A catches.
+          a caution at most.
+          {transformed.length ? <> {transformed.map((i) => i.label).join(', ')}, a count, {transformed.length === 1 ? 'is' : 'are'} tested on the Anscombe scale.</> : null}
+          {signed.length ? <> {signed.map((i) => i.label).join(', ')} is a signed shift: earlier or later both alert.</> : null} Each
+          indicator’s chance rate is measured under the scenario’s noise model, not assumed, and printed next to its band; a case opened by a
+          single flag says “possibly chance”. <See s="tiers" /> prints that smallest change for each indicator and crewmember, the measured
+          rates, and which scenario events only Tier A catches.
         </li>
         <li>
           <strong>Severity uses NASA’s alert classes.</strong> NASA-STD-3001 Vol 2 Table 10.3-1

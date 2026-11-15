@@ -7,7 +7,7 @@ import { RULES, getIndicator, getRule, sLevel } from '../../app/engine'
 import type { Rule } from '../../app/engine'
 import { useComms } from '../../app/comms'
 import type { SnapshotState } from '../../app/data'
-import { evaluatePersonalAt, evaluateRuleAt } from '../../app/evaluate'
+import { evaluatePersonalAt, evaluateRuleAt, testScaleWords } from '../../app/evaluate'
 import type { CrewEvaluation, MissionEvaluation, RuleEvaluation } from '../../app/evaluate'
 import { observationDay, observationsFor } from '../../app/scenarioData'
 import type { ScenarioIndex, SimCrewData } from '../../app/scenarioData'
@@ -15,7 +15,7 @@ import type { CrewId, EnvId, Observation, Severity } from '../../app/vocab'
 import { Chip, Citation, FindingBadge, FreshnessChip, MetTime, Num, Panel, SeverityBadge, SimulatedMarker, Expander } from '../../ui'
 import { OP_TEXT, OP_WORDS, OUTSIDE_OP, doseCoverage, findNamedTable, replayUtcOf, sLevelTransitions, windowSecondsOf } from './model'
 import type { StdData } from './model'
-import { MdcText, PartialBadge, PersonalWhy, RuleWhy, SeriesChart, SourceBlock } from './parts'
+import { ChanceLine, MdcText, PartialBadge, PersonalWhy, RuleWhy, SeriesChart, SourceBlock, TestScale } from './parts'
 import type { ChartPoint, RefLine } from './parts'
 import { deliveryText } from './helpers'
 import type { CaseDefFull } from './types'
@@ -152,9 +152,12 @@ export function SleepPanel(c: Ctx & { vol2: SnapshotState<StdData> }) {
   }, [ind, c])
   const cond = c.def.tripwire?.condition
   const rci = current?.finding.rci
-  const mean = typeof rci?.mean === 'number' ? rci.mean : null
+  // The band and the mean in the indicator's own unit (finding.band, finding.baseline_mean): for PVT-B lapses the
+  // test runs on the Anscombe scale, and rci.mean / rci.mdc are on that scale, not in lapses.
+  const mean = typeof current?.finding.baseline_mean === 'number' ? current.finding.baseline_mean : null
   const refs: RefLine[] = []
   if (current && typeof current.finding.limit === 'number') refs.push({ value: current.finding.limit, label: 'your band edge', style: 'band' })
+  else if (current?.finding.band) refs.push({ value: ind?.worse === 'decrease' ? current.finding.band.low : current.finding.band.high, label: 'your band edge', style: 'band' })
   if (mean !== null) refs.push({ value: mean, label: 'baseline mean', style: 'mean' })
   if (cond) refs.push({ value: cond.value, label: `tripwire ${OP_TEXT[cond.op]} ${cond.value}`, style: 'tripwire' })
   const primary = c.def.countermeasure?.primary
@@ -179,19 +182,21 @@ export function SleepPanel(c: Ctx & { vol2: SnapshotState<StdData> }) {
           caption={
             <>
               Recorded values, not live: the simulated daily 3-minute PVT-B of {c.crewId}. Each triangle is a day the engine itself judged a reliable change
-              in the worse direction against the shaded baseline. The band edge and mean are read from the engine’s current finding
+              in the worse direction against the shaded baseline. The band edge and mean are read from the engine’s current finding, in{' '}
+              {ind.unit === 'count' ? 'counts' : ind.unit}
               {current && typeof rci?.mdc === 'number' ? (
                 <>
                   ; the smallest one-day change this band can flag is <MdcText finding={current.finding} /> <Chip kind="derived" />
                 </>
               ) : null}
-              . The tripwire line is the case’s own condition (<Chip kind={c.def.tripwire?.chip} />).
+              . {testScaleWords(ind) ? <><TestScale indicator={ind} />, the band mapped back to {ind.unit === 'count' ? 'counts' : ind.unit}. </> : null}
+              <ChanceLine indicator={ind} /> The tripwire line is the case’s own condition (<Chip kind={c.def.tripwire?.chip} />).
             </>
           }
         />
       ) : null}
       {current ? (
-        <PersonalWhy indicator={current.indicator} finding={current.finding} baselineDays={c.index.baselineDays} alertingIndicators={c.evaluation.tierBAlertingIndicators} />
+        <PersonalWhy indicator={current.indicator} finding={current.finding} baselineDays={c.index.baselineDays} />
       ) : null}
       {primary ? (
         <>

@@ -25,7 +25,6 @@ names its basis; numbers with no published basis are marked "design choice".
 | `ingest/` | One adapter per NASA/NOAA source, plus the seeded crew simulator; `uv run python -m ingest --all` rebuilds `web/public/data/*.json` |
 | `web/` | Vite + React + TypeScript app; its TypeScript engine (`web/src/engine/`) matches the Python one on the shared vectors in `engine/tests/vectors/` |
 | `hardware/` | LANDFALL BAND, a wearable concept at block level (never built): sensor map and BOM |
-| `api/` | Empty placeholder (`__init__.py` only; the `api` extra in `pyproject.toml` is unused). There is no API: the app needs no server |
 | `docs/` | The project description |
 
 Verify it yourself:

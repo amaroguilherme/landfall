@@ -12,7 +12,7 @@ import type { CaseView } from '../../app/caseTimeline'
 import { useSnapshot } from '../../app/data'
 import type { SnapshotState } from '../../app/data'
 import type { Finding, PersonalFinding } from '../../app/engine'
-import { partialRecord } from '../../app/evaluate'
+import { chanceDiffers, chanceRateOf, partialRecord, prettyOps, testScaleWords, transformOf } from '../../app/evaluate'
 import { Link } from '../../app/location'
 import { BASELINE_FIRST_DAY, BASELINE_LAST_DAY, environment } from '../../app/scenario'
 import { CATEGORIES, SEVERITY_RANK } from '../../app/vocab'
@@ -36,11 +36,11 @@ import {
 } from '../../ui'
 import { SmallMultiples, SmallMultiplesLegend, bandKindOf } from './RefChart'
 import type { OsdrData } from './RefChart'
-import { HAZARD_SNAPSHOT_ID, HOW_LABEL, MEASURED_HERE, opWords, sentencesMatching, windowWords } from './regions'
-import type { HazardId, Measure, RegionDef } from './regions'
+import { HAZARD_SNAPSHOT_ID, HOW_LABEL, MEASURED_HERE, OSDR_PANEL_NAME, opWords, sentencesMatching, windowWords } from './regions'
+import type { HazardId, Measure, MeasureHow, OsdrPick, RegionDef } from './regions'
 import { ESCALATION_META, HAZARDS_META, indicatorById, packetStateLabel, ruleById } from './rules'
-import type { CaseDef } from './rules'
-import { FOOTPRINT_STATUSES, STATE_LABEL, actionSentence } from './status'
+import type { CaseDef, PersonalIndicatorDef } from './rules'
+import { FOOTPRINT_STATUSES, STATE_LABEL, actionSentence, caseViewFor } from './status'
 import type { FitnessTag, FootprintCase, IndicatorRow, RegionState, RegionSummary, RuleRow } from './status'
 
 // ---- HRP snapshot shapes (web/public/data/hrp_*.json) -------------------------------------------
@@ -256,7 +256,7 @@ function HowItIsAffected({ region }: { region: RegionDef }) {
       ) : null}
       {risks.status === 'missing' || risks.status === 'error' ? (
         <EmptyState kind="missing" title="NASA HRP risk pages not in this build" headingLevel={3}>
-          <p>The verbatim quotes come from hrp_risks.json, which this build does not contain.</p>
+          <p>The verbatim quotes come from the frozen copy of NASA’s HRP risk pages, which this build does not contain.</p>
         </EmptyState>
       ) : null}
       <div className="lf-quotes">
@@ -457,7 +457,7 @@ function RuleItem({ row, region }: { row: RuleRow; region: RegionDef }) {
       {finding.why ? (
         <Expander summary="How the engine read it">
           <p className="lf-body-fine">
-            <MonoDigits text={finding.why} />
+            <MonoDigits text={prettyOps(finding.why)} />
           </p>
           <p className="lf-body-fine">
             <a href={`#/provenance?id=${encodeURIComponent(rule.id)}`}>Provenance of this limit</a>
@@ -475,10 +475,33 @@ function entryStep(variable: string): string | null {
   return null
 }
 
+/** Where a reading came from, in words ("LANDFALL BAND, simulated"), never the raw source code. */
+function sourceWords(o: { source: string; provenance: string }): string {
+  const how = o.source === 'manual' ? 'entered by the crewmember' : (HOW_LABEL[o.source as MeasureHow] ?? o.source)
+  return o.provenance === 'simulated' ? `${how}, simulated` : how
+}
+
+/**
+ * The indicator's own chance rate (engine chanceRate) when it is measured and differs from the test's nominal one
+ * (S3: PVT-B lapses on the Anscombe scale), else null: the nominal rate is described once, under "How the test works".
+ */
+function MeasuredChance({ ind }: { ind: PersonalIndicatorDef }) {
+  const r = chanceRateOf(ind)
+  if (!r || !chanceDiffers(r)) return null
+  return (
+    <p className="lf-limit-sub">
+      Chance alone: {r.text} (measured, not assumed: <Num value={r.alerting ? r.caution_multiplier : r.flag_multiplier} digits={2} />× the
+      nominal rate) <Chip kind={r.chip} />.
+    </p>
+  )
+}
+
 function IndicatorItem({ row }: { row: IndicatorRow }) {
   const ind = row.indicator
   const f = row.finding
   const mdc = f.rci?.mdc ?? null
+  const transform = transformOf(ind)
+  const band = f.band
   const flagged = f.status === 'reliable_change' && SEVERITY_RANK[f.severity] >= SEVERITY_RANK.caution
   const direction = ind.worse === 'increase' ? 'upward' : ind.worse === 'decrease' ? 'downward' : 'in either direction'
   const cur = row.current
@@ -496,17 +519,33 @@ function IndicatorItem({ row }: { row: IndicatorRow }) {
         <span className="lf-mono">{BASELINE_LAST_DAY}</span>, <Num value={row.baselineN} /> readings): a change bigger than your own
         day-to-day noise. Not a limit. <Link to="/method?s=tiers">How the test works</Link>
       </p>
-      {mdc !== null ? (
+      {mdc !== null && transform === null ? (
         <p className="lf-limit-sub">
           Smallest change it can flag: <Num value={mdc} unit={ind.unit} digits={changeDigits(mdc)} /> from your baseline mean{' '}
           <Chip kind="derived" />. A real change smaller than that is never flagged.
         </p>
+      ) : mdc !== null && band ? (
+        <p className="lf-limit-sub">
+          {testScaleWords(ind)?.replace(/^./, (c) => c.toUpperCase())}, a square-root transform that evens out count noise{' '}
+          {ind.transform_basis?.chip ? <Chip kind={ind.transform_basis.chip} /> : null}
+          {ind.transform_basis?.source ? (
+            <>
+              {' '}
+              <Citation source={ind.transform_basis.source} />
+            </>
+          ) : null}
+          . Your band, mapped back: {band.low < 0 ? 'up to ' : <><Num value={band.low} digits={2} />–</>}
+          <Num value={band.high} digits={2} unit={ind.unit === 'count' ? undefined : ind.unit} />
+          {ind.unit === 'count' ? ` ${(ind.label ?? '').split(' ').pop()?.toLowerCase() ?? 'counts'}` : null}, so a rise above{' '}
+          <Num value={band.high} digits={2} /> is flagged
+          {band.low < 0 ? ', and no fall can be' : <>, or a fall below <Num value={band.low} digits={2} /></>} <Chip kind="derived" />.
+        </p>
       ) : null}
+      <MeasuredChance ind={ind} />
       <p className="lf-limit-now">
         {cur ? (
           <>
-            Latest <Num value={cur.value} unit={cur.unit} /> at <MetTime t={cur.t} label /> ·{' '}
-            {cur.provenance === 'simulated' ? `${cur.source}, simulated` : cur.source === 'manual' ? 'entered by the crewmember' : cur.source}
+            Latest <Num value={cur.value} unit={cur.unit === 'count' ? undefined : cur.unit} /> at <MetTime t={cur.t} label /> · {sourceWords(cur)}
           </>
         ) : (
           <span className="lf-nodata">No reading after the baseline yet.</span>
@@ -538,7 +577,7 @@ function IndicatorItem({ row }: { row: IndicatorRow }) {
       {f.why ? (
         <Expander summary="How the engine read it">
           <p className="lf-body-fine">
-            <MonoDigits text={f.why} />
+            <MonoDigits text={prettyOps(f.why)} />
           </p>
           <p className="lf-body-fine">
             <a href={`#/provenance?id=${encodeURIComponent(ind.id)}`}>Provenance of this indicator</a> · <a href="#/trends">See the trend</a>
@@ -593,12 +632,12 @@ function Limits({
     <Section id={`${region.id}-limits`} kicker="3 · When might a result need attention" title="Limits that apply">
       <p className="lf-body-fine">
         NASA publishes three different kinds of limit and LANDFALL never merges them: <CategoryBadge category="FFD" long />{' '}
-        <CategoryBadge category="PEL" long /> <CategoryBadge category="POL" long />. Read from <code>engine/rules/thresholds.json</code>;
-        status from the engine for <strong>{environment(envId).label}</strong>.
+        <CategoryBadge category="PEL" long /> <CategoryBadge category="POL" long />. Read from LANDFALL’s rules data (every rule is
+        listed on <Link to="/provenance">Provenance</Link>); status from the engine for <strong>{environment(envId).label}</strong>.
       </p>
       {rulesMissing ? (
         <EmptyState kind="loading" title="Rules loading from engine" headingLevel={3}>
-          <p>engine/rules/thresholds.json is not in this build yet. No limit is shown rather than a number typed by hand.</p>
+          <p>The rules data with NASA’s limits is not in this build yet. No limit is shown rather than a number typed by hand.</p>
         </EmptyState>
       ) : here.length === 0 && elsewhere.length === 0 ? (
         <p className="lf-body-empty">
@@ -643,12 +682,13 @@ function Limits({
 
 // ---- 4. reference data -----------------------------------------------------------------------------
 
-function OsdrBlock({ snapshotId, picks }: { snapshotId: 'osdr_cbc' | 'osdr_cmp' | 'osdr_cytokines'; picks: RegionDef['osdr'] }) {
+function OsdrBlock({ snapshotId, picks }: { snapshotId: OsdrBlockId; picks: RegionDef['osdr'] }) {
   const snap = useSnapshot<OsdrData>(snapshotId)
-  if (snap.status === 'loading') return <p className="lf-body-fine">Loading {snapshotId}…</p>
+  const name = OSDR_PANEL_NAME[snapshotId]
+  if (snap.status === 'loading') return <p className="lf-body-fine">Loading the {name}…</p>
   if (snap.status !== 'ready' || !snap.data) {
     return (
-      <EmptyState kind="missing" title={`${snapshotId}.json not in this build`} headingLevel={3}>
+      <EmptyState kind="missing" title={`${name}: not in this build`} headingLevel={3}>
         <p>The Inspiration4 panel for this region could not be loaded.</p>
       </EmptyState>
     )
@@ -708,7 +748,7 @@ function ReferenceData({ region }: { region: RegionDef }) {
   )
 }
 
-type OsdrBlockId = 'osdr_cbc' | 'osdr_cmp' | 'osdr_cytokines'
+type OsdrBlockId = OsdrPick['snapshot']
 
 // ---- 5. when it escalates ---------------------------------------------------------------------------
 
@@ -741,7 +781,10 @@ function EscalationTiers() {
 function CaseCard({ c, view }: { c: CaseDef; view: CaseView | null }) {
   const status = view?.state.status ?? 'idle'
   const open = FOOTPRINT_STATUSES.has(status)
-  const opening = view?.opening ?? null
+  // The current instance's opening (a case that closed opens again as a new instance, SPEC 7).
+  const current = view && view.instances.length ? view.instances[view.instances.length - 1] : null
+  const opening = current?.opening ?? (view?.state.instance === 1 ? (view?.opening ?? null) : null)
+  const instance = view?.state.instance ?? 1
   const packet = open ? packetStateLabel(view?.state.packet_queued_at) : null
   return (
     <li className="lf-case" data-open={open || undefined}>
@@ -759,7 +802,14 @@ function CaseCard({ c, view }: { c: CaseDef; view: CaseView | null }) {
       </p>
       {open && opening ? (
         <p className="lf-body-fine">
-          Opened at <MetTime t={opening.t} label /> by {openingLabel(opening.trigger, opening.finding)} ({opening.finding.severity}).
+          {instance > 1 ? 'Opened again' : 'Opened'} at <MetTime t={opening.t} label /> by {openingLabel(opening.trigger, opening.finding)} (
+          {opening.finding.severity}){instance > 1 ? <>, instance <span className="lf-mono">{instance}</span> of this case</> : null}.
+        </p>
+      ) : null}
+      {open && view?.chance ? (
+        <p className="lf-body-fine">
+          <strong>{view.chance.text}.</strong> A single flag: a re-measure settles it, and the case resolves when the next readings keep its tripwire
+          clear.
         </p>
       ) : !open ? (
         <p className="lf-body-fine">Opens when any of its triggers reaches Caution. None has for this crewmember now.</p>
@@ -852,7 +902,7 @@ function GroundSection({
       ) : null}
       {casesMissing ? (
         <EmptyState kind="loading" title="Cases loading from engine" headingLevel={3}>
-          <p>engine/rules/cases.json is not in this build yet.</p>
+          <p>The case definitions are not in this build yet.</p>
         </EmptyState>
       ) : cases.length === 0 ? (
         <p className="lf-body-empty">
@@ -863,7 +913,7 @@ function GroundSection({
       ) : (
         <ul className="lf-cases">
           {cases.map((c) => (
-            <CaseCard key={c.id} c={c} view={caseViews.find((v) => v.caseId === c.id) ?? null} />
+            <CaseCard key={c.id} c={c} view={caseViewFor(caseViews, c.id)} />
           ))}
         </ul>
       )}

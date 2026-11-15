@@ -4,15 +4,16 @@
 // mission-clock countdown, the partial-record badge (D15) and the event log in plain words.
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
-import { RULES, expectedFalseAlarms, formatMet } from '../../app/engine'
+import { FALSE_ALARM_ASSUMES, formatMet } from '../../app/engine'
 import type { CaseLogEntry, Finding, Indicator, PersonalFinding, Rule, Source } from '../../app/engine'
-import type { CaseOrigin } from '../../app/caseTimeline'
+import type { CaseOrigin, ChanceNote } from '../../app/caseTimeline'
 import type { SnapshotState } from '../../app/data'
+import { chanceDiffers, chanceRateOf, prettyOps, testScaleWords, transformFormula } from '../../app/evaluate'
 import type { Aggregate } from '../../app/evaluate'
 import { useMetNow } from '../../app/mission'
 import { CategoryBadge, Chip, Citation, Expander, FindingBadge, MetTime, Num, ReqId, SeverityBadge, SeverityIcon, UnknownIcon } from '../../ui'
 import type { Severity, Status } from '../../app/vocab'
-import { OP_TEXT, OP_WORDS, alertingEitherCount, chipForKind, findRequirement, findTableCell, formatTMinus, metDayOf, plainDetail } from './model'
+import { OP_TEXT, OP_WORDS, chipForKind, findRequirement, findTableCell, formatTMinus, metDayOf, plainDetail } from './model'
 import type { StdData } from './model'
 import { rejectionWords } from './helpers'
 import type { CaseDefFull } from './types'
@@ -182,7 +183,7 @@ export function RuleWhy({ rule, finding, input, open = false }: { rule: Rule; fi
         </p>
       ) : null}
       <p className="lfc-engine">
-        <span className="lfc-engine-tag">Engine</span> {finding.why}
+        <span className="lfc-engine-tag">Engine</span> {prettyOps(finding.why)}
       </p>
       <p className="lfc-fine">
         <a href={`#/provenance?id=${encodeURIComponent(rule.id)}`}>Provenance of {rule.id}</a>
@@ -193,18 +194,153 @@ export function RuleWhy({ rule, finding, input, open = false }: { rule: Rule; fi
 
 const num = (x: unknown): number | null => (typeof x === 'number' && Number.isFinite(x) ? x : null)
 
+const unitOf = (unit: string) => (unit === 'count' ? undefined : unit)
+
 /**
- * The smallest change a personal band can flag (D10): the engine's rci.mdc = critical x SD x sqrt(1 + 1/n),
- * read from the finding, never recomputed. Null when the baseline is too short or has no spread.
+ * The smallest change a personal band can flag (D10), read from the finding, never recomputed. Without a
+ * transform it is the engine's rci.mdc = critical x SD x sqrt(1 + 1/n), the same either side of the mean. For
+ * an indicator tested on another scale (PVT-B lapses, Anscombe) rci.mdc is on that scale, so this prints the
+ * band mapped back to the unit instead: the rise from the raw baseline mean to the upper edge, and the fall to
+ * the lower edge, or that no fall can be flagged when the lower edge is below zero (no count is). Null when
+ * the baseline is too short or has no spread.
  */
 export function MdcText({ finding }: { finding: PersonalFinding }) {
   const r = finding.rci
   const mdc = num(r?.mdc)
   if (mdc === null) return null
+  const unit = unitOf(finding.unit)
+  if (!r?.transform) {
+    return (
+      <>
+        ±<Num value={mdc} unit={unit} digits={mdc < 10 ? 2 : 0} />
+      </>
+    )
+  }
+  const band = finding.band
+  const mean = num(finding.baseline_mean)
+  if (!band || mean === null) return null
+  const up = band.high - mean
+  const down = mean - band.low
   return (
     <>
-      ±<Num value={mdc} unit={finding.unit === 'count' ? undefined : finding.unit} digits={mdc < 10 ? 2 : 0} />
+      +<Num value={up} unit={unit} digits={2} /> {band.low < 0 ? '(no fall can be flagged)' : <>/ −<Num value={down} unit={unit} digits={2} /></>}
     </>
+  )
+}
+
+/** Display digits for a band edge of this size: whole numbers from 100, one decimal from 10, two below. */
+const bandDigits = (b: { low: number; high: number }) => {
+  const a = Math.max(Math.abs(b.low), Math.abs(b.high))
+  return a >= 100 ? 0 : a >= 10 ? 1 : 2
+}
+
+/**
+ * The personal band in the indicator's own unit (the engine's finding.band, mapped back from the test scale). A
+ * transformed count whose lower edge is below zero (no count can fall below it) reads "up to <high>".
+ */
+export function BandRange({ finding, digits }: { finding: PersonalFinding; digits?: number }) {
+  const b = finding.band
+  if (!b) return <Num value={null} />
+  const unit = unitOf(finding.unit)
+  const d = digits ?? bandDigits(b)
+  if (finding.rci?.transform && b.low < 0) {
+    return (
+      <>
+        up to <Num value={b.high} unit={unit} digits={d} />
+      </>
+    )
+  }
+  return (
+    <>
+      <Num value={b.low} digits={d} />–<Num value={b.high} unit={unit} digits={d} />
+    </>
+  )
+}
+
+/**
+ * "counts, tested on the Anscombe scale 2√(x + 3/8)" with its literature citation (personal.json transform_basis),
+ * for an indicator that declares a transform; nothing otherwise.
+ */
+export function TestScale({ indicator, compact = false }: { indicator: Indicator; compact?: boolean }) {
+  const words = testScaleWords(indicator)
+  if (!words) return null
+  const basis = indicator.transform_basis
+  return (
+    <span className="lfc-scale">
+      {words.charAt(0).toUpperCase() + words.slice(1)}
+      {basis?.chip ? (
+        <>
+          {' '}
+          <Chip kind={basis.chip} />
+        </>
+      ) : null}
+      {!compact && basis?.source ? (
+        <>
+          {' '}
+          <Citation source={basis.source} />
+        </>
+      ) : null}
+    </span>
+  )
+}
+
+/**
+ * The indicator's own chance rate from the engine (chanceRate): "about 1 in N days per crewmember would flag like
+ * this with no real change", with the measured multipliers where personal.json declares them (S3), so no single
+ * global rate stands in for an indicator it is false for.
+ */
+export function ChanceLine({ indicator, detail = false }: { indicator: Indicator; detail?: boolean }) {
+  const r = chanceRateOf(indicator)
+  if (!r) return null
+  const measured = chanceDiffers(r)
+  return (
+    <span className="lfc-chance-line">
+      Chance alone: {r.text}
+      {measured && r.alerting ? (
+        <>
+          {' '}
+          (measured, not assumed: cautions <Num value={r.caution_multiplier} digits={2} />× the nominal {r.worse === 'either' ? 'α' : 'α/2'}, reliable
+          changes in either direction <Num value={r.flag_multiplier} digits={2} />× α) <Chip kind={r.chip} />
+        </>
+      ) : measured ? (
+        <>
+          {' '}
+          (measured, not assumed: <Num value={r.flag_multiplier} digits={2} />× the nominal α) <Chip kind={r.chip} />
+        </>
+      ) : detail ? (
+        <>
+          {' '}
+          (the test’s nominal rate: {!r.alerting ? 'α, either direction' : r.worse === 'either' ? 'α, both directions alert' : 'α/2, the worse direction only'}; it
+          assumes {FALSE_ALARM_ASSUMES})
+        </>
+      ) : (
+        <> (the test’s nominal rate)</>
+      )}
+      .
+      {detail && r.note ? <span className="lfc-fine lfc-block"> {r.note}</span> : null}
+    </span>
+  )
+}
+
+/**
+ * SPEC 7 "Possibly chance": an instance opened by a single Tier B flag (one indicator, one day, no other trigger at
+ * caution since). The text and its N come from the engine (chanceRate of the opening indicator); a re-measure settles
+ * it, and the tripwire resolves the case when the next readings stay clear.
+ */
+export function ChanceNoteBlock({ note, closed = false }: { note: ChanceNote; closed?: boolean }) {
+  return (
+    <div className="lfc-possibly" role="note">
+      <p className="lfc-k">
+        <span className="lfc-possibly-tag">possibly chance</span> a single flag
+      </p>
+      <p>
+        <strong>{note.text}.</strong> {note.label} flagged on MET day <Num value={note.day} /> alone:{' '}
+        {closed
+          ? 'no other day and no other trigger of this case flagged before the case closed.'
+          : 'no other day and no other trigger of this case has flagged since. A re-measure settles it: the case resolves when the readings after the outcome keep its tripwire clear.'}{' '}
+        {note.rate.basis === 'measured' ? 'This rate is measured for this indicator, not assumed.' : 'This is the test’s own rate for this indicator.'}
+      </p>
+    </div>
   )
 }
 
@@ -219,29 +355,26 @@ export function PersonalBadge({ finding }: { finding: { status: Status; severity
 }
 
 /**
- * "Why this fired" for a Tier B personal finding. Everything is READ from the engine's
- * PersonalFinding (value, band edge, baseline mean / SD / n, critical value, df, minimum detectable
- * change); nothing is recomputed.
+ * "Why this fired" for a Tier B personal finding. Everything is READ from the engine's PersonalFinding (value,
+ * band and its edge, raw baseline mean, the test's own mean / SD / n on its scale, critical value, df, minimum
+ * detectable change) and from chanceRate (the indicator's own chance rate); nothing is recomputed. An indicator
+ * tested on another scale (PVT-B lapses: counts on the Anscombe scale) shows both scales and the citation.
  */
 export function PersonalWhy({
   indicator,
   finding,
   baselineDays,
-  alertingIndicators,
   open = false,
 }: {
   indicator: Indicator
   finding: PersonalFinding
   baselineDays: [number, number]
-  alertingIndicators: number
   open?: boolean
 }) {
   const fired = FIRING.includes(finding.severity)
   const r = finding.rci
-  const cfg = (RULES.personal?.rci ?? null) as { alpha_two_tailed?: unknown } | null
-  const alpha = num(cfg?.alpha_two_tailed)
-  const kEither = Math.min(alertingEitherCount(), alertingIndicators)
-  const fa = alertingIndicators > 0 ? expectedFalseAlarms(alertingIndicators, 1, alpha ?? undefined, kEither) : null
+  const tf = r?.transform ?? null
+  const formula = transformFormula(tf)
   const critical = num(r?.critical)
   const df = num(r?.df)
   const sd = num(r?.sd)
@@ -256,7 +389,7 @@ export function PersonalWhy({
           <dd>
             <Num
               value={finding.value}
-              unit={finding.unit}
+              unit={unitOf(finding.unit)}
               arrow={fired ? (finding.direction === 'increase' ? 'up' : finding.direction === 'decrease' ? 'down' : undefined) : undefined}
               severity={finding.severity as Severity}
             />
@@ -265,7 +398,12 @@ export function PersonalWhy({
         <div>
           <dt>Edge of your personal band ({indicator.worse === 'either' ? 'the side the value moved' : 'worse side'})</dt>
           <dd>
-            <Num value={finding.limit} unit={finding.unit} />
+            <Num value={finding.limit} unit={unitOf(finding.unit)} digits={2} />
+            {finding.band ? (
+              <span className="lfc-fine lfc-block">
+                band <BandRange finding={finding} />
+              </span>
+            ) : null}
           </dd>
         </div>
         <div>
@@ -273,9 +411,23 @@ export function PersonalWhy({
             Your baseline (MET days <Num value={baselineDays[0]} />–<Num value={baselineDays[1]} />)
           </dt>
           <dd>
-            mean <Num value={num(r?.mean)} unit={finding.unit} digits={2} />, SD <Num value={sd} digits={2} />, <Num value={n} /> values
+            mean <Num value={num(finding.baseline_mean)} unit={unitOf(finding.unit)} digits={2} />
+            {tf ? null : (
+              <>
+                , SD <Num value={sd} digits={2} />
+              </>
+            )}
+            , <Num value={n} /> values
           </dd>
         </div>
+        {formula ? (
+          <div>
+            <dt>Tested on the Anscombe scale {formula}</dt>
+            <dd>
+              today <Num value={num(r?.current)} digits={3} /> vs mean <Num value={num(r?.mean)} digits={3} />, SD <Num value={sd} digits={3} />
+            </dd>
+          </div>
+        ) : null}
         <div>
           <dt>Critical value of the test</dt>
           <dd>
@@ -302,19 +454,32 @@ export function PersonalWhy({
         </div>
       </dl>
       {mdc !== null && critical !== null && sd !== null && n !== null ? (
+        tf ? (
+          <p className="lfc-fine">
+            On the Anscombe scale the band is the baseline mean ± critical × SD × √(1 + 1/n) = <Num value={num(r?.mean)} digits={3} /> ±{' '}
+            <Num value={critical} digits={3} /> × <Num value={sd} digits={3} /> × √(1 + 1/<Num value={n} />) = <Num value={num(r?.mean)} digits={3} /> ±{' '}
+            <Num value={mdc} digits={3} />; each edge y maps back to {finding.unit === 'count' ? 'counts' : finding.unit} as (y/2)² − 3/8, so the band is{' '}
+            <BandRange finding={finding} /> (an edge below zero means no value can cross it). The transform is monotone: a value is outside this band
+            exactly when its transform is outside the test’s band.
+          </p>
+        ) : (
+          <p className="lfc-fine">
+            The smallest one-day change from your baseline mean that this test can flag is critical × SD × √(1 + 1/n) ={' '}
+            <Num value={critical} digits={3} /> × <Num value={sd} digits={3} /> × √(1 + 1/<Num value={n} />) = <MdcText finding={finding} />, whatever
+            that change means clinically. A real change smaller than that is not flagged.
+          </p>
+        )
+      ) : null}
+      {tf ? (
         <p className="lfc-fine">
-          The smallest one-day change from your baseline mean that this test can flag is critical × SD × √(1 + 1/n) ={' '}
-          <Num value={critical} digits={3} /> × <Num value={sd} digits={3} /> × √(1 + 1/<Num value={n} />) = <MdcText finding={finding} />, whatever
-          that change means clinically. A real change smaller than that is not flagged.
+          <TestScale indicator={indicator} />. {indicator.transform_basis?.text}
         </p>
       ) : null}
       <p className="lfc-badges">
         <CategoryBadge category="PERSONAL" long /> <PersonalBadge finding={finding} />
-        {fa ? (
-          <span className="lfc-fa">
-            Chance alone, across the <Num value={alertingIndicators} /> alerting indicators: {fa.caution_text}. It assumes {fa.assumes}.
-          </span>
-        ) : null}
+        <span className="lfc-fa">
+          <ChanceLine indicator={indicator} detail />
+        </span>
       </p>
       {def?.text ? (
         <p className="lfc-fine">
@@ -324,7 +489,7 @@ export function PersonalWhy({
       <p className="lfc-fine">Method:</p>
       <SourceBlock source={finding.source} compact />
       <p className="lfc-engine">
-        <span className="lfc-engine-tag">Engine</span> {finding.why}
+        <span className="lfc-engine-tag">Engine</span> {prettyOps(finding.why)}
       </p>
       <p className="lfc-fine">
         <a href={`#/provenance?id=${encodeURIComponent(indicator.id)}`}>Provenance of {indicator.id}</a>

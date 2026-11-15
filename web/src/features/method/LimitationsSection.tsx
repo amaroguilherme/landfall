@@ -7,6 +7,7 @@ import { Num } from '../../ui'
 import { FoldPanel } from './fold'
 import type { OsdrCmpData, PersonalFile, ThresholdsFile, Vol1Data, Vol2Data } from './rules'
 import { secNum } from './sections'
+import { noiseEntry } from './episodes'
 
 interface SimCalibration {
   variables?: Record<string, { calibration?: Array<{ item: string; value: string; chip: string }> }>
@@ -22,10 +23,11 @@ export function LimitationsSection({ personal, thresholds }: { personal: Persona
   const sim = useSnapshot<SimCalibration>('sim_crew')
   const alertingInd = personal.indicators.filter((i) => i.alerting)
   const alerting = alertingInd.length
+  const transformed = personal.indicators.filter((i) => i.transform)
   const noInflightDxa = thresholds.rules.some((r) => r.category === 'POL' && (r.notes ?? []).some((n) => /no in-flight DXA/i.test(n)))
   const tailoring = v1.snapshot?.caveats.find((c) => /tailor/i.test(c))
   // The simulator's day-to-day noise basis per alerting indicator, as sim_crew records it.
-  const noise = alertingInd.map((i) => sim.data?.variables?.[i.variable]?.calibration?.find((c) => /\bSD\b/.test(c.item) || /\bSD\b/.test(c.value)) ?? null)
+  const noise = alertingInd.map((i) => noiseEntry(sim.data, i.variable))
   const noiseDesign = noise.filter((c) => c?.chip === 'design choice').length
   const noiseLit = noise.filter((c) => c?.chip === 'literature').length
   // Tier A alert findings that open no guided case: exactly the rules that carry a one-line `action` (SPEC 3.2:
@@ -38,7 +40,7 @@ export function LimitationsSection({ personal, thresholds }: { personal: Persona
       s="limitations"
       eyebrow="Limits of this work"
       title="Known limitations"
-      abstract="Simulated crew, a lower-bound chance rate, a replayed solar event, frozen standards, and what is not a medical device."
+      abstract="Simulated crew, lower-bound chance rates and real chance flags, a replayed solar event, frozen standards, and what is not a medical device."
     >
       <ul className="lf-m-limits">
         <li>
@@ -66,11 +68,17 @@ export function LimitationsSection({ personal, thresholds }: { personal: Persona
           )}
         </li>
         <li>
-          <strong>Tier B’s printed chance rate is a lower bound.</strong> The single-case test gives exactly α per indicator-day only if
-          day-to-day noise is normal and independent; real days are correlated, and counts such as PVT-B lapses are skewed, which push the
-          rate up. <Num value={alerting} /> of <Num value={personal.indicators.length} /> indicators can alert, and α itself is our design
-          choice (section <Num value={secNum('tiers')} />
+          <strong>Tier B’s printed chance rates are a lower bound for real data.</strong> The single-case test gives exactly α per
+          indicator-day only if day-to-day noise is normal and independent.{' '}
+          {transformed.length ? <>{transformed.map((i) => i.label).join(', ')}, skewed counts, {transformed.length === 1 ? 'is' : 'are'} tested on the Anscombe scale, </> : null}
+          and the rate of every indicator is measured under the scenario’s own noise model, which has no autocorrelation; real days are
+          correlated, which pushes the real rate up. <Num value={alerting} /> of <Num value={personal.indicators.length} /> indicators can alert,
+          and α itself is our design choice (section <Num value={secNum('tiers')} />
           ).
+        </li>
+        <li>
+          <strong>Chance flags are real at the project seed.</strong> The seed was fixed before the noise model and is never re-drawn to hide
+          them: a case opened by a single personal flag is labelled “possibly chance” with that indicator’s own rate, and the crew re-measures.
         </li>
         <li>
           <strong>The only real crew chemistry is small and short:</strong> Inspiration4,{' '}

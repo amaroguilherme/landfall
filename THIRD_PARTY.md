@@ -28,8 +28,6 @@ each under its own license. This file is kept current as dependencies are added.
 | httpx | BSD-3-Clause | Build-time fetching (ingest only) |
 | pdfminer.six | MIT | ToUnicode-aware PDF text extraction (ingest only) |
 | beautifulsoup4 | MIT | HTML parsing of official resource pages (ingest only) |
-| fastapi | MIT | Optional API (never on the demo path) |
-| uvicorn | BSD-3-Clause | Optional API server |
 | pytest | MIT | Tests |
 
 `engine/` has **no** third-party dependencies.

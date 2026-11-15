@@ -65,6 +65,12 @@ export interface PersonalIndicatorDef {
   /** Non-computational context only (value null, used_by_engine false): the engine ignores it. */
   reliability_r?: { value: number | null; used_by_engine?: boolean; chip: string; source: RuleSource }
   case_id: string | null
+  definition?: SourcedText
+  /** The scale the test runs on (S2): "anscombe" for a count, 2 * sqrt(x + 3/8); absent or null: the raw value. */
+  transform?: 'anscombe' | null
+  transform_basis?: SourcedText
+  /** Measured chance-rate multipliers (S3), declared only where the measured rate is outside 0.5-2 times nominal. */
+  chance_rate?: { caution_multiplier: number; flag_multiplier: number; text?: string; chip: string; source: RuleSource }
 }
 
 /** A sentence with its basis (personal.json rci.lineage, rci.caveat_basis). */
@@ -87,6 +93,7 @@ export interface RciBlock {
   caveat: string
   caveat_basis?: SourcedText
   change_note?: string
+  detectable_change?: SourcedText
 }
 
 export interface PersonalFile {

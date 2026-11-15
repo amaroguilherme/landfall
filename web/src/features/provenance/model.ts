@@ -2,7 +2,8 @@
 // Generated at build time from the SAME files the engine reads (single source of truth).
 // Nothing here types a NASA number: every value below is read from the JSON.
 import { ENVIRONMENTS } from '../../app/scenario'
-import { tCritical } from '../../app/engine'
+import { ANSCOMBE_OFFSET, tCritical } from '../../app/engine'
+import { chanceRateOf, testScaleWords, transformFormula } from '../../app/evaluate'
 
 // ---------------------------------------------------------------------------------------------
 // Raw rules files (shapes from engine/SPEC.md section 3; loose on purpose, fields are optional)
@@ -92,6 +93,11 @@ export interface Indicator {
   definition?: Sourced & { text: string }
   context?: Sourced & { text: string }
   case_id: string | null
+  /** The scale the test runs on (S2): "anscombe" for a count; absent or null: the raw value. */
+  transform?: 'anscombe' | null
+  transform_basis?: Sourced & { text: string }
+  /** Measured chance-rate multipliers (S3), declared where the measured rate is outside 0.5-2 times nominal. */
+  chance_rate?: Sourced & { caution_multiplier: number; flag_multiplier: number; text?: string }
 }
 
 export interface RciBlock extends Sourced {
@@ -557,8 +563,31 @@ function buildRows(): ProvRow[] {
     if (ind.context) facts.push({ label: 'Context', text: ind.context.text, chip: ind.context.chip, source: ind.context.source })
     // Any other sourced block on the indicator ({text, chip, source}, e.g. a reference range shown as
     // context) is listed too, so a field added to personal.json is never silently dropped here.
+    // S2: the scale the test runs on, with its literature basis (Anscombe 1948).
+    const scale = testScaleWords(ind)
+    if (scale) {
+      facts.push({
+        label: 'Test scale',
+        text: `${scale}: the engine applies it to every baseline value and to the current value before the test, and maps the band's edges back to ${ind.unit === 'count' ? 'counts' : ind.unit} with the algebraic inverse x = (y/2)² − 3/8. ${ind.transform_basis?.text ?? ''}`.trim(),
+        chip: ind.transform_basis?.chip,
+        source: ind.transform_basis?.source,
+      })
+    }
+    // S3: how often this indicator flags with no real change, from the engine (measured where personal.json declares it).
+    const chance = chanceRateOf(ind.id)
+    if (chance) {
+      facts.push({
+        label: chance.basis === 'measured' ? 'Chance rate (engine, measured)' : 'Chance rate (engine, nominal)',
+        text:
+          chance.basis === 'measured'
+            ? `${chance.text}. Measured, not assumed: cautions ${chance.caution_multiplier} times the nominal rate, reliable changes in either direction ${chance.flag_multiplier} times. ${chance.note ?? ''}`.trim()
+            : `${chance.text}: the test's nominal rate (alpha/2 for a change in the worse direction; alpha when either direction alerts, or for a non-alerting indicator). The rate measured under the scenario's noise model is close enough to it that the nominal rate is printed (engine/tests/test_chance_rates.py).`,
+        chip: chance.chip,
+        source: chance.source as RuleSource,
+      })
+    }
     for (const [key, val] of Object.entries(ind as unknown as Record<string, unknown>)) {
-      if (key === 'definition' || key === 'context' || key === 'reliability_r') continue
+      if (key === 'definition' || key === 'context' || key === 'reliability_r' || key === 'transform_basis' || key === 'chance_rate') continue
       const v = val as { text?: unknown; chip?: unknown; source?: unknown } | null
       if (v && typeof v === 'object' && typeof v.text === 'string' && typeof v.chip === 'string') {
         facts.push({ label: key.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()), text: v.text, chip: v.chip, source: (v.source as RuleSource) ?? undefined })
@@ -593,6 +622,59 @@ function buildRows(): ProvRow[] {
       notes: [],
       facts,
     })
+    // S2: the test scale's own constant (Anscombe 1948: y = 2 * sqrt(x + 3/8)), from the engine.
+    if (ind.transform === 'anscombe' && ind.transform_basis) {
+      push({
+        id: `${ind.id}.transform`,
+        aliases: [],
+        kind: 'rci',
+        file: 'personal',
+        path: `personal.json indicators[${i}].transform ("anscombe"); the offset is the engine's ANSCOMBE_OFFSET`,
+        label: `${ind.label}: test scale, ${transformFormula('anscombe')} (offset)`,
+        shortLabel: ind.label,
+        value: { kind: 'number', value: ANSCOMBE_OFFSET, unit: null },
+        condition: { kind: 'text', text: `${testScaleWords(ind)}; the band is mapped back with x = (y/2)² − 3/8` },
+        categories: ['PERSONAL'],
+        chip: ind.transform_basis.chip,
+        source: ind.transform_basis.source,
+        appliesTo: ['*'],
+        appliesNote: null,
+        parentId: ind.id,
+        usedBy: [{ id: ind.id, label: ind.label, role: 'test scale of', href: provHref(ind.id) }],
+        notes: [],
+        facts: [{ label: 'Why', text: ind.transform_basis.text, chip: ind.transform_basis.chip, source: ind.transform_basis.source }],
+      })
+    }
+    // S3: measured chance-rate multipliers, declared where the measured rate is far from the nominal one.
+    const cr = ind.chance_rate
+    if (cr && typeof cr.caution_multiplier === 'number' && typeof cr.flag_multiplier === 'number') {
+      const rate = chanceRateOf(ind.id)
+      for (const [key, value, what] of [
+        ['caution_multiplier', cr.caution_multiplier, ind.alerting ? 'chance cautions (a reliable change in the worse direction)' : 'chance reliable changes in the worse direction (never an alert)'],
+        ['flag_multiplier', cr.flag_multiplier, 'chance reliable changes in either direction'],
+      ] as const) {
+        push({
+          id: `${ind.id}.chance_rate.${key}`,
+          aliases: key === 'caution_multiplier' ? [`${ind.id}.chance_rate`] : [],
+          kind: 'rci',
+          file: 'personal',
+          path: `personal.json indicators[${i}].chance_rate.${key}`,
+          label: `${ind.label}: measured rate of ${what}, × nominal`,
+          shortLabel: ind.label,
+          value: { kind: 'number', value, unit: '× nominal' },
+          condition: rate ? { kind: 'text', text: `printed: ${rate.text}` } : null,
+          categories: ['PERSONAL'],
+          chip: cr.chip,
+          source: cr.source,
+          appliesTo: ['*'],
+          appliesNote: null,
+          parentId: ind.id,
+          usedBy: [{ id: ind.id, label: ind.label, role: 'chance rate of', href: provHref(ind.id) }],
+          notes: [],
+          facts: cr.text ? [{ label: 'From personal.json', text: cr.text, chip: cr.chip, source: cr.source }] : [],
+        })
+      }
+    }
   }
 
   // ---- cases.json: tripwires and projections ----

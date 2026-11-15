@@ -14,10 +14,6 @@ ingest = [
     "pdfminer.six>=20240706",
     "beautifulsoup4>=4.12",
 ]
-api = [
-    "fastapi>=0.115",
-    "uvicorn>=0.30",
-]
 
 [dependency-groups]
 dev = ["pytest>=8"]

@@ -21,8 +21,10 @@
 // not apply here is not_applicable (gray). No unit is converted: an observation whose unit differs
 // from the rule's is set aside and reported, never coerced.
 import {
+  ANSCOMBE_OFFSET,
   OPENING_SEVERITIES,
   RULES,
+  chanceRate,
   evaluatePersonal,
   evaluateRule,
   getEnvironment,
@@ -30,7 +32,7 @@ import {
   sumLR,
   thresholdRules,
 } from './engine'
-import type { Finding, Indicator, PersonalFinding, RciConfig, Rule } from './engine'
+import type { ChanceRate, Finding, Indicator, PersonalFinding, RciConfig, Rule } from './engine'
 import type { AlertItem } from './mission'
 import { lastIndexAtOrBefore, observationDay, observationsFor } from './scenarioData'
 import type { ScenarioIndex } from './scenarioData'
@@ -249,6 +251,88 @@ export function personalConfig(): RciConfig {
   return RULES.personal!.rci as RciConfig
 }
 
+// ---- Tier B chance rates and test scales (SPEC 3.3 transform and chance_rate, SPEC 5 chance_rate) ----
+
+const chanceMemo = new WeakMap<Indicator, ChanceRate>()
+
+/**
+ * The engine's chance rate of one indicator: how often it flags with no real change, per crewmember and day.
+ * Measured (basis "measured") where personal.json declares it, else the test's nominal rate. `text` is the line
+ * printed after "Possibly chance: ". Pass the indicator or its id; null for an unknown id.
+ */
+export function chanceRateOf(indicator: Indicator | string): ChanceRate | null {
+  const ind = typeof indicator === 'string' ? (personalIndicators().find((i) => i.id === indicator) ?? null) : indicator
+  if (!ind) return null
+  let r = chanceMemo.get(ind)
+  if (!r) {
+    r = chanceRate(ind, personalConfig())
+    chanceMemo.set(ind, r)
+  }
+  return r
+}
+
+/** True when the indicator's measured chance rate differs from the nominal one (a declared multiplier other than 1). */
+export function chanceDiffers(r: Pick<ChanceRate, 'basis' | 'caution_multiplier' | 'flag_multiplier'>): boolean {
+  return r.basis === 'measured' && (r.caution_multiplier !== 1 || r.flag_multiplier !== 1)
+}
+
+export interface ChanceTotals {
+  /** How many indicators were added up. */
+  k: number
+  /** Sum of the engine's per-indicator caution_per_day (left to right): chance cautions per crewmember-day. */
+  caution_per_day: number
+  /** Sum of the per-indicator flag_per_day: chance reliable changes in either direction per crewmember-day. */
+  flag_per_day: number
+  caution_every_n_days: number | null
+  flag_every_n_days: number | null
+  /** The indicators whose rate is measured, not nominal (personal.json chance_rate). */
+  measured: ChanceRate[]
+}
+
+/**
+ * Chance findings of several indicators: the SUM of their own rates (SPEC 5: rates add), so an indicator whose
+ * measured rate differs from the nominal one counts at its own rate. Default: the alerting, non-private
+ * indicators, the ones that can raise a caution. expected_false_alarms is the nominal arithmetic only.
+ */
+export function chanceTotals(indicators: readonly Indicator[] = personalIndicators().filter((i) => i.alerting && !i.private)): ChanceTotals {
+  let caution = 0
+  let flag = 0
+  const measured: ChanceRate[] = []
+  for (const ind of indicators) {
+    const r = chanceRateOf(ind)
+    if (!r) continue
+    caution = caution + r.caution_per_day
+    flag = flag + r.flag_per_day
+    if (r.basis === 'measured') measured.push(r)
+  }
+  return {
+    k: indicators.length,
+    caution_per_day: caution,
+    flag_per_day: flag,
+    caution_every_n_days: caution > 0 ? 1 / caution : null,
+    flag_every_n_days: flag > 0 ? 1 / flag : null,
+    measured,
+  }
+}
+
+/** The declared test-scale transform of an indicator ("anscombe" for counts), or null for the raw value. */
+export function transformOf(indicator: Pick<Indicator, 'transform'> | null | undefined): 'anscombe' | null {
+  return indicator?.transform === 'anscombe' ? 'anscombe' : null
+}
+
+/** "2√(x + 3/8)" (Anscombe 1948), written from the engine's own offset; null for no transform. */
+export function transformFormula(tf: string | null | undefined): string | null {
+  if (tf !== 'anscombe') return null
+  return ANSCOMBE_OFFSET === 0.375 ? '2√(x + 3/8)' : `2√(x + ${ANSCOMBE_OFFSET})`
+}
+
+/** "counts, tested on the Anscombe scale 2√(x + 3/8)" for a transformed indicator, else null. */
+export function testScaleWords(indicator: Pick<Indicator, 'transform' | 'unit'> | null | undefined): string | null {
+  const f = transformFormula(transformOf(indicator))
+  if (!f) return null
+  return `${indicator?.unit === 'count' ? 'counts' : 'values'}, tested on the Anscombe scale ${f}`
+}
+
 /** Baseline values of a crewmember's indicator: observations whose measurement day is in [first, last]. */
 export function baselineValues(observations: readonly Observation[], days: [number, number], unit: string): number[] {
   const out: number[] = []
@@ -276,8 +360,15 @@ export function evaluateRuleAt(
   t: number,
   eva = false,
 ): RuleEvaluation {
-  const obs = observationsFor(index, runtime, crewId, rule.variable)
-  const input = aggregateForRule(rule, obs, t)
+  return evaluateRuleOn(rule, observationsFor(index, runtime, crewId, rule.variable), envId, t, eva)
+}
+
+/**
+ * evaluateRuleAt on an observation list already fetched (observationsFor of the rule's variable): the same
+ * result, for callers that evaluate one rule at many times (the case timeline's trigger streams).
+ */
+export function evaluateRuleOn(rule: Rule, observations: readonly Observation[], envId: EnvId, t: number, eva = false): RuleEvaluation {
+  const input = aggregateForRule(rule, observations, t)
   const finding = evaluateRule(rule, ruleValue(input, rule.variable), envId, t, { eva })
   return { rule, finding, input }
 }
@@ -327,12 +418,12 @@ export function evaluateOps(index: ScenarioIndex, runtime: readonly Observation[
   // D3: at Mars the reading comes from an external space-weather monitor above the atmosphere, in Mars orbit,
   // relayed locally ([V2 6165]); sim_crew's own label says so. The vehicle's radiation monitoring system raises
   // the alarm ([V2 6164]); LANDFALL opens the health case.
-  const monitor = index.variables[OPS_VARIABLE]?.label ?? 'External space-weather monitor in Mars orbit: >=10 MeV proton flux'
+  const monitor = index.variables[OPS_VARIABLE]?.label ?? 'External space-weather monitor in Mars orbit: ≥10 MeV proton flux'
   return {
     kind: onboard ? 'onboard_monitor' : 'noaa',
     label: onboard
       ? `${monitor} (scenario: the GOES-7 October 1989 replay, time-shifted, with no distance or atmosphere correction)`
-      : 'NOAA GOES >=10 MeV proton flux (scenario: time-shifted replay of the GOES-7 October 1989 event)',
+      : 'NOAA GOES ≥10 MeV proton flux (scenario: time-shifted replay of the GOES-7 October 1989 event)',
     flux: latest ? latest.value : null,
     t: latest ? latest.t : null,
     s_level: latest ? sLevel(latest.value) : null,
@@ -431,8 +522,8 @@ function actionOf(x: { action?: unknown }): { label: string; text: string } | nu
  *     `group` = `${crew_id}:case:${case_id}`; the mission bar counts and acknowledges groups. Any other
  *     entry is its own group.
  */
-/** ">=" and "<=" as the mathematical signs, for crew-facing text. */
-const prettyOps = (s: string): string => s.replace(/>=/g, '≥').replace(/<=/g, '≤')
+/** ">=" and "<=" as the mathematical signs, for crew-facing text (the engine's own audit text keeps ASCII). */
+export const prettyOps = (s: string): string => s.replace(/>=/g, '≥').replace(/<=/g, '≤')
 
 export function alertsFor(e: Pick<MissionEvaluation, 't' | 'ops' | 'crew'>): AlertItem[] {
   const out: AlertItem[] = []

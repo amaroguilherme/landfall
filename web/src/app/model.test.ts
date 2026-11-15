@@ -1,7 +1,7 @@
 // Mission model on the REAL frozen snapshots (web/public/data) and the REAL rules (engine/rules).
 import { describe, expect, it } from 'vitest'
 import { RULES, consentAllows, formatMet, getEnvironment, getRule, buildGroundPacket } from './engine'
-import { aggregateForRule, durationSeconds, evaluateMission, evaluateRuleAt, partialRecord, percentOfPreMission, TRIGGER_CASE } from './evaluate'
+import { aggregateForRule, chanceRateOf, durationSeconds, evaluateMission, evaluateRuleAt, partialRecord, percentOfPreMission, TRIGGER_CASE } from './evaluate'
 import { caseKey, caseSchedule, computeCases } from './caseTimeline'
 import type { CaseEventRecord } from './caseTimeline'
 import { buildScenarioIndex, observationsFor, replayAfterNow, seriesKey, visibleObservations } from './scenarioData'
@@ -360,6 +360,97 @@ describe('case lifecycle (seeded scenario timeline)', () => {
     expect(v.state.log.every((l) => l.error === null)).toBe(true)
     expect(v.state.steps_declined.map((d) => d.step_id)).toEqual(base.required_step_ids)
     expect(packetState(v.state)).toMatchObject({ id: 'queued', reason: 'released', queuedAt: NOW + 120 })
+  })
+})
+
+describe('case instances and single flags (SPEC 7, S4)', () => {
+  interface Opening { crew_id: string; case_id: string; day: number; instance: number; opened_by: string; scripted: boolean; single_flag: boolean }
+  const OPENINGS = (sim as unknown as { self_check: { case_openings: Opening[] } }).self_check.case_openings
+  it('opens every case on the day the generator reports, by the trigger it reports (no hand-typed day)', () => {
+    const list = cases('mars_surface', NOW)
+    for (const o of OPENINGS) {
+      const v = view(list, o.crew_id as CrewId, o.case_id)
+      const first = v.instances.find((i) => i.instance === o.instance)
+      expect(first, `${o.crew_id} ${o.case_id}`).toBeTruthy()
+      expect(Math.floor(((first!.opened_at ?? 0) - 1) / DAY), `${o.crew_id} ${o.case_id}`).toBe(o.day)
+      expect(first!.opening?.finding.rule_id).toBe(o.opened_by)
+    }
+  })
+  it("CM-1's sleep case is the scripted episode's own case: possibly chance on its first day only, then a run of flags", () => {
+    const ep = OPENINGS.find((o) => o.crew_id === 'CM-1' && o.case_id === 'sleep_circadian')!
+    expect(ep.scripted).toBe(true)
+    const day1 = view(cases('mars_surface', (ep.day + 1) * DAY - 60), 'CM-1', 'sleep_circadian')
+    expect(day1.state.instance).toBe(1)
+    expect(day1.chance?.text).toBe(`Possibly chance: ${chanceRateOf('sleep_midpoint_shift')!.text}`)
+    const now = view(cases('mars_surface', NOW), 'CM-1', 'sleep_circadian')
+    expect(now.state.status).toBe('acting')
+    expect(now.chance).toBeNull() // cautions on later days: not a single flag any more
+  })
+  it("CM-3's chance flag: labelled possibly chance (N from the engine), re-measured, and resolved by its tripwire", () => {
+    const o = OPENINGS.find((x) => x.crew_id === 'CM-3' && x.case_id === 'sleep_circadian')!
+    expect([o.scripted, o.single_flag]).toEqual([false, true])
+    const v = view(cases('mars_surface', NOW), 'CM-3', 'sleep_circadian')
+    expect(v.chance?.indicatorId).toBe(o.opened_by)
+    expect(v.chance?.text).toMatch(/^Possibly chance: about 1 in \d+ days per crewmember would flag like this with no real change$/)
+    expect(v.chance?.rate).toEqual(chanceRateOf(o.opened_by))
+    // the simulated crew re-measured and logged an outcome before now; the tripwire is armed
+    expect(v.state.status).toBe('watch')
+    expect(v.state.outcome?.text).toMatch(/^Re-measured on MET days/)
+    expect(v.state.log.every((l) => l.error === null)).toBe(true)
+    expect(v.logOrigins.filter((x) => x === 'scenario').length).toBeGreaterThan(0)
+    // at the reassessment the readings after the outcome keep it clear: resolved, still recorded as a single flag
+    const judged = view(cases('mars_surface', v.state.reassess_at!), 'CM-3', 'sleep_circadian')
+    expect(judged.state.status).toBe('resolved')
+    expect(judged.state.tripwire_result?.tripped).toBe(false)
+    expect(judged.instances.map((i) => [i.instance, i.status, !!i.chance])).toEqual([[1, 'resolved', true]])
+  })
+  it('a resolved chance case opens again as a new instance, and the scripted episode then gets its own case', () => {
+    // a chance flag for CM-1 long before the scripted schedule shift (a runtime value, far outside the band)
+    const flag: Observation = { crew_id: 'CM-1', variable: 'sleep_midpoint_shift', value: 5, unit: 'h', t: 390 * DAY + 5 * 3600, source: 'band', provenance: 'manual' }
+    const v = view(cases('mars_surface', NOW, [], [flag]), 'CM-1', 'sleep_circadian')
+    expect(v.state.previous_instances.map((p) => [p.instance, p.status])).toEqual([[1, 'resolved']])
+    expect(v.instances[0].chance).not.toBeNull()
+    expect(v.state.instance).toBe(2)
+    expect(Math.floor(v.state.opened_at! / DAY)).toBe(OPENINGS.find((o) => o.crew_id === 'CM-1' && o.case_id === 'sleep_circadian')!.day)
+    expect(v.state.status).toBe('acting')
+    expect(v.state.countermeasure_id).toBe('cm_light_schedule')
+    expect(v.state.log.filter((l) => l.event === 'OPEN').length).toBe(2)
+    expect(v.state.log.every((l) => l.error === null)).toBe(true)
+  })
+  it('a dismissed case opens again on the next caution, without the first instance’s scripted actions', () => {
+    const key = caseKey('CM-1', 'sleep_circadian')
+    const dismiss: CaseEventRecord = { key, origin: 'user', seq: 1, event: { type: 'DISMISS', t: 404 * DAY + 7 * 3600, reason: 'Known schedule change.' } }
+    const v = view(cases('mars_surface', NOW, [dismiss]), 'CM-1', 'sleep_circadian')
+    expect(v.state.previous_instances[0]).toMatchObject({ instance: 1, status: 'dismissed', dismiss_reason: 'Known schedule change.' })
+    expect(v.state.instance).toBe(2)
+    expect(Math.floor(v.state.opened_at! / DAY)).toBe(405)
+    expect(v.state.status).toBe('detected') // the episode's crew actions belonged to instance 1
+    expect(v.state.log.every((l) => l.error === null)).toBe(true)
+  })
+  it('an escalation does not reopen its own case while the condition persists (a new episode must start)', () => {
+    const key = caseKey('CM-1', 'spe_shelter')
+    const ev = (seq: number, event: CaseEventRecord['event']): CaseEventRecord => ({ key, origin: 'user', seq, event })
+    const base = view(cases('mars_surface', NOW), 'CM-1', 'spe_shelter').state.spec
+    const user = [
+      ev(1, { type: 'SELECT', t: NOW + 30, countermeasure_id: 'cm_shelter' }),
+      ...base.required_step_ids.map((id, i) => ev(2 + i, { type: 'DECLINE', t: NOW + 60 + i, step_id: id, reason: 'Confirmed by voice.' })),
+      ev(30, { type: 'OUTCOME', t: NOW + 600, text: 'All four crew in the shelter.' }),
+    ]
+    const end = INDEX.replay.last_t!
+    const v = view(cases('mars_surface', end, user), 'CM-1', 'spe_shelter')
+    const first = v.state.previous_instances[0] ?? (v.state.instance === 1 ? null : undefined)
+    const escalatedAt = (first ?? v.state).closed_at!
+    expect((first ?? v.state).status).toBe('escalated')
+    if (v.state.instance > 1) {
+      // reopened: the flux fell below the S3 level after the escalation, and rose again
+      const flux = observationsFor(INDEX, [], 'CM-1', 'proton_flux_10mev').filter((o) => o.t > escalatedAt && o.t < v.state.opened_at!)
+      expect(flux.some((o) => o.value < 1000)).toBe(true)
+      expect(v.state.finding?.value).toBeGreaterThanOrEqual(1000)
+    }
+    // never while the flux stays at or above S3 right after the escalation
+    const soon = view(cases('mars_surface', escalatedAt + 3600, user), 'CM-1', 'spe_shelter')
+    const stayed = observationsFor(INDEX, [], 'CM-1', 'proton_flux_10mev').filter((o) => o.t > escalatedAt && o.t <= escalatedAt + 3600)
+    if (stayed.every((o) => o.value >= 1000)) expect(soon.state.instance).toBe(1)
   })
 })
 

@@ -269,6 +269,8 @@
 .now-open-crew { font-family: var(--lf-font-mono); font-weight: 500; }
 .now-open-line { margin: 0.3em 0 0; font-size: var(--lf-text-xs); color: var(--lf-text-2); }
 .now-open-chance { margin: 0.3em 0 0; padding-left: 0.6em; border-left: 2px dashed var(--lf-border-strong); font-size: var(--lf-text-xs); color: var(--lf-text-muted); }
+/* the engine's "Possibly chance" label (SPEC 7): neutral dotted rule, as on the case pages; the dashed note below it is the simulator's answer key */
+.now-open-possibly { border-left-style: dotted; color: var(--lf-text-2); }
 
 .now-crew { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6em; }
 .now-crew li { display: grid; grid-template-columns: 5.2rem 6.6rem minmax(0, 1fr); align-items: start; gap: 0.6em; min-width: 0; }

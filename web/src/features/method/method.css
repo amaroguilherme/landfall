@@ -441,3 +441,9 @@
   }
   .lf-m-blocks .lf-m-why { min-width: 0; }
 }
+
+/* S1-S3: test scales and measured chance rates (personal.json + the engine's chanceRate) */
+.lf-m-chance-table td:last-child { min-width: 22ch; }
+.lf-m-chance-table tr[data-outside] th { font-weight: 600; }
+.lf-method .lf-block { display: block; }
+.lf-m-mdc-table th[scope='row'] { min-width: 14ch; }

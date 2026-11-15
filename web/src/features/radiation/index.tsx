@@ -20,6 +20,7 @@ import { ENVIRONMENTS, environment } from '../../app/scenario'
 import { CHIP_DEFS, CREW } from '../../app/vocab'
 import type { CrewId, EnvId, Observation } from '../../app/vocab'
 import {
+  Button,
   CategoryBadge,
   Chip,
   EmptyState,
@@ -133,20 +134,89 @@ function useMeta<T>(id: string | null) {
   return { ...s, snap: s.snapshot as Snapshot<T> | null }
 }
 
+// ---- on this page --------------------------------------------------------------------------------------
+
+/** Panel titles, shared by each panel and its "On this page" button (the witnesses title is StormWitnesses.tsx's own). */
+export const RAD_TITLES = {
+  protons: 'Proton flux and the NOAA S-scale',
+  witnesses: 'This storm had witnesses',
+  measured: 'Dose rate measured in this environment',
+  limits: 'Cumulative dose against the NASA limits',
+  goes: 'Real conditions when this site was built',
+} as const
+
+export type RadSection = keyof typeof RAD_TITLES
+
+/** DOM id of each panel (a Panel's heading is `${id}-h`; the witnesses panel sits in a wrapper with this id). */
+export const RAD_IDS: Record<RadSection, string> = {
+  protons: 'rad-protons',
+  witnesses: 'rad-witnesses',
+  measured: 'rad-measured',
+  limits: 'rad-limits',
+  goes: 'rad-goes',
+}
+
+/**
+ * Scroll a panel into view and move focus to its heading (the pattern of cases/helpers.ts jumpTo). Never an
+ * href="#id": the router owns the hash, so the address stays #/radiation.
+ */
+export function jumpToPanel(id: string) {
+  const el = document.getElementById(id)
+  if (!el) return
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+  const target = (el.querySelector('h2, h3') as HTMLElement | null) ?? el
+  if (!target.hasAttribute('tabindex')) target.tabIndex = -1
+  target.focus({ preventScroll: true })
+}
+
+/** One button per panel, in page order, labelled with the panel's own title. */
+export function OnThisPage({ sections }: { sections: readonly RadSection[] }) {
+  return (
+    <nav className="lf-rad-toc" aria-labelledby="rad-toc-h" style={{ margin: 'var(--lf-space-1-5) 0 var(--lf-space-2)' }}>
+      <p id="rad-toc-h" className="lf-eyebrow">
+        On this page
+      </p>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexWrap: 'wrap', gap: '0 1.75em' }}>
+        {sections.map((k) => (
+          <li key={k}>
+            <Button variant="ghost" data-jump={RAD_IDS[k]} onClick={() => jumpToPanel(RAD_IDS[k])} style={{ paddingInline: 0 }}>
+              {RAD_TITLES[k]}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+
+/** "MeV" inside an uppercased kicker keeps its case (≥10 MeV, not ≥10 MEV). */
+function MeV() {
+  return <span style={{ textTransform: 'none' }}>MeV</span>
+}
+
 // ---- environment picker ---------------------------------------------------------------------------------
+
+/** The picker calls the mission's setEnv, so it switches every view, not only this page: it says so. */
+export const ENV_PICKER_CAPTION = 'Mission environment: these buttons switch the whole app, the same as ENV in the mission bar.'
 
 function EnvPicker({ envId, onPick }: { envId: EnvId; onPick: (e: EnvId) => void }) {
   return (
-    <div className="lf-tr-crew" role="group" aria-label="Environment">
-      {ENVIRONMENTS.map((e) => (
-        <button key={e.id} type="button" className="lf-tr-crew-btn" aria-pressed={e.id === envId} onClick={() => onPick(e.id as EnvId)}>
-          <span className="lf-tr-crew-role">{e.label}</span>
-          <span className="lf-tr-crew-none">
-            {e.dose_snapshot ? `measured dose: ${DOSE_INSTRUMENT[e.dose_snapshot] ?? 'NASA dosimeter'}` : 'no dosimetry shipped'}
-          </span>
-        </button>
-      ))}
-    </div>
+    <>
+      <p className="lf-tr-muted lf-rad-env-cap" data-env-caption="">
+        {ENV_PICKER_CAPTION}
+      </p>
+      <div className="lf-tr-crew" role="group" aria-label={ENV_PICKER_CAPTION}>
+        {ENVIRONMENTS.map((e) => (
+          <button key={e.id} type="button" className="lf-tr-crew-btn" aria-pressed={e.id === envId} onClick={() => onPick(e.id as EnvId)}>
+            <span className="lf-tr-crew-role">{e.label}</span>
+            <span className="lf-tr-crew-none">
+              {e.dose_snapshot ? `measured dose: ${DOSE_INSTRUMENT[e.dose_snapshot] ?? 'NASA dosimeter'}` : 'no dosimetry shipped'}
+            </span>
+          </button>
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -282,7 +352,8 @@ function ProtonPanel({
   const noaa100 = replay?.noaa_note_oct1989_ge100mev_pfu ?? null
   return (
     <Panel
-      title="Proton flux and the NOAA S-scale"
+      id={RAD_IDS.protons}
+      title={RAD_TITLES.protons}
       eyebrow={<Kind kind="replay">REPLAY OF A REAL EVENT · GOES-7, OCTOBER 1989</Kind>}
       footer={
         <>
@@ -299,7 +370,10 @@ function ProtonPanel({
         {ops ? (
           <>
             <p className="lf-rad-big">
-              <span className="lf-rad-label">{onboard ? 'Space-weather monitor in Mars orbit · ≥10 MeV' : 'NOAA GOES ≥10 MeV'}</span>
+              <span className="lf-rad-label">
+                {onboard ? 'Space-weather monitor in Mars orbit · ≥10 ' : 'NOAA GOES ≥10 '}
+                <MeV />
+              </span>
               <Num value={ops.flux} unit="pfu" digits={0} />
               <span>
                 S-level <Num value={ops.s_level} />
@@ -1022,10 +1096,10 @@ function MeasuredPanel({ envId, index, runtime, t, sim }: { envId: EnvId; index:
   const track = useMeta<IssTrackData>(envId === 'iss' ? 'hapi_iss_track' : null)
   // Only the environment notes about radiation (environments.json also carries comms notes).
   const notes = (env.notes ?? []).filter((n) => /dose|dosimetr|flux|radiation|SPE|GOES|CRaTER/i.test(n))
-  const title = 'Dose rate measured in this environment'
+  const title = RAD_TITLES.measured
   if (!id) {
     return (
-      <Panel title={title} eyebrow={env.label}>
+      <Panel id={RAD_IDS.measured} title={title} eyebrow={env.label}>
         <EmptyState kind="unavailable" title="No dosimetry for this environment" headingLevel={3}>
           {notes.map((n) => (
             <p key={n}>{n}</p>
@@ -1042,7 +1116,7 @@ function MeasuredPanel({ envId, index, runtime, t, sim }: { envId: EnvId; index:
     </>
   )
   return (
-    <Panel title={title} eyebrow={<Kind kind="historical">HISTORICAL · MEASURED · {snap?.title ?? id}</Kind>} footer={footer}>
+    <Panel id={RAD_IDS.measured} title={title} eyebrow={<Kind kind="historical">HISTORICAL · MEASURED · {snap?.title ?? id}</Kind>} footer={footer}>
       {dose.status !== 'ready' || !snap ? (
         <EmptyState kind={dose.status === 'loading' ? 'loading' : 'missing'} title={dose.status === 'loading' ? 'Reading the snapshot' : 'Snapshot not in this build'} headingLevel={3}>
           <p>
@@ -1158,6 +1232,28 @@ function OrganCell({ rule, r }: { rule: Rule; r: ReturnType<typeof evalSafe> }) 
   )
 }
 
+/**
+ * What the career bars cover. [V1 4030]'s rationale counts the projected exposure of an upcoming mission in the
+ * career dose; LANDFALL projects nothing, so its "within limit" is about the dose to date only. The sentence is
+ * quoted from the frozen rationale (rationaleSentence), never typed.
+ */
+export function CareerToDate({ req, doc }: { req: RequirementRec | null; doc: string }) {
+  const projected = rationaleSentence(req, /projected exposure/)
+  return (
+    <div data-career-scope="">
+      {projected && req ? (
+        <blockquote className="lf-rad-quote">
+          <p>“{projected}”</p>
+          <footer>
+            <ReqId id={req.id.replace(/^\[|\]$/g, '')} /> rationale · {doc}
+          </footer>
+        </blockquote>
+      ) : null}
+      <p className="lf-tr-muted">LANDFALL makes no projection, so “within limit” here covers the dose to date only.</p>
+    </div>
+  )
+}
+
 function LimitsPanel({ index, runtime, envId, t, crewId, vol1 }: { index: ScenarioIndex; runtime: readonly Observation[]; envId: EnvId; t: number; crewId: CrewId; vol1: { reqs: RequirementRec[]; doc: string } }) {
   const rules = useMemo(() => thresholdRules(RULES), [])
   const career = rules.find((r) => r.role !== 'context' && r.window?.kind === 'career' && r.unit === 'mSv') ?? null
@@ -1177,7 +1273,7 @@ function LimitsPanel({ index, runtime, envId, t, crewId, vol1 }: { index: Scenar
   const req4031 = findRequirement(vol1.reqs, 'V1 4031')
   const req4030 = findRequirement(vol1.reqs, 'V1 4030')
   return (
-    <Panel title="Cumulative dose against the NASA limits" eyebrow="Tier A · PEL ceilings">
+    <Panel id={RAD_IDS.limits} title={RAD_TITLES.limits} eyebrow="Tier A · PEL ceilings">
       {career ? (
         <section className="lf-rad-sub" aria-labelledby="rad-career-h">
           <h3 id="rad-career-h" className="lf-tr-card-title">
@@ -1198,13 +1294,14 @@ function LimitsPanel({ index, runtime, envId, t, crewId, vol1 }: { index: Scenar
                     {approach !== null ? <span className="lf-rad-mark" style={{ left: `${(approach / career.limit) * 100}%` }} /> : null}
                   </span>
                   <span>
-                    <Num value={v} unit={career.unit} digits={0} /> of {OPS_SYMBOL[career.op] ?? career.op} <Num value={career.limit} unit={career.unit} />
+                    <Num value={v} unit={career.unit} digits={0} /> to date, of {OPS_SYMBOL[career.op] ?? career.op} <Num value={career.limit} unit={career.unit} />
                   </span>
                   {r.finding ? <FindingBadge finding={r.finding} /> : <span className="lf-tr-nodata">{r.error}</span>}
                 </li>
               )
             })}
           </ul>
+          <CareerToDate req={req4030} doc={vol1.doc} />
           <p className="lf-tr-muted">
             Tick: approach level <Num value={career.approach_at?.value ?? null} unit={career.unit} /> (<Chip kind={career.approach_at?.chip} />
             ). Effective dose is the quantity of this limit, so it is compared directly. The SPE day’s absorbed dose (µGy) is not added to it:
@@ -1301,7 +1398,8 @@ function LiveGoesPanel({ live, status, snap, scale, scaleSnap, scaleStatus, scen
   const xFormat = useMemo(() => (v: number) => new Date(t0 + v * DAY_MS).toISOString().slice(5, 10), [t0])
   return (
     <Panel
-      title="Real conditions when this site was built"
+      id={RAD_IDS.goes}
+      title={RAD_TITLES.goes}
       eyebrow={<Kind kind="stale">LIVE FEED, FROZEN AT BUILD</Kind>}
       footer={
         <>
@@ -1313,7 +1411,9 @@ function LiveGoesPanel({ live, status, snap, scale, scaleSnap, scaleStatus, scen
       {live ? (
         <>
           <p className="lf-rad-big lf-rad-stale">
-            <span className="lf-rad-label">GOES ≥10 MeV at {utcLabel(Date.parse(live.current.time_tag))}</span>
+            <span className="lf-rad-label">
+              GOES ≥10 <MeV /> at {utcLabel(Date.parse(live.current.time_tag))}
+            </span>
             <Num value={live.current.flux_pfu} unit="pfu" digits={3} />
             <span>
               S-level <Num value={live.current.s_level} />
@@ -1407,6 +1507,7 @@ export default function Radiation(_props: FeatureProps) {
         replay of a real 1989 event; simulated values are labelled where they appear). Absorbed dose (Gy) is never converted into effective
         dose (Sv): each quantity is compared only with a limit in its own unit.
       </p>
+      <OnThisPage sections={index ? ['protons', 'witnesses', 'measured', 'limits', 'goes'] : ['protons', 'witnesses', 'measured', 'goes']} />
       <EnvPicker envId={envId} onPick={setEnv} />
       <ProtonPanel
         ops={ops}
@@ -1421,7 +1522,9 @@ export default function Radiation(_props: FeatureProps) {
         t={t}
         envId={envId}
       />
-      <StormWitnesses />
+      <div id={RAD_IDS.witnesses}>
+        <StormWitnesses />
+      </div>
       <MeasuredPanel envId={envId} index={index} runtime={runtime} t={t} sim={scenario.sim.data} />
       {index ? <LimitsPanel index={index} runtime={runtime} envId={envId} t={t} crewId={state.crewId} vol1={vol1} /> : null}
       <LiveGoesPanel

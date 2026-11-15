@@ -49,9 +49,9 @@ export const MEASURED_HERE: readonly MeasureHow[] = ['band', 'app']
 
 /**
  * Variables shown as a whole-body FITNESS TAG, never as an organ finding (meta.json
- * body_region_rule: "VO2max is a fitness tag (EVA assignment), not a heart or lung finding"). Their
- * rules still appear on the heart, lungs and muscles panels, labelled as the fitness tag, and never
- * colour an organ.
+ * body_region_rule: "VO2max is a fitness tag (checked against the EVA fitness floor; EVA medical
+ * clearance is ground medical support's, [V1 6006]), not a heart or lung finding"). Their rules still
+ * appear on the heart, lungs and muscles panels, labelled as the fitness tag, and never colour an organ.
  */
 export const FITNESS_VARIABLES: readonly string[] = ['vo2max']
 
@@ -287,7 +287,7 @@ export const REGIONS: readonly RegionDef[] = [
         variable: 'proton_flux_10mev',
         label: 'Solar protons ≥10 MeV',
         how: 'vehicle',
-        via: 'external space-weather monitor above the atmosphere (at Mars, in Mars orbit, relayed to the habitat with no Earth link); in this scenario, a time-shifted replay of the real October 1989 GOES-7 event. The vehicle’s radiation monitoring system raises the alarm; LANDFALL opens the shelter case',
+        via: 'external space-weather monitor above the atmosphere (at Mars, in Mars orbit, relayed to the habitat with no Earth link), an early-warning monitor of the kind [V2 6165]’s rationale describes: one ≥10 MeV channel, not the in-situ spectra [V2 6165] asks for. In this scenario, a time-shifted replay of the real October 1989 GOES-7 event. The vehicle’s radiation monitoring system raises the alarm ([V2 6164]); LANDFALL opens the shelter case',
         requirement_ids: ['V2 6165', 'V2 6164'],
       },
       { variable: 'dose_bfo', label: 'Blood-forming organ dose', how: 'vehicle', via: 'vehicle radiation monitoring system and ground radiation analysts', requirement_ids: V2_6164 },

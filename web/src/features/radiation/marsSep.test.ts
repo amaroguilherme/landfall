@@ -149,25 +149,36 @@ describe('what the section renders', () => {
 describe("NOAA's S3 storms at Earth on rows of the RAD team's table", () => {
   const list = raw('swpc_spe_list').data as SpeListLike
   const storms = s3StormsOnTable(data, list)
-  it('joins on UTC dates within the design-choice window: 2 of the 4 storms in the record fall on rows', () => {
+  it('joins on the storm’s maximum, not its start, within the design-choice window: 1 of the 4 storms in the record', () => {
     expect(STORM_MATCH_DAYS).toBe(2)
     expect(storms.inRecord).toBe(4)
     expect(storms.listEnd).toBe('2017-09-10T16:45:00Z')
-    expect(storms.matches.map((m) => [m.start.slice(0, 10), m.peak_pfu, m.row.paper_date, m.gapDays])).toEqual([
-      ['2014-01-06', 1033, '2014-01-05', 1],
-      ['2017-09-10', 1490, '2017-09-10', 0],
+    expect(storms.matches.map((m) => [m.start.slice(0, 10), m.max.slice(0, 10), m.peak_pfu, m.row.paper_date, m.gapDays])).toEqual([
+      ['2017-09-10', '2017-09-11', 1490, '2017-09-10', 1],
     ])
-    const [jan, sep] = storms.matches
-    expect(jan.row.replay.triggered).toBe(false)
+    const [sep] = storms.matches
     expect(sep.row.replay.triggered && sep.row.replay.peak.ratio_to_background).toBe(2.235)
-    // a narrower window keeps only the same-day storm
-    expect(s3StormsOnTable(data, list, 0).matches.map((m) => m.row.paper_date)).toEqual(['2017-09-10'])
+    // NOAA's list starts two events at 2014-01-06T09:15Z: a 42 pfu far-side event and the 1033 pfu S3 storm, whose
+    // maximum (2014-01-09T03:40Z) is 4 days after row 2014-01-05, so the S3 storm no longer borrows the other one's start
+    const jan = list.events.filter((e) => e.start === '2014-01-06T09:15:00Z')
+    expect(jan.map((e) => [e.peak_pfu, e.s_level, e.max])).toEqual([
+      [42, 1, '2014-01-06T16:00:00Z'],
+      [1033, 3, '2014-01-09T03:40:00Z'],
+    ])
+    expect(storms.matches.some((m) => m.row.paper_date === '2014-01-05')).toBe(false)
+    // a same-day window keeps none (the September storm peaked the next day); a 4-day one brings January back
+    expect(s3StormsOnTable(data, list, 0).matches).toEqual([])
+    expect(s3StormsOnTable(data, list, 4).matches.map((m) => [m.row.paper_date, m.gapDays])).toEqual([
+      ['2014-01-05', 4],
+      ['2017-09-10', 1],
+    ])
   })
-  it('prints the two storms, no dose in µGy, and says a date match is not identity', () => {
+  it('prints the one storm by its maximum, no dose in µGy, and says a date match is not identity', () => {
     const html = renderToStaticMarkup(createElement(MarsSepContextView, { data, storms, multiple: 10 }))
     const t = text(html)
-    expect(t).toContain('NOAA’s list of solar proton events has 4 storms at S3 or above during Curiosity’s record (this copy of the list ends on 2017-09-10). Of these, 2 fall within 2 days of a row of the RAD team’s surface table')
-    expect(t).toMatch(/2014-01-06 \(\s?1033\s?pfu at Earth; Table 1 row 2014-01-05, not triggered at Gale\) and 2017-09-10 \(\s?1490\s?pfu at Earth; peak 2\.235\s?× background at Gale\)/)
+    expect(t).toContain('NOAA’s list of solar proton events has 4 storms at S3 or above during Curiosity’s record (this copy of the list ends on 2017-09-10). Of these, 1 has its maximum within 2 days of a row of the RAD team’s surface table')
+    expect(t).toMatch(/: maximum 2017-09-11 \(\s?1490\s?pfu at Earth; Table 1 row 2017-09-10, peak 2\.235\s?× background at Gale\)/)
+    expect(t).not.toContain('2014-01-06')
     expect(t).toContain('Matching dates is not identity.')
     expect(t).toContain('The 10× above stays a design choice')
     expect(t).not.toMatch(/µGy|uGy/)

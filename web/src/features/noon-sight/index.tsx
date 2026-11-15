@@ -435,15 +435,17 @@ function NoonSightView({ crewId, initialStep }: { crewId: CrewId; initialStep: S
                         </>
                       ) : null}{' '}
                       <Chip kind={URINE_TARGET.rule.chip} /> <Citation source={URINE_TARGET.rule.source} />
+                      {/* the report's own two numbers, as the renal case reads them (badges.tsx TARGET_LABEL, the same words) */}
                       <span className="ns-block">
                         The renal case reads it as: below <Num value={URINE_TARGET.limit} unit={URINE_TARGET.unit} /> in 24 hours is
-                        outside the target
+                        under the case floor, where the report says stone risk rises (a Caution)
                         {URINE_TARGET.approach !== null ? (
                           <>
-                            , and below <Num value={URINE_TARGET.approach} unit={URINE_TARGET.unit} /> is short of it
+                            ; below <Num value={URINE_TARGET.approach} unit={URINE_TARGET.unit} /> is short of the countermeasure target (an
+                            Advisory)
                           </>
                         ) : null}
-                        . At most a Caution, never a warning.
+                        . Never a warning.
                       </span>
                     </li>
                   ) : (

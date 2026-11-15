@@ -252,7 +252,7 @@ export function KitStep({
           </li>
           <li>
             A reading above your band (for glucose, above or below it) is a reliable change in the worse direction: it raises a caution
-            that asks you to repeat the reading and tell a Crew Medical Officer today.
+            that asks you to repeat the reading and tell a Crew Medical Officer today, or now if you feel unwell.
           </li>
         </ul>
         <Expander summary="Why there is no NASA number, and the entry checks">

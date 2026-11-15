@@ -182,6 +182,9 @@ describe.skipIf(!PERSONAL_INDICATORS)('region -> personal.json indicators and me
     const p = bfo.measures.find((m) => m.variable === 'proton_flux_10mev')!
     expect(p.via).toMatch(/external space-weather monitor/)
     expect(p.requirement_ids).toContain('V2 6165')
+    // [V2 6165] is scoped, as #/radiation scopes it: the monitor is the kind its rationale describes, not what it asks for
+    expect(p.via).toContain('an early-warning monitor of the kind [V2 6165]’s rationale describes: one ≥10 MeV channel, not the in-situ spectra [V2 6165] asks for')
+    expect(p.via).toContain('raises the alarm ([V2 6164]); LANDFALL opens the shelter case')
   })
   it('radiation dose is a vehicle hand-off citing [V2 6164], and BMD comes from ground DXA', () => {
     for (const r of REGIONS) {
@@ -300,6 +303,9 @@ describe.skipIf(!SIM_DATA)('the body map on the frozen scenario (D6)', () => {
     expect(BODY_REGION_RULE).toMatch(/hatched outline/)
     expect(BODY_REGION_RULE).toMatch(/Only a measured finding for the selected crewmember fills an organ/)
     expect(BODY_REGION_RULE).toMatch(/VO2max is a fitness tag/)
+    // the fitness tag is checked against the floor; EVA medical clearance is ground medical support's ([V1 6006])
+    expect(BODY_REGION_RULE).toContain("checked against the EVA fitness floor; EVA medical clearance is ground medical support's, [V1 6006]")
+    expect(BODY_REGION_RULE).not.toMatch(/EVA assignment/)
     for (const v of FITNESS_VARIABLES) expect(RULES.some((r) => r.variable === v), v).toBe(true)
   })
 
@@ -400,9 +406,8 @@ describe('plain-language helpers', () => {
   it('turns a data field name inside running text into plain words, and leaves plain text alone', () => {
     expect(fieldNamesIn("A case's body_regions are its hazard footprint.")).toEqual(['body_regions'])
     expect(plainWords("A case's body_regions are its hazard footprint.")).toBe("A case's body regions are its hazard footprint.")
-    expect(plainWords('VO2max is a fitness tag (EVA assignment), not a heart or lung finding.')).toBe(
-      'VO2max is a fitness tag (EVA assignment), not a heart or lung finding.',
-    )
+    const fitness = "VO2max is a fitness tag (checked against the EVA fitness floor; EVA medical clearance is ground medical support's, [V1 6006]), not a heart or lung finding."
+    expect(plainWords(fitness)).toBe(fitness)
     expect(fieldNamesIn('Table 4.8-1 (Lens, 30-day), MET 412/14:20:00, ≥10 MeV')).toEqual([])
   })
 })
@@ -564,5 +569,16 @@ describe('an unavailable evaluation never blanks the body map', () => {
       expect(s.state).not.toBe('nominal')
     }
     expect(fitnessTag(null, 'mars_surface')).toBeNull()
+  })
+})
+
+describe('the fitness tag says what the VO2max test is checked against, and who clears an EVA', () => {
+  const panel = Object.values(import.meta.glob<string>('./RegionPanel.tsx', { query: '?raw', import: 'default', eager: true }))[0].replace(/\s+/g, ' ')
+  it('names the EVA fitness floor and [V1 6006]; the test never sets an EVA assignment', () => {
+    expect(panel).toContain('this test is checked against the EVA fitness floor, not against the state of this organ, so it never colours the figure.')
+    expect(panel).toContain('EVA medical clearance itself is ground medical support’s decision before each EVA ( <ReqId id="V1 6006" /> ).')
+    expect(panel).toContain('The VO₂max test below is checked against the EVA fitness floor; it does not colour this organ.')
+    // written with a character class so a grep for the retired phrases over the sources finds none
+    expect(panel).not.toMatch(/sets (the crewmember’s )?EVA assignmen[t]/)
   })
 })

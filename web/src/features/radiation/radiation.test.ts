@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SaaStrip, crossingsUpToS3, rationaleSentence, reachOnClock } from './index'
+import { CareerToDate, ENV_PICKER_CAPTION, OnThisPage, RAD_IDS, RAD_TITLES, SaaStrip, crossingsUpToS3, rationaleSentence, reachOnClock } from './index'
 import {
   dailySeries,
   dateRuns,
@@ -239,5 +239,62 @@ describe('requirement lookup', () => {
   it('finds [V2 6165] and V1 4031 whatever the bracket style', () => {
     expect(findRequirement(snap('std_vol2_requirements').data.requirements, 'V2 6165')?.text).toMatch(/space weather/)
     expect(findRequirement(snap('std_vol1_requirements').data.requirements, '[V1 4031]')?.text).toMatch(/October 1989/)
+  })
+})
+
+describe('career dose: "to date", and what [V1 4030] counts that LANDFALL does not', () => {
+  const req = findRequirement(snap('std_vol1_requirements').data.requirements, 'V1 4030')
+  it('quotes the projected-exposure sentence verbatim from the frozen rationale, then scopes "within limit" to the dose to date', () => {
+    const s = rationaleSentence(req, /projected exposure/)!
+    expect(s).toBe('Individual crewmember career dose includes all past spaceflight radiation exposures, plus the projected exposure for an upcoming mission.')
+    expect(req!.rationale).toContain(s)
+    const html = renderToStaticMarkup(createElement(CareerToDate, { req, doc: 'NASA-STD-3001 Vol 1' }))
+    expect(html).toContain(`“${s}”`)
+    expect(html).toContain('[V1 4030]</span> rationale')
+    expect(html).toContain('LANDFALL makes no projection, so “within limit” here covers the dose to date only.')
+    // without the snapshot the scope line still prints, and no sentence is made up
+    const bare = renderToStaticMarkup(createElement(CareerToDate, { req: null, doc: 'NASA-STD-3001 Vol 1' }))
+    expect(bare).not.toContain('<blockquote')
+    expect(bare).toContain('covers the dose to date only')
+  })
+  it('prints the bar as "<v> mSv to date, of < 600 mSv" (the limit from the rules, never typed here)', () => {
+    const src = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
+    expect(src).toContain('digits={0} /> to date, of {OPS_SYMBOL[career.op] ?? career.op} <Num value={career.limit} unit={career.unit} />')
+  })
+})
+
+describe('the environment picker says it switches the whole app', () => {
+  it('has a visible caption that is also the group name', () => {
+    expect(ENV_PICKER_CAPTION).toBe('Mission environment: these buttons switch the whole app, the same as ENV in the mission bar.')
+    const flat = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8').replace(/\s+/g, ' ')
+    expect(flat).toContain('role="group" aria-label={ENV_PICKER_CAPTION}')
+    expect(flat).toContain('data-env-caption=""> {ENV_PICKER_CAPTION} </p>')
+  })
+})
+
+describe('On this page', () => {
+  const src = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
+  const sections = ['protons', 'witnesses', 'measured', 'limits', 'goes'] as const
+  it('one button per panel, in page order, labelled with the panel titles, and no href (the router owns the hash)', () => {
+    const html = renderToStaticMarkup(createElement(OnThisPage, { sections }))
+    expect((html.match(/<button/g) ?? []).length).toBe(5)
+    expect(html).not.toMatch(/href=/)
+    const labels = [...html.matchAll(/<button[^>]*>([^<]+)<\/button>/g)].map((m) => m[1])
+    expect(labels).toEqual(sections.map((k) => RAD_TITLES[k]))
+    for (const k of sections) expect(html).toContain(`data-jump="${RAD_IDS[k]}"`)
+  })
+  it('each panel carries its id and uses the same title constant; the witnesses title is StormWitnesses’ own', () => {
+    const flat = src.replace(/\s+/g, ' ')
+    for (const k of ['protons', 'limits', 'goes'] as const) expect(flat).toContain(`id={RAD_IDS.${k}} title={RAD_TITLES.${k}}`)
+    expect(flat).toContain('const title = RAD_TITLES.measured')
+    expect((flat.match(/<Panel id=\{RAD_IDS\.measured\} title=\{title\}/g) ?? []).length).toBe(2)
+    expect(src).toContain('<div id={RAD_IDS.witnesses}>')
+    const witnesses = readFileSync(new URL('./StormWitnesses.tsx', import.meta.url), 'utf8')
+    expect(witnesses).toContain(`title="${RAD_TITLES.witnesses}"`)
+    expect(src).not.toMatch(/href=["'{`]+#rad-/)
+  })
+  it('keeps MeV in mixed case inside the uppercased kickers', () => {
+    expect(src).toContain("<span style={{ textTransform: 'none' }}>MeV</span>")
+    expect(src).not.toMatch(/lf-rad-label">[^<]*MeV/)
   })
 })

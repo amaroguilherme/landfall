@@ -29,6 +29,9 @@ export function SeveritySection({ meta }: { meta: MetaFile }) {
   // [V2 10114] asks for visual and audio annunciation; LANDFALL's alerts are visual only (declared below, quoted from the frozen text).
   const annunciate = v2.data?.requirements.find((r) => normReqId(r.id) === 'V2 10114')
   const noEmergency = meta.refusals.find((r) => r.id === 'no_emergency_alarm')
+  // The Caution definition as meta.json severity_mapping quotes it (Table 10.3-1), for the escalation gap below.
+  const cautionDefinition =
+    sm.rows.map((r) => (r.severity === 'caution' ? (r as { class_definition?: string }).class_definition : undefined)).find((d): d is string => !!d) ?? null
   const table = alertTable(v2.data)
   return (
     <FoldPanel
@@ -175,6 +178,13 @@ export function SeveritySection({ meta }: { meta: MetaFile }) {
             <ReqId id="V2 10114" /> is not in snapshot <code>std_vol2_requirements.json</code>, so its text cannot be quoted here.
           </MissingNote>
         )}
+        {cautionDefinition ? (
+          <p data-gap="escalation-class">
+            An escalation keeps the class of its case: a renal red-flag “yes” or an overdue reassessment tells the crew to act now, but its
+            alert line stays a Caution, which Table 10.3-1 defines as “{cautionDefinition}” The words carry the urgency; raising the class needs
+            an engine change and is not in this build. <Chip kind="design choice" />
+          </p>
+        ) : null}
       </div>
     </FoldPanel>
   )

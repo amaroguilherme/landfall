@@ -73,6 +73,18 @@ export default function Provenance({ query }: FeatureProps) {
   )
   const [q, setQ] = useState<string>(() => query.q ?? '')
   const dq = useDeferredValue(q)
+  // The router keys a view by its path, so a hash change within #/provenance (#/provenance?id=… to
+  // #/provenance?chip=design+choice) keeps this component mounted: apply a filter the new query names, as a fresh load
+  // does. A query without that key (a row's own ?id= link) leaves the filter the reader set.
+  useEffect(() => {
+    if (query.chip !== undefined) setChip(CHIP_ORDER.includes(query.chip) ? query.chip : ALL)
+  }, [query.chip])
+  useEffect(() => {
+    if (query.category !== undefined) setCat(query.category === NONE || categories.includes(query.category) ? query.category : ALL)
+  }, [query.category, categories])
+  useEffect(() => {
+    if (query.q !== undefined) setQ(query.q)
+  }, [query.q])
 
   const targetId = query.id ?? null
   const target = useMemo(() => (targetId ? findRow(targetId) : null), [targetId])

@@ -100,7 +100,7 @@ export function onlyTierA(index: ScenarioIndex, sim: unknown, envId: EnvId): Onl
   out.push({
     id: 'spe',
     crewId: null,
-    label: 'Solar particle event (≥10 MeV proton flux, a vehicle reading)',
+    label: 'Solar particle event (≥10 MeV proton flux, from the external space-weather monitor)',
     rule: ops.active
       ? { ruleId: ops.active.rule.id, label: ops.active.rule.label ?? ops.active.rule.id, status: ops.active.finding.status, severity: ops.active.finding.severity }
       : null,

@@ -67,7 +67,7 @@ export function TwoMinute({
       </h2>
       <ol className="lf-m-two-list">
         <li>
-          <strong>There is no NASA number to borrow.</strong> NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew health;
+          <strong>There is no NASA alert number to borrow.</strong> NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew health;
           its alert requirements leave the number to the program
           {ids.length ? (
             <>

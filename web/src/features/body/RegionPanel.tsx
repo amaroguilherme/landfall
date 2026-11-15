@@ -303,8 +303,23 @@ function HowItIsAffected({ region }: { region: RegionDef }) {
 
 // ---- 2. measurements ------------------------------------------------------------------------------
 
+const INLINE_REQ_ID = /\[(V[12] \d{4,5})\]/g
+
+/** A hand-off text: a requirement ID written inline ("[V2 6165]") prints as a ReqId, the rest with mono digits. */
+function ViaText({ text }: { text: string }) {
+  const parts = text.split(INLINE_REQ_ID)
+  return (
+    <>
+      {parts.map((p, i) => (i % 2 === 1 ? <ReqId key={i} id={p} /> : <MonoDigits key={i} text={p} />))}
+    </>
+  )
+}
+
 function MeasureRow({ m }: { m: Measure }) {
   const here = MEASURED_HERE.includes(m.how)
+  // An ID the hand-off text already cites, with its scope, is not repeated after it.
+  const inline = new Set([...m.via.matchAll(INLINE_REQ_ID)].map((x) => x[1]))
+  const reqIds = (m.requirement_ids ?? []).filter((r) => !inline.has(r))
   return (
     <tr data-here={here || undefined} data-variable={m.variable ?? undefined}>
       <th scope="row">
@@ -329,11 +344,11 @@ function MeasureRow({ m }: { m: Measure }) {
       </td>
       <td>
         {!here ? <strong className="lf-ms-via">via {HOW_LABEL[m.how].toLowerCase()}: </strong> : null}
-        <MonoDigits text={m.via} />
-        {m.requirement_ids?.length ? (
+        <ViaText text={m.via} />
+        {reqIds.length ? (
           <span className="lf-ms-req">
             {' '}
-            {m.requirement_ids.map((r) => (
+            {reqIds.map((r) => (
               <ReqId key={r} id={r} />
             ))}
           </span>
@@ -405,8 +420,10 @@ function RuleItem({ row, region }: { row: RuleRow; region: RegionDef }) {
       </div>
       {row.fitness ? (
         <p className="lf-limit-fit">
-          <strong>Fitness tag</strong>, whole body: this test sets the crewmember’s EVA assignment, not the state of this organ, so
-          it never colours the figure.
+          <strong>Fitness tag</strong>, whole body: this test is checked against the EVA fitness floor, not against the state of this
+          organ, so it never colours the figure. EVA medical clearance itself is ground medical support’s decision before each EVA (
+          <ReqId id="V1 6006" />
+          ).
         </p>
       ) : null}
       <p className="lf-limit-rule">
@@ -1007,7 +1024,7 @@ export function RegionPanel({
         {hasFitnessRow && fitness ? (
           <p className="lf-region-fit">
             <strong>Fitness tag (whole body): {fitness.label}.</strong> {fitness.action ? <MonoDigits text={fitness.action} /> : null}{' '}
-            The VO₂max test below sets EVA assignment; it does not colour this organ.
+            The VO₂max test below is checked against the EVA fitness floor; it does not colour this organ.
           </p>
         ) : null}
         {!evaluationReady ? (

@@ -341,36 +341,44 @@ export function firstAuthorFamily(d: SepEventsData): string {
 
 /** The fields of NOAA's solar proton event list (snapshot swpc_spe_list) that the join reads. */
 export interface SpeListLike {
-  events: Array<{ start: string; peak_pfu: number | null; s_level?: number }>
+  /** `max`: the time of the event's maximum, as NOAA's list prints it (every row of the frozen list has one). */
+  events: Array<{ start: string; max?: string; peak_pfu: number | null; s_level?: number }>
   list_last_start?: string
 }
 
 export interface StormOnRow {
-  /** NOAA's event start (UTC) and printed peak at >=10 MeV. */
+  /** NOAA's event start and maximum (UTC), and its printed peak at >=10 MeV. */
   start: string
+  max: string
   peak_pfu: number
-  /** The nearest Table 1 surface row within STORM_MATCH_DAYS of it, and the gap in whole UTC days. */
+  /** The nearest Table 1 surface row within STORM_MATCH_DAYS of the maximum, and the gap in whole UTC days. */
   row: Table1Row
   gapDays: number
 }
 
 const utcDay = (iso: string) => Math.floor(Date.parse(`${iso.slice(0, 10)}T00:00:00Z`) / DAY_MS)
 
+/** The time a storm is placed at: its maximum, else (a list without maxima) its start. */
+const stormTime = (e: SpeListLike['events'][number]): string => e.max ?? e.start
+
 /**
- * NOAA's S3-or-above storms at Earth that start inside Curiosity's RAD record, and those that fall within `windowDays`
- * of a row of the paper's Table 1 (nearest row; UTC dates). A date match is not the same event: it says only that a
- * storm at Earth and a row at Gale share a few days.
+ * NOAA's S3-or-above storms at Earth whose maximum falls inside Curiosity's RAD record, and those whose maximum falls
+ * within `windowDays` of a row of the paper's Table 1 (nearest row; UTC dates). The maximum, not the start: the list
+ * can print one start time for two events (2014-01-06T09:15Z starts both a far-side S1 event and the S3 storm that
+ * peaked on 2014-01-09), so a start can belong to another injection. A date match is not the same event: it says only
+ * that a storm at Earth and a row at Gale share a few days.
  */
 export function s3StormsOnTable(d: SepEventsData, list: SpeListLike, windowDays = STORM_MATCH_DAYS): { inRecord: number; listEnd: string | null; matches: StormOnRow[] } {
   const inRecord = list.events.filter(
-    (e) => (e.s_level ?? 0) >= 3 && typeof e.peak_pfu === 'number' && e.start >= d.record.first_sample && e.start <= d.record.last_sample,
+    (e) => (e.s_level ?? 0) >= 3 && typeof e.peak_pfu === 'number' && stormTime(e) >= d.record.first_sample && stormTime(e) <= d.record.last_sample,
   )
   const matches: StormOnRow[] = []
   for (const e of inRecord) {
+    const at = stormTime(e)
     let best: StormOnRow | null = null
     for (const row of d.table1) {
-      const gap = Math.abs(utcDay(row.paper_date) - utcDay(e.start))
-      if (gap <= windowDays && (!best || gap < best.gapDays)) best = { start: e.start, peak_pfu: e.peak_pfu as number, row, gapDays: gap }
+      const gap = Math.abs(utcDay(row.paper_date) - utcDay(at))
+      if (gap <= windowDays && (!best || gap < best.gapDays)) best = { start: e.start, max: at, peak_pfu: e.peak_pfu as number, row, gapDays: gap }
     }
     if (best) matches.push(best)
   }

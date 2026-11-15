@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { tCdf, tCritical } from '../../app/engine'
-import { META, THRESHOLDS, PERSONAL, compliant, normReqId, quotedPhrase, sentencesContaining, windowLabel } from './rules'
+import { META, THRESHOLDS, PERSONAL, alertClassFor, alertClasses, compliant, normReqId, quotedPhrase, sentencesContaining, windowLabel } from './rules'
 import { chanceRates, countsEither, criticalRow, measuredMultiplier, sdInterval95, unlimitedRow } from './stats'
 
 const round3 = (x: number): number => Math.round(x * 1000) / 1000
@@ -175,6 +175,38 @@ describe('known display gaps: [V2 10114] asks for sound, LANDFALL is visual only
     expect(severity).toMatch(/normReqId\(r\.id\) === 'V2 10114'/)
     expect(severity).toContain('text={annunciate.text}')
     expect(severity).not.toContain('distinct visual and audio annunciations') // never retyped
+  })
+})
+
+describe('known display gaps: an escalation keeps the class of its case', () => {
+  interface Vol2 { tables?: Record<string, { caption: string; columns: string[]; rows: string[][] }> }
+  const v2 = Object.values(import.meta.glob<{ data: Vol2 }>('../../../public/data/std_vol2_requirements.json', { eager: true, import: 'default' }))[0]
+  const severity = Object.values(import.meta.glob<string>('./SeveritySection.tsx', { query: '?raw', import: 'default', eager: true }))[0]
+  const rows = (META?.severity_mapping.rows ?? []) as { severity?: string; class_definition?: string }[]
+  const caution = rows.find((r) => r.severity === 'caution' && r.class_definition)?.class_definition
+  it('quotes the Caution definition meta.json severity_mapping carries, which is Table 10.3-1 word for word', () => {
+    const cls = alertClassFor(alertClasses(v2.data as never), 'caution')
+    expect(caution).toBeTruthy()
+    expect(caution).toBe(cls?.definition)
+    expect(severity).toContain('“{cautionDefinition}”')
+    expect(severity).not.toContain(caution!) // read from meta.json, never retyped
+  })
+  it('says the words carry the urgency and that raising the class is not in this build, with a design-choice chip', () => {
+    const flat = severity.replace(/\s+/g, ' ')
+    expect(flat).toContain('An escalation keeps the class of its case: a renal red-flag “yes” or an overdue reassessment tells the crew to act now, but its alert line stays a Caution, which Table 10.3-1 defines as “{cautionDefinition}” The words carry the urgency; raising the class needs an engine change and is not in this build. <Chip kind="design choice" />')
+  })
+})
+
+describe('two small wording fixes', () => {
+  const two = Object.values(import.meta.glob<string>('./TwoMinute.tsx', { query: '?raw', import: 'default', eager: true }))[0]
+  const eps = Object.values(import.meta.glob<string>('./episodes.ts', { query: '?raw', import: 'default', eager: true }))[0]
+  it('the two-minute lead says there is no NASA alert number to borrow (the next point uses NASA numbers as published)', () => {
+    expect(two).toContain('<strong>There is no NASA alert number to borrow.</strong>')
+    expect(two).not.toMatch(/no NASA numbe[r] to borrow/)
+  })
+  it('the solar particle event reading comes from the external space-weather monitor, not the vehicle', () => {
+    expect(eps).toContain('Solar particle event (≥10 MeV proton flux, from the external space-weather monitor)')
+    expect(eps).not.toMatch(/a vehicle readin[g]/)
   })
 })
 

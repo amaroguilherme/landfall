@@ -548,12 +548,13 @@ export function MarsSepContextView({ data, storms, multiple }: { data: SepEvents
         <p className="lf-tr-muted lf-rad-sep-context" data-storms-on-rows="">
           At Earth, NOAA’s list of solar proton events has <Num value={storms.inRecord} /> storms at S3 or above during Curiosity’s record
           {storms.listEnd ? <> (this copy of the list ends on {storms.listEnd.slice(0, 10)})</> : null}. Of these, <Num value={ms.length} />{' '}
-          {ms.length === 1 ? 'falls' : 'fall'} within <Num value={STORM_MATCH_DAYS} /> days of a row of the RAD team’s surface table <Chip kind={DESIGN} />:{' '}
+          {ms.length === 1 ? 'has its' : 'have their'} maximum within <Num value={STORM_MATCH_DAYS} /> days of a row of the RAD team’s surface table{' '}
+          <Chip kind={DESIGN} />:{' '}
           {ms.map((m, i) => (
-            <span key={m.start}>
+            <span key={`${m.start}|${m.max}`}>
               {i ? (i === ms.length - 1 ? ' and ' : ', ') : ''}
-              {m.start.slice(0, 10)} (<Num value={m.peak_pfu} unit="pfu" digits={0} /> at Earth;{' '}
-              {m.row.paper_date !== m.start.slice(0, 10) ? `Table 1 row ${m.row.paper_date}, ` : ''}
+              maximum {m.max.slice(0, 10)} (<Num value={m.peak_pfu} unit="pfu" digits={0} /> at Earth;{' '}
+              {m.row.paper_date !== m.max.slice(0, 10) ? `Table 1 row ${m.row.paper_date}, ` : ''}
               {m.row.replay.triggered ? (
                 <>
                   peak <Num value={m.row.replay.peak.ratio_to_background} digits={3} unit="×" /> background at Gale

@@ -314,9 +314,10 @@ describe('the ranking stays out of the decision path and out of the snapshots', 
     expect(files.some((f) => f.startsWith('../../app/'))).toBe(true)
     for (const f of files) expect(sources[f], f).not.toMatch(/features\/nearest|from '\.\.?\/nearest/)
   })
-  it('#/data still lists 26 snapshots, and no ranking is among them', () => {
+  it('#/data lists 27 snapshots (26 plus sol 242’s), and no ranking is among them', () => {
     const m = readJson<{ snapshots: { id: string; file: string }[] }>('web/public/data/manifest.json')
-    expect(m.snapshots).toHaveLength(26)
+    expect(m.snapshots).toHaveLength(27)
+    expect(m.snapshots.map((s) => s.id)).toContain('sep_conjunction_2013')
     expect(m.snapshots.some((s) => /nearest/.test(s.id + s.file))).toBe(false)
     expect(readdirSync(new URL('web/public/data/', ROOT)).some((f) => /nearest/.test(f))).toBe(false)
   })

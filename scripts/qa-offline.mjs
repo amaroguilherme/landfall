@@ -16,9 +16,7 @@
 //
 //   node scripts/qa-offline.mjs http://localhost:4401
 import { spawn } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { tempProfile } from './chrome-profile.mjs'
 
 const base = (process.argv[2] ?? 'http://localhost:4401').replace(/\/+$/, '')
 const ROUTES = ['#/', '#/body', '#/cases', '#/case', '#/case/spe_shelter', '#/case/renal_stone', '#/case/sleep_circadian',
@@ -30,8 +28,9 @@ const BAD_EMPTY = ['error', 'missing', 'unavailable', 'loading'] // .lf-empty[da
 const BAD_FRESH = ['missing', 'unknown', 'unavailable', 'loading'] // .lf-fresh[data-state]
 
 const port = 9300 + Math.floor(Math.random() * 500)
-const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', `--remote-debugging-port=${port}`,
-  `--user-data-dir=${mkdtempSync(join(tmpdir(), 'lf-qa-offline-'))}`, 'about:blank'], { stdio: 'ignore' })
+const profile = tempProfile('lf-qa-offline-') // deleted on exit
+const chrome = profile.own(spawn(CHROME, ['--headless=new', '--disable-gpu', `--remote-debugging-port=${port}`,
+  ...profile.flags, 'about:blank'], { stdio: 'ignore' }))
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const watchdog = setTimeout(() => { console.error('FAIL: qa-offline timed out after 6 min'); chrome.kill(); process.exit(2) }, 360_000)
 

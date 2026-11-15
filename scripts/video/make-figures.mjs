@@ -7,11 +7,16 @@
 //
 //   F1  the dual counter on #/: a GIF of the video's hero shot (make-video.mjs --only=hero, then ffmpeg
 //       fps=12, scale=960, palettegen/paletteuse; under 4 MB) and the shot's last still as a PNG fallback.
-//       Also og.png, the 1200x630 link-preview crop of that still (copy it to web/public/og.png).
-//   F2  the opened "Why this fired" panel of the shelter case, element-clipped.
+//       Also og.png, the 1200x630 link-preview crop of the same last frame captured without the video
+//       caption (copy it to web/public/og.png).
+//   F2  the opened "Why this fired" panel of the shelter case (value, NOAA's S3 threshold, how far above it,
+//       the [V2 6164] basis), element-clipped.
 //   F3  CM-2's VO2max card at the Mars surface base and at ISS, each opened from its own ?env= deep link,
-//       joined side by side with ffmpeg hstack.
+//       joined side by side with ffmpeg hstack. The crop takes the tagged VO2max card and its label strip
+//       only; checks fail the run if the strip does not meet the card, another limit card enters the clip,
+//       or the clip leaves the viewport.
 //   F4  the provenance summary (intro and the per-chip counts), element-clipped.
+// Element figures are measured only after the page has settled (warmup window and network idle).
 //
 // Every figure runs the ctx.assert checks of its shot in storyboard.mjs (and factsPass) before it is
 // written; a failed check aborts the run. The run also fails when the GIF is 4 MB or more, any file is
@@ -20,11 +25,11 @@
 //
 // No npm dependencies: Node >= 22, system Chrome over the DevTools protocol (cdp.mjs), ffmpeg on PATH.
 import { spawn, spawnSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DEFAULT_CHROME, launchChrome } from './cdp.mjs'
-import { PUBLIC_URL, SHOTS, factsPass } from './storyboard.mjs'
+import { PUBLIC_URL, SHOTS, factsPass, readWhy } from './storyboard.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = resolve(HERE, '../..')
@@ -35,11 +40,15 @@ const FIGURE_DSF = 2
 const MB = 1024 * 1024
 const LIMITS = { gifMaxMB: 4, fileMaxMB: 10, gifFps: 12, gifWidth: 960, ogWidth: 1200, ogHeight: 630 }
 /**
- * og.png: this rectangle of the 1920x1080 hero still (CSS px), scaled to 1200x630. It keeps the SIMULATED CREW
- * DATA strip, the mission bar, the headline, both counters and the [V2 6164] quote, and stops above the case
- * card and the video caption box in the lower left.
+ * og.png: this rectangle of the hero's last frame without the video caption (still-2b, output pixels of the
+ * 1920x1080 frame; the app is laid out at 1440 CSS px), scaled to 1200x630 (exactly 0.625). It keeps the
+ * SIMULATED CREW DATA strip, the mission bar, the headline, both counters and the [V2 6164] quote, and stops
+ * above the case card.
  */
-const OG_CROP = { x: 240, y: 0, w: 1440, h: 756 }
+const OG_CROP = { x: 0, y: 0, w: 1920, h: 1008 }
+const OG_STILL = 'still-2b-hero-no-caption.png'
+/** Page age before an element figure is measured: past App.tsx's warmup, as in make-video.mjs. */
+const SETTLE_AFTER_LOAD_MS = 6500
 const FIGURES = ['F1', 'F2', 'F3', 'F4']
 
 // ---- arguments ------------------------------------------------------------------------------------
@@ -134,24 +143,42 @@ function unionRect(selectors, textRe) {
 }
 
 /**
- * Element screenshot at FIGURE_DSF: scroll the region just below the sticky mission bar, grow the viewport
- * if the region is taller than what is left of it, and clip (document coordinates, padded).
+ * Let the page finish loading before anything is measured: the shell warms every route chunk and snapshot on
+ * idle (1.5 s timer, then requestIdleCallback), which can re-render the page; a crop measured before that can
+ * land on the wrong place. Same rule as make-video.mjs: page at least 6.5 s old, network quiet for 1 s.
  */
-async function shootRegion(page, selectors, file, { textRe = null, pad = 16, padTop = pad, padBottom = pad } = {}) {
+async function settle(page) {
+  await page.waitUntil((ms) => performance.now() > ms, [SETTLE_AFTER_LOAD_MS], { what: 'the app warmup window', timeoutMs: 30000, pollMs: 200 })
+  await page.networkIdle(1000, 60000)
+}
+
+/**
+ * Element screenshot at FIGURE_DSF: scroll the region just below the sticky mission bar, grow the viewport
+ * if the region is taller than what is left of it, and clip (document coordinates, padded). `place` runs
+ * after the viewport change and the scroll, before the final measurement (F3 puts its label strip there, so
+ * the strip is placed against the layout that is captured).
+ */
+async function shootRegion(page, selectors, file, { textRe = null, pad = 16, padTop = pad, padBottom = pad, place = null } = {}) {
   const rect0 = await page.call(unionRect, selectors, textRe)
   if (!rect0) throw new Error(`${relative(REPO, file)}: nothing matches ${selectors.join(' + ')}`)
   const bar = await page.call(() => Math.ceil(document.querySelector('.lf-missionbar')?.getBoundingClientRect().bottom ?? 0))
-  const height = Math.max(HEIGHT, Math.ceil(rect0.h + bar + padTop + padBottom + 48))
+  const height = Math.max(HEIGHT, Math.ceil(rect0.h + bar + padTop + padBottom + 48 + 64))
   await page.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height, deviceScaleFactor: FIGURE_DSF, mobile: false })
   await page.painted(3)
-  await page.call((top) => (window.scrollTo({ top, left: 0, behavior: 'instant' }), true), Math.max(0, Math.floor((await page.call(unionRect, selectors, textRe)).y - bar - padTop - 24)))
+  await page.call((top) => (window.scrollTo({ top, left: 0, behavior: 'instant' }), true), Math.max(0, Math.floor((await page.call(unionRect, selectors, textRe)).y - bar - padTop - 24 - 64)))
+  await page.painted(3)
+  const placed = place ? await place() : null
   await page.painted(3)
   const r = await page.call(unionRect, selectors, textRe)
+  if (!r) throw new Error(`${relative(REPO, file)}: nothing matches ${selectors.join(' + ')} after the viewport change`)
   const clip = { x: Math.max(0, Math.floor(r.x - pad)), y: Math.max(0, Math.floor(r.y - padTop)), width: Math.ceil(r.w + 2 * pad), height: Math.ceil(r.h + padTop + padBottom), scale: 1 }
+  // the clip must sit inside the viewport and below the sticky mission bar, or the capture shows the bar or blank
+  const view = await page.call(() => ({ scrollY: window.scrollY, innerHeight: window.innerHeight, bar: document.querySelector('.lf-missionbar')?.getBoundingClientRect().bottom ?? 0 }))
+  const inView = clip.y - view.scrollY >= view.bar - 0.5 && clip.y + clip.height - view.scrollY <= view.innerHeight + 0.5
   const res = await page.send('Page.captureScreenshot', { format: 'png', clip, captureBeyondViewport: false })
   writeFileSync(file, Buffer.from(res.data, 'base64'))
   await page.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false })
-  return { file, clipCss: clip, ...pngSize(file) }
+  return { file, clipCss: clip, rect: r, inView, placed, ...pngSize(file) }
 }
 
 /**
@@ -162,6 +189,9 @@ async function shootRegion(page, selectors, file, { textRe = null, pad = 16, pad
 function labelAbove(sel, textRe, words, value, side) {
   const el = [...document.querySelectorAll(sel)].find((e) => new RegExp(textRe, 'i').test(e.textContent))
   if (!el) return null
+  // the crop takes exactly this card: the first applicable limit card on a region panel is not always it
+  document.querySelectorAll('[data-lf-figure-card]').forEach((x) => x.removeAttribute('data-lf-figure-card'))
+  el.setAttribute('data-lf-figure-card', '')
   document.querySelector('[data-lf-figure-label]')?.remove()
   let bg = 'rgba(0, 0, 0, 0)'
   for (let p = el.parentElement; p && /rgba\(0, 0, 0, 0\)|transparent/.test(bg); p = p.parentElement) bg = getComputedStyle(p).backgroundColor
@@ -184,7 +214,26 @@ function labelAbove(sel, textRe, words, value, side) {
   })
   document.body.appendChild(tag)
   const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(fill)
-  return { text: tag.textContent, background: m ? `0x${[m[1], m[2], m[3]].map((x) => Number(x).toString(16).padStart(2, '0')).join('')}` : '0x17171b' }
+  const t = tag.getBoundingClientRect()
+  const c = el.getBoundingClientRect()
+  return {
+    text: tag.textContent,
+    background: m ? `0x${[m[1], m[2], m[3]].map((x) => Number(x).toString(16).padStart(2, '0')).join('')}` : '0x17171b',
+    // document CSS px, for the crop checks: the strip must end where the card starts
+    label: { top: t.top + window.scrollY, bottom: t.bottom + window.scrollY, left: t.left, right: t.right },
+    card: { top: c.top + window.scrollY, bottom: c.bottom + window.scrollY, left: c.left, right: c.right, label: el.querySelector('.lf-limit-label')?.textContent.replace(/\s+/g, ' ').trim() ?? null },
+  }
+}
+
+/** Every limit card whose box meets the rectangle (document CSS px), by label: the F3 crop must hold one. */
+function cardsIn(clip) {
+  return [...document.querySelectorAll('li.lf-limit')]
+    .map((li) => {
+      const r = li.getBoundingClientRect()
+      return { label: li.querySelector('.lf-limit-label')?.textContent.replace(/\s+/g, ' ').trim() ?? null, top: r.top + window.scrollY, bottom: r.bottom + window.scrollY, left: r.left, right: r.right, w: r.width, h: r.height }
+    })
+    .filter((r) => r.w > 0 && r.h > 0 && r.bottom > clip.y + 0.5 && r.top < clip.y + clip.height - 0.5 && r.right > clip.x + 0.5 && r.left < clip.x + clip.width - 0.5)
+    .map((r) => r.label)
 }
 
 // ---- main ------------------------------------------------------------------------------------------
@@ -197,6 +246,13 @@ async function main() {
   const out = opts.out
   const work = join(out, 'work')
   mkdirSync(work, { recursive: true })
+  // The figures, facts-figures.json and figures.md are written to work/stage and moved into `out` together, only once
+  // every check and limit has passed: a run that fails leaves the last good figures and their captions as they were
+  // (a new image never sits beside an old caption that prints another number).
+  const stage = join(work, 'stage')
+  rmSync(stage, { recursive: true, force: true })
+  mkdirSync(stage, { recursive: true })
+  failedRunNote = `nothing in ${relative(REPO, out) || out} was replaced; this run's partial output is in ${relative(REPO, stage)}`
   log(`base ${opts.base} · figures ${(opts.only ?? FIGURES).join(', ')} · out ${relative(REPO, out) || out}`)
 
   const facts = {}
@@ -245,10 +301,11 @@ async function main() {
     facts.F1 = { chrome: pf.chrome, metStart: pf.timeline?.[0]?.metStart ?? null, caption: pf.timeline?.[0]?.caption ?? null }
     const master = join(videoOut, 'work', 'preview-master.mkv')
     const still = join(videoOut, 'work', 'still-2-hero-dual-counter.png')
-    if (!existsSync(master) || !existsSync(still)) throw new Error('F1: make-video left no master or no hero still')
+    const clean = join(videoOut, 'work', OG_STILL)
+    if (!existsSync(master) || !existsSync(still) || !existsSync(clean)) throw new Error('F1: make-video left no master, no hero still or no caption-free hero still')
 
     // GIF: fps 12, 960 px wide, one palette for the clip; fewer colours only if it would reach 4 MB
-    const gif = join(out, 'F1-dual-counter.gif')
+    const gif = join(stage, 'F1-dual-counter.gif')
     const ladder = [
       { colors: 256, dither: 'bayer:bayer_scale=5' },
       { colors: 128, dither: 'bayer:bayer_scale=5' },
@@ -264,13 +321,13 @@ async function main() {
     }
     const g = gifInfo(gif)
     outputs.F1 = { gif: { file: 'F1-dual-counter.gif', bytes: statSync(gif).size, MB: mb(statSync(gif).size), ...g, palette: used } }
-    copyFileSync(still, join(out, 'F1-dual-counter.png'))
-    outputs.F1.png = { file: 'F1-dual-counter.png', bytes: statSync(join(out, 'F1-dual-counter.png')).size, MB: mb(statSync(join(out, 'F1-dual-counter.png')).size), ...pngSize(still) }
+    copyFileSync(still, join(stage, 'F1-dual-counter.png'))
+    outputs.F1.png = { file: 'F1-dual-counter.png', bytes: statSync(join(stage, 'F1-dual-counter.png')).size, MB: mb(statSync(join(stage, 'F1-dual-counter.png')).size), ...pngSize(still) }
 
-    // og.png: the link-preview crop of the same claim-checked still
-    const og = join(out, 'og.png')
-    run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', still, '-vf', `crop=${OG_CROP.w}:${OG_CROP.h}:${OG_CROP.x}:${OG_CROP.y},scale=${LIMITS.ogWidth}:${LIMITS.ogHeight}:flags=lanczos`, '-frames:v', '1', og])
-    outputs.og = { file: 'og.png', bytes: statSync(og).size, MB: mb(statSync(og).size), ...pngSize(og), crop: OG_CROP }
+    // og.png: the link-preview crop of the same claim-checked last frame, captured without the video caption
+    const og = join(stage, 'og.png')
+    run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', clean, '-vf', `crop=${OG_CROP.w}:${OG_CROP.h}:${OG_CROP.x}:${OG_CROP.y},scale=${LIMITS.ogWidth}:${LIMITS.ogHeight}:flags=lanczos`, '-frames:v', '1', og])
+    outputs.og = { file: 'og.png', bytes: statSync(og).size, MB: mb(statSync(og).size), ...pngSize(og), crop: OG_CROP, from: OG_STILL }
     log(`F1: GIF ${g.width}x${g.height}, ${g.frames} frames, ${outputs.F1.gif.MB} MB (palette ${used.colors}); PNG ${outputs.F1.png.width}x${outputs.F1.png.height}; og.png ${outputs.og.width}x${outputs.og.height}`)
   }
 
@@ -299,39 +356,48 @@ async function main() {
           const page = await openApp(route)
           try {
             await page.waitUntil(s.ready, [], { what: 'F2: the case page', timeoutMs: 45000 })
+            await settle(page)
             if (s.check) await s.check(page, ctx)
+            // the shot's own checks (reading, threshold, whose number, [V2 6164], threshold not limit); it also
+            // tags the panel's summary with data-lfv=why
             if (s.prepare) await s.prepare(page, ctx)
-            await page.call(() => {
-              const d = document.querySelector('details.lf-expander')
-              if (!d.open) d.querySelector('summary').click()
-              return true
-            })
-            await page.waitUntil(() => document.querySelector('details.lf-expander')?.open === true, [], { what: 'F2: Why this fired is open' })
+            const PANEL = 'details.lf-expander:has(> summary[data-lfv=why])'
+            await page.call((sel) => {
+              const d = document.querySelector(sel)
+              if (d && !d.open) d.querySelector('summary').click()
+              return !!d
+            }, PANEL)
+            await page.waitUntil((sel) => document.querySelector(sel)?.open === true, [PANEL], { what: 'F2: Why this fired is open' })
             await page.painted(3)
             const bar = await page.call(readBar)
-            const why = await page.call(() => {
-              const d = document.querySelector('details.lf-expander')
-              const t = d.innerText.replace(/\s+/g, ' ').trim()
-              const norm = (x) => x.replace(/[\s\u200b\u2009\u202f]+/g, ' ').replace(/\s+\)/g, ')').trim()
-              // the dl grid: dt label, dd number(s) and unit; the out-of-limit arrow and screen-reader words dropped
-              const grid = [...d.querySelectorAll('dl.lfc-why-grid > div')].map((row) => {
-                const dd = row.querySelector('dd')?.cloneNode(true)
-                dd?.querySelectorAll('.lf-num-arrow, .sr-only').forEach((x) => x.remove())
-                return { label: norm(row.querySelector('dt')?.textContent ?? ''), value: norm(dd?.textContent ?? '') }
-              })
-              const cell = (re) => grid.find((g) => re.test(g.label))?.value ?? null
-              return { text: t, grid, value: cell(/^Value/), limit: cell(/^Limit/), limitLabel: grid.find((g) => g.label.startsWith('Limit'))?.label ?? null, margin: cell(/^Margin/), requirement: /\[V2 6164\]/.exec(t)?.[0] ?? null, quote: /when radiation exposure rates exceed predefined thresholds/.exec(t)?.[0] ?? null }
-            })
+            const w = await page.call(readWhy)
+            const row = (re) => w?.rows.find((r) => re.test(r.label)) ?? null
+            const value = row(/^Value$/)
+            const threshold = row(/^Threshold\b/)
+            const above = row(/^Above the threshold by$/)
+            const why = {
+              value: value?.value ?? null,
+              threshold: threshold?.value ?? null,
+              thresholdLabel: threshold?.label ?? null,
+              thresholdChips: threshold?.chips ?? [],
+              above: above?.value ?? null,
+              badge: w?.sev.find((x) => /^At or above S3\b/i.test(x.text))?.text.replace(/\s*\(\w+\)$/, '') ?? null,
+              requirement: /\[V2 6164\]/.exec(w?.basis ?? '')?.[0] ?? null,
+              quote: /when radiation exposure rates exceed predefined thresholds/.exec(w?.basis ?? '')?.[0] ?? null,
+              ours: /NOAA does not define its scale away from Earth, so applying it at Mars is ours/.exec(w?.text ?? '')?.[0] ?? null,
+              text: w?.text ?? null,
+            }
             ctx.fact('F2', { route, bar, why })
             ctx.assert(bar.env === 'mars_surface', 'F2: the deep link opens the shelter case at the Mars surface base', bar)
-            ctx.assert(!!why.value && !!why.limit && !!why.margin, 'F2: the panel shows a value, a limit and a margin', why.grid)
-            ctx.assert(/\bdesign choice\b/i.test(why.text) && /^Design choice: /m.test(why.text.replace(/^.*?(Design choice: )/s, '$1')), "F2 caption: the threshold applied at Mars is labelled a design choice (the panel's chip and basis)", why.text.slice(0, 240))
-            outputs.F2 = { ...(await shootRegion(page, ['details.lf-expander'], join(out, 'F2-why-this-fired.png'), { pad: 16, padTop: 6 })), file: 'F2-why-this-fired.png' }
+            ctx.assert(!!why.value && !!why.threshold && !!why.above && /NOAA S3/.test(why.thresholdLabel ?? ''), "F2: the panel shows the value, NOAA's S3 threshold and how far above it the reading is", w?.rows)
+            ctx.assert(why.thresholdChips.includes('design choice') && !!why.ours, "F2 caption: applying NOAA's S3 threshold at Mars is labelled a design choice (the threshold's chip and the basis)", { chips: why.thresholdChips, ours: why.ours })
+            outputs.F2 = { ...(await shootRegion(page, [PANEL], join(stage, 'F2-why-this-fired.png'), { pad: 16, padTop: 6 })), file: 'F2-why-this-fired.png' }
+            ctx.assert(outputs.F2.inView, 'F2 crop: the clip is inside the viewport, below the mission bar', { clip: outputs.F2.clipCss })
           } finally {
             await page.close()
           }
         })
-        outputs.F2.bytes = statSync(join(out, outputs.F2.file)).size
+        outputs.F2.bytes = statSync(join(stage, outputs.F2.file)).size
         outputs.F2.MB = mb(outputs.F2.bytes)
         log(`F2: ${outputs.F2.width}x${outputs.F2.height}, ${outputs.F2.MB} MB`)
       }
@@ -348,6 +414,7 @@ async function main() {
             try {
               await page.waitUntil(s.ready, [], { what: `F3 ${env}: the body map`, timeoutMs: 45000 })
               await page.waitUntil(() => [...document.querySelectorAll('li.lf-limit[data-applicable] .lf-limit-label')].some((x) => /VO2max/i.test(x.textContent)), [], { what: `F3 ${env}: CM-2's VO2max card` })
+              await settle(page)
               const bar = await page.call(readBar)
               ctx.assert(bar.env === env && bar.crew === 'CM-2', `F3: the deep link ${route} opens ${env} for CM-2 with no click`, bar)
               // Mars: the shot's own opening checks; ISS: its closing checks (same reading, other floor, link up)
@@ -356,10 +423,24 @@ async function main() {
               const label = `${bar.envLabel} · link ${bar.link} · one-way light time ${bar.owlt}`
               ctx.fact(`F3.${env}`, { route, bar, label, card: facts[env === 'iss' ? 'flip.iss' : 'flip.mars'] })
               const SIDE = 12
-              const tag = await page.call(labelAbove, VO2.sel, VO2.text, `${bar.envLabel} · link ${bar.link} · one-way light time`, bar.owlt, SIDE)
+              const words = `${bar.envLabel} · link ${bar.link} · one-way light time`
+              // Tag the VO2max card (the crop takes exactly that card, never the first applicable limit card),
+              // then place the label strip again after the viewport change, against the layout that is captured.
+              const tag = await page.call(labelAbove, VO2.sel, VO2.text, words, bar.owlt, SIDE)
               if (!tag) throw new Error(`F3 ${env}: no VO2max card to label`)
               const file = join(work, `F3-${env}.png`)
-              const shotInfo = await shootRegion(page, [VO2.sel, '[data-lf-figure-label]'], file, { textRe: null, pad: SIDE, padTop: -4, padBottom: 6 })
+              const shotInfo = await shootRegion(page, ['[data-lf-figure-card]', '[data-lf-figure-label]'], file, {
+                pad: SIDE, padTop: -4, padBottom: 6,
+                place: () => page.call(labelAbove, VO2.sel, VO2.text, words, bar.owlt, SIDE),
+              })
+              const placed = shotInfo.placed
+              const inside = await page.call(cardsIn, shotInfo.clipCss)
+              const crop = { clip: shotInfo.clipCss, label: placed?.label, card: placed?.card, cardsInClip: inside, png: { width: shotInfo.width, height: shotInfo.height } }
+              ctx.fact(`F3.${env}.crop`, crop)
+              ctx.assert(!!placed && /VO2max/i.test(placed.card.label ?? '') && Math.abs(placed.label.bottom - placed.card.top) <= 1, `F3 crop (${env}): the label strip ends where CM-2's VO2max card starts`, crop)
+              ctx.assert(inside.length === 1 && /VO2max/i.test(inside[0] ?? ''), `F3 crop (${env}): the clip holds CM-2's VO2max card and no other limit card`, crop)
+              ctx.assert(!!placed && shotInfo.clipCss.y <= placed.label.top + 4.5 && shotInfo.clipCss.y + shotInfo.clipCss.height >= placed.card.bottom && shotInfo.clipCss.x <= placed.card.left && shotInfo.clipCss.x + shotInfo.clipCss.width >= placed.card.right, `F3 crop (${env}): the whole card and its label strip are inside the clip`, crop)
+              ctx.assert(shotInfo.inView && shotInfo.width === Math.round(shotInfo.clipCss.width * FIGURE_DSF) && shotInfo.height === Math.round(shotInfo.clipCss.height * FIGURE_DSF), `F3 crop (${env}): the clip is on screen below the mission bar, captured at ${FIGURE_DSF} px per CSS px`, crop)
               parts.push({ env, background: tag.background, ...shotInfo })
             } finally {
               await page.close()
@@ -369,12 +450,12 @@ async function main() {
           const H = Math.max(...parts.map((p) => p.height))
           const gap = 24 * FIGURE_DSF
           const color = parts[0].background
-          const f3 = join(out, 'F3-vo2max-mars-iss.png')
+          const f3 = join(stage, 'F3-vo2max-mars-iss.png')
           run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', parts[0].file, '-i', parts[1].file, '-filter_complex',
             `[0:v]pad=iw+${gap}:${H}:0:0:color=${color}[a];[1:v]pad=iw:${H}:0:0:color=${parts[1].background}[b];[a][b]hstack=inputs=2`, '-frames:v', '1', f3])
           outputs.F3 = { file: 'F3-vo2max-mars-iss.png', ...pngSize(f3), parts: parts.map((p) => ({ env: p.env, width: p.width, height: p.height })) }
         })
-        outputs.F3.bytes = statSync(join(out, outputs.F3.file)).size
+        outputs.F3.bytes = statSync(join(stage, outputs.F3.file)).size
         outputs.F3.MB = mb(outputs.F3.bytes)
         log(`F3: ${outputs.F3.width}x${outputs.F3.height}, ${outputs.F3.MB} MB`)
       }
@@ -387,6 +468,7 @@ async function main() {
           const page = await openApp(route)
           try {
             await page.waitUntil(s.ready, [], { what: 'F4: the provenance page', timeoutMs: 45000 })
+            await settle(page)
             if (s.check) await s.check(page, ctx)
             if (s.prepare) await s.prepare(page, ctx)
             const summary = await page.call(() => {
@@ -405,12 +487,13 @@ async function main() {
             ctx.fact('F4', { route, summary })
             const sum = summary.chips.reduce((n, c) => n + Number(c.count), 0)
             ctx.assert(Number(summary.total) > 0 && sum === Number(summary.total), 'F4: the per-chip counts add up to the entries in the rules', { total: summary.total, sum })
-            outputs.F4 = { ...(await shootRegion(page, ['header.prov-head', 'section.prov-summary'], join(out, 'F4-provenance-summary.png'))), file: 'F4-provenance-summary.png' }
+            outputs.F4 = { ...(await shootRegion(page, ['header.prov-head', 'section.prov-summary'], join(stage, 'F4-provenance-summary.png'))), file: 'F4-provenance-summary.png' }
+            ctx.assert(outputs.F4.inView, 'F4 crop: the clip is inside the viewport, below the mission bar', { clip: outputs.F4.clipCss })
           } finally {
             await page.close()
           }
         })
-        outputs.F4.bytes = statSync(join(out, outputs.F4.file)).size
+        outputs.F4.bytes = statSync(join(stage, outputs.F4.file)).size
         outputs.F4.MB = mb(outputs.F4.bytes)
         log(`F4: ${outputs.F4.width}x${outputs.F4.height}, ${outputs.F4.MB} MB`)
       }
@@ -441,9 +524,9 @@ async function main() {
     checkCounts: Object.fromEntries(Object.entries(checksOf).map(([k, v]) => [k, v.length])),
     facts,
   }
-  writeFileSync(join(out, 'facts-figures.json'), `${JSON.stringify(report, null, 2)}\n`)
+  writeFileSync(join(stage, 'facts-figures.json'), `${JSON.stringify(report, null, 2)}\n`)
   const { md, prose } = figuresMd(report, (opts.only ?? FIGURES).filter((f) => outputs[f]))
-  writeFileSync(join(out, 'figures.md'), md)
+  writeFileSync(join(stage, 'figures.md'), md)
 
   // every number figures.md prints is in facts-figures.json; captions and alt text only use app facts
   const all = JSON.stringify(report)
@@ -457,11 +540,22 @@ async function main() {
   if (notFromApp.length) problems.push(`captions or alt text print numbers that the app did not show: ${notFromApp.join(', ')}`)
 
   log(`checks: ${report.checks.filter((c) => c.ok).length}/${report.checks.length} claims confirmed against the app`)
-  for (const [fig, o] of Object.entries(outputs)) for (const f of [o, o.gif, o.png].filter((x) => x?.file)) log(`${fig.padEnd(3)} ${relative(REPO, join(out, f.file))}  ${f.width}x${f.height}  ${f.MB} MB`)
-  log(`figures.md: ${relative(REPO, join(out, 'figures.md'))} (${numbers(md).length} distinct numbers, all in facts-figures.json: ${missing.length === 0})`)
+  log(`figures.md: ${numbers(md).length} distinct numbers, all in facts-figures.json: ${missing.length === 0}`)
   if (problems.length) throw new Error(problems.join('; '))
+  // every check and limit passed: publish the figures with their captions (renames within one volume), all or none
+  const files = [...Object.values(outputs).flatMap((o) => [o, o.gif, o.png]).filter((x) => x?.file).map((x) => x.file), 'facts-figures.json', 'figures.md']
+  const unstaged = files.filter((f) => !existsSync(join(stage, f)))
+  if (unstaged.length) throw new Error(`nothing published: this run did not stage ${unstaged.join(', ')}`)
+  for (const f of files) renameSync(join(stage, f), join(out, f))
+  rmSync(stage, { recursive: true, force: true })
+  failedRunNote = null
+  for (const [fig, o] of Object.entries(outputs)) for (const f of [o, o.gif, o.png].filter((x) => x?.file)) log(`${fig.padEnd(3)} ${relative(REPO, join(out, f.file))}  ${f.width}x${f.height}  ${f.MB} MB`)
+  log(`figures.md: ${relative(REPO, join(out, 'figures.md'))}; facts in ${relative(REPO, join(out, 'facts-figures.json'))}`)
   log(`done in ${((Date.now() - t0) / 1000).toFixed(0)} s`)
 }
+
+/** Set while a run is in progress: what a failure leaves where (printed with the error). */
+let failedRunNote = null
 
 // ---- figures.md ------------------------------------------------------------------------------------
 
@@ -501,9 +595,11 @@ function figuresMd(report, figs) {
   }
   if (figs.includes('F2')) {
     const w = f.F2?.why ?? {}
+    // the threshold row's own label, e.g. "Threshold (NOAA S3, reached at or above)" -> "NOAA S3, reached at or above"
+    const reached = (w.thresholdLabel ?? '').replace(/^Threshold\s*/, '').replace(/^\((.*)\)$/, '$1')
     add('F2', 'Why this fired', [o.F2],
-      `The opened "Why this fired" panel of LANDFALL's solar particle event shelter case at the Mars surface base: value ${w.value}, limit ${w.limit} (${(w.limitLabel ?? '').replace(/^Limit\s*/, '').replace(/^\((.*)\)$/, '$1')}), margin ${w.margin}, marked outside the limit; then the rule's basis, which quotes ${w.requirement}: "${w.quote}".`,
-      `Every finding explains itself: the reading (${w.value}), the limit (${w.limit}), the margin (${w.margin}), and the NASA requirement behind the rule, ${w.requirement}, in its own words. Here the threshold applied at Mars is labelled a design choice.`,
+      `The opened "Why this fired" panel of LANDFALL's solar particle event shelter case at the Mars surface base: value ${w.value}; threshold ${w.threshold} (${reached}), labelled a design choice; above the threshold by ${w.above}; the badge reads "${w.badge}"; then the rule's basis, which quotes ${w.requirement}: "${w.quote}".`,
+      `Every finding explains itself: the reading (${w.value}), the threshold it reached (${w.threshold}, NOAA's S3 level), how far above it (${w.above}), and the NASA requirement behind the alert, ${w.requirement}, in its own words. NOAA does not define its scale away from Earth, so applying it at Mars is labelled a design choice.`,
       [f.F2?.route ?? '#/case/spe_shelter'], 'open "Why this fired" under Detect')
   }
   if (figs.includes('F3')) {
@@ -535,13 +631,13 @@ function figuresMd(report, figs) {
     '|---|---|---|',
     ...files.map((x) => `| \`${x.file}\` | ${x.width} x ${x.height} | ${x.MB} |`),
     '',
-    o.og ? `\`og.png\` (${o.og.width} x ${o.og.height}) is the link-preview crop of F1's still: copy it to \`web/public/og.png\` after the final capture.\n` : '',
+    o.og ? `\`og.png\` (${o.og.width} x ${o.og.height}) is the link-preview crop of F1's last frame, captured without the video caption (\`${o.og.from}\`): copy it to \`web/public/og.png\` after the final capture.\n` : '',
     ...blocks,
   ].join('\n')
   return { md, prose: prose.join('\n') }
 }
 
 main().catch((e) => {
-  console.error(`\nmake-figures failed: ${e.message}`)
+  console.error(`\nmake-figures failed: ${e.message}${failedRunNote ? `\n(${failedRunNote})` : ''}`)
   process.exit(1)
 })

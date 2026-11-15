@@ -148,11 +148,12 @@ export class Connection {
     })
   }
 
-  async newPage({ width, height }) {
+  /** A page with a `width` x `height` CSS px viewport, rendered at `dsf` device pixels per CSS pixel. */
+  async newPage({ width, height, dsf = 1 }) {
     const { targetId } = await this.send('Target.createTarget', { url: 'about:blank' })
     const { sessionId } = await this.send('Target.attachToTarget', { targetId, flatten: true })
     const page = new Page(this, targetId, sessionId)
-    await page.init({ width, height })
+    await page.init({ width, height, dsf })
     return page
   }
 }
@@ -183,11 +184,11 @@ export class Page {
     return this.conn.waitFor(method, this.sessionId, timeoutMs)
   }
 
-  async init({ width, height }) {
+  async init({ width, height, dsf = 1 }) {
     await this.send('Page.enable')
     await this.send('Runtime.enable')
     await this.send('Network.enable')
-    await this.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false })
+    await this.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dsf, mobile: false })
     await this.send('Emulation.setEmulatedMedia', {
       features: [
         { name: 'prefers-reduced-motion', value: 'no-preference' },

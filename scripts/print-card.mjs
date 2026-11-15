@@ -21,10 +21,11 @@
 // Run it against the deployed URL after the final deploy.
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { tempProfile } from './chrome-profile.mjs'
 
 const REPO = fileURLToPath(new URL('..', import.meta.url))
 const args = process.argv.slice(2)
@@ -69,8 +70,9 @@ const pdfText = (file, page) =>
 
 // ---- Chrome ----------------------------------------------------------------------------------------------
 const port = 9300 + Math.floor(Math.random() * 500)
-const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--hide-scrollbars', `--remote-debugging-port=${port}`,
-  `--user-data-dir=${mkdtempSync(join(tmpdir(), 'lf-print-'))}`, 'about:blank'], { stdio: 'ignore' })
+const profile = tempProfile('lf-print-') // deleted on exit
+const chrome = profile.own(spawn(CHROME, ['--headless=new', '--disable-gpu', '--hide-scrollbars', `--remote-debugging-port=${port}`,
+  ...profile.flags, 'about:blank'], { stdio: 'ignore' }))
 const watchdog = setTimeout(() => { console.error('FAIL: print-card timed out after 5 min'); chrome.kill(); process.exit(2) }, 300_000)
 
 async function target() {

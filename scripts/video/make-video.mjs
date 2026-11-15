@@ -9,16 +9,19 @@
 // How it stays reproducible: every shot gets a fresh page that loads in REAL time (so the app's
 // own in-browser latency measurement is genuine), then the app's clock is frozen (an in-page shim
 // over performance.now, Date.now and timers, see cdp.mjs) and stepped exactly 1/30 s per frame, so
-// animations, the MET clock and scrolls land on the same frames on every run. Frames are lossless
-// PNGs piped into a lossless master, then encoded once to H.264 (yuv420p, BT.709, faststart, no
-// audio). Every on-screen claim is checked against the app before its frames are written
-// (storyboard.mjs); the run aborts if one fails.
+// animations, the MET clock and scrolls land on the same frames on every run. App shots are laid out
+// at VIEW (1440x810 CSS px) and rendered at 4/3 device pixels per CSS pixel, so every frame is 1920x1080
+// with the app's text a third larger than a 1920 px layout; title cards render at 1920x1080. Frames are
+// lossless PNGs piped into a lossless master, then encoded once to H.264 (yuv420p, BT.709, faststart,
+// no audio). Every on-screen claim is checked against the app before its frames are written
+// (storyboard.mjs); the run aborts if one fails. Text that is still a placeholder (PLACEHOLDERS in
+// storyboard.mjs) is logged, listed in facts.json and flagged NOT FOR UPLOAD YET.
 import { spawn, spawnSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { DEFAULT_CHROME, StallError, launchChrome } from './cdp.mjs'
-import { FPS, HEIGHT, MAX_SECONDS, PUBLIC_URL, SHOTS, WIDTH, factsPass } from './storyboard.mjs'
+import { FPS, HEIGHT, MAX_SECONDS, PLACEHOLDERS, PUBLIC_URL, SHOTS, VIEW, WIDTH, factsPass } from './storyboard.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = resolve(HERE, '../..')
@@ -125,24 +128,35 @@ async function fontCss(origins) {
   throw new Error('could not read the app fonts from any origin')
 }
 
-// ---- page-side overlay: caption (bottom-left) and a focus ring for what is being clicked --------
+// ---- page-side overlay: caption (a lower third) and a focus ring for what is being clicked ------
 
-function installOverlay(kicker, caption) {
+/**
+ * `k` = CSS px per output pixel (1 / the page's device scale factor). Every size below is written in output
+ * pixels of the 1920x1080 frame and multiplied by k, so the caption is the same size on screen whatever the
+ * page's CSS viewport is (the app shots are laid out at 1440 CSS px and rendered at 4/3, see VIEW).
+ * The caption is a full-width lower third: it hides the bottom of the page whole instead of covering the
+ * left half of a line of app text and leaving the rest of the line beside it.
+ */
+function installOverlay(kicker, caption, k = 1) {
   if (!window.__lfv) {
+    const px = (n) => `${+(n * k).toFixed(3)}px`
+    const FEATHER = 64
     const style = document.createElement('style')
     style.textContent = `
-      #lfv-caption { position: fixed; left: 56px; bottom: 56px; z-index: 2147483646; max-width: 1100px;
-        box-sizing: border-box; padding: 20px 34px 24px 28px; background: #08080a;
-        border-left: 6px solid #ffffff; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 18px 48px rgba(0, 0, 0, 0.6);
-        pointer-events: none; opacity: 0; }
+      #lfv-caption { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2147483646;
+        box-sizing: border-box; padding: ${px(26)} ${px(56)} ${px(44)}; background: #08080a;
+        box-shadow: 0 0 0 ${px(1)} rgba(255, 255, 255, 0.1); pointer-events: none; opacity: 0; }
+      #lfv-caption .lfv-in { max-width: ${px(1500)}; border-left: ${px(6)} solid #ffffff; padding: ${px(2)} 0 ${px(2)} ${px(28)}; }
       #lfv-caption p { margin: 0; }
       /* a feathered top edge, so the page behind fades into the caption instead of being sliced */
-      #lfv-caption::before { content: ''; position: absolute; left: -6px; right: 0; bottom: 100%; height: 72px;
+      #lfv-caption::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: ${px(FEATHER)};
         background: linear-gradient(to bottom, rgba(8, 8, 10, 0), rgba(8, 8, 10, 0.92)); }
-      #lfv-caption .lfv-k { font: 500 19px/1.2 'DM Mono', ui-monospace, monospace; letter-spacing: 0.04em; color: #b9b9bb; margin-bottom: 12px; }
-      #lfv-caption .lfv-t { font: 600 40px/1.22 'Inter', 'Helvetica Neue', Arial, sans-serif; letter-spacing: -0.012em; color: #ffffff; }
-      #lfv-ring { position: fixed; z-index: 2147483647; box-sizing: border-box; pointer-events: none; border: 3px solid #5cff7a;
-        border-radius: 6px; box-shadow: 0 0 0 6px rgba(92, 255, 122, 0.22); opacity: 0; }
+      #lfv-caption .lfv-k { font: 500 ${px(19)}/1.2 'DM Mono', ui-monospace, monospace; letter-spacing: 0.04em; color: #b9b9bb; margin-bottom: ${px(12)}; }
+      #lfv-caption .lfv-t { font: 600 ${px(40)}/1.22 'Inter', 'Helvetica Neue', Arial, sans-serif; letter-spacing: -0.012em; color: #ffffff; }
+      #lfv-ring { position: fixed; z-index: 2147483647; box-sizing: border-box; pointer-events: none; border: ${px(3)} solid #5cff7a;
+        border-radius: ${px(6)}; box-shadow: 0 0 0 ${px(6)} rgba(92, 255, 122, 0.22); opacity: 0; }
+      /* overlay-free review stills (stills with overlay: false): the frame without the caption and the ring */
+      html[data-lfv-hidden] #lfv-caption, html[data-lfv-hidden] #lfv-ring { visibility: hidden !important; }
       /* Capture only. CSS transitions run on Chrome's real clock, not on the frozen app clock, so they
          would land on different frames each run: they are off. The app's only CSS motion is 120 ms
          transitions (chevrons, body-figure fills), which become cuts (4 frames at 30 fps); the hero's
@@ -153,23 +167,39 @@ function installOverlay(kicker, caption) {
     const cap = document.createElement('div')
     cap.id = 'lfv-caption'
     cap.setAttribute('aria-hidden', 'true')
-    const k = document.createElement('p')
-    k.className = 'lfv-k'
+    const inner = document.createElement('div')
+    inner.className = 'lfv-in'
+    const kick = document.createElement('p')
+    kick.className = 'lfv-k'
     const t = document.createElement('p')
     t.className = 'lfv-t'
-    cap.append(k, t)
+    inner.append(kick, t)
+    cap.append(inner)
     const ring = document.createElement('div')
     ring.id = 'lfv-ring'
     document.body.append(cap, ring)
     window.__lfv = {
+      /** CSS px per output pixel (the storyboard's geometry checks convert with it). */
+      k,
       caption(kickerText, text) {
-        k.textContent = kickerText ?? ''
-        k.style.display = kickerText ? '' : 'none'
+        kick.textContent = kickerText ?? ''
+        kick.style.display = kickerText ? '' : 'none'
         t.replaceChildren()
         String(text).split('\n').forEach((line, i) => {
           if (i) t.appendChild(document.createElement('br'))
           t.appendChild(document.createTextNode(line))
         })
+      },
+      /** The caption box in viewport CSS px, and the top of its feathered edge (whatever its opacity). */
+      box() {
+        const r = cap.getBoundingClientRect()
+        return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, featherTop: r.top - FEATHER * k }
+      },
+      /** Hide (true) or show (false) the caption and the ring, for an overlay-free review still. */
+      hide(on) {
+        if (on) document.documentElement.setAttribute('data-lfv-hidden', '')
+        else document.documentElement.removeAttribute('data-lfv-hidden')
+        return true
       },
       frame(spec) {
         const pick = (sel, text) => [...document.querySelectorAll(sel)].filter((el) => !text || new RegExp(text, 'i').test(el.textContent))
@@ -182,7 +212,10 @@ function installOverlay(kicker, caption) {
         }
         const o = typeof spec.caption === 'number' ? spec.caption : 1
         cap.style.opacity = String(o)
-        cap.style.transform = o < 1 ? `translateY(${((1 - o) * 14).toFixed(2)}px)` : 'none'
+        cap.style.transform = o < 1 ? `translateY(${((1 - o) * 14 * k).toFixed(2)}px)` : 'none'
+        // the caption's words alone (`t`, the .lfv-t line; the band and its kicker stay): a caption that changes
+        // cross-fades its words, because dipping the whole band would flash the page bottom it hides
+        t.style.opacity = String(typeof spec.words === 'number' ? spec.words : 1)
         const r = spec.ring
         let shown = false
         if (r && r.o > 0) {
@@ -215,6 +248,42 @@ function installOverlay(kicker, caption) {
 
 function applyFrame(spec) {
   return window.__lfv.frame(spec)
+}
+
+/**
+ * Where each element of a shot's `clear` list sits on the last frame: inside the viewport, below the sticky
+ * mission bar, and not under the caption box (viewport CSS px). `under` also reports the caption's feathered
+ * edge, which darkens but does not hide what is behind it.
+ */
+function clearOfCaption(specs) {
+  const cap = window.__lfv.box()
+  const bar = document.querySelector('.lf-missionbar')?.getBoundingClientRect().bottom ?? 0
+  return specs.map(({ sel, text, what }) => {
+    const els = [...document.querySelectorAll(sel)].filter((e) => !text || new RegExp(text, 'i').test(e.textContent))
+    const el = els.find((e) => {
+      const b = e.getBoundingClientRect()
+      return b.width > 0 && b.height > 0
+    })
+    if (!el) return { what, found: false }
+    const r = el.getBoundingClientRect()
+    const xOverlap = r.right > cap.left && r.left < cap.right
+    const rect = { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) }
+    return {
+      what,
+      found: true,
+      rect,
+      caption: { top: Math.round(cap.top), featherTop: Math.round(cap.featherTop), left: Math.round(cap.left), right: Math.round(cap.right) },
+      bar: Math.round(bar),
+      inView: r.top >= bar - 1 && r.bottom <= window.innerHeight + 1 && r.left >= -1 && r.right <= window.innerWidth + 1,
+      underCaption: xOverlap && r.bottom > cap.top + 1,
+      underFeather: xOverlap && r.bottom > cap.featherTop + 1,
+    }
+  })
+}
+
+/** Width and height of a PNG from its IHDR chunk. */
+function pngDims(buf) {
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) }
 }
 
 function appReady() {
@@ -323,6 +392,10 @@ async function main() {
 
   const total = SHOTS.reduce((s, x) => s + x.dur, 0)
   if (total > MAX_SECONDS + 1e-9) throw new Error(`storyboard is ${total} s, over the ${MAX_SECONDS} s budget`)
+  // the app viewport, scaled by its device scale factor, must fill the output frame exactly
+  if (Math.round(VIEW.width * VIEW.dsf) !== WIDTH || Math.round(VIEW.height * VIEW.dsf) !== HEIGHT) {
+    throw new Error(`VIEW ${VIEW.width}x${VIEW.height} at DSF ${VIEW.dsf} does not render to ${WIDTH}x${HEIGHT}`)
+  }
   const unknown = (opts.only ?? []).filter((id) => !SHOTS.some((x) => x.id === id))
   if (unknown.length) throw new Error(`--only: no shot ${unknown.join(', ')} (have ${SHOTS.map((x) => x.id).join(', ')})`)
   const shots = opts.only ? SHOTS.filter((x) => opts.only.includes(x.id)) : SHOTS
@@ -332,13 +405,28 @@ async function main() {
   const out = opts.out
   const work = join(out, 'work')
   mkdirSync(work, { recursive: true })
-  const mp4 = preview ? join(work, `preview-${opts.only.join('-')}.mp4`) : join(out, 'landfall-30s.mp4')
+  // A full run writes its stills, facts.json and the mp4 to work/stage, and moves them into `out` only once every
+  // claim and every hard limit has passed. A run that fails (a claim the app no longer supports, a full disk, an
+  // encode over the limits) leaves the last good deliverables in `out` as they were, all from one run.
+  const stage = preview ? work : join(work, 'stage')
+  if (!preview) {
+    rmSync(stage, { recursive: true, force: true })
+    mkdirSync(stage, { recursive: true })
+    failedRunNote = `the deliverables in ${relative(REPO, out) || out} were not replaced; this run's partial output is in ${relative(REPO, stage)}`
+  }
+  const mp4Name = preview ? `preview-${opts.only.join('-')}.mp4` : 'landfall-30s.mp4'
+  const factsName = preview ? 'preview-facts.json' : 'facts.json'
+  const mp4 = join(stage, mp4Name) // encoded and probed here
+  const mp4Out = join(preview ? work : out, mp4Name) // delivered here
   const master = join(work, preview ? 'preview-master.mkv' : 'master.mkv')
-  const stillDir = preview ? work : out
-  for (const s of shots) for (const st of s.stills ?? []) rmSync(join(stillDir, `${st.name}.png`), { force: true })
+  const stillDir = stage
+  const stillOut = preview ? work : out
+  if (preview) for (const s of shots) for (const st of s.stills ?? []) rmSync(join(work, `${st.name}.png`), { force: true })
 
-  log(`base ${opts.base} · ${shots.length} shots · ${(totalFrames / FPS).toFixed(2)} s · ${totalFrames} frames at ${FPS} fps · ${WIDTH}x${HEIGHT} DSF 1${preview ? ' · PREVIEW (--only)' : ''}`)
+  log(`base ${opts.base} · ${shots.length} shots · ${(totalFrames / FPS).toFixed(2)} s · ${totalFrames} frames at ${FPS} fps · ${WIDTH}x${HEIGHT} (app at ${VIEW.width}x${VIEW.height} CSS px, DSF ${+VIEW.dsf.toFixed(4)}; cards at ${WIDTH}x${HEIGHT}, DSF 1)${preview ? ' · PREVIEW (--only)' : ''}`)
   if (opts.base !== PUBLIC_URL) log(`note: capturing ${opts.base}; the last card still prints the public URL ${PUBLIC_URL}`)
+  const placeholders = PLACEHOLDERS.filter((p) => shots.some((s) => s.id === p.shot))
+  for (const p of placeholders) log(`PLACEHOLDER ${p.marker} on ${p.shot}: ${p.why}. This render is not for upload until it is resolved.`)
 
   const fonts = await fontCss([...new Set([opts.base, PUBLIC_URL])])
   writeFileSync(join(work, 'card-fonts.css'), fonts.css)
@@ -370,7 +458,7 @@ async function main() {
   log(`chrome ${chromeVersion}`)
 
   const openApp = async (route) => {
-    const page = await browser.newPage({ width: WIDTH, height: HEIGHT })
+    const page = await browser.newPage({ width: VIEW.width, height: VIEW.height, dsf: VIEW.dsf })
     await page.installClock()
     await page.goto(`${opts.base}/${route}`)
     await page.waitUntil(appReady, [], { what: `${route}: app shell and comms`, timeoutMs: 45000 })
@@ -380,7 +468,12 @@ async function main() {
   /** Capture one shot on a fresh page; returns its frames (buffered, so a stalled attempt leaves no trace). */
   const captureShot = async (shot, plan) => {
     const n = Math.round(shot.dur * FPS)
-    const stillAt = new Map((shot.stills ?? []).map((s) => [Math.min(n - 1, Math.round(s.at * FPS)), s.name]))
+    // frame index -> the stills taken on it (a frame can give a still with and one without the overlay)
+    const stillAt = new Map()
+    for (const s of shot.stills ?? []) {
+      const f = Math.min(n - 1, Math.round(s.at * FPS))
+      stillAt.set(f, [...(stillAt.get(f) ?? []), s])
+    }
     const frames = []
     const stills = new Map()
     let page = null
@@ -388,7 +481,7 @@ async function main() {
     let metStart = null
     try {
       if (shot.kind === 'card') {
-        page = await browser.newPage({ width: WIDTH, height: HEIGHT })
+        page = await browser.newPage({ width: WIDTH, height: HEIGHT, dsf: 1 })
         await page.goto(pathToFileURL(join(work, 'card.html')).href)
         const text = await page.call((s) => window.renderCard(s), shot.card(facts))
         if (!(await page.call(() => window.fontsReady()))) throw new Error(`${shot.id}: card fonts did not load`)
@@ -399,7 +492,7 @@ async function main() {
         step(shot.id, 'wait for the page')
         await page.waitUntil(shot.ready, [], { what: `${shot.id}: page ready`, timeoutMs: 45000 })
         await page.eval('document.fonts.ready.then(() => true)')
-        await page.call(installOverlay, shot.kicker, shot.caption)
+        await page.call(installOverlay, shot.kicker, shot.caption, 1 / VIEW.dsf)
         step(shot.id, 'check / prepare')
         if (shot.check) await shot.check(page, ctx)
         if (shot.prepare) state = (await shot.prepare(page, ctx)) ?? {}
@@ -450,11 +543,33 @@ async function main() {
             await page.tick(1000 / FPS) // the app clock lands exactly on (f + 1) / FPS after the freeze
           }
           const png = await page.screenshotPng()
+          const dims = pngDims(png)
+          if (dims.width !== WIDTH || dims.height !== HEIGHT) throw new Error(`frame is ${dims.width}x${dims.height}, not ${WIDTH}x${HEIGHT}`)
           frames.push(png)
-          if (stillAt.has(f)) stills.set(stillAt.get(f), png)
+          for (const s of stillAt.get(f) ?? []) {
+            if (s.overlay !== false || shot.kind === 'card') {
+              stills.set(s.name, png)
+              continue
+            }
+            // the same frame without the caption and the ring (the app clock is frozen between the two captures)
+            await page.call((on) => window.__lfv.hide(on), true)
+            await page.painted()
+            stills.set(s.name, await page.screenshotPng())
+            await page.call((on) => window.__lfv.hide(on), false)
+            await page.painted()
+          }
         } catch (e) {
           const msg = `${shot.id}, frame ${f} (t=${t.toFixed(3)} s): ${e.message}`
           throw e instanceof StallError ? new StallError(msg) : new Error(msg)
+        }
+      }
+      // what the caption must not cover: checked on the last frame, where every app shot takes its still
+      if (shot.clear?.length) {
+        const geo = await page.call(clearOfCaption, shot.clear)
+        ctx.fact(`${shot.id}.clear`, geo)
+        for (const g of geo) {
+          ctx.assert(g.found && g.inView && !g.underCaption, `${shot.id}: ${g.what} is on screen on the last frame, below the mission bar and clear of the caption box`, g)
+          if (g.underFeather) ctx.warn(`${shot.id}: the caption's feathered edge reaches ${g.what} (bottom ${g.rect.bottom}, feather from ${g.caption.featherTop} CSS px)`)
         }
       }
       if (shot.after) await shot.after(page, ctx)
@@ -533,27 +648,44 @@ async function main() {
     base: opts.base,
     publicUrl: PUBLIC_URL,
     chrome: chromeVersion,
-    output: { file: relative(REPO, mp4), bytes: p.bytes, duration: p.durationText, crf, video: v },
+    /** App shots: CSS viewport and device scale factor; title cards render at the output size, DSF 1. */
+    view: { app: { width: VIEW.width, height: VIEW.height, dsf: VIEW.dsf }, cards: { width: WIDTH, height: HEIGHT, dsf: 1 } },
+    /** Text on screen that is a placeholder: the render is not for upload while this list is not empty. */
+    placeholders,
+    output: { file: relative(REPO, mp4Out), bytes: p.bytes, duration: p.durationText, crf, video: v },
     timeline,
     retries,
     checks,
     warnings,
     facts,
   }
-  writeFileSync(join(preview ? work : out, preview ? 'preview-facts.json' : 'facts.json'), `${JSON.stringify(report, null, 2)}\n`)
+  writeFileSync(join(stage, factsName), `${JSON.stringify(report, null, 2)}\n`)
 
   log(`checks: ${checks.filter((c) => c.ok).length}/${checks.length} claims confirmed against the app`)
-  for (const s of shots) for (const st of s.stills ?? []) log(`still ${relative(REPO, join(stillDir, `${st.name}.png`))}`)
-  log(`video ${relative(REPO, mp4)}: ${p.durationText} s, ${p.bytes} bytes (${mb(p.bytes)}), ${v?.codec_name} ${v?.profile} ${v?.width}x${v?.height} ${v?.pix_fmt} ${v?.r_frame_rate} fps, streams: ${p.streams.join(',')}`)
   if (preview) {
-    log(`preview only (--only): not the deliverable, hard limits not enforced: ${relative(REPO, mp4)}`)
+    for (const s of shots) for (const st of s.stills ?? []) log(`still ${relative(REPO, join(stillOut, `${st.name}.png`))}`)
+    log(`video ${relative(REPO, mp4Out)}: ${p.durationText} s, ${p.bytes} bytes (${mb(p.bytes)}), ${v?.codec_name} ${v?.profile} ${v?.width}x${v?.height} ${v?.pix_fmt} ${v?.r_frame_rate} fps, streams: ${p.streams.join(',')}`)
+    log(`preview only (--only): not the deliverable, hard limits not enforced: ${relative(REPO, mp4Out)}`)
     return
   }
   if (problems.length) throw new Error(`output fails the hard limits: ${problems.join('; ')}`)
-  log(`done in ${((Date.now() - t0) / 1000).toFixed(0)} s; facts and claim checks in ${relative(REPO, join(out, 'facts.json'))}`)
+  // every claim and every hard limit passed: publish the run (renames within one volume), all of it or none
+  const publish = [...shots.flatMap((s) => (s.stills ?? []).map((st) => [join(stage, `${st.name}.png`), join(stillOut, `${st.name}.png`)])), [join(stage, factsName), join(out, factsName)], [mp4, mp4Out]]
+  const unstaged = publish.filter(([from]) => !existsSync(from)).map(([from]) => relative(REPO, from))
+  if (unstaged.length) throw new Error(`nothing published: this run did not stage ${unstaged.join(', ')}`)
+  for (const [from, to] of publish) renameSync(from, to)
+  rmSync(stage, { recursive: true, force: true })
+  failedRunNote = null
+  for (const s of shots) for (const st of s.stills ?? []) log(`still ${relative(REPO, join(stillOut, `${st.name}.png`))}`)
+  log(`video ${relative(REPO, mp4Out)}: ${p.durationText} s, ${p.bytes} bytes (${mb(p.bytes)}), ${v?.codec_name} ${v?.profile} ${v?.width}x${v?.height} ${v?.pix_fmt} ${v?.r_frame_rate} fps, streams: ${p.streams.join(',')}`)
+  for (const p of placeholders) log(`NOT FOR UPLOAD YET: ${p.shot} shows the placeholder ${p.marker} (${p.why})`)
+  log(`done in ${((Date.now() - t0) / 1000).toFixed(0)} s; facts and claim checks in ${relative(REPO, join(out, factsName))}`)
 }
 
+/** Set while a full run is in progress: what a failure leaves where (printed with the error). */
+let failedRunNote = null
+
 main().catch((e) => {
-  console.error(`\nmake-video failed: ${e.message}`)
+  console.error(`\nmake-video failed: ${e.message}${failedRunNote ? `\n(${failedRunNote})` : ''}`)
   process.exit(1)
 })

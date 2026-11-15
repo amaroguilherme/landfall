@@ -6,9 +6,7 @@
 //
 //   node scripts/qa-mobile.mjs http://localhost:4301 [width=390] [height=844]
 import { spawn } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { tempProfile } from './chrome-profile.mjs'
 
 const base = process.argv[2] ?? 'http://localhost:4301'
 const width = Number(process.argv[3] ?? 390)
@@ -17,8 +15,9 @@ const ROUTES = ['#/', '#/body', '#/cases', '#/case/spe_shelter', '#/case/renal_s
   '#/radiation', '#/noon-sight', '#/trends', '#/downlink', '#/band', '#/provenance', '#/method', '#/data', '#/card/renal_stone']
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const port = 9300 + Math.floor(Math.random() * 500)
-const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', `--remote-debugging-port=${port}`,
-  `--user-data-dir=${mkdtempSync(join(tmpdir(), 'lf-qa-'))}`, 'about:blank'], { stdio: 'ignore' })
+const profile = tempProfile('lf-qa-') // deleted on exit
+const chrome = profile.own(spawn(CHROME, ['--headless=new', '--disable-gpu', `--remote-debugging-port=${port}`,
+  ...profile.flags, 'about:blank'], { stdio: 'ignore' }))
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 async function target() {

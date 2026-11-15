@@ -1,0 +1,44 @@
+{
+  "about": "The symptom check of #/method?s=find: a fixed word list (a design choice), matched on the typed words before any search and with or without the model. Patient mode, no negation: 'no blood in my urine' still fires. Besides these phrases, guard.ts imports the renal-stone case's six red flags verbatim from engine/rules/cases.json (renal_stone, step r4) and the three urgent symptoms from features/noon-sight/record.ts (URGENT_SYMPTOMS).",
+  "chip": "design choice",
+  "terms": [
+    {
+      "id": "symptom",
+      "phrases": [
+        "blood in my pee", "blood in my urine", "blood in urine", "blood in the pee", "blood when I pee", "bloody urine",
+        "red urine", "urine is red",
+        "burns when I pee", "burning when I pee", "hurts when I pee", "pain when I pee", "painful urination", "burning urine",
+        "pain when passing urine", "burning when passing urine", "pain when urinating", "burning when urinating",
+        "my side hurts", "pain in my side", "pain in the side", "side pain", "flank pain", "pain in my back", "pain in the back",
+        "back pain", "kidney pain",
+        "fever", "chills", "nausea", "nauseous", "nauseated", "vomiting", "vomit", "threw up", "throwing up",
+        "can't pee", "cannot pee", "unable to pee", "can't pass urine", "cannot pass urine", "unable to pass urine",
+        "chest pain", "chest hurts", "pain in my chest", "tight chest", "chest tightness",
+        "short of breath", "shortness of breath", "can't breathe", "cannot breathe", "can't catch my breath",
+        "trouble breathing", "hard to breathe", "breathless",
+        "blurry vision", "blurred vision", "double vision", "vision change", "change in my vision", "can't see"
+      ]
+    },
+    {
+      "id": "no_dosing",
+      "phrases": [
+        "ibuprofen", "aspirin", "acetaminophen", "paracetamol", "tylenol", "advil", "naproxen", "painkiller", "painkillers",
+        "pain killer", "medication", "medications", "medicine", "medicines", "pill", "pills", "antibiotic", "antibiotics",
+        "drug", "drugs", "dosage", "how much should I take", "mg of", "prescription", "prescribe", "promethazine",
+        "scopolamine", "potassium citrate", "melatonin", "sleeping pill", "sleep aid", "modafinil", "zolpidem",
+        "antihistamine", "decongestant", "epinephrine", "insulin"
+      ]
+    },
+    {
+      "id": "no_diagnosis",
+      "phrases": [
+        "diagnose", "diagnosis", "diagnosed", "do I have", "have I got", "what is wrong with me", "what's wrong with me",
+        "is it serious", "am I sick", "what disease", "what illness"
+      ]
+    },
+    {
+      "id": "no_reid",
+      "phrases": ["cancer risk", "risk of cancer", "chance of cancer", "chance of getting cancer", "my cancer", "REID", "exposure-induced death"]
+    }
+  ]
+}

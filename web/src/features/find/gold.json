@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "written_by": "an AI agent (Claude Code), blind to the search tool, before its first run",
+  "written_at": "2026-11-15",
+  "corpus": "the frozen requirements in std_vol1_requirements and std_vol2_requirements",
+  "corpus_count": 57,
+  "id_format": "Each expected string is the verbatim `id` of a data.requirements[] entry in the snapshot that holds it, so the volume prefix is always present. Volume 1 (std_vol1_requirements): `id` has no brackets, e.g. 'V1 4030'; the same entry's `label` is '[V1 4030]'. Volume 2 (std_vol2_requirements): `id` includes the brackets, e.g. '[V2 6109]'; the same entry's `number` is 6109. Removing the square brackets gives one uniform key per requirement ('V1 4030', 'V2 6109'). The Vol 2 snapshot lists [V2 6109] twice (groups 'hydration' and 'renal_context', identical text and rationale); it counts once, giving 20 Vol 1 + 37 Vol 2 = 57 unique IDs from 58 entries.",
+  "queries": [
+    {
+      "id": "g01",
+      "q": "how much drinking water do we need on board for each person per day?",
+      "expected": ["[V2 6109]"],
+      "origin": "agent-written",
+      "why": "[V2 6109] Water Quantity points to Table 6.3-1, whose potable-water-for-hydration row is a minimum 2.5 L per crewmember per day; no other frozen requirement sets a drinking-water amount."
+    },
+    {
+      "id": "g02",
+      "q": "According to NASA-STD-3001, astronauts are limited to a lifetime radiation dose of 1 sievert, and the limit is lower for women because of their higher cancer risk.",
+      "expected": ["V1 4030"],
+      "origin": "agent-written",
+      "why": "Tests a false chatbot claim: V1 4030 sets the career effective dose limit below 600 mSv and says it is universal for all ages and sexes."
+    },
+    {
+      "id": "g03",
+      "q": "what should the screen show when a sensor stops updating and the number on it is old?",
+      "expected": ["[V2 10020]"],
+      "origin": "agent-written",
+      "why": "[V2 10020] requires a visual indication when a data parameter is stale, missing, unavailable or unknown."
+    },
+    {
+      "id": "g04",
+      "q": "SPE dose limit",
+      "expected": ["V1 4031"],
+      "origin": "agent-written",
+      "why": "V1 4031 is the solar particle event limit: protect crew from the design reference SPE (sum of the October 1989 events) to less than 250 mSv effective dose."
+    },
+    {
+      "id": "g05",
+      "q": "does someone on the ground have to sign off on an astronaut's health before each spacewalk?",
+      "expected": ["V1 6006"],
+      "origin": "agent-written",
+      "why": "V1 6006 requires every crewmember to be medically cleared by ground medical support personnel prior to each EVA."
+    },
+    {
+      "id": "g06",
+      "q": "will the station warn us if the cabin air gets too hot, too humid or low on oxygen?",
+      "expected": ["[V2 6022]"],
+      "origin": "agent-written",
+      "why": "[V2 6022] requires local and remote crew alerts when atmospheric pressure, humidity, temperature, ppO2 or ppCO2 are outside safe limits; the generic parameter rule [V2 10115] does not name cabin air and is left out."
+    },
+    {
+      "id": "g07",
+      "q": "minimum VO2max for EVA",
+      "expected": ["V1 4001", "V1 4002"],
+      "origin": "agent-written",
+      "why": "V1 4001 (32.9 ml/min/kg, microgravity EVAs) and V1 4002 (36.5 ml/min/kg, extraterrestrial surface EVAs) are the two EVA VO2max minimums; V1 4003 is relative to pre-mission and not EVA-specific."
+    },
+    {
+      "id": "g08",
+      "q": "NASA-STD-3001 requires caution alerts to be displayed in orange and warning alerts in red, each with its own distinct audio tone.",
+      "expected": ["[V2 10114]"],
+      "origin": "agent-written",
+      "why": "Tests a partly false chatbot claim: [V2 10114] requires distinct visual and audio annunciations per alert class as specified in Table 10.3-1, where caution is yellow (not orange) and warning is red; [V2 10175] uses that table only for priority."
+    },
+    {
+      "id": "g09",
+      "q": "are there rules on how long a crew workday can be and how much sleep has to be scheduled?",
+      "expected": ["V1 4014", "V1 3003", "V1 3004"],
+      "origin": "agent-written",
+      "why": "V1 4014 requires established limits on planned workday hours and the planned sleep period; V1 3003 item f (work/rest schedules and optimal sleep) and V1 3004 item p (monitoring and balancing the work/rest schedule) also address it."
+    },
+    {
+      "id": "g10",
+      "q": "electronic medical record encryption",
+      "expected": ["V1 3004", "[V2 10125]"],
+      "origin": "agent-written",
+      "why": "V1 3004 item a calls for electronic medical records including data encryption/protection; [V2 10125] requires protection of sensitive and private data, with encryption named in its rationale."
+    },
+    {
+      "id": "g11",
+      "q": "if several alarms go off at once, which one should the crew hear first?",
+      "expected": ["[V2 10175]"],
+      "origin": "agent-written",
+      "why": "[V2 10175] requires alerts to be prioritized per Table 10.3-1; its rationale says that when several trigger at once the highest-priority alert is annunciated until acknowledged."
+    },
+    {
+      "id": "g12",
+      "q": "drinking water per hour of EVA",
+      "expected": ["[V2 6109]"],
+      "origin": "agent-written",
+      "why": "[V2 6109] points to Table 6.3-1, whose EVA row is a minimum 240 mL of potable water per crewmember per EVA hour; no suit requirement in the corpus covers drinking water."
+    },
+    {
+      "id": "g13",
+      "q": "what do I need to write down after I treat a crewmate on board?",
+      "expected": ["V1 3004"],
+      "origin": "agent-written",
+      "why": "V1 3004 lists recording the medical encounter history, the physical exam, vital signs, procedures and outcomes, and treatment plans (items d, e, h, j, l)."
+    },
+    {
+      "id": "g14",
+      "q": "for a long stay on the Martian surface, how much cosmic radiation per day is the habitat allowed to let through?",
+      "expected": ["V1 4033"],
+      "origin": "agent-written",
+      "why": "V1 4033 limits the GCR dose rate for habitable systems supporting crew more than 60 days: below 0.9 mSv/day on planetary surfaces (1.3 mSv/day in free space)."
+    },
+    {
+      "id": "g15",
+      "q": "leakage current limit wearable sensor on skin",
+      "expected": ["[V2 9023]"],
+      "origin": "agent-written",
+      "why": "[V2 9023] is the only leakage-current requirement for bioinstrumentation and medical devices designed to contact the body (Table 9.3-11); the general body-current limits [V2 9019]-[V2 9021] are not specific to body-contact devices."
+    },
+    {
+      "id": "g16",
+      "q": "which readings have to be displayed to the astronaut inside the spacesuit?",
+      "expected": ["[V2 11035]", "[V2 11038]", "[V2 11023]"],
+      "origin": "agent-written",
+      "why": "[V2 11035] (suit pressure, ppO2, ppCO2), [V2 11038] (metabolic data) and [V2 11023] (consumables, suit status and alerts, biomedical data) each require information displayed to the suited crewmember; [V2 11036] alerts rather than displays readings."
+    },
+    {
+      "id": "g17",
+      "q": "Under NASA-STD-3001, every crewed mission must include at least one licensed physician in the crew so that medical emergencies can be handled on board.",
+      "expected": ["V1 3006", "[V2 7045]"],
+      "origin": "agent-written",
+      "why": "Tests a false chatbot claim: V1 3006 requires at least two crewmembers per vehicle trained as Crew Medical Officers, not a physician, and [V2 7045] requires medical equipment usable by non-physician crewmembers when no physician is present."
+    },
+    {
+      "id": "g18",
+      "q": "cabin lights that help the crew fall asleep at night and stay alert during the day",
+      "expected": ["[V2 8055]"],
+      "origin": "agent-written",
+      "why": "[V2 8055] requires light levels per Table 8.7-2 for circadian entrainment; its rationale covers alertness during wake hours and sleepiness in the pre-sleep period."
+    },
+    {
+      "id": "g19",
+      "q": "acceptable bone density loss in flight",
+      "expected": ["V1 4027"],
+      "origin": "agent-written",
+      "why": "V1 4027 requires countermeasures to keep hip and spine BMD at or above 95% of pre-mission values and the femoral neck at or above 90%; V1 4026 and V1 4028 are pre- and post-mission."
+    },
+    {
+      "id": "g20",
+      "q": "do astronauts get to call their family privately during a long mission?",
+      "expected": ["V1 3004"],
+      "origin": "agent-written",
+      "why": "V1 3004 item r requires private two-way communication (audio, video, messaging, images) with ground medical and psychological support, family and the crew support system."
+    },
+    {
+      "id": "g21",
+      "q": "how does the crew get warned about a solar storm if mission control can't reach them?",
+      "expected": ["[V2 6164]", "[V2 6165]"],
+      "origin": "agent-written",
+      "why": "[V2 6164] requires radiation alerts to the crew when exposure rates exceed predefined thresholds, and its rationale says the crew must be alerted even if ground communication is disrupted; [V2 6165] requires external space weather monitoring, which its rationale frames as early warning to the crew."
+    },
+    {
+      "id": "g22",
+      "q": "suit CO2 limit during emergency walkback",
+      "expected": ["[V2 11040]"],
+      "origin": "agent-written",
+      "why": "[V2 11040] caps spacesuit inspired CO2 at 20 mmHg during contingency scenarios of up to 1 hour, based on a simulated 1-hour walk-back test; [V2 6004] is the cabin, not the suit."
+    },
+    {
+      "id": "g23",
+      "q": "the display should give the crew values they can act on directly, without converting units or doing math in their head",
+      "expected": ["[V2 10113]"],
+      "origin": "agent-written",
+      "why": "[V2 10113] requires critical data in a form that needs no mental transposition or computation, memory or repetitive navigation."
+    },
+    {
+      "id": "g24",
+      "q": "cabin CO2 limit mmHg",
+      "expected": ["[V2 6004]"],
+      "origin": "agent-written",
+      "why": "[V2 6004] limits the one-hour average cabin ppCO2 to no more than 3 mmHg; [V2 11040] is the spacesuit contingency limit, not the cabin."
+    }
+  ]
+}

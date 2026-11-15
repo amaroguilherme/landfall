@@ -1,0 +1,9 @@
+{
+  "about": "The footnote's numbers for #/method?s=find, measured on gold.json (copied byte for byte from the blind agent's file; never edited). find.test.ts recomputes every number with the shipped code and model files and fails if one differs. A hit: one of the question's expected requirements is first, or in the top three, of that column. Either column: in the keyword column or the meaning column.",
+  "gold_sha256": "319bc3c95e286cd66ebb85f39842b617ed6e1a1448cecc0a8451ad8c19fa44cd",
+  "queries": 24,
+  "written_by": "an AI agent (Claude Code), blind to the search tool, before its first run",
+  "keywords": { "top1": 14, "top3": 16 },
+  "meaning": { "top1": 15, "top3": 20 },
+  "either": { "top1": 19, "top3": 22 }
+}

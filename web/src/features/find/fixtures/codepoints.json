@@ -1,0 +1,14 @@
+{
+ "about": "SHA-256 of one line per code point (U+0000..U+10FFFF without surrogates): '<hex>\\t<BertNormalizer output>\\t<w|p|o>\\n', where the class is the BertPreTokenizer's on 'a' + c + 'b' (w: whitespace, p: punctuation, o: other). From Hugging Face tokenizers 0.23.3.",
+ "tokenizer_sha256": "e67e803f624fb4d67dea1c730d06e1067e1b14d830e2c2202569e3ef0f70bb50",
+ "code_points": 1112064,
+ "sha256": "b85d3a44a1bf38dd77807e17096ed094351a48ca84753a7ddf7cb62041885c6e",
+ "sizes": {
+  "REMOVED": 25,
+  "WHITESPACE": 10,
+  "SPLIT_WHITESPACE": 10,
+  "PUNCTUATION": 156,
+  "NONSPACING": 279,
+  "NO_NFD": 11
+ }
+}

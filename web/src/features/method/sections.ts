@@ -11,6 +11,7 @@ export const SECTIONS = [
   { s: 'architecture', label: 'Architecture' },
   { s: 'coverage', label: "Coverage of NASA's sample IMM output" },
   { s: 'limitations', label: 'Limitations' },
+  { s: 'find', label: "Find it in NASA's words" },
 ] as const
 
 export type SectionId = (typeof SECTIONS)[number]['s']

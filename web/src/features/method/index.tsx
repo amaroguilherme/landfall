@@ -10,6 +10,7 @@ import { Button, EmptyState } from '../../ui'
 import { ArchitectureSection } from './ArchitectureSection'
 import { CoverageSection } from './CoverageSection'
 import { DataSection } from './DataSection'
+import { FindPanel } from '../find/FindPanel'
 import { FoldContext } from './fold'
 import type { Fold } from './fold'
 import { GapSection } from './GapSection'
@@ -143,6 +144,7 @@ export default function Method({ query }: FeatureProps) {
         {META ? <ArchitectureSection meta={META} /> : null}
         {META && PERSONAL && THRESHOLDS ? <CoverageSection meta={META} personal={PERSONAL} thresholds={THRESHOLDS} /> : null}
         {PERSONAL && THRESHOLDS ? <LimitationsSection personal={PERSONAL} thresholds={THRESHOLDS} /> : null}
+        <FindPanel />
       </article>
     </FoldContext.Provider>
   )

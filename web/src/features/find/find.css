@@ -1,0 +1,70 @@
+/* "Find it in NASA's words" (#/method?s=find). Tokens only (src/styles/tokens.css); the cards reuse the Method
+   page's requirement and quote styles. Colour carries meaning, never decoration (Appendix F):
+   magenta edge: the symptom check's "tell your Crew Medical Officer now", a procedure step, as on the Noon Sight;
+   gray: a refusal written in the rules (unavailable); cyan: the model not on this device (missing data, MissingNote);
+   dark green: the search button and the examples (commandable). No red, yellow or blue: nothing here is a warning,
+   caution or advisory. */
+
+.lf-find-form { margin: var(--lf-space-2) 0 var(--lf-space-1); max-width: 70ch; }
+.lf-find-label { display: block; margin-bottom: 6px; font-weight: 600; }
+.lf-find-row { display: flex; flex-wrap: wrap; gap: var(--lf-space-1); }
+.lf-find-input {
+  flex: 1 1 16rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--lf-border-strong);
+  border-radius: var(--lf-radius);
+  background: var(--lf-bg);
+  color: var(--lf-text);
+  font: inherit;
+  font-size: var(--lf-text-md);
+}
+.lf-find-input::placeholder { color: var(--lf-text-muted); opacity: 1; }
+.lf-find-row .lf-btn { min-height: 44px; }
+
+.lf-find-examples { display: flex; flex-wrap: wrap; gap: var(--lf-space-1); align-items: center; margin: var(--lf-space-1) 0 var(--lf-space-2); }
+/* Font budget (src/index.css): Inter 400/600 only, so the examples keep the button's 600. */
+.lf-find-examples .lf-btn { min-height: 36px; text-align: left; white-space: normal; }
+
+/* ---- the symptom check's banners, above both columns ---- */
+.lf-find-guard {
+  display: flex;
+  gap: 0.6em;
+  align-items: flex-start;
+  max-width: 74ch;
+  margin: var(--lf-space-2) 0;
+  padding: 10px 12px;
+  border: 1px solid var(--lf-procedure);
+  border-left-width: 4px;
+  border-radius: var(--lf-radius);
+  font-size: var(--lf-text-sm);
+}
+.lf-find-guard[data-kind^='no_'] { border-color: var(--lf-data-unavailable); }
+.lf-find-guard > .lf-icon { flex: none; margin-top: 0.15em; color: var(--lf-data-unavailable); }
+.lf-find-guard p { margin: 0; }
+
+/* ---- results: an ID match, then the keyword column and the meaning column (stacked on a phone) ---- */
+.lf-find-results { margin-top: var(--lf-space-2); }
+.lf-find-jump { margin-bottom: var(--lf-space-2); }
+.lf-find-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+  gap: var(--lf-space-3);
+  align-items: start;
+}
+.lf-find-col { min-width: 0; }
+.lf-find-col > .lf-m-h4:first-child,
+.lf-find-jump > .lf-m-h4:first-child { margin-top: 0; }
+.lf-find-col .lf-m-reqs { margin-top: var(--lf-space-1); }
+.lf-find-none { font-weight: 600; }
+.lf-find-why { margin: 0.25em 0 0; }
+.lf-find-why code { white-space: nowrap; }
+.lf-find-rationale { margin: 0; color: var(--lf-text-2); }
+.lf-find-card .lf-m-quote { margin-bottom: var(--lf-space-1); }
+
+/* ---- lists and footnote ---- */
+.lf-find-words { overflow-wrap: anywhere; }
+.lf-find-foot { margin-top: var(--lf-space-3); }
+.lf-find-foot > .lf-m-h4:first-child { margin-top: 0; }
+.lf-find-acc { max-width: 40rem; }

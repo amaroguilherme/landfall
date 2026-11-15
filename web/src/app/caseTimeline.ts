@@ -296,10 +296,11 @@ interface ScriptCtx {
 
 /**
  * A scripted episode's crew actions for the instance its data opens (sim_crew episodes):
- *   renal_stone (CM-3): hydration selected the morning after it opened (~MET day 399), steps logged,
- *     the required red-flag question r4 answered "no" (SPEC 7: the engine refuses the outcome until it
- *     is answered or declined), outcome recorded at 08:00 two days before "now", so at "now" it is in
- *     WATCH with its 72-h tripwire armed (reassess after "now");
+ *   renal_stone (CM-3): hydration selected the morning after it opened (~MET day 399), the required red-flag
+ *     question r4 answered "no" first (it is step 1: no "drink more" before retention, flank pain or fever is
+ *     ruled out; SPEC 7: the engine refuses the outcome until it is answered or declined), then the other steps,
+ *     outcome recorded at 08:00 two days before "now", so at "now" it is in WATCH with its 72-h tripwire armed
+ *     (reassess after "now");
  *   sleep_circadian (CM-1): light countermeasure selected after the PVT-B of the day it opened, first
  *     steps logged, no outcome yet: ACTING at "now";
  *   spe_shelter: nothing scripted - the crew acts in the demo.
@@ -317,16 +318,16 @@ function episodeScript(c: ScriptCtx, caseId: string): Scripted[] {
     const morning = Math.floor(open.t / DAY_S) * DAY_S + 7.5 * 3600
     const tSelect = Math.max(morning, open.t + 60)
     push({ type: 'SELECT', t: tSelect, countermeasure_id: primary })
-    const opened = urine.find((o) => o.t === open.t && o.crew_id === crewId) ?? null
-    push({ type: 'STEP', t: tSelect + 300, step_id: 'r1', input: stepInput(opened) })
-    push({ type: 'STEP', t: tSelect + 600, step_id: 'r3' })
-    // The red-flag question (required): the simulated crewmember reports none of the listed symptoms.
+    // The red-flag question first (required, step 1): the simulated crewmember reports none of the listed symptoms.
     // Its variable and unit are the step's own declared input (cases.json r4), never typed here.
     const redFlag = (def.procedure ?? []).find((p) => p.red_flag === true && p.input)
     const rf = redFlag?.input as { variable?: unknown; unit?: unknown } | undefined
     if (redFlag && typeof rf?.variable === 'string' && typeof rf.unit === 'string') {
-      push({ type: 'STEP', t: tSelect + 720, step_id: redFlag.id, input: { variable: rf.variable, value: false, unit: rf.unit } })
+      push({ type: 'STEP', t: tSelect + 120, step_id: redFlag.id, input: { variable: rf.variable, value: false, unit: rf.unit } })
     }
+    const opened = urine.find((o) => o.t === open.t && o.crew_id === crewId) ?? null
+    push({ type: 'STEP', t: tSelect + 300, step_id: 'r1', input: stepInput(opened) })
+    push({ type: 'STEP', t: tSelect + 600, step_id: 'r3' })
     const next = obsAfter(urine, open.t, crewId)
     if (next) push({ type: 'STEP', t: Math.max(next.t + 7.5 * 3600, tSelect + 900), step_id: 'r5', input: stepInput(next) })
     const tOutcome = (nowDay - 2) * DAY_S + 8 * 3600
@@ -354,7 +355,7 @@ function episodeScript(c: ScriptCtx, caseId: string): Scripted[] {
 }
 
 /**
- * A single Tier B flag of the sleep case with no scripted episode behind it (a chance flag of real-size noise,
+ * A single Tier B flag of the sleep case with no scripted episode behind it (a chance flag of the simulator's noise,
  * sim_crew data.self_check): the simulated crewmember re-measures (step 1, the PVT-B after the flag; step 2,
  * the night's sleep), watches the next REMEASURE_DAYS days, and records the outcome at 08:00 on the last of
  * them, only if the flagged indicator was measured on each of those days and no trigger of the case reached
@@ -414,7 +415,7 @@ export function instanceScript(c: ScriptCtx, usedEpisodes: Set<string>): Scripte
     usedEpisodes.add(ep.id)
     out = episodeScript(c, ep.case_id)
   } else if (!covering.length && c.def.id === 'sleep_circadian' && c.open.trigger.kind === 'personal') {
-    // no scripted episode on this day: a chance flag of real-size noise, which the simulated crew re-measures
+    // no scripted episode on this day: a chance flag of the simulator's noise, which the simulated crew re-measures
     out = remeasureScript(c)
   }
   return out.filter((e) => e.event.t < c.index.nowMet)
@@ -449,27 +450,58 @@ interface TierDefMeta {
   label?: string
   name?: string
   crew_id?: string | null
-  backup?: { id?: string; label?: string; name?: string; crew_id?: string; chip?: string; source?: Record<string, unknown>; citations?: Array<Record<string, unknown>> }
+  backup?: {
+    id?: string
+    label?: string
+    name?: string
+    role_text?: string
+    crew_id?: string
+    chip?: string
+    source?: Record<string, unknown>
+    citations?: Array<Record<string, unknown>>
+  }
 }
 
-/** Who takes tier 1 of an escalation for this patient: the Crew Medical Officer, or the backup on the CMO's own cases. */
+/** Who takes tier 1 of an escalation for this patient: the Crew Medical Officer, or the second one on the CMO's own cases. */
 export interface TierOne {
   /** 'crew_medical_officer', or 'backup_medical_officer' when the patient is the Crew Medical Officer. */
   id: string
-  /** meta.json label: "Crew Medical Officer (onboard)" / "Backup medical officer: the Commander (onboard)". */
+  /** meta.json label: "Crew Medical Officer (onboard)" / "Second Crew Medical Officer: the Commander (onboard)". */
   label: string
   /** "the Crew Medical Officer" / "the Commander". */
   name: string
+  /** The role in words: "the Crew Medical Officer" / "the crew's second Crew Medical Officer" (meta.json role_text). */
+  roleText: string
   /** The crewmember who takes tier 1: 'CM-4', or 'CM-1' for CM-4's own cases. */
   crewId: string | null
-  /** True when the patient holds tier 1's role, so the backup takes it. */
+  /** True when the patient holds tier 1's role, so the second Crew Medical Officer takes it. */
   backup: boolean
   /** One crew-facing sentence for the escalation, true for this patient. */
   line: string
-  /** The basis of a backup (design choice, quoting [V2 7045]); null for the Crew Medical Officer. */
+  /** The basis of the second Crew Medical Officer (design choice, quoting [V1 3006] and [V2 7045]); null for the first. */
   chip: string | null
   source: Record<string, unknown> | null
   citations: Array<Record<string, unknown>>
+}
+
+/** One verbatim quote of tier 1's basis, with the requirement it is from. */
+export interface TierOneQuote {
+  requirementId: string
+  verbatim: string
+}
+
+/**
+ * The quotes behind tier 1 on the Crew Medical Officer's own cases, read from its citations (meta.json backup.citations),
+ * whatever their order: every [V1 3006] excerpt in file order (at least two Crew Medical Officers per vehicle, so that a
+ * backup is available), and the [V2 7045] clause (medical equipment usable when the physician crewmember is the patient).
+ * Either may be absent; the views then print what is there.
+ */
+export function tierOneQuotes(t1: Pick<TierOne, 'citations'>): { secondCmo: TierOneQuote[]; usability: TierOneQuote | null } {
+  const quotes: TierOneQuote[] = []
+  for (const c of t1.citations) {
+    if (typeof c.requirement_id === 'string' && typeof c.verbatim === 'string' && c.verbatim) quotes.push({ requirementId: c.requirement_id, verbatim: c.verbatim })
+  }
+  return { secondCmo: quotes.filter((q) => q.requirementId === 'V1 3006'), usability: quotes.find((q) => q.requirementId === 'V2 7045') ?? null }
 }
 
 const TIER_DEFS: readonly TierDefMeta[] = (() => {
@@ -479,7 +511,8 @@ const TIER_DEFS: readonly TierDefMeta[] = (() => {
 
 /**
  * Tier 1 for a patient, from meta.json escalation, as newCase resolves it (spec.escalation_tiers[0]): when the patient
- * holds tier 1's role (the Crew Medical Officer, CM-4) and the tier has a backup, the backup (the Commander, CM-1).
+ * holds tier 1's role (the Crew Medical Officer, CM-4) and the tier has a backup, the crew's second Crew Medical Officer
+ * ([V1 3006] asks for at least two; that the Commander, CM-1, holds the second assignment is a design choice).
  */
 export function tierOneFor(crewId: CrewId): TierOne {
   const t1 = TIER_DEFS.find((t) => t.tier === 1)
@@ -487,14 +520,16 @@ export function tierOneFor(crewId: CrewId): TierOne {
   const b = t1?.backup
   const name = t1?.name ?? 'the Crew Medical Officer'
   if (b && b.id && b.crew_id && holder === crewId) {
-    const bName = b.name ?? 'the backup medical officer'
+    const roleText = b.role_text ?? "the crew's second Crew Medical Officer"
+    const bName = b.name ?? roleText
     return {
       id: b.id,
-      label: b.label ?? 'Backup medical officer (onboard)',
+      label: b.label ?? 'Second Crew Medical Officer (onboard)',
       name: bName,
+      roleText,
       crewId: b.crew_id,
       backup: true,
-      line: `You are ${name} and the patient: tell ${bName} (${b.crew_id}), the backup medical officer, now.`,
+      line: `You are ${name} and the patient: tell ${bName} (${b.crew_id}), ${roleText}, now.`,
       chip: b.chip ?? null,
       source: b.source ?? null,
       citations: Array.isArray(b.citations) ? b.citations : [],
@@ -504,6 +539,7 @@ export function tierOneFor(crewId: CrewId): TierOne {
     id: t1?.id ?? 'crew_medical_officer',
     label: t1?.label ?? 'Crew Medical Officer (onboard)',
     name,
+    roleText: name,
     crewId: holder,
     backup: false,
     line: `Tell ${name}${holder ? ` (${holder})` : ''} now.`,

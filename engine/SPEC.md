@@ -79,7 +79,12 @@ it is changed on purpose.
   - `OPS` S1–S2 `outside` → `advisory`; any OPS `approaching` → `advisory`.
   - Tier A `FFD` / `PEL` / `POL` `outside` or `approaching` → `caution`: a floor not met or an exposure
     or outcome limit reached needs attention, not immediate action. The VO₂max floors also carry
-    `max_severity: "caution"` and the crew-facing label "EVA assignment not cleared".
+    `max_severity: "caution"` and the crew-facing label "EVA fitness floor not met" (EVA medical clearance
+    itself is ground medical support's decision before each EVA, `[V1 6006]`; LANDFALL reports only the
+    floor). A known inversion, disclosed in the row's note: a Table 4.8-1 30-day blood-forming-organ dose
+    over its limit also opens the shelter case, whose first steps are immediate, yet under this mapping
+    that finding is still a Caution. Classing it as a Warning needs an engine change and is not in this
+    build.
   - `TARGET` `outside` → `caution`; `approaching` → `advisory` (a countermeasure target is not a limit).
   - Tier B `reliable_change` in the worse direction → `caution` (personal change is not a limit, so
     never `warning`). A reliable change in the other direction is shown at `nominal`; LANDFALL does not
@@ -91,22 +96,29 @@ it is changed on purpose.
   Appendix F F.6.1 f, "leading zeros are suppressed in day field" (e.g. `412/14:20:07`; the standard's
   own examples are `MET 57/14:08:33` and `MET 1089/13:03:01`). Day-count durations use the same format
   (a countdown of 11 d 05 h 59 min 51 s is `11/05:59:51`).
-- **crew ids**: `CM-1` Commander, `CM-2` Flight Engineer, `CM-3` Mission Specialist, `CM-4` Crew
-  Medical Officer (a non-physician with ~40 h of medical training). They are fictional. There are no
-  names and no real PII. Crew-facing texts are true for every role (the sleep case does not tell the
-  Commander to tell the commander).
+- **crew ids**: `CM-4` Crew Medical Officer; `CM-1` Commander, also the crew's second Crew Medical
+  Officer (`[V1 3006]`); `CM-2` Flight Engineer; `CM-3` Mission Specialist. LANDFALL does not assume
+  either Crew Medical Officer is a physician: crew-facing texts are written so a non-physician can act.
+  The crewmembers are fictional. There are no names and no real PII. Crew-facing texts are true for every role (the
+  sleep case does not tell the Commander to tell the commander, and the one-line actions name "a Crew
+  Medical Officer", which holds for CM-4 too).
 - **escalation tiers** (`rules/meta.json` `escalation`): tier 1, the onboard **Crew Medical Officer**,
   now; tier 2, the **flight surgeon** on the ground, through the ground packet, which is sent with the
   next link: at once when the link is up (AOS), when it resumes during loss of signal or solar
   conjunction. Autonomy scales with the link: at AOS (ISS, cislunar space, the lunar surface) the ground
   has the case within the round-trip light time and the crew follows Mission Control and flight-surgeon
-  direction, with LANDFALL as the decision aid; without a link the crew acts onboard with the CMO.
-  **When the patient is the Crew Medical Officer** (CM-4, tier 1's `crew_id`), tier 1 is its `backup`, the
-  **Commander** (CM-1), as backup medical officer (`design choice`; its basis quotes `[V2 7045]`: medical
+  direction, with LANDFALL as the decision aid; without a link the crew acts onboard with its Crew Medical
+  Officers, and the ground packet stays `Prepared (held on board)` until the crew releases it or the case
+  escalates. **When the patient is the Crew Medical Officer** (CM-4, tier 1's `crew_id`), tier 1 is its
+  `backup`, the **Commander** (CM-1), the crew's second Crew Medical Officer (`[V1 3006]`: the program
+  shall train "a minimum of two crewmembers per vehicle/platform as Crew Medical Officers (CMOs)", "to
+  ensure that a backup is available for medical treatment"; which crewmember holds the second assignment
+  is a `design choice`). The basis also quotes `[V2 7045]`, for texts a non-physician can act on: medical
   equipment shall be usable by non-physician crewmembers "in the event that a physician crewmember is not
-  present or is the one who requires medical treatment"). The escalation texts say so for every role ("tell
-  the Crew Medical Officer now (if that is you, the Commander)"), and `new_case` records the tier for the
-  case's crewmember (section 5).
+  present or is the one who requires medical treatment". The backup's `role_text` ("the crew's second Crew
+  Medical Officer") is the phrase views print; the engine does not read it. The escalation texts say so
+  for every role ("tell the Crew Medical Officer now (if that is you, the Commander)"), and `new_case`
+  records the tier for the case's crewmember (section 5).
 - **packet states** (`rules/meta.json` `packet_states`): `Prepared (held on board)` while a case is open
   and its packet has been neither released by the crew nor escalated; `Queued` after crew release (a
   procedure step with `releases_packet`) or escalation (case state `packet_queued_at`). A queued packet is
@@ -159,10 +171,15 @@ cells, never against the snapshot as a whole (which also holds LANDFALL's commen
 `noaa_scale_available: false` at Mars is intentional. GOES measures at Earth, and during conjunction
 no NOAA alert reaches the crew anyway. At Mars the solar particle event case reads an **external
 space-weather monitor above the atmosphere, in Mars orbit**, relayed to the habitat locally with no
-Earth link: the in-situ extravehicular monitoring that `[V2 6165]` requires ("monitor the in-situ
-extravehicular space weather environment including … proton flux spectra"). The demo values are the
-GOES-7 October 1989 ≥10 MeV replay with **no radial-distance or atmospheric correction** (a labelled
-scenario assumption). The habitat dose rate is a separate simulated confirmation (an assumption, not a
+Earth link (continuous relay is a scenario assumption). It is the kind of external space-weather monitor
+`[V2 6165]`'s rationale describes ("Space weather monitors that meet this requirement differ from crew
+dose monitors by their sensitivity to radiation typically absorbed by the shielding afforded by the
+vehicle or habitat"). It reports one ≥10 MeV integral channel, not the in-situ proton and electron flux
+spectra `[V2 6165]` asks for ("monitor the in-situ extravehicular space weather environment including …
+proton flux spectra"), which LANDFALL does not measure: the case lists the proton spectrum as not
+measurable here. The rule's `citations` carry the rationale sentence, which the verbatim test checks
+against the frozen requirement. The demo values are the GOES-7 October 1989 ≥10 MeV replay with **no
+radial-distance or atmospheric correction** (a labelled scenario assumption). The habitat dose rate is a separate simulated confirmation (an assumption, not a
 radiation-transport calculation). The vehicle's radiation monitoring system raises the alarm
 (`[V2 6164]`); LANDFALL opens the health case. The Mars solar conjunction window is **modelled** from JPL
 Horizons geometry, its edges fitted to NASA's published command moratoria (RMS 0.79 d); it is never
@@ -201,8 +218,8 @@ presented as an announced window.
 - `action` (optional): `{label, text, chip, source}`, the one-line action of a **finding without a deep
   case** (D11). Every alerting rule that no case lists as a trigger carries one, OPS rules excepted (S1–S2
   never exceed advisory, and S4–S5 co-fire with the S3 trigger of the shelter case). `label` is the
-  crew-facing alert label (the VO₂max floors: "EVA assignment not cleared"); `text` names the next step
-  and who decides (the Crew Medical Officer, the vehicle or suit caution and warning system). A `case_id`
+  crew-facing alert label (the VO₂max floors: "EVA fitness floor not met"); `text` names the next step
+  and who decides (a Crew Medical Officer, the vehicle or suit caution and warning system). A `case_id`
   on such a rule names a related case for context; it does not open it. A rule that is a case trigger
   has no `action`: its case is the action.
 - `window.kind` takes one of these shapes:
@@ -551,7 +568,7 @@ lists, `steps_declined: []`, `escalation` and `packet_queued_at` null, `instance
   resolves it when they are back in range, and a later episode opens a new instance.
 - **FFD demo** (CM-2): VO₂max 35.1 ml/min/kg. This is *within* the microgravity EVA floor (32.9)
   and *outside* the surface EVA floor (36.5). The environment selector flips the verdict; outside it is a
-  Caution labelled "EVA assignment not cleared", never a Warning.
+  Caution labelled "EVA fitness floor not met", never a Warning.
 - **SPE (the hero)**: MET day 412, during a Mars solar conjunction window **modelled** from JPL
   Horizons geometry (`horizons_mars_comms`), its edges fitted to NASA's published command moratoria
   (RMS 0.79 d). A real historical proton event, GOES-7 October 1989, is replayed time-shifted as the

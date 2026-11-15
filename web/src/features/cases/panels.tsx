@@ -52,13 +52,16 @@ export function RuleRow({ ev, open = false, partial: given = null }: { ev: RuleE
   // On a partial record "outside" or "approaching" is conclusive (the full sum can only be higher); "within" is not.
   const conclusive = f.status === 'outside' || f.status === 'approaching'
   const showPartial = !!partial?.partial && logged
+  // An OPS level is an S-scale threshold, reached at or above its number (as "Why this fired" shows it), not a
+  // compliant condition: "1100 pfu vs ≥ 1000 pfu" beside "At or above S3", never "vs < 1000 pfu".
+  const shownOp = ev.rule.category === 'OPS' ? OUTSIDE_OP[ev.rule.op] : ev.rule.op
   return (
     <li className="lfc-row">
       <div className="lfc-row-head">
         <span className="lfc-row-label">{ev.rule.label ?? ev.rule.id}</span>
         <span className="lfc-row-val">
           {showPartial ? <><span className="lfc-vs">logged</span>{' '}</> : null}
-          <Num value={f.value} unit={ev.rule.unit} /> <span className="lfc-vs">{showPartial ? 'of' : 'vs'}</span> <span className="lf-num">{OP_TEXT[ev.rule.op]}</span>{' '}
+          <Num value={f.value} unit={ev.rule.unit} /> <span className="lfc-vs">{showPartial ? 'of' : 'vs'}</span> <span className="lf-num">{OP_TEXT[shownOp]}</span>{' '}
           <Num value={ev.rule.limit} unit={ev.rule.unit} />
         </span>
         {showPartial && !conclusive ? <PartialBadge /> : <FindingBadge finding={f} />}

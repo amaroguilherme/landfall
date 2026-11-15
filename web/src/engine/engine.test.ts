@@ -119,10 +119,12 @@ describe('real rules (engine/rules/*.json)', () => {
     const surface = byReq('V1 4002')
     expect(evaluateRule(micro, 35.1, 'iss', NOW)).toMatchObject({ status: 'within', severity: 'nominal' })
     expect(evaluateRule(surface, 35.1, 'iss', NOW).status).toBe('not_applicable')
-    // D1: a fitness floor not met is a Caution ("EVA assignment not cleared"), never a Warning
+    // D1: a fitness floor not met is a Caution ("EVA fitness floor not met"), never a Warning; EVA medical
+    // clearance is ground medical support's ([V1 6006]), so the label never says "cleared"
     expect(evaluateRule(surface, 35.1, 'mars_surface', NOW)).toMatchObject({ status: 'outside', severity: 'caution' })
     expect(surface.max_severity).toBe('caution')
-    expect(surface.action?.label).toBe('EVA assignment not cleared')
+    expect(surface.action?.label).toBe('EVA fitness floor not met')
+    expect(surface.action?.text).toMatch(/^EVA fitness floor not met: .* with a Crew Medical Officer and retest before an EVA is planned\.$/)
     expect(evaluateRule(micro, 35.1, 'mars_surface', NOW).status).toBe('not_applicable')
   })
 

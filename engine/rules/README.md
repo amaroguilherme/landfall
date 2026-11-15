@@ -9,7 +9,7 @@ the `/provenance` page all read the same files. The contract is `engine/SPEC.md`
 | `thresholds.json` | Tier A rules: NASA-published FFD / PEL / POL limits with requirement IDs, Table 4.8-1 organ limits (mGy-Eq / mGy, never mSv), vehicle design requirements as `role: "context"`, NOAA S1-S5 as `OPS`, the onboard S3 rule for Mars, and the renal `TARGET` rule (a countermeasure target from a NASA report). Also `constants` that derived numbers point to. |
 | `personal.json` | Tier B: the settings of the single-case t-test (Crawford & Howell 1998; two-tailed alpha 0.001, minimum and full baseline length; see `rci.method`, `rci.detectable_change`, `rci.caveat` and `rci.change_note`) and the fourteen personal indicators, including the manual cuff blood pressure and fingerstick glucose readings. A count (PVT-B lapses) declares `transform: "anscombe"`; an indicator whose measured chance rate is not within 0.5-2 times the printed one declares it in `chance_rate` (2 decimals, 3 for a borderline value: mood's 0.495). No test-retest reliability is used. Prose that views print names no code identifier; pointers for maintainers are in `rci.impl_notes` and `chance_rate.impl_note`, which no view displays. |
 | `cases.json` | The three deep cases (`renal_stone`, `sleep_circadian`, `spe_shelter`): triggers, interpretation, one primary countermeasure, guided procedure (with required, red-flag and packet-release steps), tripwire (environment-aware through `by_env`), ground packet, hand-offs and refusals. |
-| `meta.json` | The vocabulary: chips, categories (with NASA glossary text), severity mapping (quoting NASA-STD-3001 Vol 2 Table 10.3-1), escalation tiers (tier 1 the Crew Medical Officer, CM-4, with its backup the Commander, CM-1, for the CMO's own cases: a design choice whose basis quotes [V2 7045]), packet states, hazards, body regions, principles and refusals. |
+| `meta.json` | The vocabulary: chips, categories (with NASA glossary text), severity mapping (quoting NASA-STD-3001 Vol 2 Table 10.3-1), escalation tiers (tier 1 the Crew Medical Officer, CM-4; on the CMO's own cases the crew's second Crew Medical Officer, the Commander, CM-1, since [V1 3006] requires at least two trained per vehicle; which crewmember holds the second assignment is a design choice, and its basis also quotes [V2 7045]; neither is assumed to be a physician), packet states, hazards, body regions, principles and refusals. |
 
 ## Reading a number
 
@@ -33,15 +33,22 @@ Every number has a `chip` and a `source` (on the object itself or the object tha
   chip is `NASA report` and it has no requirement ID. It is capped at `caution`.
 - `noaa_scale_available` is `false` at Mars. There the SPE case runs on `ops_onboard_proton_s3`, which reuses
   NOAA's S3 threshold on the reading of an external space-weather monitor above the atmosphere, in Mars orbit,
-  relayed to the habitat with no Earth link ([V2 6165]), and is labeled a design choice. The demo values are the
-  GOES-7 October 1989 replay with no distance or atmosphere correction. The rule id keeps its old name. The SPE
-  tripwire follows: its condition watches `ops_noaa_s3` near Earth and, through `by_env.mars_surface`,
-  `ops_onboard_proton_s3` at Mars. LANDFALL is not the radiation alarm: the vehicle's radiation monitoring system
+  relayed to the habitat with no Earth link, and is labeled a design choice. The monitor is the kind [V2 6165]'s
+  rationale describes (sensitive to radiation the habitat's shielding absorbs); it has one ≥10 MeV integral
+  channel, not the proton and electron flux spectra [V2 6165] asks for, and continuous relay is a scenario
+  assumption. The demo values are the GOES-7 October 1989 replay with no distance or atmosphere correction. The
+  rule id keeps its old name. The SPE tripwire follows: its condition watches `ops_noaa_s3` near Earth and,
+  through `by_env.mars_surface`, `ops_onboard_proton_s3` at Mars. LANDFALL is not the radiation alarm: the vehicle's radiation monitoring system
   raises it ([V2 6164]); the case is what follows.
 - Severity follows NASA-STD-3001 Vol 2 Table 10.3-1 (`meta.json` `severity_mapping` quotes each class). The only
   Warning is a solar particle event at S3 or above, whose rules carry the shelter action. FFD, PEL, POL and TARGET
   findings and Tier B changes are Caution at most; the VO2max floors carry `max_severity: "caution"` and the
-  crew-facing label "EVA assignment not cleared". LANDFALL never emits Emergency.
+  crew-facing label "EVA fitness floor not met" (EVA medical clearance itself is ground medical support's
+  decision before each EVA, [V1 6006]). LANDFALL never emits Emergency. One inversion is disclosed in
+  the `tier_a_outside` note: a 30-day blood-forming-organ dose over its limit opens the shelter case, whose first
+  steps are immediate, yet that finding stays a Caution (a Warning would need an engine change).
+- A one-line action names "a Crew Medical Officer", not "the": the crew has two ([V1 3006]), so the text holds
+  when the patient is the Crew Medical Officer (CM-4) as well.
 - An alerting rule or indicator that no case lists as a trigger carries an `action` (label, one-line text, design
   choice): these are the findings without a deep case. A `case_id` on such a rule names a related case for context;
   it does not open it.

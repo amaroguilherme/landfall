@@ -1,17 +1,22 @@
 // The case status card at the top of #/case/:id: the ONE next action, where the eye lands.
-//   detected -> Start the primary countermeasure, and step 1 shown before it is unlocked;
+//   detected -> Start the primary countermeasure, and step 1 shown before it is unlocked; when step 1 is a
+//               red-flag question (renal), the card leads with that question instead (helpers.ts detectedCopy);
 //   acting   -> the next open step with its control (and the decline control when it is required);
 //   watch    -> the tripwire countdown and the demo jump to the reassessment;
 //   escalated-> the two tiers (D4): the onboard Crew Medical Officer now, the flight surgeon through the
 //               ground packet, queued until the link resumes (LOS) or sent at once (AOS).
 // No native <details> here: the page's first expander stays the Detect panel's "Why this fired".
+import { Fragment } from 'react'
 import type { ReactNode } from 'react'
+import { tierOneFor, tierOneQuotes } from '../../app/caseTimeline'
 import type { CaseView } from '../../app/caseTimeline'
 import { useMetNow } from '../../app/mission'
+import { overdueOf, tellClause } from '../../app/procedureAlerts'
 import { Button, ButtonLink, Chip, MetTime, Num, ReqId, SeverityBadge } from '../../ui'
 import {
   STATUS_WORD,
   escalationMeta,
+  formatSpan,
   isOpen,
   nextOpenStep,
   openingSeverity,
@@ -22,7 +27,7 @@ import {
   stepList,
   stepNumber,
 } from './model'
-import { autonomyText, deliveryText, jumpTo, openingNote, stepAnchor } from './helpers'
+import { autonomyText, deliveryText, detectedCopy, jumpTo, openingNote, stepAnchor } from './helpers'
 import type { ActCtx, OutcomeDraft } from './procedure'
 import { OutcomeForm, StepControls, StepTags } from './procedure'
 import { TMinus } from './parts'
@@ -33,6 +38,25 @@ function ClockNow() {
   return <MetTime t={useMetNow()} label />
 }
 
+/**
+ * A detected or acting case past its own reassessment interval, on the case page: the same rule and wording as the
+ * alert bar's "Reassessment overdue" line (app/procedureAlerts.ts overdueOf, a design choice; the engine arms the
+ * tripwire only at the outcome), with what to do. Nothing for a case that is not overdue at `t` (the case fold MET).
+ */
+export function OverdueNote({ view, t }: { view: CaseView; t: number }) {
+  const o = overdueOf(view, t)
+  if (!o) return null
+  const started = o.phase === 'acting'
+  return (
+    <p className="lfc-overdue" data-overdue="">
+      <SeverityBadge severity="caution" label="Reassessment overdue" size="sm" /> Since <MetTime t={o.since} label />: no outcome is logged
+      within this case’s own reassessment interval (<span className="lf-num">{formatSpan(view.state.spec.tripwire.reassess_after_s)}</span>) of its{' '}
+      {started ? 'start' : 'opening'}, so its tripwire has not judged it. {started ? 'Log the outcome' : 'Start the countermeasure and log the outcome'}, or{' '}
+      {tellClause([view.crewId], tierOneFor)}. <Chip kind="design choice" />
+    </p>
+  )
+}
+
 export function CaseStatusBadge({ view, size = 'md' }: { view: CaseView; size?: 'sm' | 'md' | 'lg' }) {
   const s = view.state.status
   if (s === 'idle' || s === 'resolved' || s === 'dismissed') return <SeverityBadge severity="nominal" label={STATUS_WORD[s]} size={size} />
@@ -40,23 +64,36 @@ export function CaseStatusBadge({ view, size = 'md' }: { view: CaseView; size?: 
 }
 
 /**
- * Why tier 1 is the backup on the Crew Medical Officer's own cases: the design choice and the [V2 7045] words it
- * quotes (meta.json escalation.tiers[0].backup, via CaseView.tier1). Null for every other crewmember.
+ * Why tier 1 is the crew's second Crew Medical Officer on the first one's own cases: the [V1 3006] words (at least two
+ * per vehicle) when the rules quote them, the design choice of who holds the second assignment, and the [V2 7045]
+ * words (meta.json escalation.tiers[0].backup, via CaseView.tier1). Null for every other crewmember. The same
+ * paragraph is on #/downlink (features/downlink/index.tsx EscalationPanel).
  */
 export function TierOneBasis({ view, className = 'lfc-fine' }: { view: CaseView; className?: string }) {
   const t1 = view.tier1
   if (!t1.backup) return null
-  const cite = t1.citations.find((x) => typeof x.requirement_id === 'string' && typeof x.verbatim === 'string') as
-    | { requirement_id: string; verbatim: string }
-    | undefined
+  const { secondCmo, usability } = tierOneQuotes(t1)
   return (
     <p className={className}>
-      The Crew Medical Officer is the patient here, so tier 1 is the backup, {t1.name} ({t1.crewId}): a design choice <Chip kind={t1.chip} />.
-      {cite ? (
+      The Crew Medical Officer is the patient here, so tier 1 is {t1.roleText}, {t1.name} ({t1.crewId}).
+      {secondCmo.length ? (
         <>
           {' '}
-          NASA-STD-3001 plans for this with a physician crewmember: <ReqId id={cite.requirement_id} /> asks for medical equipment usable by
-          non-physician crewmembers “{cite.verbatim}”.
+          NASA-STD-3001 requires at least two Crew Medical Officers: <ReqId id={secondCmo[0].requirementId} />{' '}
+          {secondCmo.map((q, i) => (
+            <Fragment key={i}>
+              {i ? ' and ' : ''}“{q.verbatim}”
+            </Fragment>
+          ))}
+          .
+        </>
+      ) : null}{' '}
+      Which crewmember holds the second assignment is a design choice <Chip kind={t1.chip} />.
+      {usability ? (
+        <>
+          {' '}
+          NASA-STD-3001 {secondCmo.length ? 'also ' : ''}plans for this with a physician crewmember: <ReqId id={usability.requirementId} /> asks for
+          medical equipment usable by non-physician crewmembers “{usability.verbatim}”.
         </>
       ) : null}
     </p>
@@ -112,8 +149,8 @@ export function EscalationTiers({ c, view, idSuffix, packetLink = true }: { c: A
       ) : null}
       {meta?.chip ? (
         <p className="lfc-fine">
-          The two tiers are a design choice <Chip kind={meta.chip} />: the Crew Medical Officer first (the backup when the Crew Medical Officer is the
-          patient), the flight surgeon through the packet; how much is decided onboard scales with the link.
+          The two tiers are a design choice <Chip kind={meta.chip} />: the Crew Medical Officer first (the crew’s second Crew Medical Officer when the
+          first is the patient), the flight surgeon through the packet; how much is decided onboard scales with the link.
         </p>
       ) : null}
     </div>
@@ -161,7 +198,7 @@ function openedLine(view: CaseView, def: CaseDefFull, sim: UnscriptedOpening | n
           <span className="lfc-possibly-tag">possibly chance</span> {view.chance.rate.text} (see Detect).
         </>
       ) : sim ? (
-        <> The simulator records this opening as a chance flag of real-size day-to-day noise, not a scripted episode (see Detect).</>
+        <> The simulator records this opening as a chance flag of the simulator’s day-to-day noise, not a scripted episode (see Detect).</>
       ) : null}
     </p>
   )
@@ -176,6 +213,8 @@ export function NowCard({ view, def, c, onSelect, startCount, shared, allCrew, s
   const pending = pendingRequired(s)
   const n = s.spec.step_ids.length
   const due = s.status === 'watch' && s.reassess_at !== null && c.t >= s.reassess_at
+  // detected: the primary countermeasure first, or the red-flag question when the procedure opens with one (renal)
+  const copy = detectedCopy(def, startCount)
 
   let title: string
   let body: ReactNode = null
@@ -196,21 +235,25 @@ export function NowCard({ view, def, c, onSelect, startCount, shared, allCrew, s
       )
       break
     case 'detected':
-      title = cm?.primary.title ?? 'Start the countermeasure'
+      title = copy.title
       body = (
         <>
-          {step1 ? (
+          {step1 && copy.redFlagFirst ? (
+            <>
+              <div className="lfc-now-step" data-preview="true" data-red-flag-first="true">
+                <p className="lfc-now-step-text">{step1.text}</p>
+                <StepTags step={step1} />
+              </div>
+              {copy.thenLine ? <p className="lfc-now-progress lfc-now-then">{copy.thenLine}</p> : null}
+            </>
+          ) : step1 ? (
             <div className="lfc-now-step" data-preview="true">
-              <p className="lfc-k">Then step 1 of {def.procedure!.length}</p>
+              <p className="lfc-k">{copy.stepHeading}</p>
               <p className="lfc-now-step-text">{step1.text}</p>
             </div>
           ) : null}
           <p className="lfc-entry-actions">
-            {cm ? (
-              <Button onClick={() => onSelect(cm.primary.id)}>
-                Start the countermeasure{startCount > 1 ? ` (all ${startCount} crewmembers)` : ''}
-              </Button>
-            ) : null}
+            {cm ? <Button onClick={() => onSelect(cm.primary.id)}>{copy.button}</Button> : null}
             {cm?.alternatives?.length ? (
               <Button variant="ghost" onClick={() => jumpTo('case-act')}>
                 Other options ({cm.alternatives.length}), only if this is not possible
@@ -326,7 +369,7 @@ export function NowCard({ view, def, c, onSelect, startCount, shared, allCrew, s
           </p>
           <p className="lfc-fine">
             {view.chance
-              ? `It opened on a single flag (${view.chance.text.charAt(0).toLowerCase()}${view.chance.text.slice(1)}); the re-measured readings settled it. `
+              ? `It opened on a single flag (${view.chance.text.charAt(0).toLowerCase()}${view.chance.text.slice(1)}); the tripwire, judged on the re-measured readings, resolved it. `
               : null}
             If a trigger reaches caution again, the case opens again as a new instance.
           </p>
@@ -345,7 +388,7 @@ export function NowCard({ view, def, c, onSelect, startCount, shared, allCrew, s
       <div className="lfc-now-top">
         <span className="lfc-now-badge">
           <CaseStatusBadge view={view} size="lg" />
-          {s.status === 'detected' ? <span className="lfc-k">Start now: one primary countermeasure</span> : null}
+          {s.status === 'detected' ? <span className="lfc-k">{copy.kicker}</span> : null}
         </span>
         <span className="lfc-fine">
           Mission clock <ClockNow />
@@ -355,6 +398,7 @@ export function NowCard({ view, def, c, onSelect, startCount, shared, allCrew, s
         {title}
       </h2>
       {body}
+      <OverdueNote view={view} t={c.t} />
       {shared && open && (s.status === 'detected' || s.status === 'acting') ? (
         <label className="lfc-check">
           <input type="checkbox" checked={allCrew} onChange={(e) => setAllCrew(e.target.checked)} />
@@ -362,6 +406,8 @@ export function NowCard({ view, def, c, onSelect, startCount, shared, allCrew, s
         </label>
       ) : null}
       {open ? <p className="lfc-fine lfc-now-link">{autonomyText(c.comms)}</p> : null}
+      {/* the Crew Medical Officer's own open case: who takes tier 1, before anything escalates (null for everyone else) */}
+      {open ? <TierOneBasis view={view} className="lfc-fine lfc-now-link" /> : null}
       {openedLine(view, def, chance)}
     </section>
   )

@@ -1,10 +1,58 @@
 // Plain helpers shared by the case components (no JSX, so the component files export only components):
-// the ground-packet delivery and autonomy sentences (D4), the note for an opening not shown yet, the
-// plain words for the engine's rejection codes, value formatting for confirmations, and in-page jumps.
+// the status card's copy for a detected case, the ground-packet delivery and autonomy sentences (D4), the
+// note for an opening not shown yet, the plain words for the engine's rejection codes, value formatting for
+// confirmations, and in-page jumps.
 import { formatCountdown, formatEarliestReply } from '../../app/comms'
 import type { CommsStatus } from '../../app/comms'
 import { metClock } from '../../app/mission'
 import { escalationMeta } from './model'
+import type { CaseDefFull } from './types'
+
+/** What the status card says while a case is `detected` (before Start), chosen in one place. */
+export interface DetectedCopy {
+  /** The procedure opens with its required red-flag question, so the card leads with it. */
+  redFlagFirst: boolean
+  /** The kicker beside the status badge. */
+  kicker: string
+  /** The card's heading. */
+  title: string
+  /** The label above the step-1 preview ("Then step 1 of 5"); null when step 1 is the card's main content. */
+  stepHeading: string | null
+  /** The line after step 1 when it leads: "Then: <primary countermeasure title>". */
+  thenLine: string | null
+  /** The Start button (it selects the primary countermeasure, which unlocks step 1). */
+  button: string
+}
+
+/**
+ * The status card's copy for a detected case. When step 1 is a red-flag question (renal r4: flank pain, fever, being
+ * unable to pass urine), the card asks it before the countermeasure: "drink more" is the wrong first act if the urine
+ * cannot pass. Every other case leads with its primary countermeasure, and step 1 is a preview (the SPE shelter's p1
+ * is not a red flag). `startCount` is how many crewmembers a Start goes to (a shared case).
+ */
+export function detectedCopy(def: Pick<CaseDefFull, 'procedure' | 'countermeasure'>, startCount = 1): DetectedCopy {
+  const steps = def.procedure ?? []
+  const primary = def.countermeasure?.primary.title ?? null
+  const all = startCount > 1 ? ` (all ${startCount} crewmembers)` : ''
+  if (steps[0]?.red_flag === true) {
+    return {
+      redFlagFirst: true,
+      kicker: 'Start now: the required red-flag question, then one primary countermeasure',
+      title: 'Red-flag question first',
+      stepHeading: null,
+      thenLine: primary ? `Then: ${primary}` : null,
+      button: `Start: answer the red-flag question first${all}`,
+    }
+  }
+  return {
+    redFlagFirst: false,
+    kicker: 'Start now: one primary countermeasure',
+    title: primary ?? 'Start the countermeasure',
+    stepHeading: steps.length ? `Then step 1 of ${steps.length}` : null,
+    thenLine: null,
+    button: `Start the countermeasure${all}`,
+  }
+}
 
 /**
  * Where the ground packet goes and when, for the current link: queued until the link resumes (LOS, solar

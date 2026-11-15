@@ -291,6 +291,8 @@
 .lfc-now-links { margin: 0; }
 .lfc-now-links .lf-btn { padding-left: 0; padding-right: 1em; min-height: 32px; }
 .lfc-verdict { margin: 0; font-size: var(--lf-text-md); color: var(--lf-text); }
+/* A reassessment overdue (the alert bar's procedure caution, on the case page): the badge carries the colour, the text stays neutral. */
+.lfc-overdue { margin: 0.35em 0 0; max-width: 80ch; font-size: var(--lf-text-sm); color: var(--lf-text); }
 
 /* ---- step tags (magenta: procedure attributes, Table F.5-2; never red, which is Warning) ---- */
 .lfc-step-tags { display: flex; flex-wrap: wrap; gap: 0.35em; margin: 0 0 0.4em; }

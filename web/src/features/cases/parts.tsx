@@ -5,15 +5,16 @@
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { FALSE_ALARM_ASSUMES, formatMet } from '../../app/engine'
-import type { CaseLogEntry, Finding, Indicator, PersonalFinding, Rule, Source } from '../../app/engine'
+import type { CaseLogEntry, Finding, Indicator, Op, PersonalFinding, Rule, Source } from '../../app/engine'
 import type { CaseOrigin, ChanceNote } from '../../app/caseTimeline'
 import type { SnapshotState } from '../../app/data'
 import { chanceDiffers, chanceRateOf, prettyOps, testScaleWords, transformFormula } from '../../app/evaluate'
 import type { Aggregate } from '../../app/evaluate'
 import { useMetNow } from '../../app/mission'
 import { CategoryBadge, Chip, Citation, Expander, FindingBadge, MetTime, Num, ReqId, SeverityBadge, SeverityIcon, UnknownIcon } from '../../ui'
+import { opsLevelOf } from '../../ui/badges'
 import type { Severity, Status } from '../../app/vocab'
-import { OP_TEXT, OP_WORDS, chipForKind, findRequirement, findTableCell, formatTMinus, metDayOf, plainDetail } from './model'
+import { OP_TEXT, OP_WORDS, OUTSIDE_OP, chipForKind, findRequirement, findTableCell, formatTMinus, metDayOf, plainDetail } from './model'
 import type { StdData } from './model'
 import { rejectionWords } from './helpers'
 import type { CaseDefFull } from './types'
@@ -118,17 +119,82 @@ export function SourceBlock({ source, compact = false }: { source: Source | null
 
 const FIRING: readonly string[] = ['caution', 'warning', 'emergency']
 
-function arrowFor(f: Finding): 'up' | 'down' | undefined {
+/**
+ * The out-of-threshold arrow (F.4.3.1 d) of a firing finding: up when the value is above the limit, down when below.
+ * At exactly the limit a firing ceiling ("compliant below 1000 pfu", outside at 1000) points up and a firing floor down.
+ */
+export function arrowFor(f: Finding): 'up' | 'down' | undefined {
   if (!FIRING.includes(f.severity) || f.value === null) return undefined
-  if (f.limit !== null) return f.value > f.limit ? 'up' : 'down'
-  return undefined
+  if (f.limit === null) return undefined
+  if (f.value !== f.limit) return f.value > f.limit ? 'up' : 'down'
+  return f.op === 'lt' || f.op === 'le' ? 'up' : 'down'
 }
 
-/** "Why this fired" for a Tier A / OPS / TARGET rule finding. */
+/**
+ * The threshold rows of an OPS rule. An OPS level is a NOAA S-scale threshold (at Mars, NOAA's S3 number reused: a
+ * design choice), not a limit, so the grid never says "Limit" or "Margin": it shows the level, the number it is
+ * reached at with the rule's chip, and how far the reading is from that number, computed from the value and the
+ * limit. Nothing is computed when the engine compared nothing (its margin is null: not applicable here, no value,
+ * or stale data); the row then shows no data.
+ */
+function OpsThresholdRows({ rule, finding, op }: { rule: Rule; finding: Finding; op: Op }) {
+  const n = opsLevelOf(finding)
+  const reached = OUTSIDE_OP[op]
+  const limit = finding.limit ?? rule.limit
+  const d = finding.margin !== null && finding.value !== null ? finding.value - limit : null
+  return (
+    <>
+      <div>
+        <dt>
+          Threshold ({n !== null ? `NOAA S${n}, ` : ''}reached {OP_WORDS[reached]})
+        </dt>
+        <dd>
+          <span className="lf-num">{OP_TEXT[reached]}</span> <Num value={limit} unit={rule.unit} /> <Chip kind={rule.chip} />
+        </dd>
+      </div>
+      <div>
+        <dt>{d === null ? 'Distance from the threshold' : d > 0 ? 'Above the threshold by' : d < 0 ? 'Below the threshold by' : 'At the threshold'}</dt>
+        <dd>{d === null ? <Num value={null} /> : <Num value={Math.abs(d)} unit={rule.unit} />}</dd>
+      </div>
+    </>
+  )
+}
+
+/**
+ * The target rows of a TARGET rule. A countermeasure target is not a NASA limit (its category says so), so the grid
+ * names it "Target" with the condition that meets it, and how far the reading is above or below it (from the
+ * value and the target, like the OPS rows), never "Limit" or "Margin". Nothing is computed when the engine
+ * compared nothing (its margin is null).
+ */
+function TargetRows({ rule, finding, op }: { rule: Rule; finding: Finding; op: Op }) {
+  const target = finding.limit ?? rule.limit
+  const d = finding.margin !== null && finding.value !== null ? finding.value - target : null
+  return (
+    <>
+      <div>
+        <dt>Target (met when {OP_WORDS[op]})</dt>
+        <dd>
+          <span className="lf-num">{OP_TEXT[op]}</span> <Num value={target} unit={rule.unit} />
+        </dd>
+      </div>
+      <div>
+        <dt>{d === null ? 'Distance from the target' : d > 0 ? 'Above the target by' : d < 0 ? 'Below the target by' : 'At the target'}</dt>
+        <dd>{d === null ? <Num value={null} /> : <Num value={Math.abs(d)} unit={rule.unit} />}</dd>
+      </div>
+    </>
+  )
+}
+
+/**
+ * "Why this fired" for a Tier A / OPS / TARGET rule finding. FFD, PEL and POL rules show the limit as the compliant
+ * condition and the engine's margin; a TARGET rule shows its target (not a limit), an OPS rule its S-scale threshold.
+ */
 export function RuleWhy({ rule, finding, input, open = false }: { rule: Rule; finding: Finding; input?: Aggregate | null; open?: boolean }) {
   const fired = FIRING.includes(finding.severity)
   const op = finding.op ?? rule.op
   const approach = rule.approach_at ?? null
+  const ops = finding.category === 'OPS'
+  const target = finding.category === 'TARGET'
   return (
     <Expander summary={fired ? 'Why this fired' : 'How this is judged'} defaultOpen={open}>
       <dl className="lfc-why-grid">
@@ -138,18 +204,26 @@ export function RuleWhy({ rule, finding, input, open = false }: { rule: Rule; fi
             <Num value={finding.value} unit={finding.unit} arrow={arrowFor(finding)} severity={finding.severity as Severity} />
           </dd>
         </div>
-        <div>
-          <dt>Limit (compliant when {OP_WORDS[op]})</dt>
-          <dd>
-            <span className="lf-num">{OP_TEXT[op]}</span> <Num value={finding.limit ?? rule.limit} unit={rule.unit} />
-          </dd>
-        </div>
-        <div>
-          <dt>Margin</dt>
-          <dd>
-            <Num value={finding.margin} unit={rule.unit} signed />
-          </dd>
-        </div>
+        {ops ? (
+          <OpsThresholdRows rule={rule} finding={finding} op={op} />
+        ) : target ? (
+          <TargetRows rule={rule} finding={finding} op={op} />
+        ) : (
+          <>
+            <div>
+              <dt>Limit (compliant when {OP_WORDS[op]})</dt>
+              <dd>
+                <span className="lf-num">{OP_TEXT[op]}</span> <Num value={finding.limit ?? rule.limit} unit={rule.unit} />
+              </dd>
+            </div>
+            <div>
+              <dt>Margin</dt>
+              <dd>
+                <Num value={finding.margin} unit={rule.unit} signed />
+              </dd>
+            </div>
+          </>
+        )}
         {approach ? (
           <div>
             <dt>Approaching at</dt>
@@ -182,11 +256,12 @@ export function RuleWhy({ rule, finding, input, open = false }: { rule: Rule; fi
           Approach level: <Citation source={approach.source} />
         </p>
       ) : null}
+      {/* The engine's own line, verbatim (its "compliant when < 1000 pfu" is how the engine states every rule). */}
       <p className="lfc-engine">
-        <span className="lfc-engine-tag">Engine</span> {prettyOps(finding.why)}
+        <span className="lfc-engine-tag">{ops ? 'Engine audit text' : 'Engine'}</span> {prettyOps(finding.why)}
       </p>
       <p className="lfc-fine">
-        <a href={`#/provenance?id=${encodeURIComponent(rule.id)}`}>Provenance of {rule.id}</a>
+        <a href={`#/provenance?id=${encodeURIComponent(rule.id)}`}>Provenance of this rule</a>
       </p>
     </Expander>
   )
@@ -324,8 +399,9 @@ export function ChanceLine({ indicator, detail = false }: { indicator: Indicator
 
 /**
  * SPEC 7 "Possibly chance": an instance opened by a single Tier B flag (one indicator, one day, no other trigger at
- * caution since). The text and its N come from the engine (chanceRate of the opening indicator); a re-measure settles
- * it, and the tripwire resolves the case when the next readings stay clear.
+ * caution since). The text and its N come from the engine (chanceRate of the opening indicator). A re-measure checks
+ * it; the case's tripwire, which may watch another indicator than the one that flagged, then judges the readings after
+ * the outcome and resolves the case when they are clear.
  */
 export function ChanceNoteBlock({ note, closed = false }: { note: ChanceNote; closed?: boolean }) {
   return (
@@ -337,7 +413,7 @@ export function ChanceNoteBlock({ note, closed = false }: { note: ChanceNote; cl
         <strong>{note.text}.</strong> {note.label} flagged on MET day <Num value={note.day} /> alone:{' '}
         {closed
           ? 'no other day and no other trigger of this case flagged before the case closed.'
-          : 'no other day and no other trigger of this case has flagged since. A re-measure settles it: the case resolves when the readings after the outcome keep its tripwire clear.'}{' '}
+          : 'no other day and no other trigger of this case has flagged since. A re-measure checks it, and the case’s tripwire then judges the readings after the outcome: clear, the case resolves.'}{' '}
         {note.rate.basis === 'measured' ? 'This rate is measured for this indicator, not assumed.' : 'This is the test’s own rate for this indicator.'}
       </p>
     </div>
@@ -492,7 +568,7 @@ export function PersonalWhy({
         <span className="lfc-engine-tag">Engine</span> {prettyOps(finding.why)}
       </p>
       <p className="lfc-fine">
-        <a href={`#/provenance?id=${encodeURIComponent(indicator.id)}`}>Provenance of {indicator.id}</a>
+        <a href={`#/provenance?id=${encodeURIComponent(indicator.id)}`}>Provenance of this indicator</a>
       </p>
     </Expander>
   )

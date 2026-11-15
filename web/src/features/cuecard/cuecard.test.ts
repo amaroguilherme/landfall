@@ -174,6 +174,12 @@ describe('cue cards: one per case, the rules verbatim', () => {
       for (const r of [...own, ...meta]) expect(flat).toContain(norm(r))
     })
 
+    it('heads the primary countermeasure "after the red-flag question" exactly when step 1 is a red flag (renal r4)', () => {
+      const first = (diskCase.procedure as Array<{ red_flag?: boolean }>)[0]
+      expect(card.headings.doNow.text).toBe(first?.red_flag === true ? TEMPLATE.doNowAfterRedFlag : TEMPLATE.doNow)
+      expect(flat).toContain(card.headings.doNow.text)
+    })
+
     it('prints the title, one_line, primary countermeasure, header, footer and the rules digest line', () => {
       expect(flat).toContain(diskCase.title as string)
       expect(flat).toContain(norm(diskCase.one_line as string))

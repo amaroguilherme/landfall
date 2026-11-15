@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import { RULES, formatMet, getCase } from './engine'
 import type { Finding } from './engine'
-import { caseKey, caseSchedule, computeCases, nextReopening, stateTierOne, tierOneFor } from './caseTimeline'
+import { caseKey, caseSchedule, computeCases, nextReopening, stateTierOne, tierOneFor, tierOneQuotes } from './caseTimeline'
 import type { CaseEventRecord, TriggerStream } from './caseTimeline'
 import { buildScenarioIndex, observationsFor } from './scenarioData'
 import type { SimCrewData, SpeReplayData } from './scenarioData'
@@ -11,7 +11,7 @@ import { CREW_IDS } from './vocab'
 import type { CrewId, EnvId, Observation } from './vocab'
 import type { Snapshot } from './data'
 
-const snaps = import.meta.glob<Snapshot>('../../public/data/{sim_crew,swpc_spe_replay,std_vol2_requirements}.json', {
+const snaps = import.meta.glob<Snapshot>('../../public/data/{sim_crew,swpc_spe_replay,std_vol1_requirements,std_vol2_requirements}.json', {
   eager: true,
   import: 'default',
 })
@@ -182,7 +182,7 @@ describe('nextReopening (SPEC 7): each reading holds until the next', () => {
   })
 })
 
-describe('tier 1 when the patient is the Crew Medical Officer (meta.json escalation, design choice)', () => {
+describe('tier 1 when the patient is the Crew Medical Officer: the crew\'s second Crew Medical Officer (meta.json escalation)', () => {
   const meta = (RULES.meta as unknown as { escalation: { tiers: Array<{ id: string; crew_id?: string; backup?: { crew_id: string; citations: Array<{ requirement_id: string; verbatim: string }> } }> } }).escalation
   it('names the Commander for CM-4, the Crew Medical Officer for everyone else, as the engine resolves it', () => {
     const list = cases('mars_surface', NOW)
@@ -195,21 +195,38 @@ describe('tier 1 when the patient is the Crew Medical Officer (meta.json escalat
       }
       if (crew === 'CM-4') {
         expect([t1.id, t1.crewId, t1.backup, t1.chip]).toEqual(['backup_medical_officer', 'CM-1', true, 'design choice'])
-        expect(t1.line).toBe('You are the Crew Medical Officer and the patient: tell the Commander (CM-1), the backup medical officer, now.')
+        expect(t1.line).toBe("You are the Crew Medical Officer and the patient: tell the Commander (CM-1), the crew's second Crew Medical Officer, now.")
+        expect(t1.roleText).toBe("the crew's second Crew Medical Officer")
       } else {
         expect([t1.id, t1.crewId, t1.backup]).toEqual(['crew_medical_officer', 'CM-4', false])
         expect(t1.line).toBe('Tell the Crew Medical Officer (CM-4) now.')
       }
     }
   })
-  it('quotes [V2 7045] verbatim from the frozen Vol 2 snapshot', () => {
-    const c = tierOneFor('CM-4').citations[0] as { requirement_id: string; verbatim: string }
-    expect(c.requirement_id).toBe('V2 7045')
-    expect(meta.tiers[0].backup!.citations[0]).toEqual(c)
+  it('quotes [V2 7045] verbatim from the frozen Vol 2 snapshot, wherever it sits in the citations', () => {
+    const t1 = tierOneFor('CM-4')
+    expect(t1.citations).toEqual(meta.tiers[0].backup!.citations)
+    const c = tierOneQuotes(t1).usability!
+    expect(c.requirementId).toBe('V2 7045')
     const vol2 = snap('std_vol2_requirements')!.data as { requirements: Array<{ id: string; text: string }> }
     const req = vol2.requirements.find((r) => r.id === '[V2 7045]')!
     expect(req.text).toContain(c.verbatim)
     expect(c.verbatim).toBe('in the event that a physician crewmember is not present or is the one who requires medical treatment')
+  })
+  it('every [V1 3006] quote (two Crew Medical Officers per vehicle) is the frozen Vol 1 requirement\'s own words, in file order', () => {
+    const vol1 = snap('std_vol1_requirements')!.data as { requirements: Array<{ id: string; text: string; rationale: string }> }
+    const req = vol1.requirements.find((r) => r.id === 'V1 3006')!
+    expect(req.text).toBe('The program(s) shall train a minimum of two crewmembers per vehicle/platform as Crew Medical Officers (CMOs).')
+    expect(req.rationale).toContain('to ensure that a backup is available for medical treatment')
+    const { secondCmo } = tierOneQuotes(tierOneFor('CM-4'))
+    expect(secondCmo.map((q) => q.verbatim)).toEqual(
+      tierOneFor('CM-4').citations.filter((c) => c.requirement_id === 'V1 3006').map((c) => c.verbatim),
+    )
+    for (const q of secondCmo) expect(`${req.text} ${req.rationale}`).toContain(q.verbatim)
+    // the views print what is there: no [V1 3006] citation, no [V1 3006] quote; nobody else's tier 1 has a basis
+    expect(tierOneQuotes({ citations: [] })).toEqual({ secondCmo: [], usability: null })
+    expect(tierOneQuotes({ citations: [{ requirement_id: 'V2 7045' }, { verbatim: 'x' }, { requirement_id: 'V1 3006', verbatim: '' }] })).toEqual({ secondCmo: [], usability: null })
+    expect(tierOneFor('CM-2').citations).toEqual([])
   })
   it("CM-4's shelter case escalates on the replay to the Commander, not to the patient", () => {
     const at = NOW + 600 + getCase(RULES, 'spe_shelter').tripwire!.reassess_after_s + 60

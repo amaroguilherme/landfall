@@ -3,15 +3,19 @@
 // (meta.json packet_states; state.packet_queued_at). The demo jump lands on the first whole minute at
 // or after the reassessment (cases fold on the minute clock), and the page then scrolls to the verdict.
 import { useState } from 'react'
-import { useGroundPacket } from '../../app/model'
+import { useEvaluation, useGroundPacket } from '../../app/model'
 import type { CaseView } from '../../app/caseTimeline'
+import type { Finding, PersonalFinding } from '../../app/engine'
+import type { MissionEvaluation } from '../../app/evaluate'
+import type { CrewId } from '../../app/vocab'
 import { Button, ButtonLink, Chip, Expander, MetTime, Num, Panel, SeverityBadge } from '../../ui'
 import { NumberEntry } from './entry'
 import { OP_WORDS, formatSpan, isOpen, meetsCondition, packetLabel, packetStateOf, refLabel, stepList, tripwireProgress, variableLabel } from './model'
-import { SourceBlock, TMinus } from './parts'
+import { BandRange, SourceBlock, TMinus } from './parts'
+import { sharedReadingSource } from './procedure'
 import type { ActCtx } from './procedure'
 import { deliveryText } from './helpers'
-import { EscalationTiers } from './status'
+import { EscalationTiers, OverdueNote } from './status'
 import type { CaseDefFull } from './types'
 
 const qty = (unit: string) => (unit === 'count' ? undefined : unit)
@@ -20,6 +24,90 @@ const qty = (unit: string) => (unit === 'count' ? undefined : unit)
 const midSentence = (variable: string) => {
   const l = variableLabel(variable)
   return /^[A-Z][a-z]/.test(l) ? l.charAt(0).toLowerCase() + l.slice(1) : l
+}
+
+/** A rule or indicator label inside a sentence ("Sleep midpoint shift" -> "sleep midpoint shift"). */
+const lcLabel = (l: string) => (/^[A-Z][a-z]/.test(l) ? l.charAt(0).toLowerCase() + l.slice(1) : l)
+
+/**
+ * This crewmember's finding of a rule or indicator id at the evaluation minute (Tier B, Tier A, context or OPS),
+ * with the MET of the reading behind it; null when the evaluation has none.
+ */
+function currentFindingOf(evaluation: MissionEvaluation | null, crewId: CrewId, ref: string): { finding: Finding; t: number | null } | null {
+  if (!evaluation) return null
+  const crew = evaluation.crew[crewId]
+  const b = crew?.tierB.find((e) => e.indicator.id === ref)
+  if (b) return { finding: b.finding, t: b.current?.t ?? null }
+  const a = [...(crew?.tierA ?? []), ...(crew?.context ?? []), ...evaluation.ops.findings].find((e) => e.rule.id === ref)
+  return a ? { finding: a.finding, t: a.input.t } : null
+}
+
+/**
+ * When the tripwire watches another indicator or rule than the finding that opened this instance (the sleep case
+ * watches PVT-B lapses whichever indicator opened it), say so: the watched condition, the opening reading against its
+ * edge, and that reading's latest value, all from the case state and the engine's current finding.
+ */
+function TripwireMismatch({ view, chip }: { view: CaseView; chip: string | undefined }) {
+  const { evaluation } = useEvaluation()
+  const s = view.state
+  const cond = s.spec.tripwire.condition
+  const opening = s.finding
+  if (!opening || !cond.ref_id || opening.rule_id === cond.ref_id) return null
+  const latest = currentFindingOf(evaluation, view.crewId, opening.rule_id)
+  const personal = opening.tier === 'B'
+  const edge = personal ? 'your band edge' : opening.category === 'TARGET' ? 'the target' : 'the limit'
+  const unit = qty(opening.unit)
+  const edgeNum = (v: number | null) => <Num value={v} unit={unit} digits={personal ? 2 : undefined} />
+  const lf = latest?.finding ?? null
+  const lv = lf?.value
+  // The latest reading's place, from the engine's own verdict: past the band edge on the side it moved, or inside.
+  const band = personal && lf ? (lf as PersonalFinding).band : null
+  const past = lf?.status === 'reliable_change'
+  const pastEdge = band && typeof lv === 'number' ? (lv > band.high ? band.high : band.low) : null
+  return (
+    <p className="lfc-fine lfc-trip-other" data-tripwire-other="">
+      This tripwire watches {midSentence(cond.variable)} ({OP_WORDS[cond.op]} <Num value={cond.value} unit={qty(cond.unit)} /> on at least{' '}
+      <Num value={cond.at_least} /> of the last <Num value={cond.of_last_n} /> readings, <Chip kind={chip} />) for every crewmember, whichever
+      indicator opened the case. This instance opened on the {lcLabel(refLabel(opening.rule_id))}:{' '}
+      <Num value={opening.value} unit={unit} />
+      {s.opened_at !== null ? (
+        <>
+          {' '}
+          at <MetTime t={s.opened_at} label />
+        </>
+      ) : null}{' '}
+      against {edge} {edgeNum(opening.limit)}
+      {typeof lv === 'number' ? (
+        <>
+          ; its latest reading is <Num value={lv} unit={unit} />
+          {latest?.t !== null && latest?.t !== undefined ? (
+            <>
+              {' '}
+              (<MetTime t={latest.t} label />)
+            </>
+          ) : null}
+          {personal && band ? (
+            past ? (
+              pastEdge === opening.limit ? (
+                <>, still past that edge</>
+              ) : (
+                <>, past your band edge {edgeNum(pastEdge)}</>
+              )
+            ) : (
+              <>
+                , inside your band (<BandRange finding={lf as PersonalFinding} />)
+              </>
+            )
+          ) : (
+            <>
+              , against {edge} {edgeNum(lf?.limit ?? null)}
+            </>
+          )}
+        </>
+      ) : null}
+      .
+    </p>
+  )
 }
 
 // ---- 6. Tripwire ----------------------------------------------------------------------------------------
@@ -78,6 +166,7 @@ export function TripwirePanel({
         {OP_WORDS[cond.op]} <Num value={cond.value} unit={qty(cond.unit)} />, judged <span className="lf-num">{formatSpan(s.spec.tripwire.reassess_after_s)}</span> after the outcome
         {ref ? <span className="lfc-fine"> (watched here: {ref})</span> : null}.
       </p>
+      <TripwireMismatch view={view} chip={tw?.chip} />
       {view.chance && (isOpen(s.status) || s.status === 'resolved') ? (
         <p className="lfc-trip-chance lfc-fine">
           <span className="lfc-possibly-tag">possibly chance</span> A single flag: a re-measure resolves it.{' '}
@@ -126,7 +215,10 @@ export function TripwirePanel({
       ) : res ? null : s.escalation?.reason === 'red_flag' ? (
         <p className="lfc-fine">Not needed: a red-flag answer escalated the case at once.</p>
       ) : (
-        <p className="lfc-fine">Not armed yet: it arms when the outcome is logged.</p>
+        <>
+          <p className="lfc-fine">Not armed yet: it arms when the outcome is logged.</p>
+          <OverdueNote view={view} t={c.t} />
+        </>
       )}
       {obs.length || watch ? (
         <>
@@ -162,7 +254,11 @@ export function TripwirePanel({
                 New results come from the test: <a href="#/noon-sight">take it in Noon Sight</a>.
               </p>
             ) : (
-              <p className="lfc-fine">New readings arrive from the {last?.crew_id === null ? 'vehicle sensor' : (src ?? 'band')} as the mission clock runs.</p>
+              <p className="lfc-fine">
+                {last?.crew_id === null
+                  ? `New readings arrive as the mission clock runs. Source: ${sharedReadingSource(cond.variable, c.comms.env.id)}.`
+                  : `New readings arrive from the ${src ?? 'band'} as the mission clock runs.`}
+              </p>
             )
           ) : null}
         </>
@@ -250,7 +346,7 @@ export function ClosePanel({ c, def, view, onDismiss }: { c: ActCtx; def: CaseDe
         </div>
       ) : (
         <p className="lfc-fine">
-          Not closed. The tripwire decides: clear → resolved; tripped → escalated, first to {view.tier1.backup ? `${view.tier1.name} (${view.tier1.crewId}), the backup medical officer,` : 'the Crew Medical Officer'}{' '}
+          Not closed. The tripwire decides: clear → resolved; tripped → escalated, first to {view.tier1.backup ? `${view.tier1.name} (${view.tier1.crewId}), ${view.tier1.roleText},` : 'the Crew Medical Officer'}{' '}
           onboard, then to the flight surgeon through the ground packet. A “yes” to a red-flag question escalates at once.
         </p>
       )}
@@ -267,6 +363,11 @@ export function ClosePanel({ c, def, view, onDismiss }: { c: ActCtx; def: CaseDe
           >
             <label htmlFor="lfc-dismiss">Why is this case not needed?</label>
             <input id="lfc-dismiss" value={reason} onChange={(e) => setReason(e.target.value)} autoComplete="off" />
+            <p className="lfc-fine">
+              Dismissing closes this case for {view.crewId}: its guidance and tripwire stop
+              {packetStateOf(s) === 'queued' ? ', and the ground packet already queued is still sent' : ', and its ground packet stays held on board'}; the
+              reading that opened it stays in the alert bar while it is still flagged.
+            </p>
             <Button type="submit" variant="secondary" disabled={!reason.trim()}>
               Dismiss for {view.crewId}
             </Button>

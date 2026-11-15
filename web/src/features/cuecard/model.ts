@@ -32,6 +32,8 @@ export const TEMPLATE = {
   appliesIn: 'applies in',
   space: ' ',
   doNow: 'Primary countermeasure',
+  // A procedure that opens with its red-flag question (renal r4): the countermeasure comes after that answer.
+  doNowAfterRedFlag: 'Primary countermeasure, after the red-flag question in step 1',
   steps: 'Steps',
   required: 'REQUIRED',
   // True for every role (SPEC 2): the rules' own escalation words, so the CMO is never told to tell the CMO.
@@ -704,7 +706,7 @@ export function cueCard(caseDef: CaseDef, rules: Rules, snapshots: CueSnapshots,
     oneLine: R(rules, [...cp, 'one_line']),
     headings: {
       opensWhen: T('opensWhen'),
-      doNow: T('doNow'),
+      doNow: T(def.procedure?.[0]?.red_flag === true ? 'doNowAfterRedFlag' : 'doNow'),
       steps: T('steps'),
       tripwire: T('tripwire'),
       escalate: T('escalate'),

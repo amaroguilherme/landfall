@@ -35,12 +35,25 @@
    "notes": [
     "'as determined by either direct or indirect measures' (requirement text).",
     "No approach_at: NASA gives a floor, and we do not invent a margin above it.",
-    "Caution at most (max_severity): a fitness floor not met needs attention, not immediate action. The crew-facing label is 'EVA assignment not cleared'."
+    "Caution at most (max_severity): a fitness floor not met needs attention, not immediate action. The crew-facing label is 'EVA fitness floor not met'.",
+    "EVA medical clearance itself is ground medical support's decision before each EVA ([V1 6006]); LANDFALL reports only the fitness floor."
+   ],
+   "citations": [
+    {
+     "kind": "nasa_standard",
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+     "snapshot": "std_vol1_requirements",
+     "requirement_id": "V1 6006",
+     "section": "6.4",
+     "page": 52,
+     "verbatim": "All crewmembers shall be medically cleared to perform an EVA by ground medical support personnel prior to each EVA."
+    }
    ],
    "max_severity": "caution",
    "action": {
-    "label": "EVA assignment not cleared",
-    "text": "EVA assignment not cleared: this VO2max test is below the floor NASA-STD-3001 sets for missions with microgravity EVAs. Review the exercise prescription with the Crew Medical Officer and retest before an EVA is assigned.",
+    "label": "EVA fitness floor not met",
+    "text": "EVA fitness floor not met: this VO2max test is below the floor NASA-STD-3001 sets for missions with microgravity EVAs. Review the exercise prescription with a Crew Medical Officer and retest before an EVA is planned.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -81,12 +94,25 @@
    "case_id": null,
    "notes": [
     "The same crewmember can be within [V1 4001] and outside [V1 4002]: the environment decides.",
-    "Caution at most (max_severity): a fitness floor not met needs attention, not immediate action. The crew-facing label is 'EVA assignment not cleared'."
+    "Caution at most (max_severity): a fitness floor not met needs attention, not immediate action. The crew-facing label is 'EVA fitness floor not met'.",
+    "EVA medical clearance itself is ground medical support's decision before each EVA ([V1 6006]); LANDFALL reports only the fitness floor."
+   ],
+   "citations": [
+    {
+     "kind": "nasa_standard",
+     "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+     "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+     "snapshot": "std_vol1_requirements",
+     "requirement_id": "V1 6006",
+     "section": "6.4",
+     "page": 52,
+     "verbatim": "All crewmembers shall be medically cleared to perform an EVA by ground medical support personnel prior to each EVA."
+    }
    ],
    "max_severity": "caution",
    "action": {
-    "label": "EVA assignment not cleared",
-    "text": "EVA assignment not cleared: this VO2max test is below the floor NASA-STD-3001 sets for missions with extraterrestrial surface EVAs. Review the exercise prescription with the Crew Medical Officer and retest before an EVA is assigned.",
+    "label": "EVA fitness floor not met",
+    "text": "EVA fitness floor not met: this VO2max test is below the floor NASA-STD-3001 sets for missions with extraterrestrial surface EVAs. Review the exercise prescription with a Crew Medical Officer and retest before an EVA is planned.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -132,7 +158,7 @@
    ],
    "action": {
     "label": "Bone density below the NASA limit",
-    "text": "Bone density is below the NASA-STD-3001 limit against your pre-mission value. Review the exercise countermeasure with the Crew Medical Officer.",
+    "text": "Bone density is below the NASA-STD-3001 limit against your pre-mission value. Review the exercise countermeasure with a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -178,7 +204,7 @@
    ],
    "action": {
     "label": "Bone density below the NASA limit",
-    "text": "Bone density is below the NASA-STD-3001 limit against your pre-mission value. Review the exercise countermeasure with the Crew Medical Officer.",
+    "text": "Bone density is below the NASA-STD-3001 limit against your pre-mission value. Review the exercise countermeasure with a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -224,7 +250,7 @@
    ],
    "action": {
     "label": "Bone density below the NASA limit",
-    "text": "Bone density is below the NASA-STD-3001 limit against your pre-mission value. Review the exercise countermeasure with the Crew Medical Officer.",
+    "text": "Bone density is below the NASA-STD-3001 limit against your pre-mission value. Review the exercise countermeasure with a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -275,7 +301,7 @@
    ],
    "action": {
     "label": "Career dose at or near the NASA limit",
-    "text": "Career effective dose has reached or is near the NASA-STD-3001 limit. Tell the Crew Medical Officer; dose planning belongs to the ground radiation health officers.",
+    "text": "Career effective dose has reached or is near the NASA-STD-3001 limit. Tell a Crew Medical Officer; dose planning belongs to the ground radiation health officers.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -333,7 +359,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -391,7 +417,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -448,7 +474,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -505,7 +531,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -562,7 +588,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -618,7 +644,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -725,7 +751,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -783,7 +809,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -841,7 +867,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -898,7 +924,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -956,7 +982,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -1014,7 +1040,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -1071,7 +1097,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -1129,7 +1155,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -1186,7 +1212,7 @@
    ],
    "action": {
     "label": "Organ dose at or near a NASA limit",
-    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell the Crew Medical Officer.",
+    "text": "The organ dose the vehicle reports has reached or is near a NASA-STD-3001 Table 4.8-1 limit. Keep logging the dose reports, follow the vehicle's radiation plan to limit further exposure, and tell a Crew Medical Officer.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -1240,7 +1266,7 @@
    ],
    "action": {
     "label": "Cabin CO2 at or near the 1-hour limit",
-    "text": "Cabin CO2 is at or near the 1-hour limit. The vehicle's caution and warning system owns this alarm: follow the vehicle CO2 procedure, and tell the Crew Medical Officer about any headache.",
+    "text": "Cabin CO2 is at or near the 1-hour limit. The vehicle's caution and warning system owns this alarm: follow the vehicle CO2 procedure, and tell a Crew Medical Officer about any headache.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -1660,8 +1686,20 @@
    "chip": "design choice",
    "source": {
     "kind": "design_choice",
-    "rationale": "[V2 6164] requires the radiation monitoring system to alert the crew 'when radiation exposure rates exceed predefined thresholds' and leaves the threshold to the program. At Mars no NOAA alert reaches the crew. The scenario assumes an external space-weather monitor above the atmosphere, in Mars orbit, whose ≥10 MeV proton reading is relayed to the habitat locally, with no Earth link: the in-situ extravehicular monitoring of 'proton flux spectra' that [V2 6165] requires. LANDFALL reuses NOAA's S3 threshold (10^3 pfu at ≥10 MeV, rule ops_noaa_s3) on that reading; NOAA does not define its scale away from Earth, so applying it at Mars is ours. The vehicle's radiation monitoring system raises the alarm ([V2 6164]); this rule opens the health case that follows."
+    "rationale": "[V2 6164] requires the radiation monitoring system to alert the crew 'when radiation exposure rates exceed predefined thresholds' and leaves the threshold to the program. At Mars no NOAA alert reaches the crew. The scenario assumes an external space-weather monitor above the atmosphere, in Mars orbit, whose ≥10 MeV proton reading is relayed to the habitat locally, with no Earth link: it is the kind of external space-weather monitor [V2 6165]'s rationale describes ('Space weather monitors that meet this requirement differ from crew dose monitors by their sensitivity to radiation typically absorbed by the shielding afforded by the vehicle or habitat'); it reports one ≥10 MeV integral channel, not the in-situ proton and electron flux spectra [V2 6165] asks for, which LANDFALL does not measure (the case lists the proton spectrum as NOT MEASURABLE HERE); continuous relay to the habitat is a scenario assumption. LANDFALL reuses NOAA's S3 threshold (10^3 pfu at ≥10 MeV, the NOAA S3 rule) on that reading; NOAA does not define its scale away from Earth, so applying it at Mars is ours. The vehicle's radiation monitoring system raises the alarm ([V2 6164]); this rule opens the health case that follows."
    },
+   "citations": [
+    {
+     "kind": "nasa_standard",
+     "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+     "url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf",
+     "snapshot": "std_vol2_requirements",
+     "requirement_id": "V2 6165",
+     "section": "6.8.1.7",
+     "page": 112,
+     "verbatim": "Space weather monitors that meet this requirement differ from crew dose monitors by their sensitivity to radiation typically absorbed by the shielding afforded by the vehicle or habitat"
+    }
+   ],
    "derived_from_rule": "ops_noaa_s3",
    "action_id": "spe_shelter",
    "case_id": "spe_shelter",

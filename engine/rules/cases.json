@@ -4,7 +4,7 @@
   {
    "id": "renal_stone",
    "title": "Renal stone risk: low urine output",
-   "one_line": "Urine output is low: under 1.5 L/day, where NASA's renal stone evidence report says stone risk rises, or clearly down against your own baseline. Drink more, log it, and answer the symptom questions.",
+   "one_line": "Urine output is low: under 1.5 L/day, where NASA's renal stone evidence report says stone risk rises, or clearly down against your own baseline. Answer the symptom questions first, then drink more and log it.",
    "hrp_risk": {
     "title": "Risk of Spaceflight-Induced Bone Changes",
     "url": "https://www.nasa.gov/reference/risk-of-spaceflight-induced-bone-changes/",
@@ -69,7 +69,7 @@
     "primary": {
      "id": "cm_hydration",
      "title": "Drink more, spread through the waking day",
-     "rationale": "The evidence report's target for an effective hydration countermeasure is 2.5-3 L of urine per day. The vehicle is required to provide at least 2.5 L of potable water for hydration per crewmember per day ([V2 6109], Table 6.3-1).",
+     "rationale": "The evidence report's target for an effective hydration countermeasure is 2.5-3 L of urine per day. The vehicle is required to provide at least 2.5 L of potable water for hydration per crewmember per day ([V2 6109], Table 6.3-1). That minimum also covers hot water for meals (Table 6.3-1: \"allocation to include 600 mL per meal per crewmember to be available as Hot Water\"), so reaching the urine target can need water beyond it; LANDFALL does not size the water budget.",
      "chip": "NASA report",
      "source": {
       "kind": "nasa_brief",
@@ -79,7 +79,20 @@
       "page": 13,
       "verbatim": "the risk for renal stone development increases when urinary volume drops below 1.5 liters/day; therefore, an effective hydration countermeasure should be sufficient to produce 2.5-3 liters/day of urine volume (Kassemi and Thompson 2016b)",
       "note": "NASA-authored HRP evidence report, not a standard: it carries no requirement ID. The scanned 2024 PDF was read by OCR; the identical sentence is machine-readable in the 2017 edition (Sibonga JD, Pietrzyk R. Evidence Report: Risk of Renal Stone Formation. NASA HRP, approved for public release May 15, 2017. NTRS 20170004709, p. 14). The underlying source is the Kassemi and Thompson 2016 model cited there."
-     }
+     },
+     "citations": [
+      {
+       "kind": "nasa_standard",
+       "doc": "NASA-STD-3001 Vol. 2 Rev. F",
+       "requirement_id": "V2 6109",
+       "section": "6.3.2",
+       "page": 71,
+       "url": "https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf",
+       "snapshot": "std_vol2_requirements",
+       "table": "Table 6.3-1",
+       "verbatim": "allocation to include 600 mL per meal per crewmember to be available as Hot Water"
+      }
+     ]
     },
     "alternatives": [
      {
@@ -114,30 +127,8 @@
    },
    "procedure": [
     {
-     "id": "r1",
-     "text": "Check the last three 24-hour urine totals in the log. If a day is missing, enter it now.",
-     "input": {
-      "variable": "urine_volume_24h",
-      "unit": "mL",
-      "source": "manual"
-     }
-    },
-    {
-     "id": "r2",
-     "text": "Enter today's fluid intake so far (water dispenser plus drink pouches).",
-     "input": {
-      "variable": "fluid_intake_24h",
-      "unit": "mL",
-      "source": "manual"
-     }
-    },
-    {
-     "id": "r3",
-     "text": "Plan extra drinks across the rest of the waking day, aiming for at least 2.5 L of urine per day. Do not drink it all at once."
-    },
-    {
      "id": "r4",
-     "text": "Ask now: any pain in the side or back (flank), blood in the urine, pain or burning when passing urine, fever or chills, nausea or vomiting, or being unable to pass urine? If any answer is yes, tell your Crew Medical Officer now (if that is you, the Commander): the case escalates, and the ground packet is queued for the flight surgeon.",
+     "text": "Answer this before you drink more. Ask now: any pain in the side or back (flank), blood in the urine, pain or burning when passing urine, fever or chills, nausea or vomiting, or being unable to pass urine? If any answer is yes, tell your Crew Medical Officer now (if that is you, the Commander): the case escalates, and the ground packet is queued for the flight surgeon.",
      "required": true,
      "red_flag": true,
      "input": {
@@ -166,6 +157,28 @@
      }
     },
     {
+     "id": "r1",
+     "text": "Check the last three 24-hour urine totals in the log (screen or paper). If a day is missing, enter it now.",
+     "input": {
+      "variable": "urine_volume_24h",
+      "unit": "mL",
+      "source": "manual"
+     }
+    },
+    {
+     "id": "r2",
+     "text": "Enter today's fluid intake so far (water dispenser plus drink pouches).",
+     "input": {
+      "variable": "fluid_intake_24h",
+      "unit": "mL",
+      "source": "manual"
+     }
+    },
+    {
+     "id": "r3",
+     "text": "Plan extra drinks across the rest of the waking day, aiming for at least 2.5 L of urine per day. Do not drink it all at once."
+    },
+    {
      "id": "r5",
      "text": "Tomorrow, log the new 24-hour total. LANDFALL compares it with your own baseline and the case floor."
     }
@@ -183,7 +196,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "72 h and '2 of the last 3 days' are ours. The 1,500 mL value is the literature floor of rule target_urine_output_24h."
+     "rationale": "72 h and '2 of the last 3 days' are ours. The 1,500 mL value is the floor of the case's 24-h urine output rule, from NASA's renal stone evidence report."
     }
    },
    "escalation": {
@@ -268,7 +281,7 @@
     }
    ],
    "interpretation": {
-    "text": "This case opened because at least one of your PVT-B lapses, PVT-B median reaction time, sleep duration or sleep midpoint has moved in the worse direction (for the sleep midpoint, earlier or later) by more than your own day-to-day variation explains: a reliable change on a single-case t-test against your two-week baseline (Crawford & Howell 1998). The test is set so that chance alone would do this about once in 2,000 days for each indicator, if days were independent and the day-to-day noise were normal, and about once in 1,000 days for the sleep midpoint, which counts both directions. PVT-B lapses, a count, are tested on the Anscombe scale (Anscombe 1948), where chance cautions come less often than that. A single flag on a single day can be chance; the next days' measurements settle it. NASA's Human Research Program describes this risk as performance decrements and adverse health outcomes resulting from sleep loss, circadian desynchronization and work overload, and names work overload, irregular light-dark cycles and sleep-pattern disruptions among the stressors of spaceflight. Short sleep is common in flight: ISS crewmembers averaged 6.09 h a night by actigraphy (Barger et al. 2014). This is not a diagnosis of a sleep disorder.",
+    "text": "This case opened because at least one of your PVT-B lapses, PVT-B median reaction time, sleep duration or sleep midpoint has moved in the worse direction (for the sleep midpoint, earlier or later) by more than your own day-to-day variation explains: a reliable change on a single-case t-test against your two-week baseline (Crawford & Howell 1998). The test is set so that chance alone would do this about once in 2,000 days for each indicator, if days were independent and the day-to-day noise were normal, and about once in 1,000 days for the sleep midpoint, which counts both directions. PVT-B lapses, a count, are tested on the Anscombe scale (Anscombe 1948), where chance cautions come less often than that. A single flag on a single day can be chance; the next days' measurements check it. NASA's Human Research Program describes this risk as performance decrements and adverse health outcomes resulting from sleep loss, circadian desynchronization and work overload, and names work overload, irregular light-dark cycles and sleep-pattern disruptions among the stressors of spaceflight. Short sleep is common in flight: ISS crewmembers averaged 6.09 h a night by actigraphy (Barger et al. 2014). This is not a diagnosis of a sleep disorder. The sleep midpoint is compared with your own baseline median, not with your scheduled sleep period, so a planned schedule shift can open this case.",
     "citations": [
      {
       "kind": "literature",
@@ -421,7 +434,7 @@
      "of_last_n": 3,
      "at_least": 2
     },
-    "text": "Reassess at T+72 h; if PVT-B lapses are still 4 or more on at least 2 of the last 3 tests, escalate: tell the Crew Medical Officer now (if that is you, the Commander), and the ground packet is queued for the flight surgeon.",
+    "text": "Reassess at T+72 h; if PVT-B lapses are 4 or more on at least 2 of the last 3 tests, whichever indicator opened the case, escalate: tell the Crew Medical Officer now (if that is you, the Commander), and the ground packet is queued for the flight surgeon.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
@@ -499,7 +512,7 @@
     }
    ],
    "interpretation": {
-    "text": "This case opened because the ≥10 MeV proton flux has reached the level NOAA calls S3 (Strong), 1,000 pfu, or because the blood-forming-organ dose the vehicle reports is near or over its 30-day limit of 250 mGy-Eq (NASA-STD-3001 Vol 1 Table 4.8-1). Near Earth the flux is NOAA's GOES reading. At Mars it comes from an external space-weather monitor above the atmosphere, in Mars orbit ([V2 6165]), relayed to the habitat with no Earth link; the scenario replays the GOES-7 October 1989 flux as that reading, with no distance or atmosphere correction. NOAA's published text for S3 reads: 'Radiation hazard avoidance recommended for astronauts on EVA'. NOAA does not define its scale away from Earth; applying the 1,000 pfu level at Mars is LANDFALL's choice. The vehicle's radiation monitoring system raises the radiation alarm ([V2 6164]); LANDFALL opens the health case that follows and guides the crew. With the link up, Mission Control and the flight surgeon direct the response, and the ground has this case within the round-trip light time. With no link, the crew acts onboard with the Crew Medical Officer: the rationale of [V2 6164] says the crew must be alerted even if ground communication is disrupted or is unviable. LANDFALL does not estimate your dose or your cancer risk: it shows the shelter procedure and tracks the organ dose the vehicle reports against the Table 4.8-1 limits.",
+    "text": "This case opened because the ≥10 MeV proton flux has reached the level NOAA calls S3 (Strong), 1,000 pfu, or because the blood-forming-organ dose the vehicle reports is near or over its 30-day limit of 250 mGy-Eq (NASA-STD-3001 Vol 1 Table 4.8-1). Near Earth the flux is NOAA's GOES reading. At Mars it comes from a space-weather monitor above the atmosphere, in Mars orbit, an external monitor of the kind [V2 6165]'s rationale describes (one ≥10 MeV channel, not the full spectra), relayed to the habitat with no Earth link; continuous relay is a scenario assumption, and the scenario replays the GOES-7 October 1989 flux as that reading, with no distance or atmosphere correction. NOAA's published text for S3 reads: 'Radiation hazard avoidance recommended for astronauts on EVA'. NOAA does not define its scale away from Earth; applying the 1,000 pfu level at Mars is LANDFALL's choice. The vehicle's radiation monitoring system raises the radiation alarm ([V2 6164]); LANDFALL opens the health case that follows and guides the crew. With the link up, Mission Control and the flight surgeon direct the response, and the ground has this case within the round-trip light time. With no link, the crew acts onboard with the Crew Medical Officer: the rationale of [V2 6164] says the crew must be alerted even if ground communication is disrupted or is unviable. LANDFALL does not estimate your dose or your cancer risk: it shows the shelter procedure and tracks the organ dose the vehicle reports against the Table 4.8-1 limits.",
     "citations": [
      {
       "kind": "noaa",
@@ -534,11 +547,11 @@
     "primary": {
      "id": "cm_shelter",
      "title": "Stop or postpone EVA and move to the most shielded area",
-     "rationale": "NOAA S3: radiation hazard avoidance recommended for astronauts on EVA. [V2 6164] rationale: the crew must be able to follow sheltering procedures planned for when dose rates exceed predefined thresholds. Sheltering the whole crew at the S3 flux level, before the dose rate confirms, is LANDFALL's choice.",
+     "rationale": "NOAA S3: radiation hazard avoidance recommended for astronauts on EVA. [V2 6164] rationale: the crew must be able to follow sheltering procedures planned for when dose rates exceed predefined thresholds. Sheltering the whole crew at the S3 flux level, without waiting for a habitat dose-rate threshold, which the vehicle's shelter plan sets, is LANDFALL's choice.",
      "chip": "design choice",
      "source": {
       "kind": "design_choice",
-      "rationale": "Sheltering crew who are not on EVA when the flux reaches S3 is LANDFALL's choice. NOAA's S3 text recommends radiation hazard avoidance for astronauts on EVA, and the rationale of [V2 6164] asks that the crew be able to follow sheltering procedures planned for when dose rates exceed predefined thresholds. LANDFALL moves everyone to the shelter at the flux level, before the habitat dose rate confirms, trading some work time for margin while Earth may be out of reach; the vehicle's shelter plan and its dose-rate threshold decide when the crew leaves."
+      "rationale": "Sheltering crew who are not on EVA when the flux reaches S3 is LANDFALL's choice. NOAA's S3 text recommends radiation hazard avoidance for astronauts on EVA, and the rationale of [V2 6164] asks that the crew be able to follow sheltering procedures planned for when dose rates exceed predefined thresholds. LANDFALL moves everyone to the shelter at the flux level, without waiting for a habitat dose-rate threshold, which the vehicle's shelter plan sets, trading some work time for margin while Earth may be out of reach; the vehicle's shelter plan and its dose-rate threshold decide when the crew leaves."
      },
      "citations": [
       {
@@ -633,7 +646,7 @@
     },
     {
      "id": "p6",
-     "text": "Release the ground packet for the flight surgeon: it changes from Prepared (held on board) to Queued and is sent when a link exists. Keep sheltering; you do not need to wait for an answer.",
+     "text": "Release the ground packet for the flight surgeon (with the display down, note the time and release it when LANDFALL returns): it changes from Prepared (held on board) to Queued and is sent when a link exists. Keep sheltering; you do not need to wait for an answer.",
      "releases_packet": true
     }
    ],
@@ -655,7 +668,7 @@
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "6 h and 2-of-3 are ours (NOAA notes these events can last more than one day). The 1,000 pfu value is NOAA's S3 threshold. Near Earth the tripwire watches rule ops_noaa_s3; at Mars, where NOAA's scale does not apply, by_env switches it to rule ops_onboard_proton_s3 (the same 1,000 pfu on the Mars-orbit monitor)."
+     "rationale": "6 h and 2-of-3 are ours (NOAA notes these events can last more than one day). The 1,000 pfu value is NOAA's S3 threshold. Near Earth the tripwire watches the NOAA S3 rule; at Mars, where NOAA's scale does not apply, it watches the Mars-orbit monitor rule instead (the same 1,000 pfu on the Mars-orbit monitor)."
     }
    },
    "escalation": {
@@ -665,6 +678,8 @@
      "dose_bfo",
      "dose_skin",
      "dose_lens",
+     "dose_cns",
+     "dose_circulatory",
      "career_effective_dose",
      "shelter_entry"
     ]

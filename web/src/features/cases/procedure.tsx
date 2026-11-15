@@ -9,6 +9,7 @@ import { formatCountdown } from '../../app/comms'
 import type { CommsStatus } from '../../app/comms'
 import type { CaseState } from '../../app/engine'
 import { metClock } from '../../app/mission'
+import { ENVIRONMENTS } from '../../app/scenario'
 import type { CrewId, Observation } from '../../app/vocab'
 import { Button, ButtonLink, Chip, Expander, MetTime, Num, Panel } from '../../ui'
 import { NumberEntry } from './entry'
@@ -45,6 +46,22 @@ export interface ActCtx {
    */
   onStep: (step: StepDef, input?: StepInput, record?: number) => void
   onDecline: (step: StepDef, reason: string) => void
+}
+
+// ---- who reports a shared reading --------------------------------------------------------------------
+
+/**
+ * The source of a reading no crewmember owns (crew_id null), in the words every view prints: the ≥10 MeV proton
+ * flux is the Mars-orbit monitor, relayed, where NOAA's scale does not reach the crew (environments.json
+ * noaa_scale_available false: Mars), and the NOAA GOES October 1989 replay elsewhere; the habitat dose rate is the
+ * simulated habitat dosimeter; any other shared series (cabin ppCO2) is a vehicle sensor.
+ */
+export function sharedReadingSource(variable: string, envId: string | null | undefined): string {
+  if (variable === 'proton_flux_10mev') {
+    return ENVIRONMENTS.find((e) => e.id === envId)?.noaa_scale_available === false ? 'Mars-orbit monitor, relayed' : 'NOAA GOES (replay)'
+  }
+  if (variable === 'onboard_dose_rate') return 'habitat dosimeter (simulated)'
+  return 'vehicle sensor'
 }
 
 // ---- step tags, done / declined lines ---------------------------------------------------------------
@@ -155,7 +172,9 @@ export function StepAction({ c, step, where }: { c: ActCtx; step: StepDef; where
   const asInput = (o: Observation): StepInput => ({ variable: o.variable, value: o.value, unit: o.unit, t: o.t })
   const lastLine = last ? (
     <p className="lfc-fine">
-      Latest {label}: <Num value={last.value} unit={last.unit} /> at <MetTime t={last.t} label /> ({vehicle ? 'vehicle sensor' : last.source === 'manual' ? 'typed in' : last.source})
+      Latest {label}: <Num value={last.value} unit={last.unit} /> at <MetTime t={last.t} label />
+      {/* A shared reading names its source as the tripwire panel does ("NOAA GOES (replay)" must not nest in parentheses). */}
+      {vehicle ? `. Source: ${sharedReadingSource(inp.variable, c.comms.env.id)}.` : ` (${last.source === 'manual' ? 'typed in' : last.source})`}
     </p>
   ) : (
     <p className="lfc-missing">No {label} reading yet. Shown as missing, not as zero.</p>

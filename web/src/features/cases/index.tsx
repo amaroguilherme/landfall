@@ -8,7 +8,7 @@
 // LANDFALL runs three deep cases; other findings show their limit and one action (D11), listed on #/case.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { RULES, getIndicator, getRule } from '../../app/engine'
-import type { CaseState, Finding, FindingAction, Indicator } from '../../app/engine'
+import type { CaseState, Finding, FindingAction, Indicator, Op } from '../../app/engine'
 import { CASE_DEFS } from '../../app/caseTimeline'
 import type { CaseView } from '../../app/caseTimeline'
 import { useComms } from '../../app/comms'
@@ -25,6 +25,7 @@ import type { ScenarioIndex, SimCrewData } from '../../app/scenarioData'
 import { CREW_IDS, SEVERITY_RANK, crewMember } from '../../app/vocab'
 import type { CrewId, EnvId, Observation, Severity } from '../../app/vocab'
 import { Button, CategoryBadge, Chip, EmptyState, Expander, FindingBadge, FreshnessChip, MetTime, Num, Panel, ReqId, SimulatedMarker } from '../../ui'
+import { opsLevelOf } from '../../ui/badges'
 import { PrintCardLink } from '../cuecard/PrintLink'
 import './cases.css'
 import { ClosePanel, TripwirePanel } from './closing'
@@ -33,6 +34,7 @@ import {
   HRR_MISSION_TYPE,
   OP_TEXT,
   OP_WORDS,
+  OUTSIDE_OP,
   STATUS_WORD,
   chanceOpening,
   findRequirement,
@@ -53,8 +55,8 @@ import {
 } from './model'
 import type { Stage, StdData } from './model'
 import { RenalPanel, RuleRow, SleepPanel, SpePanel } from './panels'
-import { jumpTo, openingNote, rejectionWords } from './helpers'
-import { BandRange, ChanceLine, ChanceNoteBlock, EventLog, KindChip, MdcText, PersonalBadge, PersonalWhy, RefsProvider, RuleWhy, SourceBlock, TestScale } from './parts'
+import { detectedCopy, jumpTo, openingNote, rejectionWords } from './helpers'
+import { BandRange, ChanceLine, ChanceNoteBlock, EventLog, KindChip, MdcText, PersonalBadge, PersonalWhy, RefsProvider, RuleWhy, SourceBlock, TestScale, arrowFor } from './parts'
 import type { CaseRefs } from './parts'
 import { OutcomePanel, ProcedurePanel } from './procedure'
 import type { ActCtx, OutcomeDraft, StepInput } from './procedure'
@@ -153,7 +155,7 @@ function CaseList({ views, storeCrew }: { views: CaseView[]; storeCrew: CrewId }
       <p className="lfc-fine">
         Most urgent first: a warning before a caution, then a case still waiting for its start, then crew-wide cases. A case opened by a single
         personal flag (one indicator, one day) says <span className="lfc-possibly-tag">possibly chance</span>, with how often that indicator flags
-        with no real change; a re-measure settles it. A case that closed opens again as a new instance when a new episode starts.
+        with no real change; a re-measure checks it. A case that closed opens again as a new instance when a new episode starts.
       </p>
       <ul className="lfc-list">
         {defs.map((def) => {
@@ -220,7 +222,7 @@ interface ActionItem {
   personal?: PersonalEvaluation
 }
 
-/** The action text without a leading repeat of its own label ("EVA assignment not cleared: ..."). */
+/** The action text without a leading repeat of its own label ("EVA fitness floor not met: ..."). */
 const actionBody = (a: FindingAction) => {
   const head = `${a.label}:`
   const rest = a.text.startsWith(head) ? a.text.slice(head.length).trim() : a.text
@@ -508,8 +510,8 @@ function CaseDetail({ view, all, t, dispatch }: DetailProps) {
       <BoundaryPanel def={def} />
       <Panel title="Event log" eyebrow="Engine record" id="case-log" footer={<FreshnessChip meta={sim.snapshot} status={sim.status} id="sim_crew" />}>
         <p className="lfc-fine">
-          Every line is an engine transition, with MET. Rule, step and countermeasure names replace their IDs (the IDs are on Provenance and under “Why this
-          fired”). Rejected actions stay in the record with the reason.
+          Every line is an engine transition, with MET. Rule, step and countermeasure names replace their IDs (a rule’s or indicator’s ID is on
+          Provenance, linked under “Why this fired”). Rejected actions stay in the record with the reason.
         </p>
         <EventLog log={s.log} origins={view.logOrigins} def={def} />
       </Panel>
@@ -558,6 +560,22 @@ function LoopStepper({ stages }: { stages: Stage[] }) {
 const chanceDiffersFor = (ind: Indicator): boolean => {
   const r = chanceRateOf(ind)
   return !!r && chanceDiffers(r)
+}
+
+/**
+ * The end of the opening sentence for an OPS rule: the reading against a NOAA S-scale threshold (at Mars, NOAA's
+ * number reused: a design choice, as its chip says), never "the limit". The level is the rule's (opsLevelOf), the
+ * words follow the rule's op: "read 1050 pfu: at or above NOAA’s S3 level (≥ 1000 pfu)."
+ */
+function OpsReached({ finding, op, unit }: { finding: Finding; op: Op; unit: string | undefined }) {
+  const n = opsLevelOf(finding)
+  const cond = finding.status === 'outside' ? OUTSIDE_OP[op] : op
+  const level = n !== null ? `NOAA’s S${n} level` : 'the threshold'
+  return (
+    <>
+      : {OP_WORDS[cond]} {level} (<span className="lf-num">{OP_TEXT[cond]}</span> <Num value={finding.limit} unit={unit} />).
+    </>
+  )
 }
 
 const CLOSED_WORD: Record<string, string> = { resolved: 'resolved', escalated: 'escalated', dismissed: 'dismissed' }
@@ -636,11 +654,13 @@ function DetectPanel({
               </>
             ) : null}
             : <strong>{openingRule?.label ?? openingInd?.label ?? refLabel(opening.rule_id)}</strong> read{' '}
-            <Num value={opening.value} unit={unit} arrow={opening.limit !== null && opening.value !== null ? (opening.value > opening.limit ? 'up' : 'down') : undefined} severity={opening.severity as Severity} />
+            <Num value={opening.value} unit={unit} arrow={arrowFor(opening)} severity={opening.severity as Severity} />
             {opening.tier === 'B' ? (
               <>
                 , past the edge of your personal band at <Num value={opening.limit} unit={unit} digits={2} />.
               </>
+            ) : opening.category === 'OPS' && opening.op ? (
+              <OpsReached finding={opening} op={opening.op} unit={unit} />
             ) : opening.op ? (
               <>
                 ; {opening.category === 'TARGET' ? 'the target' : 'the limit'} is met only {OP_WORDS[opening.op]} <Num value={opening.limit} unit={unit} />.
@@ -675,8 +695,8 @@ function DetectPanel({
                 ) : (
                   <>nothing is scripted for {view.crewId} in this case</>
                 )}
-                . Real-size day-to-day noise makes such flags. A mission has no such answer key, which is why LANDFALL itself labels a single flag as
-                possibly chance and lets a re-measure settle it.
+                . The simulator’s day-to-day noise makes such flags. A mission has no such answer key, which is why LANDFALL itself labels a single flag
+                as possibly chance and lets a re-measure check it.
               </p>
             </div>
           ) : null}
@@ -946,6 +966,9 @@ function CountermeasurePanel({ def, state, onSelect, sharedNote }: { def: CaseDe
   const canSelect = state.status === 'detected'
   const selectLog = state.log.find((e) => e.event === 'SELECT' && e.error === null)
   const alts = cm.alternatives ?? []
+  // A procedure that opens with its red-flag question (renal r4) starts with that question, as the status card says:
+  // the button never reads "Start: drink more" before retention, flank pain or fever is asked about.
+  const copy = detectedCopy(def, sharedNote)
   return (
     <Panel title="3. Countermeasure" eyebrow="Act" id="case-act">
       <div className="lfc-cm" data-chosen={chosen === cm.primary.id || undefined}>
@@ -954,8 +977,14 @@ function CountermeasurePanel({ def, state, onSelect, sharedNote }: { def: CaseDe
         <CmBody cm={cm.primary} />
         {canSelect ? (
           <Button onClick={() => onSelect(cm.primary.id)}>
-            Start: {cm.primary.title}
-            {sharedNote > 1 ? ` (all ${sharedNote} crewmembers)` : ''}
+            {copy.redFlagFirst ? (
+              copy.button
+            ) : (
+              <>
+                Start: {cm.primary.title}
+                {sharedNote > 1 ? ` (all ${sharedNote} crewmembers)` : ''}
+              </>
+            )}
           </Button>
         ) : chosen ? (
           <p className="lfc-done">

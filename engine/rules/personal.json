@@ -289,11 +289,11 @@
    "case_id": null,
    "action": {
     "label": "Resting heart rate up",
-    "text": "Resting heart rate is up against your own baseline. Tell the Crew Medical Officer today; LANDFALL does not say why.",
+    "text": "Resting heart rate is up against your own baseline. Tell a Crew Medical Officer today; LANDFALL does not say why.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). No case opens on it; its meaning is the Crew Medical Officer's call."
+     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). No case opens on it; its meaning is a Crew Medical Officer's call."
     }
    }
   },
@@ -326,11 +326,11 @@
    "case_id": null,
    "action": {
     "label": "Heart rate variability down",
-    "text": "Heart rate variability is down against your own baseline. Tell the Crew Medical Officer today; on its own it is not a diagnosis.",
+    "text": "Heart rate variability is down against your own baseline. Tell a Crew Medical Officer today; on its own it is not a diagnosis.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). No case opens on it; its meaning is the Crew Medical Officer's call."
+     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). No case opens on it; its meaning is a Crew Medical Officer's call."
     }
    }
   },
@@ -454,11 +454,11 @@
    },
    "action": {
     "label": "Systolic blood pressure up",
-    "text": "Systolic blood pressure is up against your own baseline. Repeat the cuff reading at rest and tell the Crew Medical Officer today.",
+    "text": "Systolic blood pressure is up against your own baseline. Repeat the cuff reading at rest and tell a Crew Medical Officer today.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is the Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice."
+     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is a Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice."
     }
    },
    "case_id": null
@@ -499,11 +499,11 @@
    },
    "action": {
     "label": "Diastolic blood pressure up",
-    "text": "Diastolic blood pressure is up against your own baseline. Repeat the cuff reading at rest and tell the Crew Medical Officer today.",
+    "text": "Diastolic blood pressure is up against your own baseline. Repeat the cuff reading at rest and tell a Crew Medical Officer today.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is the Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice."
+     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is a Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice."
     }
    },
    "case_id": null
@@ -559,11 +559,11 @@
    },
    "action": {
     "label": "Fingerstick glucose changed",
-    "text": "Fingerstick glucose has changed against your own baseline. Repeat the reading and tell the Crew Medical Officer today.",
+    "text": "Fingerstick glucose has changed against your own baseline. Repeat the reading and tell a Crew Medical Officer today.",
     "chip": "design choice",
     "source": {
      "kind": "design_choice",
-     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is the Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice."
+     "rationale": "A personal change is not a limit: it needs attention, not immediate action (Table 10.3-1 Caution). Its meaning is a Crew Medical Officer's call; LANDFALL gives no diagnosis and no medication advice."
     }
    },
    "case_id": null

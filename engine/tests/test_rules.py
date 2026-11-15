@@ -722,6 +722,15 @@ def test_severity_mapping_follows_table_10_3_1(R):
     assert rows["ops_s1_s2"]["severity"] == "advisory"
     warn = [r["id"] for r in sm["rows"] if r.get("severity") == "warning"]
     assert warn == ["ops_s3_plus"]
+    # round 2: the one inversion is disclosed where the mapping lives. It is true of the data: the 30-day
+    # blood-forming-organ limit is a PEL trigger of the shelter case, so it opens that case as a Caution.
+    note = rows["tier_a_outside"]["note"]
+    assert ("A Table 4.8-1 30-day blood-forming-organ dose over its limit also opens the shelter case, whose first "
+            "steps are immediate; under this mapping that finding is still a Caution. Classing it as a Warning needs "
+            "an engine change and is not in this build.") in note
+    bfo = next(r for r in R["thresholds"]["rules"] if r["id"] == "pel_t481_bfo_30d")
+    assert bfo["category"] == "PEL" and bfo["window"] == {"kind": "cumulative", "duration": "P30D"}
+    assert {"kind": "rule", "rule_id": "pel_t481_bfo_30d"} in _case(R, "spe_shelter")["triggers"]
     # every OPS rule at S3 or above carries the shelter action that makes it a Warning
     for r in R["thresholds"]["rules"]:
         if r["category"] == "OPS" and r.get("s_level", 0) >= 3:
@@ -729,14 +738,29 @@ def test_severity_mapping_follows_table_10_3_1(R):
 
 
 def test_vo2max_is_an_eva_assignment_caution(R):
-    """D1/D6/D11: the FFD floor is capped at caution, labelled 'EVA assignment not cleared', with a one-line action."""
+    """D1/D6/D11: the FFD floor is capped at caution, labelled 'EVA fitness floor not met' (the pass state reads 'EVA
+    fitness floor met'), with a one-line action. Round 2 (judges R1 #10): the label no longer says 'not cleared',
+    because EVA medical clearance is ground medical support's decision before each EVA ([V1 6006], frozen, quoted
+    and cited on both rules); LANDFALL reports only the floor."""
+    v1 = need_snapshot("std_vol1_requirements")
+    v1_6006 = requirement(v1, "V1 6006")
     by = {r["id"]: r for r in R["thresholds"]["rules"]}
     for rid in ("ffd_vo2max_microgravity_eva", "ffd_vo2max_surface_eva"):
         r = by[rid]
         assert r["max_severity"] == "caution" and r["case_id"] is None, rid
-        assert r["action"]["label"] == "EVA assignment not cleared", rid
-        assert r["action"]["text"].startswith("EVA assignment not cleared") and "Crew Medical Officer" in r["action"]["text"]
+        assert r["action"]["label"] == "EVA fitness floor not met", rid
+        assert r["action"]["text"].startswith("EVA fitness floor not met: ") and "Crew Medical Officer" in r["action"]["text"]
+        assert r["action"]["text"].endswith("Review the exercise prescription with a Crew Medical Officer and retest "
+                                            "before an EVA is planned."), rid
+        assert "cleared" not in r["action"]["label"] + r["action"]["text"], rid
         assert "heart or the lungs" in r["action"]["source"]["rationale"], rid
+        assert ("EVA medical clearance itself is ground medical support's decision before each EVA ([V1 6006]); "
+                "LANDFALL reports only the fitness floor.") in r["notes"], rid
+        (cite,) = r["citations"]
+        assert (cite["requirement_id"], cite["snapshot"], cite["section"], cite["page"]) == (
+            "V1 6006", "std_vol1_requirements", v1_6006["section"], v1_6006["pdf_page_number"]), rid
+        assert cite["verbatim"] == v1_6006["text"] == ("All crewmembers shall be medically cleared to perform an EVA by "
+                                                       "ground medical support personnel prior to each EVA."), rid
 
 
 def test_findings_without_a_deep_case_carry_an_action(R):
@@ -758,6 +782,42 @@ def test_findings_without_a_deep_case_carry_an_action(R):
         else:
             assert i["case_id"] is None and i["action"]["text"] and i["action"]["chip"] == "design choice", i["id"]
             assert "Crew Medical Officer" in i["action"]["text"], i["id"]
+
+
+def test_one_line_actions_hold_when_the_crew_medical_officer_is_the_patient(R):
+    """Round 2 (judges R1 #19): the crew has two Crew Medical Officers ([V1 3006], meta.json escalation), so a
+    one-line action names 'a Crew Medical Officer', which is still true when the patient is the Crew Medical Officer
+    (CM-4): 'tell the Crew Medical Officer today' would tell CM-4 to tell CM-4. The same holds for the reason an
+    indicator's meaning is someone's call. Rationales may still name the role in general."""
+    actions = [(r["id"], r["action"]) for r in R["thresholds"]["rules"] if r.get("action")]
+    actions += [(i["id"], i["action"]) for i in R["personal"]["indicators"] if i.get("action")]
+    naming = [rid for rid, a in actions if "Crew Medical Officer" in a["text"]]
+    for rid, a in actions:
+        assert not re.search(r"\b[Tt]he Crew Medical Officer\b", a["text"]), (rid, a["text"])
+        if "Crew Medical Officer" in a["text"]:
+            assert re.search(r"\b(?:with|[Tt]ell) a Crew Medical Officer\b", a["text"]), (rid, a["text"])
+        assert "the Crew Medical Officer's call" not in a["source"].get("rationale", ""), rid
+    by = dict(actions)
+    for iid in ("resting_hr", "hrv_sdnn", "bp_systolic", "bp_diastolic", "glucose"):
+        assert "a Crew Medical Officer today" in by[iid]["text"], iid
+        assert "a Crew Medical Officer's call" in by[iid]["source"]["rationale"], iid
+    for rid in ("ffd_vo2max_microgravity_eva", "ffd_vo2max_surface_eva", "pol_bmd_hip", "pol_bmd_spine",
+                "pol_bmd_femoral_neck"):
+        assert "with a Crew Medical Officer" in by[rid]["text"], rid
+    assert len(naming) >= 25, naming   # 22 Tier A actions and 5 personal ones name the role today
+
+
+def test_no_unsourced_claim_about_who_the_crew_medical_officer_is(R):
+    """Round 2 (judges R1 #3 and #21): no rules text or SPEC line states that the Crew Medical Officer is not a
+    physician or has a number of hours of training; NASA-STD-3001 does not require a CMO to be a physician either
+    way, and LANDFALL only writes for a non-physician. Requirement IDs that are not frozen stay out (the rules'
+    own check is test_every_requirement_id_mentioned_exists)."""
+    texts = list(rules_texts(R)) + [("SPEC", (ROOT / "engine" / "SPEC.md").read_text(encoding="utf-8"))]
+    for name, text in texts:
+        for pat in (r"not a physician", r"~\s?40 h", r"non-physician with", r"\bV1 5003\b",
+                    r"is queued and is sent", r"monitoring of .proton flux spectra. that"):
+            m = re.search(pat, text)
+            assert not m, f"{name}: {text[max(0, m.start() - 60):m.end() + 40]!r}"
 
 
 def test_manual_bp_and_glucose_indicators(R):
@@ -881,6 +941,12 @@ def test_packet_state_wording_is_one_vocabulary(R):
     """Packet states: 'Prepared (held on board)', then 'Queued' after crew release or escalation."""
     labels = [p["label"] for p in R["meta"]["packet_states"]]
     assert labels == ["Prepared (held on board)", "Queued"]
+    # round 2: the LOS sentence sits next to "Prepared (held on board)" on every case card and on #/downlink, so it
+    # must not call the packet queued before the crew releases it or the case escalates
+    los = R["meta"]["escalation"]["autonomy"]["LOS"]
+    assert "stays Prepared (held on board) until the crew releases it or the case escalates" in los, los
+    assert "then it is Queued and sent when the link resumes" in los and "its Crew Medical Officers" in los
+    assert "is queued and is sent" not in los
     p6 = next(st for st in _case(R, "spe_shelter")["procedure"] if st["id"] == "p6")
     assert "Prepared (held on board)" in p6["text"] and "Queued" in p6["text"]
     for c in R["cases"]["cases"]:
@@ -923,11 +989,32 @@ def test_no_medication_advice_in_crew_text(R):
 
 def test_spe_source_framing_and_shelter_chip(R):
     """D3: an above-atmosphere monitor in Mars orbit, relayed locally; LANDFALL is not the radiation alarm; sheltering
-    crew who are not on EVA at S3 is a labelled design choice (writing open item 3)."""
+    crew who are not on EVA at S3 is a labelled design choice (writing open item 3). Round 2: the monitor is the kind
+    of external monitor the [V2 6165] rationale describes (its sentence is quoted verbatim and cited), with one
+    ≥10 MeV integral channel, never 'the in-situ extravehicular monitoring' of proton flux spectra the requirement
+    asks for; continuous relay is a scenario assumption; prose names no rule id."""
     onboard = next(r for r in R["thresholds"]["rules"] if r["id"] == "ops_onboard_proton_s3")
     assert onboard["label"].startswith("Mars-orbit space-weather monitor") and onboard["chip"] == "design choice"
-    for frag in ("above the atmosphere, in Mars orbit", "no Earth link", "[V2 6165]", "raises the alarm ([V2 6164])"):
-        assert frag in onboard["source"]["rationale"], frag
+    rat = onboard["source"]["rationale"]
+    for frag in ("above the atmosphere, in Mars orbit", "no Earth link", "[V2 6165]", "raises the alarm ([V2 6164])",
+                 "the kind of external space-weather monitor [V2 6165]'s rationale describes",
+                 "one ≥10 MeV integral channel, not the in-situ proton and electron flux spectra [V2 6165] asks for",
+                 "NOT MEASURABLE HERE", "continuous relay to the habitat is a scenario assumption", "the NOAA S3 rule"):
+        assert frag in rat, frag
+    for gone in ("in-situ extravehicular monitoring", "that [V2 6165] requires", "rule ops_noaa_s3", "upstream"):
+        assert gone not in rat, gone
+    (cite,) = onboard["citations"]
+    req = requirement(need_snapshot("std_vol2_requirements"), "V2 6165")
+    assert (cite["kind"], cite["requirement_id"], cite["snapshot"]) == ("nasa_standard", "V2 6165", "std_vol2_requirements")
+    assert (cite["section"], cite["page"]) == (req["section"], req["pdf_page"])
+    assert cite["verbatim"] in req["rationale"] and cite["verbatim"] not in req["text"]   # the rationale, not the "shall"
+    assert f"'{cite['verbatim']}'" in rat                                               # quoted whole, in quotes
+    mars = next(e for e in R["environments"]["environments"] if e["id"] == "mars_surface")
+    (note,) = [n for n in mars["notes"] if "[V2 6165]" in n]
+    for frag in ("the kind of external monitor [V2 6165]'s rationale describes", "one ≥10 MeV integral channel",
+                 "continuous relay is a scenario assumption"):
+        assert frag in note, frag
+    assert "in-situ extravehicular monitoring" not in note and "upstream" not in note
     assert any("no radial-distance or atmospheric correction" in n for n in onboard["notes"])
     spe = _case(R, "spe_shelter")
     assert "in Mars orbit" in spe["interpretation"]["text"] and "raises the radiation alarm" in spe["interpretation"]["text"]
@@ -1017,25 +1104,54 @@ def test_lapses_and_caveat_read_the_printed_rate_the_same_way(R):
 
 
 def test_backup_medical_officer_is_the_commander_and_the_texts_say_so(R):
-    """Lead item 7: when the patient is the Crew Medical Officer, tier 1 names the backup: the Commander (design
-    choice), whose basis quotes [V2 7045] verbatim (test_other_nasa_citations_appear_verbatim checks the quote
-    against the frozen requirement). The roster agrees with the simulator's crew, and every escalation text tells
-    the CMO who to tell."""
+    """Lead item 7, round 2: when the patient is the Crew Medical Officer, tier 1 goes to the crew's second Crew
+    Medical Officer, the Commander. [V1 3006] requires at least two CMOs per vehicle 'to ensure that a backup is
+    available for medical treatment'; which crewmember holds the second assignment is the design choice. The basis
+    quotes [V1 3006] (statement and rationale) and [V2 7045] verbatim, each checked here against its own frozen
+    requirement and found in the rationale, and it no longer says the CMO is not a physician. [V2 7045] stays the
+    first citation, where it was before round 2; the order is not load-bearing, because the case card and #/downlink
+    find each quote by its requirement ID (tierOneQuotes in web/src/app/caseTimeline.ts). The roster agrees with the
+    simulator's crew, and every escalation text tells the CMO who to tell. The id, name, role and crew_id are the
+    ones the engine, its fixtures and the vectors use."""
     from ingest import _sim_model as model
 
     t1 = R["meta"]["escalation"]["tiers"][0]
     roles = {c["id"]: c["role"] for c in model.CREW}
     assert roles[t1["crew_id"]] == "Crew Medical Officer"
     b = t1["backup"]
-    assert (b["id"], b["role"], roles[b["crew_id"]]) == ("backup_medical_officer", "Commander", "Commander")
+    assert (b["id"], b["name"], b["role"], roles[b["crew_id"]]) == ("backup_medical_officer", "the Commander",
+                                                                     "Commander", "Commander")
+    assert b["label"] == "Second Crew Medical Officer: the Commander (onboard)"
+    assert b["role_text"] == "the crew's second Crew Medical Officer"
     assert b["chip"] == "design choice" and b["source"]["kind"] == "design_choice"
-    (cite,) = b["citations"]
-    assert (cite["requirement_id"], cite["snapshot"], cite["section"]) == ("V2 7045", "std_vol2_requirements", "7.5.2")
-    assert cite["verbatim"] == "in the event that a physician crewmember is not present or is the one who requires " \
-                               "medical treatment"
-    assert cite["verbatim"] in b["source"]["rationale"]
-    req = requirement(need_snapshot("std_vol2_requirements"), "V2 7045")
-    assert cite["verbatim"] in req["text"] and req["section"] == cite["section"] and req["pdf_page"] == cite["page"]
+    rationale = b["source"]["rationale"]
+    assert "which crewmember holds it is LANDFALL's choice, not a NASA assignment" in rationale
+    assert "does not assume either Crew Medical Officer is a physician" in rationale
+    assert "not a physician" not in rationale and "backup medical officer" not in rationale
+    snaps = {sid: need_snapshot(sid) for sid in ("std_vol1_requirements", "std_vol2_requirements")}
+    want = [("V2 7045", "std_vol2_requirements", "NASA-STD-3001 Vol. 2 Rev. F", "7.5.2", 132,
+             "in the event that a physician crewmember is not present or is the one who requires medical treatment"),
+            ("V1 3006", "std_vol1_requirements", "NASA-STD-3001 Vol. 1 Rev. C", "5.2.1.1", 47,
+             "The program(s) shall train a minimum of two crewmembers per vehicle/platform as Crew Medical Officers "
+             "(CMOs)."),
+            ("V1 3006", "std_vol1_requirements", "NASA-STD-3001 Vol. 1 Rev. C", "5.2.1.1", 47,
+             "to ensure that a backup is available for medical treatment")]
+    got = [(c["requirement_id"], c["snapshot"], c["doc"], c["section"], c["page"], c["verbatim"])
+           for c in b["citations"]]
+    assert got == want
+    for c in b["citations"]:
+        snap = snaps[c["snapshot"]]
+        req = requirement(snap, c["requirement_id"])
+        assert req is not None and req.get("verified") is True, c["requirement_id"]
+        own = [req.get("text") or "", req.get("rationale") or ""]   # the requirement's own words, nothing else
+        assert any(c["verbatim"] in s for s in own), c["verbatim"]
+        assert c["verbatim"] in rationale, c["verbatim"]
+        page = req["pdf_page"] if c["snapshot"] == "std_vol2_requirements" else req["pdf_page_number"]
+        assert (c["kind"], req["section"], page) == ("nasa_standard", c["section"], c["page"]), c["requirement_id"]
+        assert c["url"] in snap["source"]["access_urls"] and c["url"].endswith(".pdf"), c["url"]
+    v1_3006 = requirement(snaps["std_vol1_requirements"], "V1 3006")
+    assert b["citations"][1]["verbatim"] == v1_3006["text"]   # the whole statement
+    assert b["citations"][2]["verbatim"] in v1_3006["rationale"] and b["citations"][2]["verbatim"] not in v1_3006["text"]
     backup_words = f"(if that is you, the {b['role']})"
     renal = _case(R, "renal_stone")
     escalation_texts = [c["tripwire"]["text"] for c in R["cases"]["cases"]]

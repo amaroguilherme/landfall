@@ -239,8 +239,17 @@ const VARIABLE_WORDS: Record<string, string> = {
   dose_bfo: 'blood-forming-organ dose',
   dose_skin: 'skin dose',
   dose_lens: 'lens dose',
+  dose_cns: 'central nervous system dose',
+  dose_circulatory: 'circulatory system dose',
   proton_flux_10mev: '≥10 MeV proton flux',
   career_effective_dose: 'career effective dose',
+}
+
+/** The engine's finding statuses that carry an underscore, in plain words for the log ("opened by ... (reliable change, caution)"). */
+const STATUS_WORDS: Record<string, string> = {
+  reliable_change: 'reliable change',
+  insufficient_data: 'insufficient data',
+  not_applicable: 'not applicable',
 }
 
 function personalIndicatorList(): Indicator[] {
@@ -288,7 +297,7 @@ export function plainDetail(detail: string, def: CaseDefFull): string {
   for (const cm of cms) if (cm!.title) out = out.split(cm!.id).join(`“${cm!.title}”`)
   return out.replace(/\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g, (m) => {
     const label = refLabel(m)
-    return label && label !== m ? label : m
+    return label && label !== m ? label : (STATUS_WORDS[m] ?? m)
   })
 }
 

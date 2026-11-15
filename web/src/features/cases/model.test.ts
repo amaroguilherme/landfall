@@ -1,9 +1,11 @@
 // Cases feature helpers on the REAL frozen snapshots and rules (no Tier B statistic involved).
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { NOAA_S_THRESHOLDS_PFU, RULES, caseReduce, getCase, getRule, newCase, thresholdRules, triggerLookup } from '../../app/engine'
 import type { CaseEvent, CaseState, Finding } from '../../app/engine'
-import { CASE_DEFS, caseKey, caseSchedule, computeCases } from '../../app/caseTimeline'
-import type { CaseEventRecord, CaseView } from '../../app/caseTimeline'
+import { CASE_DEFS, caseKey, caseSchedule, computeCases, tierOneFor } from '../../app/caseTimeline'
+import type { CaseEventRecord, CaseView, TierOne } from '../../app/caseTimeline'
 import type { Snapshot } from '../../app/data'
 import { buildScenarioIndex, observationsFor } from '../../app/scenarioData'
 import type { SimCrewData, SpeReplayData } from '../../app/scenarioData'
@@ -31,9 +33,12 @@ import {
   stepState,
   tierOneLine,
   tripwireJumpTarget,
+  variableLabel,
   windowSecondsOf,
 } from './model'
 import type { StdData } from './model'
+import { detectedCopy } from './helpers'
+import { OverdueNote, TierOneBasis } from './status'
 import type { CaseDefFull } from './types'
 
 const snaps = import.meta.glob<Snapshot>('../../../public/data/{sim_crew,swpc_spe_replay,std_vol1_requirements,std_vol2_requirements}.json', {
@@ -116,7 +121,8 @@ describe('case loop stages and gating', () => {
     const idle = stagesOf(newCase(renal, 'CM-3', LOOKUP))
     expect(idle.every((s) => s.state === 'todo')).toBe(true)
     expect(stagesOf(fold([opened[0]])).find((s) => s.id === 'act')!.state).toBe('current')
-    const watch = fold([...opened, { type: 'STEP', t: 250, step_id: renal.procedure![0].id }, answer(false), { type: 'OUTCOME', t: 400, text: 'done' }])
+    const plain = renal.procedure!.find((p) => !p.red_flag)!
+    const watch = fold([...opened, { type: 'STEP', t: 250, step_id: plain.id }, answer(false), { type: 'OUTCOME', t: 400, text: 'done' }])
     expect(watch.status).toBe('watch')
     const st = stagesOf(watch)
     expect(st.find((s) => s.id === 'tripwire')).toMatchObject({ state: 'current', t: 400 + renal.tripwire!.reassess_after_s })
@@ -130,13 +136,13 @@ describe('case loop stages and gating', () => {
     expect(pendingRequired(acting)).toEqual(renal.procedure!.filter((x) => x.required).map((x) => x.id))
     expect(stagesOf(acting).find((s) => s.id === 'outcome')!.note).toBe(`${pendingRequired(acting).length} required left`)
     // the rejection, in plain words: step numbers instead of ids
-    expect(plainDetail(acting.log[acting.log.length - 1].detail, renalDef)).toMatch(/with a reason: step 4$/)
+    expect(plainDetail(acting.log[acting.log.length - 1].detail, renalDef)).toMatch(/with a reason: step 1$/)
   })
   it('a decline with a reason settles a required step; it can still be done later', () => {
     const declined = fold([...opened, { type: 'DECLINE', t: 300, step_id: redFlagId, reason: 'crewmember asleep; ask at wake' }])
     expect(stepState(declined, redFlagId)).toBe('declined')
     expect(pendingRequired(declined)).toEqual([])
-    expect(nextOpenStep(declined)).toBe(renal.procedure![0].id)
+    expect(nextOpenStep(declined)).toBe(renal.procedure![1].id)
     expect(stagesOf(declined).find((s) => s.id === 'procedure')!.note).toBe(`0 of ${renal.procedure!.length} · 1 declined`)
     const later = caseReduce(declined, answer(false, 350))
     expect(stepState(later, redFlagId)).toBe('done')
@@ -153,7 +159,7 @@ describe('case loop stages and gating', () => {
     expect(st.find((s) => s.id === 'outcome')!.state).toBe('skipped')
     expect(st.find((s) => s.id === 'tripwire')!.state).toBe('skipped')
     expect(st.find((s) => s.id === 'close')).toMatchObject({ state: 'done', label: 'Escalated' })
-    expect(plainDetail(esc.log[esc.log.length - 1].detail, renalDef)).toMatch(/^step 4 answered yes, a red flag; escalated: tier 1, the Crew Medical Officer, now/)
+    expect(plainDetail(esc.log[esc.log.length - 1].detail, renalDef)).toMatch(/^step 1 answered yes, a red flag; escalated: tier 1, the Crew Medical Officer, now/)
   })
   it('packet states read their labels from meta.json', () => {
     const labels = ((RULES.meta as Record<string, unknown>).packet_states as Array<{ id: string; label: string }>).map((p) => [p.id, p.label])
@@ -173,11 +179,116 @@ describe('case loop stages and gating', () => {
   })
 })
 
+// ---- renal: the red-flag question before "drink more" (low output can itself be retention) ----------
+
+describe('the renal red-flag question comes before "drink more"', () => {
+  it('is step 1 of the procedure and says so; the one-liner asks the symptom questions first', () => {
+    const steps = renal.procedure!
+    expect(steps.map((p) => p.id)).toEqual(['r4', 'r1', 'r2', 'r3', 'r5'])
+    expect(steps[0]).toMatchObject({ id: redFlagId, red_flag: true, required: true })
+    expect(steps.filter((p) => p.red_flag).map((p) => p.id)).toEqual([redFlagId])
+    expect(steps[0].text!.startsWith('Answer this before you drink more. Ask now: ')).toBe(true)
+    expect(steps[0].text).toContain('being unable to pass urine')
+    expect(steps[0].text).toContain('(if that is you, the Commander)')
+    expect(renal.one_line!.endsWith('Answer the symptom questions first, then drink more and log it.')).toBe(true)
+  })
+  it('the detected status card leads with the red-flag question for renal; the shelter and sleep cases keep their copy', () => {
+    expect(detectedCopy(renalDef)).toEqual({
+      redFlagFirst: true,
+      kicker: 'Start now: the required red-flag question, then one primary countermeasure',
+      title: 'Red-flag question first',
+      stepHeading: null,
+      thenLine: 'Then: Drink more, spread through the waking day',
+      button: 'Start: answer the red-flag question first',
+    })
+    expect(renal.countermeasure!.primary.title).toBe('Drink more, spread through the waking day')
+    const today: Record<string, string> = {
+      spe_shelter: 'Stop or postpone EVA and move to the most shielded area',
+      sleep_circadian: 'Use light to re-anchor the day',
+    }
+    for (const [id, title] of Object.entries(today)) {
+      const def = getCase(RULES, id) as unknown as CaseDefFull
+      expect(def.procedure![0].red_flag, id).not.toBe(true) // the shelter's p1 (stop or postpone EVA) is not a red flag
+      expect(detectedCopy(def), id).toEqual({
+        redFlagFirst: false,
+        kicker: 'Start now: one primary countermeasure',
+        title,
+        stepHeading: `Then step 1 of ${def.procedure!.length}`,
+        thenLine: null,
+        button: 'Start the countermeasure',
+      })
+    }
+    // a Start that goes to several crewmembers (the crew-wide shelter) says so
+    expect(detectedCopy(getCase(RULES, 'spe_shelter') as unknown as CaseDefFull, 4).button).toBe('Start the countermeasure (all 4 crewmembers)')
+    expect(detectedCopy(renalDef, 2).button).toBe('Start: answer the red-flag question first (all 2 crewmembers)')
+    expect(detectedCopy({ procedure: [], countermeasure: undefined })).toMatchObject({ redFlagFirst: false, title: 'Start the countermeasure', stepHeading: null })
+  })
+})
+
+// ---- tier 1 on the Crew Medical Officer's own cases: the crew's second Crew Medical Officer ([V1 3006]) --
+
+describe('tier 1 basis when the patient is the Crew Medical Officer', () => {
+  const decode = (s: string) =>
+    s.replace(/&(amp|lt|gt|quot|#x27|#39|nbsp);/g, (_, e: string) => ({ amp: '&', lt: '<', gt: '>', quot: '"', '#x27': "'", '#39': "'", nbsp: ' ' })[e]!)
+  const text = (tier1: TierOne) => decode(renderToStaticMarkup(createElement(TierOneBasis, { view: { tier1 } as unknown as CaseView })).replace(/<[^>]+>/g, ''))
+  const t1 = tierOneFor('CM-4')
+  const req = findRequirement('V1 3006', vol1, vol2)!
+  const statement = req.text!
+  const fragment = 'to ensure that a backup is available for medical treatment'
+  const cite = (verbatim: string) => ({ kind: 'nasa_standard', snapshot: 'std_vol1_requirements', requirement_id: 'V1 3006', verbatim })
+  const v2Only: TierOne = { ...t1, citations: t1.citations.filter((c) => c.requirement_id === 'V2 7045') }
+  const with3006: TierOne = { ...t1, citations: [...v2Only.citations, cite(statement), cite(fragment)] }
+
+  it('reads cleanly with or without the [V1 3006] citation, and always quotes [V2 7045]', () => {
+    expect(req.rationale).toContain(fragment)
+    for (const tier1 of [t1, v2Only, with3006]) {
+      const s = text(tier1)
+      expect(s).toContain("The Crew Medical Officer is the patient here, so tier 1 is the crew's second Crew Medical Officer, the Commander (CM-1).")
+      expect(s).toContain('Which crewmember holds the second assignment is a design choice')
+      expect(s).toContain('[V2 7045] asks for medical equipment usable by non-physician crewmembers')
+      expect(s).toContain('“in the event that a physician crewmember is not present or is the one who requires medical treatment”.')
+      expect(s).not.toMatch(/backup medical officer|undefined|null|NaN|\s[.,]|\s{2}/i)
+    }
+    expect(text(v2Only)).not.toContain('3006')
+    expect(text(v2Only)).toContain('NASA-STD-3001 plans for this with a physician crewmember')
+    expect(statement).toBe('The program(s) shall train a minimum of two crewmembers per vehicle/platform as Crew Medical Officers (CMOs).')
+    expect(text(with3006)).toContain(`NASA-STD-3001 requires at least two Crew Medical Officers: [V1 3006] “${statement}” and “${fragment}”.`)
+    expect(text(with3006)).toContain('NASA-STD-3001 also plans for this with a physician crewmember')
+    // whatever meta.json carries, each [V1 3006] quote is the frozen requirement's own words (statement or rationale)
+    for (const c of t1.citations.filter((x) => x.requirement_id === 'V1 3006')) expect(`${statement} ${req.rationale}`).toContain(c.verbatim as string)
+    // nobody else's case shows it
+    expect(renderToStaticMarkup(createElement(TierOneBasis, { view: { tier1: tierOneFor('CM-2') } as unknown as CaseView }))).toBe('')
+  })
+})
+
 // ---- the real scenario at "now" (Mars) -------------------------------------------------------------
 
 const ENV = 'mars_surface'
 const scheduleNow = caseSchedule(INDEX, [], ENV)
 const viewsAt = (t: number, userEvents: CaseEventRecord[] = []) => computeCases({ index: INDEX, runtime: [], envId: ENV, t, userEvents }, scheduleNow)
+
+describe('a reassessment overdue, on the case page (the alert bar rule: app/procedureAlerts overdueOf)', () => {
+  const html = (v: CaseView, t: number) => renderToStaticMarkup(createElement(OverdueNote, { view: v, t })).replace(/<[^>]+>/g, '').replace(/&#x27;|&#39;/g, "'")
+  it("CM-1's acting sleep case reads overdue since its start plus 72 h, with what to do; an armed or idle case reads nothing", () => {
+    const views = viewsAt(INDEX.nowMet)
+    const sleep = views.find((v) => v.crewId === 'CM-1' && v.caseId === 'sleep_circadian')!
+    expect(sleep.state.status).toBe('acting')
+    const text = html(sleep, INDEX.nowMet)
+    expect(text).toContain('Reassessment overdue')
+    expect(text).toContain('Since MET 407/08:07:30')
+    expect(text).toContain('reassessment interval (72 h) of its start')
+    expect(text).toContain('Log the outcome, or tell the Crew Medical Officer (CM-4) now.')
+    const renal = views.find((v) => v.crewId === 'CM-3' && v.caseId === 'renal_stone')!
+    expect(renal.state.status).toBe('watch')
+    expect(html(renal, INDEX.nowMet)).toBe('')
+    expect(html(views.find((v) => v.crewId === 'CM-2' && v.caseId === 'renal_stone')!, INDEX.nowMet)).toBe('')
+  })
+  it('names the shelter packet variables in words (no "dose cns")', () => {
+    expect(variableLabel('dose_cns')).toBe('central nervous system dose')
+    expect(variableLabel('dose_circulatory')).toBe('circulatory system dose')
+    for (const v of getCase(RULES, 'spe_shelter').escalation!.observations ?? []) expect(variableLabel(v), v).not.toMatch(/_|^dose (cns|circulatory)$/)
+  })
+})
 
 describe('the case list order and the plain-language log on the real scenario', () => {
   it('puts the crew-wide solar particle event (a warning) first', () => {
@@ -197,6 +308,8 @@ describe('the case list order and the plain-language log on the real scenario', 
       for (const e of v.state.log) {
         const text = plainDetail(e.detail, v.def as unknown as CaseDefFull)
         for (const tok of text.split(/[^A-Za-z0-9_]+/)) expect(ids.has(tok), `${tok} in "${text}"`).toBe(false)
+        // the engine's status words read plainly too ("opened by Sleep midpoint shift (reliable change, caution)")
+        expect(text).not.toMatch(/\b(reliable_change|insufficient_data|not_applicable)\b/)
         n += 1
       }
     }

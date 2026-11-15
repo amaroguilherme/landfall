@@ -163,7 +163,7 @@
     },
     "severity": "caution",
     "class_definition": "Event that needs attention, but not immediate action.",
-    "note": "A fitness-for-duty floor not met (VO2max below [V1 4001] or [V1 4002]: 'EVA assignment not cleared'), or an exposure or outcome limit reached, needs attention but not immediate action. Any immediate alarm (cabin CO2, suit CO2) belongs to the vehicle or suit caution and warning system."
+    "note": "A fitness-for-duty floor not met (VO2max below [V1 4001] or [V1 4002]: 'EVA fitness floor not met'), or an exposure or outcome limit reached, needs attention but not immediate action. Any immediate alarm (cabin CO2, suit CO2) belongs to the vehicle or suit caution and warning system. A Table 4.8-1 30-day blood-forming-organ dose over its limit also opens the shelter case, whose first steps are immediate; under this mapping that finding is still a Caution. Classing it as a Warning needs an engine change and is not in this build."
    },
    {
     "id": "tier_a_approaching",
@@ -408,16 +408,17 @@
     "when": "now",
     "backup": {
      "id": "backup_medical_officer",
-     "label": "Backup medical officer: the Commander (onboard)",
+     "label": "Second Crew Medical Officer: the Commander (onboard)",
      "name": "the Commander",
      "role": "Commander",
+     "role_text": "the crew's second Crew Medical Officer",
      "crew_id": "CM-1",
      "when": "now",
      "applies": "when the patient is the Crew Medical Officer",
      "chip": "design choice",
      "source": {
       "kind": "design_choice",
-      "rationale": "When the Crew Medical Officer (CM-4) is the patient, tier 1 cannot be the patient, so LANDFALL names the Commander (CM-1), who leads the crew, as the backup medical officer. NASA-STD-3001 plans for a physician crewmember being the patient: [V2 7045] requires medical equipment to be usable by non-physician crewmembers 'in the event that a physician crewmember is not present or is the one who requires medical treatment'. LANDFALL's Crew Medical Officer is not a physician, so this applies the same logic to that role; naming the Commander as the backup is LANDFALL's choice, not a NASA assignment."
+      "rationale": "NASA-STD-3001 requires at least two Crew Medical Officers per vehicle. [V1 3006] reads 'The program(s) shall train a minimum of two crewmembers per vehicle/platform as Crew Medical Officers (CMOs).', and its rationale gives the reason: 'to ensure that a backup is available for medical treatment'. When the Crew Medical Officer (CM-4) is the patient, tier 1 goes to the crew's second Crew Medical Officer. In the demo crew the Commander (CM-1) holds that second assignment; which crewmember holds it is LANDFALL's choice, not a NASA assignment. LANDFALL does not assume either Crew Medical Officer is a physician: its texts are written so a non-physician can act, as [V2 7045] asks of medical equipment 'in the event that a physician crewmember is not present or is the one who requires medical treatment'."
      },
      "citations": [
       {
@@ -429,6 +430,26 @@
        "section": "7.5.2",
        "page": 132,
        "verbatim": "in the event that a physician crewmember is not present or is the one who requires medical treatment"
+      },
+      {
+       "kind": "nasa_standard",
+       "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+       "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+       "snapshot": "std_vol1_requirements",
+       "requirement_id": "V1 3006",
+       "section": "5.2.1.1",
+       "page": 47,
+       "verbatim": "The program(s) shall train a minimum of two crewmembers per vehicle/platform as Crew Medical Officers (CMOs)."
+      },
+      {
+       "kind": "nasa_standard",
+       "doc": "NASA-STD-3001 Vol. 1 Rev. C",
+       "url": "https://www.nasa.gov/wp-content/uploads/2023/11/nasa-std-3001-vol-1-rev-c-with-signature.pdf",
+       "snapshot": "std_vol1_requirements",
+       "requirement_id": "V1 3006",
+       "section": "5.2.1.1",
+       "page": 47,
+       "verbatim": "to ensure that a backup is available for medical treatment"
       }
      ]
     }
@@ -443,7 +464,7 @@
   ],
   "autonomy": {
    "AOS": "With the link up (for example at the ISS, in cislunar space or on the lunar surface), the ground has the case within the round-trip light time; the crew follows Mission Control and flight-surgeon direction, and LANDFALL is the decision aid.",
-   "LOS": "With no link (loss of signal or solar conjunction), the crew acts onboard with the Crew Medical Officer; the ground packet is queued and is sent when the link resumes."
+   "LOS": "With no link (loss of signal or solar conjunction), the crew acts onboard with its Crew Medical Officers; the ground packet stays Prepared (held on board) until the crew releases it or the case escalates, then it is Queued and sent when the link resumes."
   },
   "chip": "design choice",
   "source": {

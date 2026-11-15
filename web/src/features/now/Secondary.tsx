@@ -67,7 +67,7 @@ function caseLine(v: CaseView) {
   return <>Opened {s.opened_at !== null ? <MetTime t={s.opened_at} label /> : null}; no action logged yet</>
 }
 
-/** The simulator's own note on an opening it did not script (a chance flag of real-size noise), or null. */
+/** The simulator's own note on an opening it did not script (a chance flag of the simulator's noise), or null. */
 function unscriptedNote(v: CaseView, list: readonly UnscriptedOpening[]) {
   const u = list.find((x) => x.crew_id === v.crewId && x.case_id === v.caseId)
   if (!u || v.state.opened_at === null || Math.floor(v.state.opened_at / 86_400) !== u.day) return null
@@ -82,7 +82,7 @@ function unscriptedNote(v: CaseView, list: readonly UnscriptedOpening[]) {
       ) : (
         <>; no episode is scripted for {v.crewId}</>
       )}
-      . Real-size day-to-day noise does this (the simulator's own report).
+      . The simulator's noise model makes flags like this (its own self-check).
     </p>
   )
 }
@@ -122,7 +122,7 @@ export function OtherCases({
               {v.chance ? (
                 // SPEC 7 / S4: the engine's own label for an instance opened by a single Tier B flag (N from chanceRate)
                 <p className="now-open-chance now-open-possibly">
-                  <strong>{v.chance.text}.</strong> A single flag: a re-measure settles it.
+                  <strong>{v.chance.text}.</strong> A single flag: a re-measure checks it.
                 </p>
               ) : null}
               {unscriptedNote(v, unscripted)}

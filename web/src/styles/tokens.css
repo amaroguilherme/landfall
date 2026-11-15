@@ -16,8 +16,15 @@
  * white text at 6.45:1 (F.5.10 f) and a lighter green edge to separate them from the page.
  * Nominal is deliberately neutral (Appendix F gives nominal no colour; F.4.3.1 d marks only
  * out-of-threshold values).
- * Contrast on --lf-bg (#17171b): text 17.9:1, muted 9.1:1, warning 6.6:1, caution 12.4:1,
- * advisory 8.2:1, stale 10.2:1, unavailable 7.1:1, procedure 7.6:1, focus 13.7:1.
+ * Contrast on --lf-bg (#17171b): text 17.9:1, muted 9.1:1, warning 8.0:1, caution 12.4:1,
+ * advisory 8.2:1, stale 10.2:1, unavailable 8.0:1, procedure 7.6:1, focus 13.7:1.
+ * Unavailable gray is #adadb2 (a design choice, like the warning red): 7.4:1 on --lf-surface-1, 6.7:1 on
+ * --lf-surface-2 and 6.05:1 on --lf-surface-3; the earlier #a3a3a8 was 5.996:1 on surface-2 (the "Not applicable
+ * here" badges of the shelter case's trigger rows) and 5.4:1 on surface-3.
+ * Warning red is #ff8d84 (a design choice: a red light enough to keep F.5.10 f on every surface,
+ * not only on the page). It is 8.0:1 on --lf-bg, 7.4:1 on --lf-surface-1, 6.7:1 on --lf-surface-2
+ * and 6.05:1 on --lf-surface-3; the earlier #ff7066 was 5.6:1 on surface-2 (the hero's lit card)
+ * and 5.0:1 on surface-3. --lf-on-sev-warning (#17171b) on the lit red fill is 8.0:1.
  */
 
 :root {
@@ -50,8 +57,8 @@
   --lf-sev-nominal: var(--lf-text-2);
   --lf-sev-advisory: #6cb4ff;
   --lf-sev-caution: #ffd23f;
-  --lf-sev-warning: #ff7066;
-  --lf-sev-emergency: #ff7066;
+  --lf-sev-warning: #ff8d84;   /* >= 6:1 on --lf-bg and every surface (see the contrast note above) */
+  --lf-sev-emergency: #ff8d84;
   /* text colour on a filled (lit) severity background */
   --lf-on-sev-advisory: #0b1a2e;
   --lf-on-sev-caution: #000000;
@@ -60,7 +67,7 @@
 
   /* ---- data quality ([V2 10020]: stale, missing, unavailable, unknown) ---- */
   --lf-data-stale: #3fd6e6;       /* cyan: missing or stale data (Table F.5-1) */
-  --lf-data-unavailable: #a3a3a8; /* gray: unavailable / not applicable (Table F.5-1) */
+  --lf-data-unavailable: #adadb2; /* gray: unavailable / not applicable (Table F.5-1); >= 6:1 on --lf-bg and every surface */
 
   /* ---- other semantic colours ---- */
   --lf-procedure: #ea7dff;        /* magenta: guided procedure steps (Table F.5-2) */

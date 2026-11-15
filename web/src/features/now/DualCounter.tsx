@@ -8,7 +8,7 @@ import { formatCommsLightTime, formatCountdown, formatEarliestReply, windowModel
 import type { CommsStatus } from '../../app/comms'
 import { formatUtc } from '../../app/data'
 import { formatMet } from '../../app/engine'
-import { useMetNow } from '../../app/mission'
+import { useCaseClock, useMetNow } from '../../app/mission'
 import type { Severity } from '../../app/vocab'
 import { AntennaIcon, Button, FreshnessChip, MetTime, Num, PlayIcon, ResetIcon, SeverityBadge, SunIcon } from '../../ui'
 import { SEQUENCE, phaseAt, rollValue } from './model'
@@ -35,8 +35,14 @@ function ResumeCountdown({ resumesAt }: { resumesAt: number }) {
   return <>{formatMet(Math.max(0, resumesAt - t))}</>
 }
 
+/**
+ * The countdown in words at the case clock (mission.tsx useCaseClock, the `t` of useCases): the clock the tier-2 and
+ * packet lines of the case card below count from, so every "link resumes in ..." phrase on the screen prints one value
+ * at every instant ("11 d 06 h" during MET 412/14:20 on a fresh load), also in the minute after a crew action. The
+ * digits above stay live.
+ */
 function ResumeWords({ resumesAt }: { resumesAt: number }) {
-  const t = useMetNow()
+  const t = useCaseClock()
   return <>{formatCountdown(resumesAt - t)}</>
 }
 

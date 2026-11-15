@@ -1,6 +1,8 @@
 // Chips and badges. Every one carries text plus a shape (icon or border style): status and
 // provenance are never conveyed by colour alone (Appendix F F.5.10 e).
 import type { ReactNode } from 'react'
+import { NOAA_S_THRESHOLDS_PFU, OP_WORDS, RULES, isCeiling, isOp, sLevel, thresholdRules } from '../app/engine'
+import type { Op } from '../app/engine'
 import { categoryDef, chipDef } from '../app/vocab'
 import type { Category, ChipKind, Severity, Status } from '../app/vocab'
 import { CategoryGlyph, ChipGlyph, SeverityIcon, StaleIcon, UnavailableIcon, UnknownIcon } from './icons'
@@ -119,26 +121,89 @@ export function StatusBadge({ status }: { status: Status }) {
   )
 }
 
+/** What a finding badge reads. An engine Finding fits; so does a bare {status, severity, category}. */
+export interface BadgeFinding {
+  status: Status
+  severity: Severity
+  category?: string | null
+  rule_id?: string | null
+  op?: string | null
+  limit?: number | null
+  /** An S level the finding itself carries. The engine's Finding has none: its rule's `s_level` is used. */
+  s_level?: number | null
+}
+
+const isSLevel = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= NOAA_S_THRESHOLDS_PFU.length
+
+const ruleOf = (id: string | null | undefined) => (id ? thresholdRules(RULES).find((r) => r.id === id) : undefined)
+
+/** The op of a finding, else of its rule; null when neither is a known op. */
+function opOf(finding: BadgeFinding): Op | null {
+  if (isOp(finding.op)) return finding.op
+  const op = ruleOf(finding.rule_id)?.op
+  return isOp(op) ? op : null
+}
+
+/**
+ * The NOAA S level an OPS finding names: the finding's own `s_level` when present, else its rule's integer
+ * `s_level` (engine/rules/thresholds.json), else the engine's sLevel() of the limit for a ceiling, the order in
+ * which the engine itself grades an OPS level (SPEC 5 `s_level`). Null when none is 1 to 5: the words then say
+ * "the threshold". The level is never typed here.
+ */
+export function opsLevelOf(finding: BadgeFinding): number | null {
+  if (isSLevel(finding.s_level)) return finding.s_level
+  const rule = ruleOf(finding.rule_id)
+  if (rule && isSLevel(rule.s_level)) return rule.s_level
+  const limit = typeof finding.limit === 'number' && Number.isFinite(finding.limit) ? finding.limit : rule?.limit
+  const op = opOf(finding)
+  if (typeof limit !== 'number' || !Number.isFinite(limit) || op === null || !isCeiling(op)) return null
+  const n = sLevel(limit)
+  return isSLevel(n) ? n : null
+}
+
+/** The op that breaks a compliant condition: an OPS rule "compliant below 1000" is reached "at or above 1000". */
+const BREAKS: Record<Op, Op> = { lt: 'ge', le: 'gt', gt: 'le', ge: 'lt' }
+
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
+/**
+ * The words an OPS finding reads: an S-level threshold reached or not, never a limit. The OPS rules' own notes say
+ * "NOAA operational scale, not a NASA crew-health limit"; at Mars the number is NOAA's reused (a design choice).
+ * For the NOAA rules (op "lt"): "At or above S3", "Approaching S3", "Below S3"; without a level, "the threshold".
+ * The words follow the rule's op, so they always agree with the engine's verdict. Undefined for other statuses.
+ */
+export function opsStatusLabel(finding: BadgeFinding): string | undefined {
+  const n = opsLevelOf(finding)
+  const what = n !== null ? `S${n}` : 'the threshold'
+  const op = opOf(finding) ?? 'lt'
+  if (finding.status === 'outside') return `${capital(OP_WORDS[BREAKS[op]])} ${what}`
+  if (finding.status === 'approaching') return `Approaching ${what}`
+  if (finding.status === 'within') return `${capital(OP_WORDS[op])} ${what}`
+  return undefined
+}
+
+/**
+ * The status words of a finding's badge. FFD, PEL and POL, the three kinds of NASA limit (SPEC 1.2), keep
+ * "Outside limit" / "Within limit". A TARGET is a countermeasure target and an OPS level a NOAA S-scale threshold:
+ * neither is labelled a limit. (Tier B views print their own words, "Reliable change" / "No reliable change".)
+ */
+export function findingStatusLabel(finding: BadgeFinding): string {
+  if (finding.category === 'TARGET') return TARGET_LABEL[finding.status] ?? STATUS_LABEL[finding.status]
+  if (finding.category === 'OPS') return opsStatusLabel(finding) ?? STATUS_LABEL[finding.status]
+  return STATUS_LABEL[finding.status]
+}
+
 /**
  * The badge for an engine Finding: data-quality states (cyan / gray) take precedence over the
  * severity colour, so "no data" never looks like "nominal". `partial` (a summed dose window whose
  * record starts after the window opens, app/evaluate partialRecord) turns a "within" into the cyan
- * "Partial record" tag (D15): a lower bound never reads "within limit".
+ * "Partial record" tag (D15): a lower bound never reads "within limit". The words come from
+ * findingStatusLabel, so a TARGET or OPS finding is never labelled against a limit.
  */
-export function FindingBadge({
-  finding,
-  solid,
-  partial = false,
-}: {
-  finding: { status: Status; severity: Severity; category?: string | null }
-  solid?: boolean
-  partial?: boolean
-}) {
+export function FindingBadge({ finding, solid, partial = false }: { finding: BadgeFinding; solid?: boolean; partial?: boolean }) {
   if (DATA_STATUS[finding.status]) return <StatusBadge status={finding.status} />
   if (partial && finding.status === 'within') return <PartialRecordBadge />
-  // A TARGET is a countermeasure target, not a limit (SPEC 1.2): never label it "limit".
-  const label = (finding.category === 'TARGET' ? TARGET_LABEL[finding.status] : undefined) ?? STATUS_LABEL[finding.status]
-  return <SeverityBadge severity={finding.severity} label={label} solid={solid} />
+  return <SeverityBadge severity={finding.severity} label={findingStatusLabel(finding)} solid={solid} />
 }
 
 /** Cyan "Partial record" tag (Table F.5-1 "Missing or stale data"): the logged sum is a lower bound (D15). */

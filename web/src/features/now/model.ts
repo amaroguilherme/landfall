@@ -402,7 +402,7 @@ export interface UnscriptedOpening {
 }
 
 /**
- * Case openings the simulator itself reports as UNSCRIPTED: chance flags of real-size day-to-day noise
+ * Case openings the simulator itself reports as UNSCRIPTED: chance flags of its own day-to-day noise model
  * (sim_crew data.self_check.unscripted_case_openings). The hero labels them so a judge is not misled into
  * reading them as scripted episodes. Empty when the scenario has none.
  */

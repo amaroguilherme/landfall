@@ -110,7 +110,7 @@ html { scroll-padding-top: calc(var(--lf-missionbar-offset, var(--lf-missionbar-
   z-index: 60;
   width: min(26rem, calc(100vw - 24px));
   padding: var(--lf-space-2);
-  /* surface-1, not surface-2: warning red (#ff7066) is 6.1:1 here but 5.6:1 on surface-2 (F.5.10 f: >= 6:1) */
+  /* surface-1: warning red (#ff8d84, tokens.css) is 7.4:1 here (F.5.10 f: >= 6:1); the earlier #ff7066 needed it (5.6:1 on surface-2) */
   background: var(--lf-surface-1);
   border: 1px solid var(--lf-border-strong);
   border-radius: var(--lf-radius);

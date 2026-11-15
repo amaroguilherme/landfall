@@ -8,9 +8,10 @@ import type { ReactNode } from 'react'
 import { useSnapshot } from '../../app/data'
 import type { LoadStatus, Snapshot } from '../../app/data'
 import { CHIP_DEFS } from '../../app/vocab'
-import { Chip, Expander, FreshnessChip, Num, StaleIcon, formatNumber } from '../../ui'
+import { Button, Chip, Expander, FreshnessChip, Num, StaleIcon, formatNumber } from '../../ui'
 import { TimeChart } from '../trends/chart'
 import type { HLineSpec, LineSpec, MarkSpec, VLineSpec } from '../trends/chart'
+import { EVM_ID } from './EarthVsMars'
 import { unitText } from './model'
 import {
   SEP_SNAPSHOT_ID,
@@ -40,8 +41,25 @@ const DERIVED = chipFor('derived', 'derived')
 const DESIGN = chipFor('design_choice', 'design choice')
 const UNIT = 'µGy/day'
 const VISIBLE_ROWS = 3
-/** Where the Earth-list table sits: the proton panel's title and its "who raises the alarm" heading (index.tsx), in words. */
-export const EVM_POINTER = 'Earth’s proton lists against the storms measured at Gale are in the first panel, “Proton flux and the NOAA S-scale”, under “Who watches the Sun here, and who raises the alarm”.'
+/**
+ * The jump to the Earth-list table, labelled with where it sits: the proton panel's title and its "who raises the
+ * alarm" heading (index.tsx), in words.
+ */
+export const EVM_POINTER = 'Earth’s proton lists against the storms measured at Gale: in the first panel, “Proton flux and the NOAA S-scale”, under “Who watches the Sun here, and who raises the alarm”'
+
+/**
+ * Scroll the Earth-list block into view and move focus to its heading, as the "On this page" buttons do (index.tsx
+ * jumpToPanel, not imported: ./index imports this file). Never an href="#id": the router owns the hash.
+ */
+function jumpToEarthVsMars() {
+  const el = document.getElementById(EVM_ID)
+  if (!el) return
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+  const target = (el.querySelector('h4') as HTMLElement | null) ?? el
+  if (!target.hasAttribute('tabindex')) target.tabIndex = -1
+  target.focus({ preventScroll: true })
+}
 
 function Measured({ children }: { children: ReactNode }) {
   return (
@@ -521,8 +539,7 @@ export default function MarsSepRecord() {
 /**
  * The measured context line under the habitat dose panel's assumed scaling (the scaling stays a design choice): the
  * range of the rule's peaks at Gale. Earth's proton lists against the storms at Gale have their own table in the proton
- * panel (EarthVsMars.tsx); this line only points there, in words (a link to ./index would be circular). No dose in µGy
- * is printed here.
+ * panel (EarthVsMars.tsx); this line only jumps there, as the "On this page" buttons do. No dose in µGy is printed here.
  */
 export function MarsSepContextView({ data, multiple }: { data: SepEventsData; multiple: number | null }) {
   const range = peakRatioRange(data)
@@ -541,7 +558,9 @@ export function MarsSepContextView({ data, multiple }: { data: SepEventsData; mu
         ) : null}
       </p>
       <p className="lf-tr-muted lf-rad-sep-context" data-evm-pointer="">
-        {EVM_POINTER}
+        <Button variant="ghost" data-jump={EVM_ID} onClick={jumpToEarthVsMars} style={{ paddingInline: 0, textAlign: 'left' }}>
+          {EVM_POINTER}
+        </Button>
       </p>
     </>
   )

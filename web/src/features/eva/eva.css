@@ -87,6 +87,9 @@
   .lf-eva-table td { display: grid; grid-template-columns: minmax(7.5rem, 38%) minmax(0, 1fr); gap: 0.6em; align-items: baseline; }
   .lf-eva-table td::before { content: attr(data-label); color: var(--lf-text-muted); font-size: var(--lf-text-xs); }
   .lf-eva-table td > * { min-width: 0; }
+  /* A verdict badge's no-wrap text ("No reliable change (Nominal)") is wider than its column at 320 px (WCAG 1.4.10). */
+  .lf-eva-table .lf-sev,
+  .lf-eva-table .lf-sev-text { white-space: normal; max-width: 100%; }
 }
 
 @media (max-width: 760px) {

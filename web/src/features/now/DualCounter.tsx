@@ -4,7 +4,7 @@
 // window blocks the link). Every number comes from useComms(), the engine's formatMet, or the
 // measurement made in this browser on this visit; none is typed here.
 import type { CSSProperties } from 'react'
-import { formatCommsLightTime, formatCountdown, formatEarliestReply, windowModelNote } from '../../app/comms'
+import { formatCommsLightTime, formatCountdown, formatEarliestReply, formatLightTime, useComms, windowModelNote } from '../../app/comms'
 import type { CommsStatus } from '../../app/comms'
 import { formatUtc } from '../../app/data'
 import { formatMet } from '../../app/engine'
@@ -46,6 +46,16 @@ function ResumeWords({ resumesAt }: { resumesAt: number }) {
   return <>{formatCountdown(resumesAt - t)}</>
 }
 
+/**
+ * The round trip the earliest reply adds at link-up. commsEta's earliest_reply_s is (resumes_at - t) plus the round
+ * trip AT resumes_at, so this is computeComms at resumes_at (what #/eva prints "when the link resumes"), not the round
+ * trip now: on a fresh load at Mars, 39 min 50 s against 39 min 41 s now. Null while the link is up or the time unknown.
+ */
+export function linkUpRoundTrip(comms: Pick<CommsStatus, 'blocked' | 'resumes_at'>, atLinkUp: Pick<CommsStatus, 'round_trip_s'>): string | null {
+  if (!comms.blocked || comms.resumes_at === null || atLinkUp.round_trip_s === null) return null
+  return formatLightTime(atLinkUp.round_trip_s)
+}
+
 /** Where the light time comes from. */
 function lightTimeSource(c: CommsStatus): string {
   if (c.basis === 'snapshot') return 'JPL Horizons ephemeris'
@@ -75,6 +85,7 @@ export function DualCounter({
   packetLabel: string | null
 }) {
   const seq = useHeroSequence(ready)
+  const linkUpRt = linkUpRoundTrip(comms, useComms(comms.env.id, comms.resumes_at ?? undefined))
   const e = ready ? seq.elapsed : 0
   const phase = ready ? phaseAt(e) : 'loading'
   const rt = comms.round_trip_s
@@ -169,8 +180,13 @@ export function DualCounter({
                 <p className="now-counter-sub">
                   {resumesAt !== null ? (
                     <>
-                      Earliest reply <span className="lf-num">{formatEarliestReply(comms)}</span> (the{' '}
-                      <span className="lf-num">{formatCommsLightTime(comms, true)}</span> round trip added at link-up)
+                      Earliest reply <span className="lf-num">{formatEarliestReply(comms)}</span>
+                      {linkUpRt !== null ? (
+                        <>
+                          {' '}
+                          (the <span className="lf-num">{linkUpRt}</span> round trip added at link-up)
+                        </>
+                      ) : null}
                       {packetLabel ? (
                         <>
                           {' '}

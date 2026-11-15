@@ -241,8 +241,25 @@ export interface HetPeak {
   x: number
   mean: number
   quiet: number
+  /** The snapshot's multiple_of_quiet, as computed at ingest (11148, 1577). */
   multiple: number
+  /** The same to MULTIPLE_SIG_FIGS significant figures, the figure the page prints (11000, 1600). */
+  multipleShown: number
   firstAbove: string | null
+}
+
+/**
+ * Significant figures of a printed multiple (design choice). Each divides a storm peak by an 8-9 April median close to
+ * the bin's floor (the 14.3 MeV bin's median is 0: it reads 0 when quiet), and the snapshot keeps the mean and the
+ * median to 4 figures (0.5782 / 0.0003665 = 1578, beside the ingest's 1577), so the ratio's 4-5 figures are not meaningful.
+ */
+export const MULTIPLE_SIG_FIGS = 2
+
+/** x rounded to `sig` significant figures: 11148 -> 11000, 1577 -> 1600. */
+export function toSigFigs(x: number, sig: number): number {
+  if (!Number.isFinite(x) || x === 0) return x
+  const p = Math.floor(Math.log10(Math.abs(x))) - sig + 1
+  return p >= 0 ? Math.round(x / 10 ** p) * 10 ** p : Math.round(x * 10 ** -p) / 10 ** -p
 }
 
 /** Peak hourly mean and its multiple of the 8-9 April median, only for channels whose quiet median is above 0. */
@@ -258,6 +275,7 @@ export function hetPeaks(d: Sol242Data, mevs: readonly number[] = [80, 50]): Het
       mean: c.peak.mean,
       quiet: c.quiet_median,
       multiple: c.peak.multiple_of_quiet,
+      multipleShown: toSigFigs(c.peak.multiple_of_quiet, MULTIPLE_SIG_FIGS),
       firstAbove: c.first_hour_above_10x_quiet,
     })
   }

@@ -217,7 +217,11 @@ describe('what the block renders', () => {
   it('wraps the block in #rad-earth-vs-mars with the factual heading, a lead sentence with the counts and a scrollable table', () => {
     expect(html).toMatch(/^<section id="rad-earth-vs-mars" data-earth-vs-mars=""/)
     expect(t).toContain('Earth’s proton lists and the storms measured at Gale')
-    expect(t).toContain('9 that triggered fall where this build ships an Earth proton list: 4 had an event on that list within 2 days; the other 5 carried 85.3 % (1917.21 of 2248.29 µGy, n = 9) of the total SEP dose the table lists for the 9')
+    expect(t).toContain(
+      'Of the 9 storms at Gale that triggered the RAD team’s warning rule within these lists’ spans, 4 had an Earth event within 2 days; the other 5 carried 85.3 % (1917.21 of 2248.29 µGy, n = 9) of their total SEP dose.',
+    )
+    // the lead's counts are the match's own
+    expect([x.combined.n, x.combined.withEarth, x.combined.n - x.combined.withEarth, x.windowDays]).toEqual([9, 4, 5, 2])
     expect(html).toMatch(/<div class="[^"]*lf-tr-table-wrap[^"]*" tabindex="0" role="region" aria-label="[^"]+, scrollable">/)
     expect((html.match(/<tbody>[\s\S]*?<\/tbody>/)![0].match(/<tr/g) ?? []).length).toBeLessThanOrEqual(6)
   })
@@ -255,7 +259,7 @@ describe('what the block renders', () => {
   })
   it('shows the 20 May 2024 line and the S3 line', () => {
     expect(t).toContain(
-      'Most of that dose is one storm, 20 May 2024 (1730.55 µGy, the largest at Gale in the paper’s Table 1). DONKI’s nearest GOES-P ≥10 MeV entries are 7 days before it and 19 days after, and DONKI has no SEP entry from any instrument between 2024-05-13T18:07Z and 2024-06-08T02:25Z.',
+      'Most of the dose with no Earth event is one storm, 20 May 2024 (1730.55 µGy, the largest at Gale in the paper’s Table 1). DONKI’s nearest GOES-P ≥10 MeV entries are 7 days before it and 19 days after, and DONKI has no SEP entry from any instrument between 2024-05-13T18:07Z and 2024-06-08T02:25Z.',
     )
     // Table 1 also lists 5 deep-space (cruise) events, one of them larger: the claim is scoped to the surface rows
     expect(t).not.toMatch(/largest in the paper’s (table|Table 1)/)
@@ -270,6 +274,32 @@ describe('what the block renders', () => {
     expect(t).toContain('2024-06-08T02:25Z')
     expect(t).toMatch(/4 storms at S3 or above/)
     expect(t).toContain('September 2017')
+  })
+  it('shows only the heading, the one-sentence result, the table and its sources; the 20 May 2024 and whole-record lines open with the method', () => {
+    const open = html.slice(0, html.indexOf('<details'))
+    const closed = html.slice(html.indexOf('<details'))
+    const shown = text(open)
+    expect(shown).toContain('Earth’s proton lists and the storms measured at Gale')
+    expect(shown).toContain('Of the 9 storms at Gale that triggered')
+    expect(open).toContain('<table')
+    expect((open.match(/<p\b/g) ?? []).length).toBe(2)
+    for (const moved of ['Most of the dose with no Earth event is one storm, 20 May 2024', 'Run over the whole record, the rule triggers 11 times in these spans']) {
+      expect(shown).not.toContain(moved)
+      expect(text(closed)).toContain(moved)
+    }
+    // the visible sources line says where Table 1's numbers were read: the arXiv preprint, not the journal page
+    expect(shown).toContain(
+      'Storms, triggers and total SEP doses from the RAD team’s Table 1 (Löwe et al., Space Weather 2025; numbers from arXiv:2502.02469v1 (opens in a new tab), the journal version was not compared) literature; matches and shares derived; the 2-day window is ours design choice',
+    )
+    expect(open).toContain(`href="${sep.literature.arxiv_html}"`)
+    expect(sep.literature.numbers_from).toMatch(/^arXiv:2502\.02469v1 .*; the journal version was not compared$/)
+    expect(shown).not.toContain('replayed further down this page')
+  })
+  it('says “this list’s span” when only one Earth list ships', () => {
+    const one = crossMatch(sep, list, null)
+    expect(one.spans).toHaveLength(1)
+    const lead = text(/<p data-evm-lead="">([\s\S]*?)<\/p>/.exec(render(one))?.[1] ?? '')
+    expect(lead).toContain(`Of the ${one.combined.n} storms at Gale that triggered the RAD team’s warning rule within this list’s span, ${one.combined.withEarth} had an Earth event`)
   })
   it('carries the derived, literature and design-choice chips', () => {
     for (const chip of ['derived', 'literature', 'design choice']) expect(html).toContain(`data-chip="${chip}"`)

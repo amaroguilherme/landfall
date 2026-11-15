@@ -30,6 +30,9 @@ const LIST_NAME: Record<Catalogue, ReactNode> = {
 }
 const EVENT_WORD: Record<Catalogue, string> = { noaa: 'events', donki: 'entries' }
 
+/** The block's DOM id: the habitat dose panel's pointer (MarsSepRecord.tsx EVM_POINTER) jumps here. */
+export const EVM_ID = 'rad-earth-vs-mars'
+
 const day = (iso: string) => iso.slice(0, 10)
 const days = (n: number) => (n === 1 ? 'day' : 'days')
 /** "20 May 2024" from "2024-05-20" (UTC, the app's own month names). */
@@ -104,20 +107,20 @@ export function EarthVsMarsView({ match, sep }: { match: CrossMatch | null; sep:
   const s3 = match.s3
   const excludedHere = match.spans.flatMap((s) => s.earthExcluded)
   // The paper's surface record, and so its Table 1, ends on this date: inside DONKI's span, the storms at Gale stop
-  // there and the Earth list does not (the later triggers count only in the whole-record line below the table).
+  // there and the Earth list does not (the later triggers count only in the whole-record line, in the closed expander).
   const t1End = sep.paper_record_end
   const t1EndsInside = (s: SpanResult) => Boolean(t1End) && day(s.from) <= t1End && t1End < day(s.to)
   const caption = 'Storms in the RAD team’s Table 1 against the Earth list for their dates'
   return (
-    <section id="rad-earth-vs-mars" data-earth-vs-mars="" className="lf-rad-evm" aria-labelledby="rad-evm-h">
+    <section id={EVM_ID} data-earth-vs-mars="" className="lf-rad-evm" aria-labelledby="rad-evm-h">
       <h4 id="rad-evm-h" className="lf-rad-h4">
         Earth’s proton lists and the storms measured at Gale
       </h4>
-      <p>
-        The MSL RAD team’s Table 1 lists storms at Gale and whether its warning rule triggered ({firstAuthorFamily(sep)} et al., {sep.literature.journal.journal}{' '}
-        {sep.literature.journal.published?.slice(0, 4)}; replayed further down this page). <Num value={c.n} /> that triggered fall where this build ships an Earth
-        proton list: <Num value={c.withEarth} /> had an event on that list within <Num value={w} /> {days(w)}; the other <Num value={c.n - c.withEarth} /> carried{' '}
-        <Share t={c} /> of the total SEP dose the table lists for the <Num value={c.n} /> <Chip kind={DERIVED} />
+      <p data-evm-lead="">
+        Of the <Num value={c.n} /> storms at Gale that triggered the RAD team’s warning rule within {match.spans.length > 1 ? 'these lists’ spans' : 'this list’s span'},{' '}
+        <Num value={c.withEarth} /> had an Earth event within <Num value={w} /> {days(w)}; the other <Num value={c.n - c.withEarth} /> carried <Share t={c} /> of their
+        total SEP dose.{' '}
+        <Chip kind={DERIVED} />
       </p>
       <div className="lf-tr-table-wrap lf-rad-evm-wrap" tabIndex={0} role="region" aria-label={`${caption}, scrollable`}>
         <table className="lf-tr-table lf-rad-evm-table">
@@ -177,69 +180,75 @@ export function EarthVsMarsView({ match, sep }: { match: CrossMatch | null; sep:
           </tbody>
         </table>
       </div>
-      {spot ? (
-        <p>
-          {(spot.shareOfNoEarth ?? 0) > 50 ? 'Most of that dose is one storm,' : 'The largest of them is'} {longDate(spot.match.row.paper_date)} (
-          <Num value={spot.match.dose_uGy} digits={2} unit={UGY} />
-          {spot.largestAtGale ? ', the largest at Gale in the paper’s Table 1' : ''}). {spot.catalogue === 'donki' ? 'DONKI’s nearest GOES-P ≥10 MeV entries' : 'The nearest events on NOAA’s list'} are{' '}
-          {spot.before ? (
-            <>
-              <Num value={spot.before.days} /> {days(spot.before.days)} before it
-            </>
-          ) : (
-            'none before it'
-          )}{' '}
-          and{' '}
-          {spot.after ? (
-            <>
-              <Num value={spot.after.days} /> {days(spot.after.days)} after
-            </>
-          ) : (
-            'none after'
-          )}
-          {spot.catalogue === 'donki' && gap && within(spot.match.row.paper_date, gap) ? (
-            <>
-              , and DONKI has no SEP entry from any instrument between{' '}
-              <time className="lf-rad-sep-time" dateTime={gap.start}>
-                {gap.start}
-              </time>{' '}
-              and{' '}
-              <time className="lf-rad-sep-time" dateTime={gap.stop}>
-                {gap.stop}
-              </time>
-            </>
-          ) : null}
-          .
-        </p>
-      ) : null}
-      <p className="lf-tr-muted">
-        Run over the whole record, the rule triggers <Num value={match.replayTriggers} /> times in these spans, <Num value={match.replayWithEarth} /> of them within{' '}
-        <Num value={w} /> {days(w)} of an Earth event. Of the <Num value={match.earthCounted} /> Earth events, <Num value={match.earthNearTrigger} /> fall within{' '}
-        <Num value={w} /> {days(w)} of a trigger at Gale.
-        {s3.listEnd ? (
-          <>
-            {' '}
-            NOAA’s list has <Num value={s3.inRecord} /> storms at S3 or above during Curiosity’s record (this copy of the list ends on{' '}
-            <time className="lf-rad-sep-time" dateTime={day(s3.listEnd)}>
-              {day(s3.listEnd)}
-            </time>
-            );{' '}
-            {s3.matches.length ? (
-              <>
-                <Num value={s3.matches.length} /> {s3.matches.length === 1 ? 'has its' : 'have their'} maximum within <Num value={w} /> {days(w)} of a row of the table (
-                {and(s3.matches.map((m) => monthYear(m.max)))}).
-              </>
-            ) : (
-              <>none has its maximum within <Num value={w} /> {days(w)} of a row of the table.</>
-            )}
-          </>
-        ) : null}
-      </p>
-      <p className="lf-tr-muted">
-        Storm doses from the paper’s Table 1 <Chip kind={LIT} />; matches and shares <Chip kind={DERIVED} />; the <Num value={w} />-day window is ours{' '}
+      <p className="lf-tr-muted" data-evm-sources="">
+        Storms, triggers and total SEP doses from the RAD team’s Table 1 ({firstAuthorFamily(sep)} et al., {sep.literature.journal.journal}{' '}
+        {sep.literature.journal.published?.slice(0, 4)}; numbers from{' '}
+        <a href={sep.literature.arxiv_html} target="_blank" rel="noopener noreferrer">
+          arXiv:{sep.literature.arxiv_id}
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
+        , the journal version was not compared) <Chip kind={LIT} />; matches and shares <Chip kind={DERIVED} />; the <Num value={w} />-day window is ours{' '}
         <Chip kind={DESIGN} />
       </p>
       <Expander summary="How this was matched">
+        {spot ? (
+          <p>
+            {(spot.shareOfNoEarth ?? 0) > 50 ? 'Most of the dose with no Earth event is one storm,' : 'The largest storm with no Earth event is'} {longDate(spot.match.row.paper_date)} (
+            <Num value={spot.match.dose_uGy} digits={2} unit={UGY} />
+            {spot.largestAtGale ? ', the largest at Gale in the paper’s Table 1' : ''}). {spot.catalogue === 'donki' ? 'DONKI’s nearest GOES-P ≥10 MeV entries' : 'The nearest events on NOAA’s list'} are{' '}
+            {spot.before ? (
+              <>
+                <Num value={spot.before.days} /> {days(spot.before.days)} before it
+              </>
+            ) : (
+              'none before it'
+            )}{' '}
+            and{' '}
+            {spot.after ? (
+              <>
+                <Num value={spot.after.days} /> {days(spot.after.days)} after
+              </>
+            ) : (
+              'none after'
+            )}
+            {spot.catalogue === 'donki' && gap && within(spot.match.row.paper_date, gap) ? (
+              <>
+                , and DONKI has no SEP entry from any instrument between{' '}
+                <time className="lf-rad-sep-time" dateTime={gap.start}>
+                  {gap.start}
+                </time>{' '}
+                and{' '}
+                <time className="lf-rad-sep-time" dateTime={gap.stop}>
+                  {gap.stop}
+                </time>
+              </>
+            ) : null}
+            .
+          </p>
+        ) : null}
+        <p className="lf-tr-muted">
+          Run over the whole record, the rule triggers <Num value={match.replayTriggers} /> times in these spans, <Num value={match.replayWithEarth} /> of them within{' '}
+          <Num value={w} /> {days(w)} of an Earth event. Of the <Num value={match.earthCounted} /> Earth events, <Num value={match.earthNearTrigger} /> fall within{' '}
+          <Num value={w} /> {days(w)} of a trigger at Gale.
+          {s3.listEnd ? (
+            <>
+              {' '}
+              NOAA’s list has <Num value={s3.inRecord} /> storms at S3 or above during Curiosity’s record (this copy of the list ends on{' '}
+              <time className="lf-rad-sep-time" dateTime={day(s3.listEnd)}>
+                {day(s3.listEnd)}
+              </time>
+              );{' '}
+              {s3.matches.length ? (
+                <>
+                  <Num value={s3.matches.length} /> {s3.matches.length === 1 ? 'has its' : 'have their'} maximum within <Num value={w} /> {days(w)} of a row of the table (
+                  {and(s3.matches.map((m) => monthYear(m.max)))}).
+                </>
+              ) : (
+                <>none has its maximum within <Num value={w} /> {days(w)} of a row of the table.</>
+              )}
+            </>
+          ) : null}
+        </p>
         <ul className="lf-rad-evm-method">
           <li>
             Storms at Gale: the rows of the paper’s Table 1 (Martian surface

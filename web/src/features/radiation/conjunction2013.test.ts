@@ -35,7 +35,9 @@ import {
   readByHandOn,
   sci3,
   solNumber,
+  toSigFigs,
   windowDays,
+  MULTIPLE_SIG_FIGS,
 } from './conjunction2013'
 import type { Sol242Data, SpeListLike } from './conjunction2013'
 
@@ -149,11 +151,15 @@ describe('STEREO-B HET', () => {
     near(p80.mean, 0.5782)
     near(p80.quiet, 0.0003665)
     expect(p80.multiple).toBe(1577)
+    expect(p80.multipleShown).toBe(1600)
     expect(p80.firstAbove).toBe('2013-04-11T07:00:00Z')
     expect(p50.hour).toBe('2013-04-11T10:00:00Z')
     near(p50.mean, 1.275)
     near(p50.quiet, 0.0001143)
     expect(p50.multiple).toBe(11148)
+    expect(p50.multipleShown).toBe(11000)
+    // the ingest's multiple is the peak over the quiet median, to the 4 figures the snapshot stores them to
+    for (const p of [p80, p50]) expect(Math.abs(p.mean / p.quiet - p.multiple) / p.multiple).toBeLessThan(1e-3)
     expect(p50.firstAbove).toBe('2013-04-11T08:00:00Z')
     near(p80.x, 1 + 9.5 / 24)
     // 14.3 MeV reads 0 when quiet: no multiple
@@ -226,8 +232,12 @@ describe('the panel', () => {
     expect(noYear).toContain('inside the modelled conjunction;')
   })
   it('states the HET peaks, the RAD spacing and the moratorium line from the data', () => {
-    expect(t).toContain('80 MeV peaks at 0.578 (hour from 09:00 UTC, 11 April), 1577 × its 8–9 April median of 3.67×10⁻⁴.')
-    expect(t).toContain('50 MeV peaks at 1.27 (hour from 10:00 UTC, 11 April), 11,148 × its 8–9 April median of 1.14×10⁻⁴.')
+    // (text() leaves a space where a tag was: on screen "≈1600 ×")
+    expect(t).toContain('80 MeV peaks at 0.578 (hour from 09:00 UTC, 11 April), ≈ 1600 × its 8–9 April median of 3.67×10⁻⁴.')
+    expect(t).toContain('50 MeV peaks at 1.27 (hour from 10:00 UTC, 11 April), ≈ 11,000 × its 8–9 April median of 1.14×10⁻⁴.')
+    expect(html).toContain('≈<span class="lf-num"><data value="1600">1600</data>')
+    // two significant figures over medians near zero: the 4-5 figure ratios are never printed
+    expect(t).not.toMatch(/1577|11,148|11148/)
     expect(t).toContain('62 to 123 min apart')
     expect(t).toContain('RAD kept recording through every published window since 2013: 615 to 1569 samples each')
   })
@@ -243,6 +253,19 @@ describe('the panel', () => {
       [p50.x, p50.mean, true, undefined],
     ])
     expect(t).toContain('Solid: the 80 MeV bin; dashed: the 50 MeV bin. Filled diamond: the 80 MeV peak hour; hollow: the 50 MeV peak hour. 80 MeV peaks at 0.578')
+    // the chart's text alternative carries the same rounded multiples
+    expect(het[0].ariaLabel).toContain('80 MeV peaks at 0.578 in the hour from 09:00 UTC on 11 April, about 1600 times its 8–9 April median of 3.67×10⁻⁴')
+    expect(het[0].ariaLabel).toContain('50 MeV peaks at 1.27 in the hour from 10:00 UTC on 11 April, about 11,000 times its 8–9 April median of 1.14×10⁻⁴')
+  })
+  it('rounds a multiple to two significant figures (design choice), never its sign or a zero', () => {
+    expect(MULTIPLE_SIG_FIGS).toBe(2)
+    expect(toSigFigs(11148, 2)).toBe(11000)
+    expect(toSigFigs(1577, 2)).toBe(1600)
+    expect(toSigFigs(1549, 2)).toBe(1500)
+    expect(toSigFigs(99.6, 2)).toBe(100)
+    expect(toSigFigs(0.012345, 2)).toBe(0.012)
+    expect(toSigFigs(-1577, 2)).toBe(-1600)
+    expect(toSigFigs(0, 2)).toBe(0)
   })
   it('the dose chart labels its peak and first clear rise, with a short 1.25 × label below 720 px and no rise label on a narrow plot', () => {
     const specOf = (daysOnly: boolean, shortLimit: boolean) => {

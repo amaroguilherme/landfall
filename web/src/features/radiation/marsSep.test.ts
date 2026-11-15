@@ -6,6 +6,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { RAD_TITLES } from './index'
+import { EVM_ID } from './EarthVsMars'
 import { EVM_POINTER, MarsSepContextView, MarsSepRecordView } from './MarsSepRecord'
 import { STORM_MATCH_DAYS, donkiGap, fmtDhm, isoMinute, mayTimeline, oneDecimal, peakRatioRange, ruleQuotes, s3StormsOnTable, tableRows, tableSummary, triggersWith, unconfirmedOf, unconfirmedText } from './marsSep'
 import type { SepEventsData, SpeListLike } from './marsSep'
@@ -187,6 +188,13 @@ describe("NOAA's S3 storms at Earth on rows of the RAD team's table", () => {
     // the pointer names the panel and the heading the table sits under, both as index.tsx prints them
     expect(html).toContain('data-evm-pointer=""')
     expect(t).toContain(EVM_POINTER)
+    // a jump control like the "On this page" buttons (a ghost button, never an href: the router owns the hash), to the block's id
+    const jump = /<p class="lf-tr-muted lf-rad-sep-context" data-evm-pointer="">([\s\S]*?)<\/p>/.exec(html)?.[1] ?? ''
+    expect(jump).toMatch(new RegExp(`^<button type="button" class="lf-btn" data-variant="ghost" data-jump="${EVM_ID}"[^>]*>${EVM_POINTER}</button>$`))
+    expect(jump).not.toContain('href')
+    const block = readFileSync(new URL('./EarthVsMars.tsx', import.meta.url), 'utf8')
+    expect(block).toContain('<section id={EVM_ID} data-earth-vs-mars=""')
+    expect(EVM_ID).toBe('rad-earth-vs-mars')
     expect(EVM_POINTER).toContain(`“${RAD_TITLES.protons}”`)
     const index = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
     expect(index).toContain('<h3 className="lf-tr-card-title">Who watches the Sun here, and who raises the alarm</h3>')

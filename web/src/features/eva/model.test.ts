@@ -129,10 +129,12 @@ describe('the ground link at Mars, MET 412/14:20:00 (behind the Sun)', () => {
     expect(b.resumeT).toBe(met(423, 20, 20))
     expect(formatMet(b.resumeT!)).toBe('423/20:20:00')
   })
-  it('dates the earliest review as t + comms.earliest_reply_s: light time only, MET 423/20:59:49 (±1 s)', () => {
-    expect(b.earliestReviewT).toBe(NOW + comms.earliest_reply_s!)
-    expect(Math.abs(b.earliestReviewT! - met(423, 20, 59, 49))).toBeLessThanOrEqual(1)
-    expect(formatMet(b.earliestReviewT!).startsWith('423/20:59:')).toBe(true)
+  it('dates the earliest review as t + comms.earliest_reply_s to the nearest second: light time only, MET 423/20:59:50', () => {
+    expect(b.earliestReviewT).toBe(Math.round(NOW + comms.earliest_reply_s!))
+    expect(Math.abs(b.earliestReviewT! - (NOW + comms.earliest_reply_s!))).toBeLessThanOrEqual(0.5)
+    // measured: 423/20:59:49.906, which MetTime alone would truncate to :49
+    expect(NOW + comms.earliest_reply_s! - met(423, 20, 59, 49)).toBeCloseTo(0.906, 3)
+    expect(formatMet(b.earliestReviewT!)).toBe('423/20:59:50')
     expect(b.earliestReviewLabel).toBe('light time only, before any review time')
     // the hero's "Earliest reply 11 d 06 h"
     expect(formatCountdown(comms.earliest_reply_s!)).toBe('11 d 06 h')
@@ -142,7 +144,12 @@ describe('the ground link at Mars, MET 412/14:20:00 (behind the Sun)', () => {
     expect(atResume.blocked).toBe(false)
     expect(b.roundTripAtResumeS).toBe(atResume.round_trip_s)
     // the engine's earliest reply is the resume time plus that round trip
-    expect(b.earliestReviewT! - b.resumeT!).toBeCloseTo(atResume.round_trip_s!, 6)
+    expect(NOW + comms.earliest_reply_s! - b.resumeT!).toBeCloseTo(atResume.round_trip_s!, 6)
+    // one rounding rule: link resumes + the round trip as printed = the earliest review as printed, to the second
+    expect(Number.isInteger(b.resumeT!)).toBe(true)
+    expect(b.earliestReviewT! - b.resumeT!).toBe(Math.round(atResume.round_trip_s!))
+    expect(formatLightTime(atResume.round_trip_s!)).toBe('39 min 50 s')
+    expect(formatMet(b.resumeT! + 39 * 60 + 50)).toBe(formatMet(b.earliestReviewT!))
     // measured: about 1,195 s each way at resume
     expect(Math.abs(atResume.one_way_s! - 1195)).toBeLessThan(1)
   })
@@ -388,6 +395,49 @@ describe('the page', () => {
     expect(inline(rt)).toContain(`${formatCommsLightTime(commsAt('mars_surface', NOW), true)} now; ${formatLightTime(MARS.board.roundTripAtResumeS!)} when the link resumes`)
     expect(inline(rt)).toContain('39 min 41 s now; 39 min 50 s when the link resumes')
   })
+  it('adds up at Mars: link resumes 423/20:20:00 + the 39 min 50 s round trip = earliest review 423/20:59:50', () => {
+    const ground = inline(/data-eva-ground="" data-ground="unreachable">([\s\S]*?)<\/dl>/.exec(marsHtml)?.[1] ?? '')
+    expect(ground).toContain('Link resumes MET 423/20:20:00')
+    expect(ground).toContain('Earliest review MET 423/20:59:50 (light time only, before any review time)')
+    expect(ground).toContain('39 min 50 s when the link resumes')
+    expect(marsHtml).not.toContain('423/20:59:49')
+  })
+  it('credits the RAD sentence to the arXiv page it was re-checked in, as the radiation page does', () => {
+    const li = /<li data-eva-constraint="rad">([\s\S]*?)<\/li>/.exec(marsHtml)?.[1] ?? ''
+    expect(inline(li)).toContain(
+      'Löwe et al., Space Weather (2025), doi:10.1029/2025SW004372 (opens in a new tab). Sentence from arXiv:2502.02469v1 (opens in a new tab), re-checked word for word at every build; the journal version was not compared. literature',
+    )
+    expect(li).toContain('href="https://arxiv.org/html/2502.02469v1"')
+    expect(li).toContain('href="https://doi.org/10.1029/2025SW004372"')
+    const lit = (SEP.data as SepEventsData).literature!
+    expect(lit.quotes_verified_this_build).toBe(true)
+    expect(MARS.board.constraints.rad).toMatchObject({ author: 'Löwe', journal: 'Space Weather', year: '2025', arxivId: lit.arxiv_id, arxivUrl: lit.arxiv_html })
+  })
+  it('shows no RAD sentence unless this build re-found it (quotes_verified_this_build) and can link the page', () => {
+    const lit = (SEP.data as SepEventsData).literature!
+    const radWith = (l: SepEventsData['literature']) =>
+      evaBoard({ crewId: 'CM-2', env: environment('mars_surface'), comms: commsAt('mars_surface', NOW), evaluation: null, caseViews: [], observations: [], sources: { ...SOURCES, sep: { literature: l } }, t: NOW }).constraints.rad
+    expect(radWith(lit)).not.toBeNull()
+    expect(radWith({ ...lit, quotes_verified_this_build: false })).toBeNull()
+    expect(radWith({ ...lit, quotes_verified_this_build: undefined })).toBeNull()
+    expect(radWith({ ...lit, arxiv_html: '' })).toBeNull()
+  })
+  it('names each table’s scroll region by its own caption, never by the section heading again', () => {
+    const names = (h: string) => {
+      const ids = new Map([...h.matchAll(/<(?:h3|caption) id="([^"]+)"[^>]*>([\s\S]*?)<\/(?:h3|caption)>/g)].map((m) => [m[1], text(m[2])]))
+      const sections = [...h.matchAll(/<section class="lf-eva-group" aria-labelledby="([^"]+)"/g)].map((m) => ids.get(m[1]))
+      const regions = [...h.matchAll(/<div class="lf-eva-table-wrap" tabindex="0" role="region" aria-labelledby="([^"]+)"/g)].map((m) => ids.get(m[1]))
+      return { sections, regions }
+    }
+    for (const h of [marsHtml, issHtml]) {
+      const { sections, regions } = names(h)
+      expect(regions).toHaveLength(3)
+      expect(regions.every((n) => typeof n === 'string' && n.length > 0)).toBe(true)
+      const all = [...sections, ...regions]
+      expect(new Set(all).size).toBe(all.length)
+      expect(regions[0]).toBe('recent medical evaluations: what LANDFALL holds for CM-2, dated against the earliest review')
+    }
+  })
   it('at the ISS reads "Ground reachable within the round trip" with computeComms’ round trip', () => {
     const t = text(issHtml)
     const rt = commsAt('iss', NOW).round_trip_s!
@@ -398,7 +448,7 @@ describe('the page', () => {
   })
   it('prints the postpone wait as the Now page’s “Earliest reply”: days behind the Sun, the round trip while the link is up, never “0 min”', () => {
     const postpone = (h: string) => inline(/<li data-eva-option="postpone">([\s\S]*?)<\/li>/.exec(h)?.[1] ?? '')
-    expect(postpone(marsHtml)).toContain('The earliest is MET 423/20:59:49, 11 d 06 h from now (light time only, before any review time).')
+    expect(postpone(marsHtml)).toContain('The earliest is MET 423/20:59:50, 11 d 06 h from now (light time only, before any review time).')
     expect(postpone(issHtml)).toContain('The earliest is MET 412/14:20:02, ≤2.00 s from now (light time only, before any review time).')
     // the ground line's round trip and the hero's "Earliest reply" (formatEarliestReply) print the same
     expect(formatEarliestReply(commsAt('iss', NOW))).toBe('≤2.00 s')

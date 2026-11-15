@@ -40,9 +40,14 @@ export interface SepEventsData {
     title?: string
     authors?: string[]
     journal?: { journal?: string; published?: string }
+    doi?: string
     doi_url?: string
+    arxiv_id?: string
+    arxiv_html?: string
     arxiv_abs?: string
     quotes?: Array<{ id: string; text: string }>
+    /** Every quote re-found word for word in the cached arXiv page at this build (the journal page was not compared). */
+    quotes_verified_this_build?: boolean
   }
 }
 
@@ -383,11 +388,24 @@ export interface ShelterConstraint {
   href: string
 }
 
+/**
+ * The RAD team's 30-minute sentence and where it was checked: in the arXiv preprint (arXiv:2502.02469v1), re-found
+ * word for word in the cached page at every build; the journal version was not compared (the radiation page's
+ * DesignRefCheck footer says the same of the same snapshot).
+ */
 export interface RadConstraint {
   text: string
-  /** "Löwe et al., Space Weather 2025" from the snapshot's own record. */
-  cite: string | null
-  url: string | null
+  /** "Löwe" (the snapshot's first author, family name). */
+  author: string
+  /** "Space Weather". */
+  journal: string
+  /** "2025" (journal.published). */
+  year: string
+  doi: string
+  doiUrl: string
+  /** The preprint the sentence was re-found in. */
+  arxivId: string
+  arxivUrl: string
 }
 
 export interface EvaConstraints {
@@ -426,7 +444,7 @@ export interface EvaBoard {
   losT: number | null
   /** MET the link resumes, when the ground is unreachable. */
   resumeT: number | null
-  /** t + comms.earliest_reply_s: light time only, before any review time. */
+  /** t + comms.earliest_reply_s, to the nearest whole second: light time only, before any review time. */
   earliestReviewT: number | null
   earliestReviewLabel: string
   /** Round trip now (s), from computeComms. */
@@ -495,17 +513,26 @@ function shelterConstraint(caseViews: readonly CaseView[], crewId: CrewId, t: nu
   }
 }
 
+/** The RAD sentence, only when this build re-found it in the arXiv page (quotes_verified_this_build) and can say where. */
 function radConstraint(sep: SepEventsData | null, envId: string): RadConstraint | null {
   if (envId !== RAD_ENV) return null
   const lit = sep?.literature
-  const text = lit?.quotes?.find((q) => q.id === RAD_QUOTE_ID)?.text
-  if (typeof text !== 'string') return null
-  const first = lit?.authors?.[0]
-  const family = first ? (first.split(' ').slice(-1)[0] ?? first) : null
-  const year = lit?.journal?.published?.slice(0, 4) ?? null
-  const journal = lit?.journal?.journal ?? null
-  const cite = family ? `${family} et al.${journal ? `, ${journal}` : ''}${year ? ` ${year}` : ''}` : null
-  return { text, cite, url: lit?.doi_url ?? lit?.arxiv_abs ?? null }
+  if (!lit || lit.quotes_verified_this_build !== true) return null
+  const text = lit.quotes?.find((q) => q.id === RAD_QUOTE_ID)?.text
+  const first = lit.authors?.[0]
+  const journal = lit.journal?.journal
+  const year = lit.journal?.published?.slice(0, 4)
+  if (typeof text !== 'string' || !first || !journal || !year || !lit.doi || !lit.doi_url || !lit.arxiv_id || !lit.arxiv_html) return null
+  return {
+    text,
+    author: first.split(' ').slice(-1)[0] ?? first,
+    journal,
+    year,
+    doi: lit.doi,
+    doiUrl: lit.doi_url,
+    arxivId: lit.arxiv_id,
+    arxivUrl: lit.arxiv_html,
+  }
 }
 
 /** The board. Pure: the same inputs always give the same board. */
@@ -515,7 +542,10 @@ export function evaBoard(input: EvaBoardInput): EvaBoard {
   const unreachable = ground === 'unreachable'
   const losT = unreachable ? (comms.window?.start ?? null) : null
   const resumeT = unreachable ? comms.resumes_at : null
-  const earliestReviewT = comms.earliest_reply_s === null ? null : t + comms.earliest_reply_s
+  // One rounding rule for the page: the nearest whole second, as formatLightTime prints the round trip. So "link
+  // resumes" plus the round trip printed beside it is the printed earliest review to the second (MetTime truncates:
+  // 423/20:20:00 + 39 min 49.906 s would otherwise print as 423/20:59:49 beside a "39 min 50 s" round trip).
+  const earliestReviewT = comms.earliest_reply_s === null ? null : Math.round(t + comms.earliest_reply_s)
   const clock: Clock = { t, losT, earliestReviewT }
   const requirement = quoted(sources.vol1, REQ_ID)
   const rationale = requirement?.rationale ?? ''

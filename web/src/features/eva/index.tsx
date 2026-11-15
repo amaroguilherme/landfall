@@ -20,7 +20,7 @@ import type { Environment } from '../../app/scenario'
 import { observationsFor, seriesKey } from '../../app/scenarioData'
 import { CREW, crewMember, isCrewId } from '../../app/vocab'
 import type { CrewId } from '../../app/vocab'
-import { Chip, Citation, EmptyState, FindingBadge, FreshnessChip, MetTime, Num, Panel, ReqId, SeverityBadge, SimulatedMarker, UnknownIcon } from '../../ui'
+import { Chip, EmptyState, FindingBadge, FreshnessChip, MetTime, Num, Panel, ReqId, SeverityBadge, SimulatedMarker, UnknownIcon } from '../../ui'
 import './eva.css'
 import { EARLIEST_REVIEW_LABEL, NEVER_CLEARS, REQ_ID, chipFor, evaBoard } from './model'
 import type { EvaBoard, EvidenceGroup, EvidenceRow, EvaSources, ProgramOption, QuotedRequirement, SScaleData, SepEventsData, StdData } from './model'
@@ -116,6 +116,9 @@ function EvidenceTable({ group, board, index }: { group: EvidenceGroup; board: E
   const showSide = board.losT !== null
   const showReview = board.ground !== 'reachable'
   const headId = `eva-g-${group.id}`
+  // The scrollable wrapper is named by its table's caption, so its region is not a second "1 “recent medical
+  // evaluations”" beside the section's.
+  const capId = `${headId}-cap`
   return (
     <section className="lf-eva-group" aria-labelledby={headId} data-eva-group={group.id}>
       <h3 id={headId} className="lf-eva-group-h">
@@ -127,9 +130,9 @@ function EvidenceTable({ group, board, index }: { group: EvidenceGroup; board: E
         ) : null}
       </h3>
       <p className="lf-eva-holds">{HOLDS[group.id]}</p>
-      <div className="lf-eva-table-wrap" tabIndex={0} role="region" aria-labelledby={headId}>
+      <div className="lf-eva-table-wrap" tabIndex={0} role="region" aria-labelledby={capId}>
         <table className="lf-eva-table">
-          <caption className="sr-only">
+          <caption id={capId} className="sr-only">
             {group.phrase}: what LANDFALL holds for {board.crewId}, dated against the earliest review
           </caption>
           <thead>
@@ -349,9 +352,20 @@ function Constraints({ board }: { board: EvaBoard }) {
       {rad ? (
         <li data-eva-constraint="rad">
           <p data-eva-rad="">
-            <strong>The RAD team’s figure for its own nowcast at Gale</strong>, verbatim: <Quote text={rad.text} />{' '}
-            {rad.cite ? <Citation source={{ kind: 'literature', citation: rad.cite, url: rad.url ?? undefined }} /> : null}{' '}
-            <Chip kind={LIT} />
+            <strong>The RAD team’s figure for its own nowcast at Gale</strong>, verbatim: <Quote text={rad.text} />
+          </p>
+          <p className="lf-eva-fine" data-eva-rad-source="">
+            {rad.author} et al., {rad.journal} ({rad.year}),{' '}
+            <a href={rad.doiUrl} target="_blank" rel="noopener noreferrer">
+              doi:{rad.doi}
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+            . Sentence from{' '}
+            <a href={rad.arxivUrl} target="_blank" rel="noopener noreferrer">
+              arXiv:{rad.arxivId}
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+            , re-checked word for word at every build; the journal version was not compared. <Chip kind={LIT} />
           </p>
         </li>
       ) : null}

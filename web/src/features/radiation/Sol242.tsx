@@ -95,7 +95,7 @@ function HetChart({ data, daysOnly, onPlotWidth }: { data: Sol242Data; daysOnly:
   const xFormat = useMemo(() => (v: number) => axisTick(data, v, daysOnly), [data, daysOnly])
   const aria =
     `STEREO-B HET proton flux, hourly means of the 80 and 50 MeV bins, ${dayHmUtc(data.axis.start)} to ${dayHmUtc(data.axis.stop)}, log scale in ${FLUX_UNIT}: ` +
-    peaks.map((p) => `${p.mev} MeV peaks at ${sci3(p.mean)} in the hour from ${hourUtc(p.hour)} UTC on ${dayMonth(p.hour)}, ${formatNumber(p.multiple)} times its ${quietText(data)} median of ${sci3(p.quiet)}`).join('; ') +
+    peaks.map((p) => `${p.mev} MeV peaks at ${sci3(p.mean)} in the hour from ${hourUtc(p.hour)} UTC on ${dayMonth(p.hour)}, about ${formatNumber(p.multipleShown)} times its ${quietText(data)} median of ${sci3(p.quiet)}`).join('; ') +
     '.'
   return (
     <TimeChart
@@ -259,7 +259,7 @@ export function Sol242View({ data, snap, status, list, heroWindowStartUtc }: Sol
             <span key={p.mev}>
               {i ? ' ' : ''}
               {p.mev} MeV peaks at <Mono>{sci3(p.mean)}</Mono> (hour from {hourUtc(p.hour)} UTC, {dayMonth(p.hour)}),{' '}
-              <Num value={p.multiple} unit="×" /> its {quietText(data)} median of <Mono>{sci3(p.quiet)}</Mono>.
+              ≈<Num value={p.multipleShown} unit="×" /> its {quietText(data)} median of <Mono>{sci3(p.quiet)}</Mono>.
             </span>
           ))}{' '}
           <Chip kind={DERIVED} /> <Chip kind={DESIGN} />

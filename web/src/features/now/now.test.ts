@@ -1,14 +1,17 @@
 // Now (hero) helpers, on the REAL rules (engine/rules) and the REAL frozen snapshots (public/data).
 // None of these depends on Tier B, so they hold while the personal statistic changes.
 import { describe, expect, it } from 'vitest'
+import { computeComms, formatCommsLightTime, formatEarliestReply } from '../../app/comms'
 import { RULES, getCase, getRule, sLevel, thresholdRules } from '../../app/engine'
 import type { CaseView } from '../../app/caseTimeline'
 import { computeCases } from '../../app/caseTimeline'
 import type { Snapshot } from '../../app/data'
 import { chanceRateOf, evaluateOps } from '../../app/evaluate'
 import type { AlertItem } from '../../app/mission'
+import { environment } from '../../app/scenario'
 import { buildScenarioIndex, observationsFor } from '../../app/scenarioData'
 import type { SimCrewData, SpeReplayData } from '../../app/scenarioData'
+import { linkUpRoundTrip } from './DualCounter'
 import {
   SEQUENCE,
   SPE_CASE_ID,
@@ -33,7 +36,7 @@ import {
   logRange,
 } from './model'
 
-const snaps = import.meta.glob<Snapshot>('../../../public/data/{sim_crew,swpc_spe_replay,std_vol2_requirements}.json', {
+const snaps = import.meta.glob<Snapshot>('../../../public/data/{sim_crew,swpc_spe_replay,std_vol2_requirements,horizons_mars_comms}.json', {
   eager: true,
   import: 'default',
 })
@@ -239,6 +242,35 @@ describe('cases', () => {
   it('shows exactly one primary countermeasure, from cases.json', () => {
     const def = getCase(RULES, SPE_CASE_ID)
     expect(primaryOf(def)?.id).toBe(def.countermeasure?.primary.id)
+  })
+})
+
+describe('the round trip the earliest reply adds at link-up (hero; #/eva prints the same)', () => {
+  const MARS = environment('mars_surface')
+  const ephem = { status: 'ready' as const, snapshot: snap('horizons_mars_comms')! }
+  const sim = { status: 'ready' as const, snapshot: SIM }
+  const now = computeComms(MARS, NOW, ephem, sim)
+  // the hero reads it through useComms(env, resumes_at), which computes at the whole minute: resumes_at is one
+  const atLinkUp = computeComms(MARS, Math.floor(now.resumes_at! / 60) * 60, ephem, sim)
+  it('is the round trip at resumes_at, the one commsEta adds to the earliest reply, not the round trip now', () => {
+    expect(now.blocked).toBe(true)
+    expect(now.resumes_at! % 60).toBe(0)
+    expect(atLinkUp.blocked).toBe(false)
+    expect(atLinkUp.round_trip_s!).toBeCloseTo(now.earliest_reply_s! - (now.resumes_at! - NOW), 6)
+    expect(formatEarliestReply(now)).toBe('11 d 06 h')
+    expect(linkUpRoundTrip(now, atLinkUp)).toBe('39 min 50 s')
+    // the round trip now: the big counter's figure, no longer printed as the one added at link-up
+    expect(formatCommsLightTime(now, true)).toBe('39 min 41 s')
+  })
+  it('is not printed while the link is up', () => {
+    const iss = computeComms(environment('iss'), NOW, null)
+    expect(iss.blocked).toBe(false)
+    expect(linkUpRoundTrip(iss, iss)).toBeNull()
+  })
+  it('the hero line prints it, never the round trip now', () => {
+    const src = sources['./DualCounter.tsx']!.replace(/\s+/g, ' ')
+    expect(src).toContain('(the <span className="lf-num">{linkUpRt}</span> round trip added at link-up)')
+    expect(src).not.toMatch(/formatCommsLightTime\(comms, true\)\}<\/span> round trip added at link-up/)
   })
 })
 

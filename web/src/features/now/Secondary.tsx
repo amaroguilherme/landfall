@@ -1,5 +1,6 @@
 // Section 3 of the hero: the other open cases (renal in WATCH with its tripwire countdown, sleep
-// ACTING; an instance opened by a single Tier B flag carries the engine's "Possibly chance: about 1 in N
+// ACTING, and under it the alert bar's own "Reassessment overdue since MET ..." when the case is past its
+// reassessment interval; an instance opened by a single Tier B flag carries the engine's "Possibly chance: about 1 in N
 // days ..." note (CaseView.chance, SPEC 7), and an opening the simulator did not script is also labelled
 // as a chance flag, from sim_crew's own self_check), a 4-crew status strip (worst annunciated severity per crewmember, icon + text) and the
 // environment. Everything is read from useCases / useEvaluation / useComms output.
@@ -9,6 +10,7 @@ import type { CommsStatus } from '../../app/comms'
 import { formatCountdown, windowModelNote } from '../../app/comms'
 import { useMetMinute, useMission } from '../../app/mission'
 import { packetState } from '../../app/packet'
+import { overdueOf } from '../../app/procedureAlerts'
 import type { Environment } from '../../app/scenario'
 import { crewMember } from '../../app/vocab'
 import { EmptyState, FreshnessChip, MetTime, SeverityBadge, SeverityIcon, SimulatedMarker } from '../../ui'
@@ -67,6 +69,25 @@ function caseLine(v: CaseView) {
   return <>Opened {s.opened_at !== null ? <MetTime t={s.opened_at} label /> : null}; no action logged yet</>
 }
 
+/**
+ * A detected or acting case past its own reassessment interval: the alert bar's "Reassessment overdue since MET ..."
+ * line, by the same rule (app/procedureAlerts overdueOf, a design choice), so the row and the bar never disagree.
+ */
+function OverdueLine({ v }: { v: CaseView }) {
+  const t = useMetMinute()
+  const o = overdueOf(v, t)
+  if (!o) return null
+  return (
+    <p className="now-open-line" data-overdue="">
+      <SeverityBadge severity="caution" label="Reassessment overdue" size="sm" />{' '}
+      {/* "since MET ..." stays one unit: on a phone it wraps under the badge whole, never as a lone "since" */}
+      <span style={{ whiteSpace: 'nowrap' }}>
+        since <MetTime t={o.since} label />
+      </span>
+    </p>
+  )
+}
+
 /** The simulator's own note on an opening it did not script (a chance flag of the simulator's noise), or null. */
 function unscriptedNote(v: CaseView, list: readonly UnscriptedOpening[]) {
   const u = list.find((x) => x.crew_id === v.crewId && x.case_id === v.caseId)
@@ -119,6 +140,7 @@ export function OtherCases({
                 <CaseStatusTag status={v.state.status} />
               </div>
               <p className="now-open-line">{caseLine(v)}</p>
+              <OverdueLine v={v} />
               {v.chance ? (
                 // SPEC 7 / S4: the engine's own label for an instance opened by a single Tier B flag (N from chanceRate)
                 <p className="now-open-chance now-open-possibly">

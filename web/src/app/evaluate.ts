@@ -520,7 +520,9 @@ function actionOf(x: { action?: unknown }): { label: string; text: string } | nu
  *     VO2max floors read "EVA fitness floor not met"), with the rule label and status as `detail`;
  *   - grouping (D16): entries whose rule or indicator triggers the same case, for the same crewmember, share
  *     `group` = `${crew_id}:case:${case_id}`; the mission bar counts and acknowledges groups. Any other
- *     entry is its own group.
+ *     entry is its own group;
+ *   - links: a crewmember's entry opens that crewmember (`#/case/<id>?crew=CM-2`, `#/body?crew=CM-2`), as the
+ *     return-to-procedure entries do (procedureAlerts.ts); a crew-wide entry (`ALL`) links the case with no ?crew=.
  */
 /** ">=" and "<=" as the mathematical signs, for crew-facing text (the engine's own audit text keeps ASCII). */
 export const prettyOps = (s: string): string => s.replace(/>=/g, '≥').replace(/<=/g, '≤')
@@ -536,6 +538,9 @@ export function alertsFor(e: Pick<MissionEvaluation, 't' | 'ops' | 'crew'>): Ale
     const caseId = opens?.id ?? related ?? null
     // An OPS rule's label already names the level it reached ("... at the NOAA S3 level"): no status word.
     const ops = f.category === 'OPS' && f.status === 'outside'
+    // Without ?crew= the case page opens the mission bar's crewmember or the first open case (cases/model.ts
+    // pickCrew), and the body map the mission bar's crewmember: CM-2's line must open CM-2.
+    const who = crew === 'ALL' ? '' : `?crew=${crew}`
     out.push({
       id,
       severity: f.severity as Severity,
@@ -544,7 +549,7 @@ export function alertsFor(e: Pick<MissionEvaluation, 't' | 'ops' | 'crew'>): Ale
       action_text: action?.text,
       crew_id: crew,
       category: f.category,
-      href: caseId ? `#/case/${caseId}` : '#/body',
+      href: caseId ? `#/case/${caseId}${who}` : `#/body${who}`,
       t: f.t ?? e.t,
       case_id: opens?.id ?? null,
       group: opens ? `${crew}:case:${opens.id}` : id,

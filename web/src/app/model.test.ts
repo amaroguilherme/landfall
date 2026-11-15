@@ -168,7 +168,7 @@ describe('evaluation', () => {
       const action = getRule(RULES, 'ffd_vo2max_surface_eva').action as { label: string; text: string }
       expect(a.title).toBe(action.label)
       expect(a.action_text).toBe(action.text)
-      expect(a.href).toBe('#/body')
+      expect(a.href).toBe('#/body?crew=CM-2') // CM-2's line opens CM-2's body map, not the mission bar's crewmember
       expect(a.case_id).toBeNull()
     }
   })

@@ -229,6 +229,33 @@ html { scroll-padding-top: calc(var(--lf-missionbar-offset, var(--lf-missionbar-
 .lf-nav a:hover { color: var(--lf-text); border-bottom-color: var(--lf-border); }
 .lf-nav a[aria-current='page'] { color: var(--lf-text); font-weight: 600; border-bottom-color: var(--lf-text); }
 
+/* A strip wider than its box (a phone; Nav.tsx sets data-overflow, and data-at-end at its right end): its trailing
+   edge fades, so a cut tab reads as "more this way", and the "More ›" button follows it as a flex sibling, never
+   over a tab. The button stretches to the tabs' own height, so the nav keeps its height; one fixed width for both
+   labels ("More ›", "‹ Start"), so swapping them never re-flows the strip. Where the strip fits, none of this applies. */
+.lf-nav[data-overflow] { display: flex; align-items: stretch; }
+.lf-nav[data-overflow] ul { flex: 1 1 auto; min-width: 0; margin: 0; }
+.lf-nav[data-overflow]:not([data-at-end]) ul {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+}
+/* A keyboard user's focused tab, and its focus ring, are never under the fade (where :has() is unknown, the fade stays). */
+.lf-nav[data-overflow]:not([data-at-end]) ul:has(:focus-visible) { -webkit-mask-image: none; mask-image: none; }
+.lf-nav-more {
+  flex: none;
+  width: 5.5rem;
+  padding: 0 8px;
+  border: 0;
+  border-left: 1px solid var(--lf-border-subtle);
+  background: var(--lf-bg);
+  color: var(--lf-text);
+  font: 600 var(--lf-text-sm)/1 var(--lf-font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.lf-nav-more:hover { background: var(--lf-surface-1); }
+.lf-nav-more:focus-visible { outline-offset: -4px; } /* the global ring, drawn inside: the button sits flush with the screen edge */
+
 /* ---- mode strip: sim mode visually distinct (F.4.2 j); hatched, never an alert colour ---- */
 .lf-modestrip {
   display: flex;

@@ -216,10 +216,17 @@ export function PartialRecordBadge() {
   )
 }
 
+/**
+ * The renal TARGET in the words of its source, the HRP evidence report: "the risk for renal stone development increases
+ * when urinary volume drops below 1.5 liters/day; therefore, an effective hydration countermeasure should be sufficient
+ * to produce 2.5-3 liters/day". The rule's limit is that floor (outside: below it, a Caution) and its approach_at the
+ * countermeasure target (approaching: at or above the floor but short of the target, an Advisory). The same words show
+ * wherever a TARGET finding does (the case page, the body map, Trends).
+ */
 const TARGET_LABEL: Partial<Record<Status, string>> = {
   within: 'Meets target',
-  approaching: 'Approaching target',
-  outside: 'Outside target',
+  approaching: 'Below target',
+  outside: 'Below case floor',
 }
 
 export { STATUS_LABEL, SEVERITY_LABEL }

@@ -425,7 +425,14 @@ function QueueCard({
           {view && view.state.status !== 'idle' ? (
             <>
               {' '}
-              · case {STATUS_TEXT[view.state.status]} since <MetTime t={view.state.opened_at ?? t} label />
+              · case {STATUS_TEXT[view.state.status]} · opened <MetTime t={view.state.opened_at ?? t} label />
+              {/* the opening and the escalation are two moments: "escalated since <opened>" named the wrong one */}
+              {view.state.status === 'escalated' && view.state.escalation ? (
+                <>
+                  {' '}
+                  · escalated <MetTime t={view.state.escalation.t} label />
+                </>
+              ) : null}
             </>
           ) : null}
         </p>

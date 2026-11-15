@@ -137,8 +137,9 @@ OpsFeed           = { kind: 'onboard_monitor' /* Mars: noaa_scale_available fals
 `<MissionEngine/>` (mounted once in `App.tsx`) publishes `evaluation.alerts` under source `'mission'`. **Features do not need to
 publish findings.** Policy (`alertsFor` in `evaluate.ts`): one entry per crewmember x rule / indicator at advisory or above;
 never context rules, private indicators (mood) or data-quality states; OPS is one crew-wide entry for the highest S rule
-outside. Ids are `${crew_id}:${rule_id}` (`ALL:ops_onboard_proton_s3`), href `#/case/<case_id>` or `#/body`. If you publish your
-own list, reuse these ids so entries merge.
+outside. Ids are `${crew_id}:${rule_id}` (`ALL:ops_onboard_proton_s3`), href `#/case/<case_id>` or `#/body`; a crewmember's
+line carries `?crew=CM-n` (`#/case/renal_stone?crew=CM-2`, `#/body?crew=CM-2`) so it opens that crewmember, and the crew-wide
+OPS line has no `?crew=`. If you publish your own list, reuse these ids so entries merge.
 
 - **Plain-language titles (D7, D11):** a finding without a deep case shows its rules `action.label` as `title` ("EVA fitness floor
   not met"), the rule label and status as `detail`, and `action_text` (its one-line action). No rule id appears in a title.

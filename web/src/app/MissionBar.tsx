@@ -9,7 +9,7 @@ import type { CommsStatus } from './comms'
 import { formatUtc } from './data'
 import { ENVIRONMENTS, ENVIRONMENTS_SOURCE, MET_NOW_S } from './scenario'
 import { formatMet } from './engine'
-import { useMetClock, useMission } from './mission'
+import { useCaseClock, useMetClock, useMission } from './mission'
 import { Annunciator } from './Annunciator'
 import { useOfflineReady } from './offline'
 import { useDismissableDetails } from './useDismissableDetails'
@@ -146,7 +146,8 @@ function commsSourceNote(c: CommsStatus): string {
 }
 
 function CommsStatusCell() {
-  const { metNow } = useMetClock()
+  // "Link resumes ... (in ...)" counts from the case clock, like every packet and tier string (useCaseClock)
+  const caseT = useCaseClock()
   const c = useComms()
   const ref = useRef<HTMLDetailsElement>(null)
   useDismissableDetails(ref)
@@ -210,7 +211,7 @@ function CommsStatusCell() {
               <dt>Link resumes</dt>
               <dd>
                 <MetTime t={c.resumes_at ?? c.window.stop} label /> (in{' '}
-                <span className="lf-num">{formatCountdown((c.resumes_at ?? c.window.stop) - metNow)}</span>)
+                <span className="lf-num">{formatCountdown((c.resumes_at ?? c.window.stop) - caseT)}</span>)
               </dd>
             </>
           ) : null}

@@ -116,6 +116,16 @@ export function useMetClock(): ClockSnapshot & {
   return { ...snap, pause: metClock.pause, resume: metClock.resume, set: metClock.set, reset: metClock.reset }
 }
 
+/**
+ * The case clock, `useCases().t` (app/model.tsx): the clock minute, or the latest user case event up to the clock when
+ * that is later, so a crew action is applied at once, not at the next minute. Pure.
+ */
+export function caseClockOf(minute: number, events: readonly CaseEventRecord[], now: number): number {
+  let t = minute
+  for (const e of events) if (e.event.t > t && e.event.t <= now) t = e.event.t
+  return t
+}
+
 // =============================================================================================
 // Mission state
 // =============================================================================================
@@ -199,7 +209,26 @@ export interface AlertItem {
   group?: string
   /** Title of the group (the case title) when the group gathers a case's findings. */
   group_title?: string
+  /**
+   * 'finding' (absent = a finding: the engine's evaluation, evaluate.ts alertsFor) or 'procedure': a
+   * return-to-procedure entry (procedureAlerts.ts: a reassessment overdue, a new escalation) in its case's group.
+   * While a procedure entry is unacknowledged, its line reads "<group_title> · <its title>".
+   */
+  kind?: 'finding' | 'procedure'
+  /**
+   * The ids this entry stands for, when it is not its own (a crew-wide procedure entry stands for each
+   * crewmember's): it counts as acknowledged when every one of them is, and acknowledging it records each one.
+   * Absent = [id].
+   */
+  ack_ids?: string[]
 }
+
+/** The ids an acknowledgement of this entry records (its ack_ids, else its own id). */
+export const ackIdsOf = (a: Pick<AlertItem, 'id' | 'ack_ids'>): string[] => (a.ack_ids && a.ack_ids.length ? a.ack_ids : [a.id])
+
+/** True when every id the entry stands for has been acknowledged. */
+export const isAcknowledged = (a: Pick<AlertItem, 'id' | 'ack_ids'>, acknowledged: Record<string, number>): boolean =>
+  ackIdsOf(a).every((id) => id in acknowledged)
 
 export interface MissionState {
   envId: EnvId
@@ -343,7 +372,10 @@ export interface AlertGroup {
   id: string
   /** The most severe member's severity. */
   severity: Severity
-  /** The case title for a case group, else the single member's title. */
+  /**
+   * The case title for a case group, else the single member's title. A line with an unacknowledged procedure
+   * entry (or only procedure entries) reads "<group_title> · <that entry's title>".
+   */
   title: string
   crew_id?: CrewId | 'ALL'
   case_id: string | null
@@ -356,7 +388,10 @@ export interface AlertGroup {
 
 /**
  * Alerts grouped for the annunciator (D16), most severe first: members that share `group` form one line
- * (a case's findings for one crewmember); every other alert is its own line.
+ * (a case's findings for one crewmember); every other alert is its own line. A procedure entry (kind
+ * 'procedure') joins its case's line without changing its severity class: the counts stay, the line is new
+ * again until it is acknowledged, and its title names the entry ("Sleep and circadian drift · Reassessment
+ * overdue since MET 407/08:07:30").
  */
 export function selectAlertGroups(s: MissionState): AlertGroup[] {
   const alerts = selectAlerts(s)
@@ -371,15 +406,20 @@ export function selectAlertGroups(s: MissionState): AlertGroup[] {
   for (const [id, members] of byKey) {
     const top = members[0] // selectAlerts sorts most severe first
     const many = members.length > 1
+    const base = many ? (top.group_title ?? top.title) : top.title
+    // the most severe unacknowledged procedure entry names the line; a line of procedure entries only always does
+    const procedure =
+      members.find((a) => a.kind === 'procedure' && !isAcknowledged(a, s.acknowledged)) ??
+      (members.every((a) => a.kind === 'procedure') ? top : undefined)
     groups.push({
       id,
       severity: top.severity,
-      title: many ? (top.group_title ?? top.title) : top.title,
+      title: procedure ? (procedure.group_title ? `${procedure.group_title} · ${procedure.title}` : procedure.title) : base,
       crew_id: top.crew_id,
       case_id: top.case_id ?? null,
       href: top.href,
       alerts: members,
-      acknowledged: members.every((a) => a.id in s.acknowledged),
+      acknowledged: members.every((a) => isAcknowledged(a, s.acknowledged)),
     })
   }
   return groups.sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity] || a.title.localeCompare(b.title))
@@ -495,4 +535,16 @@ export function useMission(): MissionContextValue {
   const ctx = useContext(MissionContext)
   if (!ctx) throw new Error('useMission() must be used inside <MissionProvider>')
   return ctx
+}
+
+/**
+ * `useCases().t` without running the case fold: the MET every packet, tier and delivery string counts from (packet.ts
+ * on the hero, the case views, Downlink). The "link resumes in ..." words of the hero and the mission bar read it
+ * too, so every such phrase prints one value at every instant, also in the minute after a crew action, when the case
+ * clock carries that action's seconds. The live hh:mm:ss digits stay on the second clock.
+ */
+export function useCaseClock(): number {
+  const { state } = useMission()
+  const minute = useMetMinute()
+  return caseClockOf(minute, state.caseEvents, metClock.get().metNow)
 }

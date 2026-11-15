@@ -5,6 +5,7 @@ import { freshnessOf, parseIsoDuration } from './data'
 import type { SnapshotMeta } from './data'
 import { MET_NOW_S, ENVIRONMENTS, environment } from './scenario'
 import {
+  caseClockOf,
   initialMissionState,
   isShared,
   missionReducer,
@@ -14,6 +15,9 @@ import {
 } from './mission'
 import { computeComms, formatCommsLightTime, formatCountdown, formatLightTime } from './comms'
 import type { Snapshot } from './data'
+import type { CaseEventRecord } from './caseTimeline'
+import { escalationTiers, packetDelivery, packetStateLabel } from './packet'
+import type { PacketState } from './packet'
 
 describe('formatMet (SPEC 5; Vol 2 Appendix F F.6.1 f: no leading zeros in the day field)', () => {
   it('formats the scenario now', () => {
@@ -233,6 +237,46 @@ describe('comms from the real frozen snapshots (when present in the build)', () 
     expect(c.one_way_s).toBeLessThan(1260)
     expect(formatCountdown(c.window!.stop - MET_NOW_S)).toBe('11 d 06 h')
     expect(c.resumes_at).toBe(c.window!.stop)
+  })
+  it.skipIf(!ephem || !sim)('one link-resume clock: the words count from the case clock, like the tier-2 and packet strings, also after a crew action', () => {
+    const c = computeComms(environment('mars_surface'), MET_NOW_S, { status: 'ready', snapshot: ephem! }, { status: 'ready', snapshot: sim! })
+    const at = c.resumes_at!
+    const words = (t: number) => formatCountdown(at - t) // DualCounter ResumeWords and the mission bar, at the case clock
+    const queued: PacketState = { id: 'queued', label: packetStateLabel('queued'), when: null, queuedAt: MET_NOW_S, reason: 'released' }
+    const agree = (t: number) => {
+      expect(escalationTiers(c, t)[1].when).toContain(`queued until the link resumes in ${words(t)}`)
+      expect(packetDelivery(queued, c, t)).toBe(`Sent when the link resumes, in ${words(t)}`)
+    }
+    // the live second clock alone printed the other value during the minute (the R3 #5 disagreement)
+    expect(formatCountdown(at - (MET_NOW_S + 8))).toBe('11 d 05 h')
+    // no crew action: the case clock is the minute, so every phrase reads 11 d 06 h for all of MET 412/14:20
+    for (const s of [0, 8, 30, 59]) {
+      const t = caseClockOf(MET_NOW_S, [], MET_NOW_S + s)
+      expect(t).toBe(MET_NOW_S)
+      expect(words(t)).toBe('11 d 06 h')
+      agree(t)
+    }
+    // a crew action at 412/14:20:20: the case views (so tier 2 and the packet line) are folded at it, and so are the
+    // words; flooring the live clock to the minute instead would print 11 d 06 h beside their 11 d 05 h
+    const act: CaseEventRecord[] = [{ key: 'CM-1:spe_shelter', origin: 'user', seq: 0, event: { type: 'SELECT', t: MET_NOW_S + 20, countermeasure_id: 'cm_shelter' } }]
+    const t = caseClockOf(MET_NOW_S, act, MET_NOW_S + 30)
+    expect(t).toBe(MET_NOW_S + 20)
+    expect(words(t)).toBe('11 d 05 h')
+    expect(formatCountdown(at - MET_NOW_S)).toBe('11 d 06 h')
+    agree(t)
+    // from the next minute, the minute again
+    const next = caseClockOf(MET_NOW_S + 60, act, MET_NOW_S + 61)
+    expect(next).toBe(MET_NOW_S + 60)
+    expect(words(next)).toBe('11 d 05 h')
+    agree(next)
+  })
+  it('caseClockOf: the minute, or the latest user event up to the clock when later (never one after the clock)', () => {
+    const ev = (t: number): CaseEventRecord => ({ key: 'CM-1:sleep_circadian', origin: 'user', seq: 0, event: { type: 'OUTCOME', t, text: 'x' } })
+    expect(caseClockOf(600, [], 630)).toBe(600)
+    expect(caseClockOf(600, [ev(590)], 630)).toBe(600)
+    expect(caseClockOf(600, [ev(620), ev(615)], 630)).toBe(620)
+    expect(caseClockOf(600, [ev(640)], 630)).toBe(600)
+    expect(caseClockOf(600, [ev(630)], 630)).toBe(630)
   })
   it('formats static envelopes honestly', () => {
     expect(formatCommsLightTime({ one_way_s: 1.5, range: { min: 0, max: 1.5 } })).toBe('≤1.50 s')

@@ -141,7 +141,7 @@ export function aggregateForRule(rule: Pick<Rule, 'variable' | 'unit' | 'window'
   const none = (basis: string): Aggregate => ({ value: null, unit: rule.unit, t: null, n: 0, basis, unit_mismatch: unitMismatch, ...coverage })
   const newest = usable[0]
   const one = (basis: string): Aggregate =>
-    newest ? { value: newest.value, unit: newest.unit, t: newest.t, n: 1, basis, unit_mismatch: unitMismatch, ...coverage } : none(`no ${rule.variable} value yet`)
+    newest ? { value: newest.value, unit: newest.unit, t: newest.t, n: 1, basis, unit_mismatch: unitMismatch, ...coverage } : none('no value yet')
   const sum = () => sumLR(usable.slice().reverse().map((o) => o.value))
   const partialNote = coverage.partial ? '; a partial record: the dose before the first report is not logged, so this sum is a lower bound' : ''
   switch (kind) {
@@ -151,12 +151,12 @@ export function aggregateForRule(rule: Pick<Rule, 'variable' | 'unit' | 'window'
       return one('latest value, already in % of pre-mission')
     case 'rolling_mean': {
       if (d === null) return none('rolling window without a duration')
-      if (!usable.length) return none(`no ${rule.variable} value in the last ${windowLabel(d)}`)
+      if (!usable.length) return none(`no value in the last ${windowLabel(d)}`)
       return { value: sum() / usable.length, unit: rule.unit, t: newest.t, n: usable.length, basis: `mean of ${usable.length} value(s) available in the last ${windowLabel(d)}`, unit_mismatch: unitMismatch, ...coverage }
     }
     case 'cumulative': {
       if (d === null) return none('cumulative window without a duration')
-      if (!usable.length) return none(`no ${rule.variable} record in the last ${windowLabel(d)}`)
+      if (!usable.length) return none(`no record in the last ${windowLabel(d)}`)
       const own = ownWindowSeconds(rule.variable)
       if (own !== null && own === d) return one(`latest ${windowLabel(d)} total`)
       return {
@@ -171,7 +171,7 @@ export function aggregateForRule(rule: Pick<Rule, 'variable' | 'unit' | 'window'
     }
     case 'career': {
       if (TO_DATE_VARIABLES.has(rule.variable)) return one('latest career-to-date record')
-      if (!usable.length) return none(`no ${rule.variable} record`)
+      if (!usable.length) return none('no record yet')
       return {
         value: sum(),
         unit: rule.unit,
@@ -517,7 +517,7 @@ function actionOf(x: { action?: unknown }): { label: string; text: string } | nu
  *   - OPS: one crew-wide entry for the highest S-level rule that is outside;
  *   - ids `${crew_id}:${rule_id}` (`ALL:<rule_id>` for OPS), so feature publishers merge with these;
  *   - plain-language titles (D7): a finding without a deep case shows its rules `action.label` (D11; the
- *     VO2max floors read "EVA assignment not cleared"), with the rule label and status as `detail`;
+ *     VO2max floors read "EVA fitness floor not met"), with the rule label and status as `detail`;
  *   - grouping (D16): entries whose rule or indicator triggers the same case, for the same crewmember, share
  *     `group` = `${crew_id}:case:${case_id}`; the mission bar counts and acknowledges groups. Any other
  *     entry is its own group.

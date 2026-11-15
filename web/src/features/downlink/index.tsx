@@ -10,19 +10,19 @@
 //     when a link exists (engine commsEta: at Mars during the modelled conjunction window, when the link
 //     resumes). The escalation tiers (D4) say who has the case now and when the ground gets it.
 // Nothing is transmitted: there is no backend, and "Copy packet" only uses the local clipboard.
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { FeatureProps } from '../../app/router'
 import { useMission, selectLogbook } from '../../app/mission'
 import { useCases, useGroundPacket, useScenario } from '../../app/model'
 import type { CaseView } from '../../app/caseTimeline'
-import { CASE_DEFS, CASE_IDS } from '../../app/caseTimeline'
+import { CASE_DEFS, CASE_IDS, tierOneQuotes } from '../../app/caseTimeline'
 import { visibleObservations } from '../../app/scenarioData'
 import { formatUtc, useSnapshot } from '../../app/data'
 import type { Snapshot, SnapshotState } from '../../app/data'
 import { useComms, formatCommsLightTime, formatCountdown, formatEarliestReply, windowModelNote } from '../../app/comms'
 import type { CommsStatus } from '../../app/comms'
-import { consentAllows } from '../../app/engine'
+import { RULES, consentAllows, thresholdRules } from '../../app/engine'
 import type { CaseStatus, FhirBundle } from '../../app/engine'
 import { autonomyText, escalationTiers, packetDelivery, packetState, ESCALATION_BASIS } from '../../app/packet'
 import type { PacketState } from '../../app/packet'
@@ -54,6 +54,7 @@ import {
   sentenceContaining,
   summarizePacket,
   surgeonNoteOf,
+  variableLabel,
 } from './model'
 import type { HoustonRow, KnownRow, PacketSummary, SurgeonNote, Vol2Requirement } from './model'
 import './downlink.css'
@@ -80,6 +81,31 @@ interface Vol2Data {
 
 type QueueState = 'queued' | 'prepared' | 'not_open' | 'no_packet' | 'unavailable'
 
+type LabelMeta = Record<string, { label?: string; cadence?: string; definition?: string } | undefined>
+
+/** Table 4.8-1 organ doses by variable, named by their rules' own Table 4.8-1 row ("Central Nervous System"). */
+const TABLE_481_ROW: ReadonlyMap<string, string> = new Map(
+  thresholdRules(RULES).flatMap((r) => {
+    const src = r.source as { table?: unknown; row?: unknown }
+    return src.table === 'Table 4.8-1' && typeof src.row === 'string' ? [[r.variable, src.row] as const] : []
+  }),
+)
+
+/**
+ * Labels for the packet variables nothing else names: an organ dose a case asks for that the scenario never records
+ * (the shelter case's central nervous system and circulatory system doses) would otherwise read as its bare id. It
+ * takes its Table 4.8-1 row: "Central Nervous System" -> "Central nervous system dose". Named variables keep theirs.
+ */
+function withOrganDoseLabels(meta: LabelMeta, scope: readonly string[]): LabelMeta {
+  let out: LabelMeta | null = null
+  for (const v of scope) {
+    const row = TABLE_481_ROW.get(v)
+    if (!row || variableLabel(v, meta) !== v) continue
+    out = out ?? { ...meta }
+    out[v] = { ...meta[v], label: `${row.charAt(0)}${row.slice(1).toLowerCase()} dose` }
+  }
+  return out ?? meta
+}
 
 // ---------------------------------------------------------------------------------------------
 
@@ -166,7 +192,10 @@ function DownlinkView({
     [index, state.observations, scripted, t, crewId],
   )
   const summary = useMemo(() => (packet.bundle ? summarizePacket(packet.bundle, scope, crewId) : null), [packet.bundle, scope, crewId])
-  const houston = useMemo(() => houstonRows(scope, packet.consent, summary, known, index.variables), [scope, packet.consent, summary, known, index.variables])
+  const houston = useMemo(
+    () => houstonRows(scope, packet.consent, summary, known, withOrganDoseLabels(index.variables, scope)),
+    [scope, packet.consent, summary, known, index.variables],
+  )
 
   const req6164 = findRequirement(vol2.data, 'V2 6164')
   const req10125 = findRequirement(vol2.data, 'V2 10125')
@@ -553,10 +582,9 @@ function EscalationPanel({ view, comms, t }: { view: CaseView | null; comms: Com
   const esc = view?.state.escalation ?? null
   const tiers = escalationTiers(comms, t, view?.tier1 ?? null)
   const autonomy = autonomyText(comms)
+  // the crew's second Crew Medical Officer, on the first one's own cases: the same paragraph as the case page's TierOneBasis
   const backup = view?.tier1.backup ? view.tier1 : null
-  const backupCite = backup?.citations.find((x) => typeof x.requirement_id === 'string' && typeof x.verbatim === 'string') as
-    | { requirement_id: string; verbatim: string }
-    | undefined
+  const quotes = backup ? tierOneQuotes(backup) : null
   const stepNo = esc?.step_id ? (view?.state.spec.step_ids.indexOf(esc.step_id) ?? -1) + 1 : 0
   return (
     <section className="dl-esc lf-panel" aria-labelledby="dl-esc-h" data-escalated={esc ? true : undefined}>
@@ -602,15 +630,27 @@ function EscalationPanel({ view, comms, t }: { view: CaseView | null; comms: Com
             </li>
           ))}
         </ol>
-        {backup ? (
+        {backup && quotes ? (
           <p className="dl-col-note">
-            The Crew Medical Officer is the patient here, so tier 1 is the backup, {backup.name} ({backup.crewId}): a design choice{' '}
-            <Chip kind={backup.chip} />.
-            {backupCite ? (
+            The Crew Medical Officer is the patient here, so tier 1 is {backup.roleText}, {backup.name} ({backup.crewId}).
+            {quotes.secondCmo.length ? (
               <>
                 {' '}
-                NASA-STD-3001 plans for this with a physician crewmember: <ReqId id={backupCite.requirement_id} /> asks for medical equipment usable by
-                non-physician crewmembers “{backupCite.verbatim}”.
+                NASA-STD-3001 requires at least two Crew Medical Officers: <ReqId id={quotes.secondCmo[0].requirementId} />{' '}
+                {quotes.secondCmo.map((q, i) => (
+                  <Fragment key={i}>
+                    {i ? ' and ' : ''}“{q.verbatim}”
+                  </Fragment>
+                ))}
+                .
+              </>
+            ) : null}{' '}
+            Which crewmember holds the second assignment is a design choice <Chip kind={backup.chip} />.
+            {quotes.usability ? (
+              <>
+                {' '}
+                NASA-STD-3001 {quotes.secondCmo.length ? 'also ' : ''}plans for this with a physician crewmember:{' '}
+                <ReqId id={quotes.usability.requirementId} /> asks for medical equipment usable by non-physician crewmembers “{quotes.usability.verbatim}”.
               </>
             ) : null}
           </p>

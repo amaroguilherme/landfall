@@ -54,7 +54,7 @@ shared vectors; see `src/engine/README.md`). The shim is deleted. `ENGINE_IS_SHI
   cautions_per_day, caution_every_n_days, caution_text, assumes, k_indicators, days, alpha, k_either}` (flags count either direction;
   cautions only the worse one, both for the `kEither` indicators whose `worse` is `either`: glucose). `MissionEvaluation.tierBAlertingIndicators` is k.
 - Severity follows NASA-STD-3001 Vol 2 Table 10.3-1 (SPEC section 2, D1): the ONLY Warning is OPS S3 or above (the shelter action);
-  FFD / PEL / POL are Caution at most (the VO2max floors read "EVA assignment not cleared"); TARGET and Tier B Caution at most; S1-S2
+  FFD / PEL / POL are Caution at most (the VO2max floors read "EVA fitness floor not met"); TARGET and Tier B Caution at most; S1-S2
   Advisory. LANDFALL never emits Emergency. `evaluateRule`'s `ctx` (`{eva}`) no longer changes anything.
 - MET prints `d/hh:mm:ss` with no leading zeros in the day field (F.6.1 f, D2): `412/14:20:00`; a day-count duration uses the same
   format (`11/05:59:51`). Never slice the string by position: split on `/`.
@@ -122,11 +122,14 @@ OpsFeed           = { kind: 'onboard_monitor' /* Mars: noaa_scale_available fals
 - `insufficient_data` / `stale` have severity `advisory` but must be drawn **cyan** (meta.json `no_data.colour_note`).
   `<FindingBadge finding/>` already does this.
 - Values at scenario now (Mars): OPS S3 at 1,100 pfu (**warning**, the only one). CM-2 `ffd_vo2max_surface_eva` 35.1 outside
-  (caution, "EVA assignment not cleared"); at ISS / cislunar `ffd_vo2max_microgravity_eva` within. Tier B: what the simulator's own
+  (caution, "EVA fitness floor not met"); at ISS / cislunar `ffd_vo2max_microgravity_eva` within. Tier B: what the simulator's own
   report (`sim_crew` `data.self_check.tier_b`) flags today (at now: CM-1 sleep midpoint shift, caution); tests follow that report,
   never a hand-typed day. Cabin ppCO2 within. Career doses within.
 - OPS feed labels (D3): at Mars the reading is the external space-weather monitor above the atmosphere, in Mars orbit, relayed
-  locally ([V2 6165]); `ops.label` is sim_crew's own label of `proton_flux_10mev`. The vehicle's radiation monitoring system raises
+  locally (continuous relay is a scenario assumption): a monitor of the kind [V2 6165]'s rationale describes, with one ≥10 MeV
+  integral channel, not the spectra [V2 6165] asks for (the shelter case lists them as not measurable here). Shared readings name
+  their source (`sharedReadingSource` in `features/cases/procedure.tsx`: "Mars-orbit monitor, relayed", "NOAA GOES (replay)",
+  "habitat dosimeter (simulated)"). `ops.label` is sim_crew's own label of `proton_flux_10mev`. The vehicle's radiation monitoring system raises
   the alarm ([V2 6164]); LANDFALL opens the health case. (`ops.kind` keeps the value `'onboard_monitor'` for compatibility.)
 
 ### Annunciator (mission bar)
@@ -137,16 +140,35 @@ never context rules, private indicators (mood) or data-quality states; OPS is on
 outside. Ids are `${crew_id}:${rule_id}` (`ALL:ops_onboard_proton_s3`), href `#/case/<case_id>` or `#/body`. If you publish your
 own list, reuse these ids so entries merge.
 
-- **Plain-language titles (D7, D11):** a finding without a deep case shows its rules `action.label` as `title` ("EVA assignment not
-  cleared"), the rule label and status as `detail`, and `action_text` (its one-line action). No rule id appears in a title.
+- **Plain-language titles (D7, D11):** a finding without a deep case shows its rules `action.label` as `title` ("EVA fitness floor
+  not met"), the rule label and status as `detail`, and `action_text` (its one-line action). No rule id appears in a title.
 - **Grouping (D16):** `AlertItem.group` is `${crew_id}:case:${case_id}` for a finding that is a trigger of a case (`TRIGGER_CASE`, from
   cases.json); any other finding is its own group. `selectAlertGroups(state)` gives one line per group (`{id, severity, title, crew_id,
   case_id, alerts[], acknowledged}`); `selectAnnunciator` counts lines, and NEW counts lines with an unacknowledged finding (a new
   finding makes its line new again). The bulk button acknowledges cautions and advisories only: each Warning is acknowledged on its
   own line. `selectAlerts` stays flat (one entry per finding) for the body map.
-- At now on Mars the bar reads **E 0 · W 1 · C 2 · A 1 · 4 NEW** (W = the crew-wide S3 shelter case; C = CM-2 "EVA assignment not
-  cleared" and CM-1's sleep case; A = CM-2's urine output approaching the renal target). E and NEW stay visible on every viewport
-  (F.4.2 f). The assertive live region names a new Warning and is cleared when that Warning goes (e.g. after an environment switch).
+- At now on Mars the bar reads **E 0 · W 1 · C 2 · A 1 · 4 NEW** (W = the crew-wide S3 shelter case; C = CM-2 "EVA fitness floor
+  not met" and CM-1's sleep case, which also carries its overdue reassessment; A = CM-2's urine output approaching the renal
+  target). E and NEW stay visible on every viewport (F.4.2 f). The assertive live region names a new Warning and is cleared when
+  that Warning goes (e.g. after an environment switch).
+- **Return-to-procedure alerts** (`procedureAlerts.ts`, pure; published by `<ProcedureAlerts/>` in `model.tsx` under source
+  `'procedures'`, mounted next to `<MissionEngine/>`): the UI derives them from each case's own state, so the engine and the
+  vectors are untouched (the engine arms a tripwire only at OUTCOME and ignores a TICK outside watch). (a) **Overdue**, a Caution:
+  a case `detected` or `acting` at `t ≥ t_ref + spec.tripwire.reassess_after_s`, with `t_ref` the instance's SELECT (from
+  `state.log`), or its `opened_at` before one (`overdueOf(view, t)`; a design choice, labelled in the queue). At now: "Sleep and
+  circadian drift · Reassessment overdue since MET 407/08:07:30" for CM-1. The case page shows the same rule (`OverdueNote` in
+  `features/cases/status.tsx`, on the status card and the tripwire panel). (b) **Escalated**, at the case's opening severity: the
+  current instance is `escalated` at or after the scenario's now (`escalatedOf`); its title names who tells whom
+  (`tellClause`: "CM-1, CM-2 and CM-3 tell the Crew Medical Officer (CM-4) now; CM-4 tells the Commander (CM-1) now"). Entries
+  join the case's own line (`group` `${crew}:case:${case}`, `group_title` the case title) with `kind: 'procedure'`; a crew-wide
+  case publishes one `ALL:` entry whose `ack_ids` are the crewmembers' own ids (`ackIdsOf`, `isAcknowledged` in `mission.tsx`).
+  While a procedure entry is unacknowledged its line reads `<group_title> · <its title>`, and a line that turns NEW again is
+  announced like a new line (`announce()` in `Annunciator.tsx`: assertive for a Warning, polite for a Caution or Advisory).
+  `isOverdueAlert(a)` tells an overdue entry apart (the queue prints the overdue rule once).
+- **One link clock:** `useCaseClock()` (`mission.tsx`, the pure `caseClockOf(minute, caseEvents, now)`) is `useCases().t` without
+  running the fold: the clock minute, or a later user case event up to the clock. Every "link resumes in ..." phrase (hero,
+  mission bar, packet, tiers, case views, Downlink) counts from it, so they print one value at every instant; the live
+  `hh:mm:ss` digits stay on the second clock.
 
 ### `useCases()`
 
@@ -185,14 +207,16 @@ CaseState (engine) = { status, instance /* 1, 2, ... */, previous_instances[] {i
   414/05:55; instance 2 opens at 415/14:55 after 31 h 45 min below S3). The log runs on across instances. Scripted crew actions carry the
   instance they were written for and are skipped for any other instance or a closed case.
 - **Tier 1 for the patient.** `CaseView.tier1` (`tierOneFor(crewId)` in `caseTimeline.ts`, from meta.json `escalation`): the Crew Medical
-  Officer (CM-4) for CM-1..CM-3; for CM-4's own cases the backup, the Commander (CM-1), with a crew-facing `line` and the backup's basis
-  (`chip`, `source`, `citations`: [V2 7045] verbatim). The engine's escalation log and `state.escalation.tiers` say the same
-  (`backup_medical_officer`). Print `view.tier1` wherever tier 1 is named.
+  Officer (CM-4) for CM-1..CM-3; for CM-4's own cases the backup, the Commander (CM-1), the crew's second Crew Medical Officer
+  (`roleText`, meta.json `role_text`), with a crew-facing `line` and the backup's basis (`chip`, `source`, `citations`: [V1 3006]
+  verbatim, at least two Crew Medical Officers per vehicle so that a backup is available, and [V2 7045] verbatim; `tierOneQuotes(t1)`
+  reads them in any order). The engine's escalation log and `state.escalation.tiers` say the same (`backup_medical_officer`, the
+  engine's id). Print `view.tier1` wherever tier 1 is named.
 - **Possibly chance (SPEC 7).** An instance opened by a Tier B finding that, up to the clock (or its close), has had no caution of its
   triggers on another day or from another indicator is a single flag: `view.chance` holds the engine's `chanceRate(...).text` of the
   opening indicator. Show it near Detect and in lists; the tripwire, judged on the readings after the outcome, resolves the case.
 - Scenario timeline (Mars, now): `CM-3:renal_stone` opened 399/00:00:00 by `target_urine_output_24h`, hydration selected,
-  steps r1 r3, the required red-flag question r4 answered "no" (SPEC 7), r5, outcome 410/08:00 -> **watch**, tripwire armed,
+  the required red-flag question r4 (step 1) answered "no" first (SPEC 7), then r1, r3 and r5, outcome 410/08:00 -> **watch**, tripwire armed,
   `reassess_at` 413/08:00 (resolves later: output recovered). `CM-1:sleep_circadian` opens (instance 1) on the first day of the
   scripted schedule shift, by the sleep midpoint shift (`sim_crew` `data.self_check.case_openings`; the day comes from the data, never a
   hand-typed day), light countermeasure selected, steps s1-s3 -> **acting**; flags on every later day, so it is not a single flag.
@@ -341,13 +365,13 @@ Use one `<h1>` per view (your page title). The mission bar and nav have none.
 
 | Token | Value | Meaning |
 |---|---|---|
-| `--lf-sev-warning` / `--lf-sev-emergency` | `#ff7066` | **Red is reserved** for Warning/Emergency. Nothing else may be red. |
+| `--lf-sev-warning` / `--lf-sev-emergency` | `#ff8d84` | **Red is reserved** for Warning/Emergency. Nothing else may be red. At least 6:1 on `--lf-bg` and every surface (F.5.10 f). |
 | `--lf-sev-caution` | `#ffd23f` | Caution (yellow) |
 | `--lf-sev-advisory` | `#6cb4ff` | Advisory (blue) |
 | `--lf-sev-nominal` | `#d1d1d1` | Nominal is neutral by design |
 | `--lf-on-sev-*` | | text colour on a filled severity background |
 | `--lf-data-stale` | `#3fd6e6` | Cyan: missing / stale / unknown data |
-| `--lf-data-unavailable` | `#a3a3a8` | Gray: unavailable / not applicable |
+| `--lf-data-unavailable` | `#adadb2` | Gray: unavailable / not applicable; at least 6:1 on `--lf-bg` and every surface |
 | `--lf-procedure` | `#ea7dff` | Magenta: guided procedure steps (Table F.5-2) |
 | `--lf-focus` | `#5cff7a` | Bright green focus outline (global, do not override) |
 | `--lf-action`, `--lf-action-hover`, `--lf-action-edge`, `--lf-action-text` | `#146c43`, `#0f5a37`, `#3fae6f`, `#fff` | Buttons and actions: dark green per Appendix F Table F.5-2 (blue = Advisory, red = Warning; never use either for actions) |

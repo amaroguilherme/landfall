@@ -297,6 +297,22 @@ describe('case lifecycle (seeded scenario timeline)', () => {
     expect(v.state.escalation).toBeNull()
     expect(packetState(v.state).id).toBe('prepared')
   })
+  it('renal (CM-3): the red-flag question is step 1 and is answered "no" before any other step; the case stays in watch', () => {
+    const v = view(list, 'CM-3', 'renal_stone')
+    expect(v.state.spec.step_ids).toEqual(['r4', 'r1', 'r2', 'r3', 'r5'])
+    expect(v.state.spec.red_flag_step_ids).toEqual(['r4'])
+    // the simulated crew's steps, in the order the log shows them: the red-flag answer first, before r1 ("check totals")
+    expect(v.state.steps_done.map((d) => d.step_id)).toEqual(['r4', 'r1', 'r3', 'r5'])
+    const steps = v.state.log.filter((l) => l.event === 'STEP' && l.error === null)
+    expect(steps[0].detail).toBe('step r4 done, answered no (1 of 5)')
+    expect(steps[0].t).toBeLessThan(v.state.steps_done.find((d) => d.step_id === 'r1')!.t)
+    const select = v.state.log.find((l) => l.event === 'SELECT' && l.error === null)!
+    expect(v.state.steps_done[0].t - select.t!).toBe(120)
+    // the outcome and the reassessment are unchanged: watch, tripwire armed, reassess at MET 413/08:00:00
+    expect(v.state.status).toBe('watch')
+    expect(formatMet(v.state.outcome!.t)).toBe('410/08:00:00')
+    expect(formatMet(v.state.reassess_at!)).toBe('413/08:00:00')
+  })
   it('renal resolves when the clock passes reassessment (output recovered)', () => {
     const v = view(cases('mars_surface', 414 * DAY + 3600), 'CM-3', 'renal_stone')
     expect(v.state.status).toBe('resolved')

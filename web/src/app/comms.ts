@@ -281,6 +281,13 @@ export function formatCountdown(seconds: number): string {
   return `${m} min`
 }
 
+// One link clock. Every "link resumes in ..." phrase is formatCountdown(resumes_at − t) at the CASE clock t
+// (`useCases().t`; mission.tsx useCaseClock gives it without the fold): the clock minute, or the latest crew action
+// in that minute, when the case views are folded at that action. packet.ts (tier 2, packet delivery), the case views
+// and Downlink count from it, and so do the hero's words and the mission bar's comms popover. A phrase read off the
+// live second clock, or off the minute alone, disagrees with them (at 412/14:20:08, "11 d 05 h" beside "11 d 06 h";
+// after a crew action at 412/14:20:20, "11 d 06 h" beside "11 d 05 h"). Live hh:mm:ss digits stay on the second clock.
+
 /** Days for prose: "0.79 d" (two decimals at most, no trailing zeros). */
 function days(x: number): string {
   return `${Number(x.toFixed(2))} d`

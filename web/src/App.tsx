@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { MissionBar } from './app/MissionBar'
 import { MissionProvider } from './app/mission'
-import { MissionEngine } from './app/model'
+import { MissionEngine, ProcedureAlerts } from './app/model'
 import { Nav } from './app/Nav'
 import { RouteOutlet, prefetchRoutes } from './app/router'
 import { prefetchAllSnapshots } from './app/data'
@@ -60,6 +60,7 @@ export default function App() {
     <MissionProvider initial={linkedEnv ? { envId: linkedEnv } : undefined}>
       <UrlState />
       <MissionEngine />
+      <ProcedureAlerts />
       <a className="lf-skip" href="#main" onClick={skipToMain}>
         Skip to content
       </a>

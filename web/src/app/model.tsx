@@ -4,13 +4,14 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { buildGroundPacket, consentAllows } from './engine'
 import type { CaseEvent, CaseState, Consent, FhirBundle } from './engine'
-import { caseKey, caseSchedule, computeCases } from './caseTimeline'
+import { caseKey, caseSchedule, computeCases, tierOneFor } from './caseTimeline'
 import type { CaseEventRecord, CaseView } from './caseTimeline'
+import { procedureAlerts } from './procedureAlerts'
 import { useSnapshot } from './data'
 import type { LoadStatus, SnapshotState } from './data'
 import { evaluateMission } from './evaluate'
 import type { CrewEvaluation, MissionEvaluation } from './evaluate'
-import { metClock, useMetMinute, useMission } from './mission'
+import { caseClockOf, metClock, useMetMinute, useMission } from './mission'
 import { buildScenarioIndex, visibleObservations } from './scenarioData'
 import type { ScenarioIndex, SimCrewData, SpeReplayData } from './scenarioData'
 import type { CrewId, EnvId, Observation } from './vocab'
@@ -200,6 +201,25 @@ const onOpen = (v: { caseId: string }) => {
   if (v.caseId === 'spe_shelter') recordSpeOpen()
 }
 
+// One fold per (scenario, runtime observations, env, fold MET, user events): every useCases() caller in a render
+// (the App-level ProcedureAlerts publisher, the hero, a case page) shares it instead of folding again.
+let casesCache: {
+  index: ScenarioIndex
+  runtime: readonly Observation[]
+  envId: EnvId
+  t: number
+  userEvents: readonly CaseEventRecord[]
+  result: CaseView[]
+} | null = null
+
+function cachedCases(index: ScenarioIndex, runtime: readonly Observation[], envId: EnvId, t: number, userEvents: readonly CaseEventRecord[]): CaseView[] {
+  const c = casesCache
+  if (c && c.index === index && c.runtime === runtime && c.envId === envId && c.t === t && c.userEvents === userEvents) return c.result
+  const result = computeCases({ index, runtime, envId, t, userEvents }, cachedSchedule(index, runtime, envId), onOpen)
+  casesCache = { index, runtime, envId, t, userEvents, result }
+  return result
+}
+
 /** A case event as features dispatch it: t defaults to the scenario clock. */
 export type CaseEventInput = CaseEvent extends infer E ? (E extends { t: number } ? Omit<E, 't'> & { t?: number } : never) : never
 
@@ -239,13 +259,13 @@ export function useCases(): CasesState {
   const runtime = state.observations
   const envId = state.envId
   const crewId = state.crewId
-  let tFold = minute
-  for (const e of userEvents) if (e.event.t > tFold && e.event.t <= metClock.get().metNow) tFold = e.event.t
+  // the case clock (mission.tsx caseClockOf, also read alone by useCaseClock): the minute, or a later user event
+  const tFold = caseClockOf(minute, userEvents, metClock.get().metNow)
   const result = useMemo(() => {
     if (!scenario.index) return { status: scenario.status, cases: [] as CaseView[], scripted: [] as Observation[], error: scenario.error }
     try {
       const schedule = cachedSchedule(scenario.index, runtime, envId)
-      const cases = computeCases({ index: scenario.index, runtime, envId, t: tFold, userEvents }, schedule, onOpen)
+      const cases = cachedCases(scenario.index, runtime, envId, tFold, userEvents)
       return { status: 'ready' as LoadStatus, cases, scripted: schedule.answers, error: null }
     } catch (e) {
       return { status: 'error' as LoadStatus, cases: [] as CaseView[], scripted: [] as Observation[], error: (e as Error).message }
@@ -324,7 +344,7 @@ export function useGroundPacket(caseId: string, crewId?: CrewId): GroundPacketSt
 }
 
 // =============================================================================================
-// Publisher: the engine's alerts drive the mission-bar annunciator
+// Publishers: the engine's alerts and the return-to-procedure entries drive the mission-bar annunciator
 // =============================================================================================
 
 /** Mount once inside <MissionProvider>: publishes the evaluation's alerts under source 'mission'. */
@@ -339,5 +359,41 @@ export function MissionEngine() {
     last.current = sig
     publishAlerts('mission', evaluation.alerts)
   }, [evaluation, publishAlerts])
+  return null
+}
+
+/** Signature of an empty list: an empty procedure list is never published first, so it cannot mark the bar "evaluated". */
+const NO_PROCEDURE_ALERTS = '[]'
+
+/**
+ * Mount once inside <MissionProvider>, next to <MissionEngine/>: publishes the return-to-procedure entries
+ * (procedureAlerts.ts: a reassessment overdue, a new escalation) under source 'procedures', from the same case
+ * fold every view reads. The same signature guard as MissionEngine: it publishes only when the list changes,
+ * so publishing (which re-renders it) cannot loop.
+ */
+export function ProcedureAlerts() {
+  const { publishAlerts } = useMission()
+  const scenario = useScenario()
+  const cases = useCases()
+  const nowMet = scenario.index?.nowMet ?? null
+  const alerts = useMemo(() => {
+    if (cases.status !== 'ready' || nowMet === null) return null
+    try {
+      return procedureAlerts({ cases: cases.cases, t: cases.t, nowMet, tierOneFor })
+    } catch (e) {
+      // Mounted beside the routes, outside any of them: a failure here must never blank the app (the hero). The
+      // last published list stays; the error is logged so the QA console sweep catches it.
+      console.error('procedure alerts:', e)
+      return null
+    }
+  }, [cases.status, cases.cases, cases.t, nowMet])
+  const last = useRef<string>(NO_PROCEDURE_ALERTS)
+  useEffect(() => {
+    if (!alerts) return
+    const sig = JSON.stringify(alerts)
+    if (sig === last.current) return
+    last.current = sig
+    publishAlerts('procedures', alerts)
+  }, [alerts, publishAlerts])
   return null
 }

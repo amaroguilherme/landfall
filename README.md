@@ -47,13 +47,13 @@ Each link opens one view. `?env=` sets the environment (`iss`, `cislunar`, `luna
 ```bash
 git clone https://github.com/amaroguilherme/landfall && cd landfall
 uv sync --all-extras
-uv run pytest -q                          # 1,365 passed, 11 skipped on a fresh clone
+uv run pytest -q                          # 1,366 passed, 11 skipped on a fresh clone
 uv run python -m engine.vectors --check   # "vectors up to date": 801 fixed + 5,659 seeded random = 6,460
-cd web && npm ci && npx vitest run        # 7,011 passed, 1 skipped (27 files)
+cd web && npm ci && npx vitest run        # 7,074 passed, 1 skipped (32 files)
 npx tsc -p tsconfig.app.json --noEmit && npx vite build
 ```
 
-Measured on 15 November 2026 on the code deployed as commit a796d65 (a clean export of that tree builds the live site byte for byte). Of the 11 Python skips, 3 are tests superseded by the scenario generator's own Tier B report, and 8 re-parse cached sources (the Vol 1 PDF, the arXiv preprint and the iSWA RAD record, the STS-34 sources) that live in the gitignored `.cache/`; with that cache present, pytest reports 1,373 passed (1,027 engine, 346 ingest) and 3 skipped. The TypeScript suite replays every shared vector in the browser engine (`web/src/engine/conformance.test.ts`), and the two engines agree to 1e-9.
+Measured on 15 November 2026 on the code deployed as commit ff62883 (a clean export of that tree builds the live site byte for byte). Of the 11 Python skips, 3 are tests superseded by the scenario generator's own Tier B report, and 8 re-parse cached sources (the Vol 1 PDF, the arXiv preprint and the iSWA RAD record, the STS-34 sources) that live in the gitignored `.cache/`; with that cache present, pytest reports 1,374 passed (1,028 engine, 346 ingest) and 3 skipped. The TypeScript suite replays every shared vector in the browser engine (`web/src/engine/conformance.test.ts`), and the two engines agree to 1e-9.
 
 ## Architecture
 

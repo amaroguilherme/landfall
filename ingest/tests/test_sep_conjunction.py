@@ -282,3 +282,16 @@ def test_offline_rebuild_reproduces_the_shipped_snapshot():
     assert rebuilt["coverage"] == shipped["coverage"]
     assert rebuilt["caveats"] == shipped["caveats"]
     assert rebuilt["source"] == shipped["source"]
+
+
+def test_a_caveat_says_the_moratorium_counts_reach_beyond_the_coverage():
+    snap = _snap()
+    wins = snap["data"]["moratoria"]["windows"]
+    first, last = min(w["start_date"] for w in wins), max(w["end_date"] for w in wins)
+    assert (first, last, len(wins)) == ("2013-04-04", "2026-01-16", 8)
+    assert snap["coverage"] == {"start": "2013-04-05T00:00:00Z", "stop": "2013-04-15T00:00:00Z", "cadence": None}
+    assert snap["caveats"][-1] == (
+        "The coverage (2013-04-05 to 2013-04-15) is the April 2013 event only; data.moratoria also counts RAD samples "
+        "in all 8 published windows, 2013-04-04 to 2026-01-16, read from the iSWA requests listed in source.access_urls.")
+    # those requests are in access_urls: one iSWA month holds the last window's end
+    assert any("time.min=2026-01-06" in u and "id=msl_rad_dosimetry" in u for u in snap["source"]["access_urls"])

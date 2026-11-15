@@ -42,7 +42,7 @@ from datetime import date, datetime, timedelta, timezone
 from ingest._hapi_client import HapiClient, HapiError, build_url, fmt_hapi_time, hapi_time_to_iso
 from ingest._horizons_core import html_to_text, normalise_text, parse_horizons_time, quote_in_page
 from ingest.common import RunContext, make_snapshot, sha256_hex, to_iso_z
-from ingest.hapi import ISWA_HAPI, ISWA_MAX_SPAN
+from ingest.hapi import ISWA_HAPI, ISWA_MAX_SPAN, MSL_RTG_QUOTE
 from ingest.horizons import CALIBRATION_SPAN, MARS, access_url, fetch_table, horizons_params
 
 ADAPTER_ID = "rad_events"
@@ -539,6 +539,8 @@ def verify_literature(sub: RunContext) -> dict:
     text = html_to_text(raw)
     missing = [q["id"] for q in PAPER_QUOTES if not quote_in_page(q["text"], raw)]
     missing += [r for r in PAPER_TABLE1_SURFACE if not quote_in_page(r, raw)]
+    if not quote_in_page(MSL_RTG_QUOTE, raw):     # quoted in this snapshot's and hapi_msl_rad_dose's caveats
+        missing.append("RTG background (appendix)")
     if PAPER_TITLE not in text:
         missing.append("title")
     block = table_block(text)
@@ -819,8 +821,9 @@ def build(ctx: RunContext) -> dict:
            f"({', '.join(lit['table4_only_dates'])} appear there and not in Table 1; "
            f"{', '.join(lit['table1_only_dates'])} appear in Table 1 and not there). This replay uses Table 1 only."]
           if lit["table4_only_dates"] or lit["table1_only_dates"] else []),
-        "Detector E may include the rover's RTG background: the publisher's description does not say whether "
-        "dose_e_total is RTG-corrected. The rule's ratios are taken as served.",
+        "The publisher's description does not say whether dose_e_total is RTG-corrected. On the rover's RTG "
+        f"background, the paper ({first_author.split()[0]} et al. 2025, arXiv:{ARXIV_ID}, appendix) writes: "
+        f"\"{MSL_RTG_QUOTE}\" The rule's ratios are taken as served.",
         ABSORBED_DOSE_CAVEAT,
         f"Numbers from arXiv:{ARXIV_ID} Table 1 (Martian surface); the journal version (doi:{DOI}) was not compared.",
         f"Whole-record scan: {len(triggers)} triggers. Those that match no row of the paper's table are listed as "

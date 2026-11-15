@@ -523,9 +523,13 @@ def run(ctx: RunContext) -> list[dict]:
         "The '/2025/05/' in the URL is the upload slot of Revision E, replaced in place; the plan's 'Rev F (May 2025)' is wrong.",
         "The PDF is not redistributed (gitignored); it is identified by URL + sha256. A later in-place replacement "
         "at the same URL would change the sha256: re-run the adapter and re-check.",
-        "No requirement in this volume publishes a numeric in-flight alert threshold for crew physiology: the alert "
-        "requirements ([V2 6022], [V2 6153], [V2 11036], [V2 6164]) delegate limits to the program ('outside safe limits', "
-        "'approaching defined limits', 'exceed predefined thresholds').",
+        # Each quoted phrase is verbatim in the text of the requirements named after it; the limits named in the
+        # last sentence are the PDF's own numbers (test_std_vol2.py checks both, the latter on the cached PDF).
+        "No requirement in this volume publishes a numeric in-flight alert threshold for crew physiology. Its alert "
+        "requirements leave the alert point to the program, in their own words: 'outside safe limits' ([V2 6022], "
+        "[V2 11036]), 'approaching defined limits' ([V2 6153]), 'exceed predefined thresholds' ([V2 6164]). They do "
+        "so even where Vol 2 sets the limit itself: ppCO2 [V2 6004], suit CO2 [V2 11040], lunar dust [V2 6053] and "
+        "Martian dust [V2 6253].",
         "[V2 11034]/[V2 11035]/[V2 11036] cover suit pressure, ppO2 and ppCO2 (suited atmosphere), not biomedical data; "
         "the biomedical anchors are [V2 11023] (suit information management) and [V2 11037]/[V2 11038] (EVA metabolic rate).",
         "Only [V2 9023] is the medical/bioinstrumentation leakage-current requirement (Table 9.3-11). [V2 9017]-[V2 9022] are "

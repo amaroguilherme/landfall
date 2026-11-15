@@ -1,5 +1,12 @@
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import type { ManifestEntry } from '../../app/data'
 import { tCdf, tCritical } from '../../app/engine'
+import { computeStats, joinAnd } from '../data/model'
+import { ArchitectureSection } from './ArchitectureSection'
+import { SECTIONS, secNum } from './sections'
+import { TwoMinute } from './TwoMinute'
 import { META, THRESHOLDS, PERSONAL, alertClassFor, alertClasses, compliant, normReqId, quotedPhrase, sentencesContaining, windowLabel } from './rules'
 import { chanceRates, countsEither, criticalRow, measuredMultiplier, sdInterval95, unlimitedRow } from './stats'
 
@@ -232,5 +239,39 @@ describe('the measured multipliers of the Tier B evidence table (SPEC 3.3: 0.495
     expect(measuredMultiplier(undefined, 0, 0.001, undefined, null)).toEqual({ value: null, digits: 2 })
     expect(measuredMultiplier(1999, 1_000_000, 0.001, undefined, [0.5, 2]).digits).toBe(3) // 1.999 would print 2.00, a band edge
     expect(measuredMultiplier(500, 1_000_000, 0.001, undefined, [0.5, 2]).digits).toBe(2) // exactly on the edge: 0.50 is true
+  })
+})
+
+describe('the two-minute version and How it works say what ships and where the gap is', () => {
+  const textOf = (html: string) =>
+    html.replace(/<[^>]+>/g, '').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\s+/g, ' ')
+  const shipped = Object.values(
+    import.meta.glob<{ snapshots: ManifestEntry[] }>('../../../public/data/manifest.json', { eager: true, import: 'default' }),
+  )[0]
+  const agencies = joinAnd(computeStats(shipped.snapshots).realAgencies) // what #/data prints
+  const two = textOf(renderToStaticMarkup(createElement(TwoMinute, { meta: META, personal: PERSONAL, thresholds: THRESHOLDS, onOpen: () => {} })))
+  const how = textOf(renderToStaticMarkup(createElement(ArchitectureSection, { meta: META! })))
+  it('names the agencies the frozen snapshots come from, as #/data does', () => {
+    expect(agencies).toBe('NASA, NOAA and CSA')
+    expect(two).toContain(`frozen snapshots of ${agencies} data (and the scenario) ship with the app`)
+    expect(how).toContain(`one Python adapter per source fetches the ${agencies} data and freezes it as JSON`)
+    expect(how).toContain(`Python adapters fetch each ${agencies.replace(' and ', ' or ')} source once`)
+    expect(two + how).not.toContain('NASA and NOAA data')
+  })
+  it('scopes the gap to crew physiology and leaves the alert point, not every limit, to the program', () => {
+    expect(two).toContain(
+      'There is no NASA alert number to borrow. NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew ' +
+        'physiology (vital signs); its alert requirements leave the alert point to the program (',
+    )
+    expect(two).not.toMatch(/for crew health|leave the number/)
+  })
+  it('says the browser also loads the word-vector model, for the search only and outside the decision path', () => {
+    // features/find stays imported by method/index.tsx only (find.test.ts), so section 10 alone prints the model's size.
+    expect(how).toContain(
+      'At run time, the browser loads only those files and the rules, and a TypeScript engine evaluates them: pure functions, ' +
+        'same inputs, same outputs. For the search in section 10 only, the browser also loads a word-vector model, ' +
+        'which is outside the decision path. The same engine exists',
+    )
+    expect(SECTIONS[secNum('find') - 1].label).toBe("Find it in NASA's words")
   })
 })

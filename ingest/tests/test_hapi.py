@@ -297,3 +297,22 @@ def test_deep_space_daily_series_is_calendar_complete(sid):
         assert len(dates) == span == len(set(dates))  # one entry per calendar day, no gaps
         empty = [e["date"] for e in series["daily"] if e["n"] == 0]
         assert set(d["days_without_samples"]) <= set(empty)
+
+
+def test_msl_rtg_caveat_quotes_the_rad_teams_appendix():
+    """Detector E and the rover's RTG: the paper's words (re-found in the arXiv HTML by the rad_events adapter and
+    its tests), beside this window's own detector-B medians."""
+    if "hapi_msl_rad_dose" not in OUT:
+        pytest.skip("not generated")
+    s = json.loads(OUT["hapi_msl_rad_dose"].read_text())
+    med = {k: s["data"]["series"][k]["summary"]["median"] for k in ("dose_b_raw", "dose_b_rtg", "dose_e_total")}
+    assert hapi._msl_rtg_caveat({k: {"summary": {"median": v}} for k, v in med.items()}) == [s["caveats"][-1]]
+    assert s["caveats"][-1] == (
+        f"For scale, from this window's own data: the publisher's RTG correction lowers detector B's median from "
+        f"{med['dose_b_raw']:.1f} to {med['dose_b_rtg']:.1f} µGy/day ({med['dose_b_raw'] - med['dose_b_rtg']:.1f} "
+        f"µGy/day). dose_e_total's median is {med['dose_e_total']:.1f} µGy/day. On the rover's RTG background, the "
+        "RAD team's paper (Löwe et al. 2025, arXiv:2502.02469v1, appendix) writes: \"Dose rate E is not affected by "
+        "the additional radiation from radioactive decay, as its detection threshold is sufficiently high to exclude "
+        "the RTG background. In contrast, the measurements of dose rate B include the RTG background.\" LANDFALL "
+        "applies no RTG correction to dose_e_total.")
+    assert not any("If dose_e_total includes" in c for c in s["caveats"])

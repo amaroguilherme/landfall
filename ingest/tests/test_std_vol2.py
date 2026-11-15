@@ -6,7 +6,9 @@ Two layers:
     has not been run), one known answer per pitfall named in the adapter brief.
 """
 
+import io
 import json
+import re
 
 import pytest
 
@@ -294,3 +296,67 @@ def test_table_6_1_1_has_no_biomedical_rows(snap):
     params = [r[0] for r in t["rows"]]
     assert "Atmosphere Constituents (O2, CO2, etc.)" in params
     assert not any(k in p.lower() for p in params for k in ("heart", "biomedical", "ecg", "physiolog"))
+
+
+# The volume reading the gap section shows (#/method?s=gap): the first caveat that names an alert threshold.
+# Each quoted phrase -> the requirements it is tied to; the phrase is verbatim in each requirement's text.
+READING_TIES = {
+    "outside safe limits": ["[V2 6022]", "[V2 11036]"],
+    "approaching defined limits": ["[V2 6153]"],
+    "exceed predefined thresholds": ["[V2 6164]"],
+}
+# Limits Vol 2 sets itself, as the reading names them: id -> (PDF page, verbatim words of its requirement text).
+READING_LIMITS = {
+    "[V2 6004]": (53, "to no more than 3 mmHg"),
+    "[V2 11040]": (240, "shall not exceed 20 mmHg during contingency scenarios"),
+    "[V2 6053]": (65, "lunar dust particles less than 10 μm in size in the habitable atmosphere below a "
+                      "time-weighted average of 0.3 mg/m3"),
+    "[V2 6253]": (65, "Martian dust particles less than 10 μm in size in the habitable atmosphere below a "
+                      "time-weighted average of 0.1 mg/m3"),
+}
+
+
+def _volume_reading(snap):
+    return next(c for c in snap["caveats"] if "alert threshold" in c.lower())
+
+
+def test_volume_reading_leaves_the_alert_point_not_the_limit_to_the_program(snap, reqs):
+    c = _volume_reading(snap)
+    assert c.startswith("No requirement in this volume publishes a numeric in-flight alert threshold for crew physiology.")
+    assert "leave the alert point to the program" in c
+    assert "delegate" not in c  # Vol 2 sets some of these limits in numbers; it leaves the alert point open
+    for phrase, ids in READING_TIES.items():
+        assert f"'{phrase}' ({', '.join(ids)})" in c, phrase
+        for rid in ids:
+            assert phrase in reqs[rid]["text"], (phrase, rid)
+    assert c.endswith("They do so even where Vol 2 sets the limit itself: ppCO2 [V2 6004], suit CO2 [V2 11040], "
+                      "lunar dust [V2 6053] and Martian dust [V2 6253].")
+    for rid, (page, words) in READING_LIMITS.items():
+        if rid in reqs:  # [V2 6053] and [V2 6253] are not frozen here: the cached-PDF test below checks them
+            assert words in reqs[rid]["text"] and reqs[rid]["pdf_page"] == page, rid
+    assert set(re.findall(r"\[V2 \d{4,5}\]", c)) == {i for ids in READING_TIES.values() for i in ids} | set(READING_LIMITS)
+
+
+def test_limits_the_volume_reading_names_are_on_their_pdf_pages(snap):
+    """With .cache present (skipped without it): each limit is in the requirement text pdfminer reads on its page."""
+    pytest.importorskip("pdfminer")
+    from pdfminer.high_level import extract_pages
+    from pdfminer.layout import LAParams, LTTextContainer
+
+    from ingest.common import RunContext, sha256_hex
+
+    doc = snap["data"]["document"]
+    try:
+        pdf = RunContext(offline=True).fetch_bytes(doc["pdf_url"])
+    except RuntimeError:
+        pytest.skip(f"{doc['pdf_url']} is not in .cache/ingest")
+    assert sha256_hex(pdf) == doc["sha256"]
+    pages = sorted({p for p, _ in READING_LIMITS.values()})
+    text = {p: norm(clean_page("".join(el.get_text() for el in layout if isinstance(el, LTTextContainer)))[0])
+            for p, layout in zip(pages, extract_pages(io.BytesIO(pdf), page_numbers=[p - 1 for p in pages],
+                                                      laparams=LAParams()))}
+    for rid, (page, words) in READING_LIMITS.items():
+        at = text[page].find(rid)
+        assert at >= 0, rid
+        statement = text[page][at:text[page].find("[Rationale:", at)]
+        assert words in statement, rid

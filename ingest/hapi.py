@@ -56,6 +56,13 @@ TEPC_COMPLETE_DAY_MIN = 0.9 * 1440  # design choice: a day is 'complete' at >= 9
 
 DEEP_SPACE_WINDOW_DAYS = 90
 ISWA_MAX_SPAN = timedelta(days=30)  # server refuses > 31 days per request (HAPI 1408)
+# MSL RAD and the rover's RTG: two consecutive sentences, verbatim, of the RAD team's paper (arXiv:2502.02469v1,
+# "6 Appendix: Nowcasting SEP Events with Dose Rate B"). The rad_events adapter re-finds them in the arXiv HTML
+# on every build, and fails if they are missing.
+MSL_RTG_PAPER = "Löwe et al. 2025, arXiv:2502.02469v1, appendix"
+MSL_RTG_QUOTE = ("Dose rate E is not affected by the additional radiation from radioactive decay, as its "
+                 "detection threshold is sufficiently high to exclude the RTG background. In contrast, the "
+                 "measurements of dose rate B include the RTG background.")
 
 
 def to_ugy_per_day(value: float | None, unit: str) -> float | None:
@@ -620,10 +627,9 @@ def _msl_rtg_caveat(per_param: dict) -> list[str]:
     raw, rtg, e = med["dose_b_raw"], med["dose_b_rtg"], med["dose_e_total"]
     return [f"For scale, from this window's own data: the publisher's RTG correction lowers "
             f"detector B's median from {raw:.1f} to {rtg:.1f} µGy/day ({raw - rtg:.1f} µGy/day). "
-            f"dose_e_total's median is {e:.1f} µGy/day. If dose_e_total includes the rover's RTG "
-            "background, the natural Mars-surface dose rate is lower than the headline value. "
-            "LANDFALL does not apply detector B's correction to detector E, because they are "
-            "different detector materials and the publisher gives no correction for E."]
+            f"dose_e_total's median is {e:.1f} µGy/day. On the rover's RTG background, the RAD team's "
+            f"paper ({MSL_RTG_PAPER}) writes: \"{MSL_RTG_QUOTE}\" LANDFALL applies no RTG correction to "
+            "dose_e_total."]
 
 
 BUILDERS = [build_iss_track, build_iss_tepc, build_crater, build_msl]

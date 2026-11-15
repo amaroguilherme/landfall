@@ -403,14 +403,35 @@ def test_pre_existing_entries_are_byte_identical(snap):
     assert _digest(snap["data"]["tables"][1]) == PRE_TABLE_483_SHA256["Table E.2-1"]
     for key in ("appendix_e", "document", "self_test"):
         assert _digest(snap["data"][key]) == PRE_TABLE_483_SHA256[key], key
-    for key in ("title", "source", "caveats", "retrieved_at"):
+    for key in ("source", "retrieved_at"):
         assert _digest(snap[key]) == PRE_TABLE_483_SHA256[key], key
+    # A third --offline re-run (15 Nov 2026) named Table 4.8-3 in the title and appended one caveat on how it was
+    # read; the title before it and the 11 caveats before it are unchanged.
+    assert snap["title"].endswith(", Table 4.8-1 and Table 4.8-3")
+    assert _digest(snap["title"].removesuffix(" and Table 4.8-3")) == PRE_TABLE_483_SHA256["title"]
+    assert len(snap["caveats"]) == 12 and _digest(snap["caveats"][:11]) == PRE_TABLE_483_SHA256["caveats"]
     assert snap["retrieved_at"] == "2026-11-14T19:05:55Z"
 
 
 def _t483(snap):
     (t,) = [t for t in snap["data"]["tables"] if t["id"] == "Table 4.8-3"]
     return t
+
+
+def test_table_483_caveat_says_how_it_was_read_from_its_checks(snap):
+    t = _t483(snap)
+    (c,) = [c for c in snap["caveats"] if c.startswith("Table 4.8-3 ")]
+    assert c == snap["caveats"][-1]
+    assert c.startswith(f"Table 4.8-3 (page {t['printed_page']}) is read from the glyph rows of its page: 10 numbers "
+                        f"per printed row, 5 energy/fluence column pairs of 20 rows, {t['row_count']} pairs. ")
+    assert t["printed_page"] == t["pdf_page_number"] == 42 and t["row_count"] == 100
+    ok = sum(x["ok"] for x in t["checks"])
+    assert f" {ok} of its {len(t['checks'])} checks pass " in c and (ok, len(t["checks"])) == (8, 8)
+    first, last = t["rows"][0], t["rows"][-1]
+    assert (f"the printed {first['energy']} / {first['fluence']['text']} and {last['energy']} / "
+            f"{last['fluence']['text']}, ") in c
+    assert "pdfminer's own text extraction of the page gives the same numbers in the same pairs" in c
+    assert c.endswith("the energies strictly rise and the fluences strictly fall.")
 
 
 def test_table_483_pairs_as_printed(snap):

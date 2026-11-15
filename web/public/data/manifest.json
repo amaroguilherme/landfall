@@ -69,8 +69,8 @@
    "adapter": "hapi",
    "title": "Mars-surface dose rate, MSL RAD (CCMC iSWA)",
    "file": "hapi_msl_rad_dose.json",
-   "bytes": 28039,
-   "sha256": "b209039f69bdb08fc94f46834720851590d9b25763e6c952ba9245cba5c06f76",
+   "bytes": 28161,
+   "sha256": "8a7f630d120272031b4680cae4b86e6f9716215accd5cb2497a07ccdd3d81058",
    "retrieved_at": "2026-11-14T21:58:12Z",
    "provenance": "measured",
    "freshness": {
@@ -90,8 +90,8 @@
    "adapter": "rad_events",
    "title": "Mars-surface solar particle events: the RAD team's nowcast rule replayed on MSL RAD (CCMC iSWA)",
    "file": "hapi_msl_rad_sep_events.json",
-   "bytes": 77641,
-   "sha256": "3882b003863172861aab61771e1d70df6f800e5d3f6c80d01362f4e55f312c3b",
+   "bytes": 77925,
+   "sha256": "19e08c17062f9928c7061c7de4ab3decf4c430291ce119511db4d6030c454cd3",
    "retrieved_at": "2026-11-15T01:19:32Z",
    "provenance": "derived",
    "freshness": {
@@ -384,8 +384,8 @@
    "adapter": "sep_conjunction",
    "title": "Sol 242: a solar particle event at Gale crater during the April 2013 Mars solar conjunction (MSL RAD, STEREO-B HET)",
    "file": "sep_conjunction_2013.json",
-   "bytes": 23705,
-   "sha256": "9c8b46def1f9ab25842360713740e883303eda4f238a069200b2b40cdd31d7b3",
+   "bytes": 23928,
+   "sha256": "3f107551b440facf952a7e7119dd88f357d789d4a511688bb159146e98977805",
    "retrieved_at": "2026-11-15T15:28:13Z",
    "provenance": "derived",
    "freshness": {
@@ -424,10 +424,10 @@
   {
    "id": "std_vol1_requirements",
    "adapter": "std_vol1",
-   "title": "NASA-STD-3001 Vol 1 Rev C: verbatim requirements, FFD/PEL/POL glossary, Table 4.8-1",
+   "title": "NASA-STD-3001 Vol 1 Rev C: verbatim requirements, FFD/PEL/POL glossary, Table 4.8-1 and Table 4.8-3",
    "file": "std_vol1_requirements.json",
-   "bytes": 103164,
-   "sha256": "1d8ce5846c7c10354c4dfb1dcf4d056e3a9e16d41c7a1134ec14a6aafef52b66",
+   "bytes": 103607,
+   "sha256": "380ca57f72f4b54f8df9d5765897dece7fd394809a663e53e07dd8e30e1c0964",
    "retrieved_at": "2026-11-14T19:05:55Z",
    "provenance": "reference",
    "freshness": {
@@ -447,8 +447,8 @@
    "adapter": "std_vol2",
    "title": "NASA-STD-3001 Vol 2 Rev F: requirements, tables, Appendix F colours and verified negatives",
    "file": "std_vol2_requirements.json",
-   "bytes": 85517,
-   "sha256": "6952d1372d94e722635f56fae4a382b04501af377dbb8b3acede13d56f2345d7",
+   "bytes": 85682,
+   "sha256": "0d7eff485876d8d692811e61706575c12b9c1c0b6b55979cc744012d200d80e1",
    "retrieved_at": "2026-11-14T14:47:34Z",
    "provenance": "reference",
    "freshness": {

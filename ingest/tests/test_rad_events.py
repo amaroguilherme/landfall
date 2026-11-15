@@ -408,3 +408,23 @@ def test_offline_rebuild_reproduces_the_shipped_snapshot(tmp_path):
     assert rebuilt["coverage"] == shipped["coverage"]
     assert rebuilt["caveats"] == shipped["caveats"]
     assert rebuilt["source"] == shipped["source"]
+
+
+def test_the_rtg_caveat_quotes_the_papers_appendix():
+    """The caveat no longer says detector E 'may include' the RTG background: it quotes the RAD team's appendix
+    (the same sentences hapi_msl_rad_dose quotes), and those sentences are in the cached arXiv HTML."""
+    cav = [c for c in _snap()["caveats"] if "RTG" in c]
+    assert cav == ["The publisher's description does not say whether dose_e_total is RTG-corrected. On the rover's "
+                   "RTG background, the paper (Löwe et al. 2025, arXiv:2502.02469v1, appendix) writes: "
+                   f"\"{R.MSL_RTG_QUOTE}\" The rule's ratios are taken as served."]
+    assert not any("may include" in c for c in _snap()["caveats"])
+    assert _snap()["data"]["literature"]["authors"][0] == "Jan Leo Löwe"
+    raw = _cached_arxiv()
+    if raw is None:
+        pytest.skip("arXiv HTML not cached")
+    assert R.quote_in_page(R.MSL_RTG_QUOTE, raw)
+    text = R.html_to_text(raw)
+    # rindex: the first match of each heading is the page's table of contents, not the section body.
+    assert (text.rindex("6 Appendix: Nowcasting SEP Events with Dose Rate B") < text.index("exclude the RTG background")
+            < text.rindex("7 Appendix:"))
+    assert not R.quote_in_page(R.MSL_RTG_QUOTE.replace("exclude", "include"), raw)

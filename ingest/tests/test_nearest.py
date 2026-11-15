@@ -238,7 +238,10 @@ def test_also_named_by_us_follows_the_ids_the_app_already_names(nearest):
     meta = next(p for p in _json(ROOT / "engine" / "rules" / "meta.json")["principles"]
                 if p["id"] == "no_nasa_alert_thresholds")
     assert set(meta["requirement_ids"]) <= named["alert_number"]
-    assert named["alert_number"] == {"V2 6022", "V2 6164", "V2 11036", "V1 4006", "V1 4008", "V2 6153"}
+    # The std_vol2 volume reading also names the limits Vol 2 sets itself (V2 6004, 11040, 6053, 6253): none is ranked
+    # in the top five for alert_number, so no flag changes.
+    assert named["alert_number"] == {"V2 6022", "V2 6164", "V2 11036", "V1 4006", "V1 4008", "V2 6153",
+                                     "V2 6004", "V2 11040", "V2 6053", "V2 6253"}
     flagged = {(c["claim_id"], it["id"]) for c in nearest["claims"] for it in c["items"] if it["also_named_by_us"]}
     assert flagged == {("emc", "V2 6102"), ("alert_number", "V2 6153")}
     for c in nearest["claims"]:

@@ -504,6 +504,7 @@ def build(ctx: RunContext) -> dict:
     frag = {f["id"]: f["text"] for f in FRAGMENTS}
     last, after = m["last_before_rise"], m["highest_after_back"]
     by_hand = [w["id"] for w in data["jpl"]["windows"] if not w["quote_verified_this_build"]]
+    coverage = {"start": to_iso_z(datetime.fromtimestamp(bg_lo, UTC)), "stop": to_iso_z(HET_STOP), "cadence": None}
     caveats = [
         f"Small at the surface: in iSWA's samples the dose rate peaks at {m['peak']['ratio_to_background']:.3f} x the "
         f"5-day background, below the RAD team's {rad_events.THRESHOLD_FACTOR:g} x trigger, at a median spacing of "
@@ -529,6 +530,10 @@ def build(ctx: RunContext) -> dict:
         PDF_GLYPH_CAVEAT,
         "Moratorium counts are samples in iSWA's record inside each published window, not a statement about what "
         "was downlinked when.",
+        f"The coverage ({coverage['start'][:10]} to {coverage['stop'][:10]}) is the April 2013 event only; "
+        f"data.moratoria also counts RAD samples in all {len(moratoria)} published windows, "
+        f"{min(w['start_date'] for w in moratoria)} to {max(w['end_date'] for w in moratoria)}, read from the "
+        "iSWA requests listed in source.access_urls.",
     ]
     if lit["pdf_saved_by_hand_on"]:
         caveats.append(f"PDF saved by hand from the URL on {lit['pdf_saved_by_hand_on']} (the host refused this "
@@ -553,7 +558,7 @@ def build(ctx: RunContext) -> dict:
                         f"Event and quotations: {PAPER_CITATION}.",
         },
         retrieved_at=ctx.retrieved_at,
-        coverage={"start": to_iso_z(datetime.fromtimestamp(bg_lo, UTC)), "stop": to_iso_z(HET_STOP), "cadence": None},
+        coverage=coverage,
         freshness={"kind": "historical", "stale_after": None},
         provenance="derived", caveats=caveats, data=data)
 

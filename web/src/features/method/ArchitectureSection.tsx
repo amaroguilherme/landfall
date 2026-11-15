@@ -6,6 +6,7 @@ import { ENGINE_IS_SHIM } from '../../app/engine'
 import { Button, Num } from '../../ui'
 import { FoldPanel } from './fold'
 import type { MetaFile } from './rules'
+import { secNum } from './sections'
 import { ExtLink, Path, RichText, UnavailableNote } from './shared'
 
 const REPO_URL = 'https://github.com/amaroguilherme/landfall'
@@ -65,7 +66,7 @@ function Flow({ snapshots, adapters }: { snapshots: number | null; adapters: num
           <span className="lf-m-stage-when">build time</span>
           <strong>Ingest</strong>
           <span>
-            <Path>ingest/</Path>: <Num value={adapters} /> Python adapters fetch each NASA or NOAA source once
+            <Path>ingest/</Path>: <Num value={adapters} /> Python adapters fetch each NASA, NOAA or CSA source once
           </span>
         </li>
         <li className="lf-m-stage">
@@ -127,9 +128,11 @@ export function ArchitectureSection({ meta }: { meta: MetaFile }) {
       }
     >
       <p>
-        LANDFALL works in two stages. At build time, one Python adapter per source fetches the NASA and NOAA data and
+        LANDFALL works in two stages. At build time, one Python adapter per source fetches the NASA, NOAA and CSA data and
         freezes it as JSON, with its citation, caveats and checksum. At run time, the browser loads only those files and
-        the rules, and a TypeScript engine evaluates them: pure functions, same inputs, same outputs. The same engine
+        the rules, and a TypeScript engine evaluates them: pure functions, same inputs, same outputs. For the search in
+        section {secNum('find')} only, the browser also loads a word-vector model, which is outside the decision
+        path. The same engine
         exists as a stdlib-only Python reference, and both replay one shared set of conformance vectors, so you can check
         the arithmetic without trusting this interface. No server and no language model sits anywhere in the decision
         path.

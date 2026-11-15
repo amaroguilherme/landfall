@@ -67,8 +67,8 @@ export function TwoMinute({
       </h2>
       <ol className="lf-m-two-list">
         <li>
-          <strong>There is no NASA alert number to borrow.</strong> NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew health;
-          its alert requirements leave the number to the program
+          <strong>There is no NASA alert number to borrow.</strong> NASA-STD-3001 publishes no numeric in-flight alert thresholds for crew
+          physiology (vital signs); its alert requirements leave the alert point to the program
           {ids.length ? (
             <>
               {' '}
@@ -109,7 +109,7 @@ export function TwoMinute({
           <See s="severity" />. LANDFALL never raises an Emergency.
         </li>
         <li>
-          <strong>The environment is real; the crew is simulated.</strong> <Num value={snapshots} /> frozen snapshots of NASA and NOAA data
+          <strong>The environment is real; the crew is simulated.</strong> <Num value={snapshots} /> frozen snapshots of NASA, NOAA and CSA data
           (and the scenario) ship with the app; the crew’s vitals come from a seeded generator and are labelled wherever they appear (
           <See s="data" />
           ).

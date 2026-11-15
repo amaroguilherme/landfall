@@ -957,6 +957,14 @@ def build(pdf: bytes, *, pdf_url: str, landing_url: str, retrieved_at: str,
         spe["cited_by"] = [r["label"] for r in requirements
                            if re.search(rf"{re.escape(T483_ID)}(?![\d.-])", r.get("rationale") or "")]
         tables.append(spe)                      # appended after Table E.2-1: the earlier entries keep their bytes
+    # How Table 4.8-3 was read, from its own checks; appended last, so every earlier caveat keeps its place.
+    t483_caveats = [] if not spe else [
+        f"{T483_ID} (page {spe['printed_page']}) is read from the glyph rows of its page: {2 * T483_BLOCKS} numbers "
+        f"per printed row, {T483_BLOCKS} energy/fluence column pairs of {T483_ROWS} rows, {spe['row_count']} pairs. "
+        f"{sum(c['ok'] for c in spe['checks'])} of its {len(spe['checks'])} checks pass (data.tables[].checks): "
+        "pdfminer's own text extraction of the page gives the same numbers in the same pairs, the first and "
+        f"last pairs are the printed {T483_FIRST[0]} / {T483_FIRST[1]} and {T483_LAST[0]} / {T483_LAST[1]}, the "
+        "energies strictly rise and the fluences strictly fall."]
 
     history = parse_history(doc)
     if history["cover_revision"] != "C":
@@ -999,7 +1007,7 @@ def build(pdf: bytes, *, pdf_url: str, landing_url: str, retrieved_at: str,
         "E.2.3 says IMM was developed for application to ISS missions. LANDFALL reads its numbers as a sample, never "
         "as a forecast for a given mission. Of Table E.2-2 only four named rows, its note and its asterisk footnote "
         "are frozen (data.appendix_e).",
-    ] + (extra_caveats or [])
+    ] + t483_caveats + (extra_caveats or [])
 
     data = {
         "document": {
@@ -1033,7 +1041,7 @@ def build(pdf: bytes, *, pdf_url: str, landing_url: str, retrieved_at: str,
     return make_snapshot(
         id=f"{ADAPTER_ID}_requirements",
         adapter=ADAPTER_ID,
-        title="NASA-STD-3001 Vol 1 Rev C: verbatim requirements, FFD/PEL/POL glossary, Table 4.8-1",
+        title="NASA-STD-3001 Vol 1 Rev C: verbatim requirements, FFD/PEL/POL glossary, Table 4.8-1 and Table 4.8-3",
         source={
             "publisher": "NASA Office of the Chief Health and Medical Officer (OCHMO)",
             "name": "NASA-STD-3001, Volume 1, Revision C - NASA Spaceflight Human-System Standard, "
